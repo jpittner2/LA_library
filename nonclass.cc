@@ -103,40 +103,43 @@ void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
 //////////////////////
 
 // A will be overwritten, B will contain the solutions, A is nxn, B is rhs x n
-static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const int ldb, double *det)
+static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const int ldb, double *det, int n)
 {
 	int r, *ipiv;
+
 	
-	if (A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
+	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
 	A.copyonwrite();
 	ipiv = new int[A.nrows()];
-	r = clapack_dgesv(CblasRowMajor, A.nrows(), nrhs, A[0], A.ncols(), ipiv, B , ldb);
+	r = clapack_dgesv(CblasRowMajor, n, nrhs, A[0], A.ncols(), ipiv, B , ldb);
 	if (r < 0) {
 		delete[] ipiv;
 		laerror("illegal argument in lapack_gesv");
 	}
 	if (det && r>=0) {
 		*det = A[0][0];
-		for (int i=1; i<A.nrows(); ++i) *det *= A[i][i];
+		for (int i=1; i<n; ++i) *det *= A[i][i];
 		//change sign of det by parity of ipiv permutation
-		for (int i=0; i<A.nrows(); ++i) *det = -(*det);
+		for (int i=0; i<n; ++i) *det = -(*det);
 	}
 	delete [] ipiv;
 	if (r>0 && B) laerror("singular matrix in lapack_gesv");
 }
 
-void linear_solve(NRMat<double> &A, NRMat<double> *B, double *det)
+void linear_solve(NRMat<double> &A, NRMat<double> *B, double *det, int n)
 {
-if (B && A.nrows() != B->ncols()) laerror("incompatible matrices in linear_solve()");
+if(n<=0) n=A.nrows(); //default - whole matrix
+if (n==A.nrows() && B && A.nrows() != B->ncols() || B && n>B->ncols() ||n>A.nrows()) laerror("incompatible matrices in linear_solve()");
 if(B) B->copyonwrite();
-linear_solve_do(A,B?(*B)[0]:NULL,B?B->nrows() : 0,  B?B->ncols():A.nrows(), det);
+linear_solve_do(A,B?(double *)B:NULL,B?B->nrows() : 0,  B?B->ncols():A.nrows(), det,n);
 }
 
-void linear_solve(NRMat<double> &A, NRVec<double> &B, double *det)
+void linear_solve(NRMat<double> &A, NRVec<double> &B, double *det, int n)
 {
-if(A.nrows() != B.size()) laerror("incompatible matrices in linear_solve()");
+if(n<=0) n=A.nrows(); //default - whole matrix
+if(n==A.nrows() && A.nrows() != B.size() || n>B.size()||n>A.nrows() ) laerror("incompatible matrices in linear_solve()");
 B.copyonwrite();
-linear_solve_do(A,&B[0],1,A.nrows(),det);
+linear_solve_do(A,(double *)B,1,A.nrows(),det,n);
 }
 
 
@@ -146,14 +149,13 @@ linear_solve_do(A,&B[0],1,A.nrows(),det);
 extern "C" void FORNAME(dspsv)(const char *UPLO, const int *N, const int *NRHS,
 		double *AP, int *IPIV, double *B, const int *LDB, int *INFO);
 
-static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const int ldb, double *det)
+static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const int ldb, double *det, int n)
 {
 	int r, *ipiv;
 	if (det) cerr << "@@@ sign of the determinant not implemented correctly yet\n";
 	a.copyonwrite();
-	ipiv = new int[a.nrows()];
+	ipiv = new int[n];
 	char U = 'U';
-	int n = a.nrows();
 	FORNAME(dspsv)(&U, &n, &nrhs, a, ipiv, b, &ldb,&r);
 	if (r < 0) {
 		delete[] ipiv;
@@ -161,8 +163,8 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 	}
 	if (det && r >= 0) {
 		*det = a(0,0);
-		for (int i=1; i<a.nrows(); i++) *det *= a(i,i);
-		for (int i=0; i<a.nrows(); i++)
+		for (int i=1; i<n; i++) *det *= a(i,i);
+		for (int i=0; i<n; i++)
 			if (ipiv[i] != i) *det = -(*det);
 	}
 	delete[] ipiv;
@@ -170,29 +172,36 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 }
 
 
-void linear_solve(NRSMat<double> &a, NRMat<double> *B, double *det)
+void linear_solve(NRSMat<double> &a, NRMat<double> *B, double *det, int n)
 {
-	if (B && a.nrows() != B->ncols())
+if(n<=0) n=a.nrows();
+	if (n==a.nrows() && B && a.nrows() != B->ncols() || B && n>B->ncols() || n>a.nrows())
 		laerror("incompatible matrices in symmetric linear_solve()");
 	if (B) B->copyonwrite();
-linear_solve_do(a,B?(*B)[0]:NULL,B?B->nrows() : 0, B?B->ncols():a.nrows(),det);
+linear_solve_do(a,B?(*B)[0]:NULL,B?B->nrows() : 0, B?B->ncols():a.nrows(),det,n);
 }
 
 
-void linear_solve(NRSMat<double> &a, NRVec<double> &B, double *det)
+void linear_solve(NRSMat<double> &a, NRVec<double> &B, double *det, int n)
 {
-	if (a.nrows() != B.size())
+if(n<=0) n=a.nrows();
+	if (n==a.nrows()  && a.nrows()!= B.size() || n>B.size() || n>a.nrows())
 		laerror("incompatible matrices in symmetric linear_solve()");
 	B.copyonwrite();
-linear_solve_do(a,&B[0],1,a.nrows(),det);
+linear_solve_do(a,&B[0],1,a.nrows(),det,n);
 }
+
 
 extern "C" void FORNAME(dsyev)(const char *JOBZ, const char *UPLO, const int *N,
 		double *A, const int *LDA, double *W, double *WORK, const int *LWORK, int *INFO);
 
+extern "C" void FORNAME(dsygv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
+                double *A, const int *LDA, double *B, const int *LDB, double *W, double *WORK, const int *LWORK, int *INFO);
+
+
 // a will contain eigenvectors (columns if corder==1), w eigenvalues
 void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec, 
-		const bool corder, int n)
+		const bool corder, int n, NRMat<double> *b, const int itype)
 {
 	int m = a.nrows();
 	if (m != a.ncols()) laerror("diagonalize() call with non-square matrix");
@@ -200,9 +209,11 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 		laerror("inconsistent dimension of eigenvalue vector in diagonalize()");
 	if(n==0) n=m;
 	if(n<0||n>m) laerror("actual dimension out of range in diagonalize");
+	if(b) if(n>b->nrows() || n> b->ncols()) laerror("wrong B matrix dimension in diagonalize");
 
 	a.copyonwrite();
 	w.copyonwrite();
+	if(b) b->copyonwrite();
 
 	int r = 0;
 	char U ='U';
@@ -210,17 +221,20 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 	if (!eivec) vectors = 'N';
 	int LWORK = -1;
 	double WORKX;
+	int ldb=0; if(b) ldb=b->ncols();
 
 	// First call is to determine size of workspace
-	FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, (double *)&WORKX, &LWORK, &r );
+	if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, (double *)&WORKX, &LWORK, &r );
+	else FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, (double *)&WORKX, &LWORK, &r );
 	LWORK = (int)WORKX;
 	double *WORK = new double[LWORK];
-	FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, &r );
+	if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, &r );
+	else FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, &r );
 	delete[] WORK;
-	if (vectors == 'V' && corder) a.transposeme();
+	if (vectors == 'V' && corder) a.transposeme(n);
 
-	if (r < 0) laerror("illegal argument in syev() of diagonalize()");
-	if (r > 0) laerror("convergence problem in syev() of diagonalize()");
+	if (r < 0) laerror("illegal argument in sygv/syev in diagonalize()");
+	if (r > 0) laerror("convergence problem in sygv/syev in diagonalize()");
 }
 
 
@@ -228,29 +242,39 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 extern "C" void FORNAME(dspev)(const char *JOBZ, const char *UPLO, const int *N,
 		double *AP, double *W, double *Z, const int *LDZ, double *WORK, int *INFO);
 
+extern "C" void FORNAME(dspgv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
+                double *AP, double *BP, double *W, double *Z, const int *LDZ, double *WORK, int *INFO);
+
+
 // v will contain eigenvectors, w eigenvalues
 void diagonalize(NRSMat<double> &a, NRVec<double> &w, NRMat<double> *v,
-		const bool corder)
+		const bool corder, int n, NRSMat<double> *b, const int itype)
 {
-	int n = a.nrows();
-	if (v) if (v->nrows() != v ->ncols() || n != v->nrows())
+	if(n<=0) n = a.nrows();
+	if (v) if (v->nrows() != v ->ncols() || n > v->nrows() || n > a.nrows())
 		laerror("diagonalize() call with inconsistent dimensions");
-	if (n != w.size()) laerror("inconsistent dimension of eigenvalue vector");
+	if (n==a.nrows() && n != w.size() || n>w.size()) laerror("inconsistent dimension of eigenvalue vector");
+
+	if(b) if(n>b->nrows() || n> b->ncols()) laerror("wrong B matrix dimension in diagonalize");
 
 	a.copyonwrite();
 	w.copyonwrite();
+	if(v) v->copyonwrite();
+	if(b) b->copyonwrite();
 
 	int r = 0;
 	char U = 'U';
 	char job = v ? 'v' : 'n';
 
 	double *WORK = new double[3*n];
-	FORNAME(dspev)(&job, &U, &n, a, w, v?(*v)[0]:(double *)0, &n, WORK,  &r );
+	int ldv=v?v->ncols():n;
+	if(b) FORNAME(dspgv)(&itype,&job, &U, &n, a, *b, w, v?(*v)[0]:(double *)0, &ldv, WORK,  &r );
+	else FORNAME(dspev)(&job, &U, &n, a, w, v?(*v)[0]:(double *)0, &ldv, WORK,  &r );
 	delete[] WORK;
-	if (v && corder) v->transposeme();
+	if (v && corder) v->transposeme(n);
 
-	if (r < 0) laerror("illegal argument in spev() of diagonalize()");
-	if (r > 0) laerror("convergence problem in spev() of diagonalize()");
+	if (r < 0) laerror("illegal argument in spgv/spev in diagonalize()");
+	if (r > 0) laerror("convergence problem in spgv/spev in diagonalize()");
 }
 
 
@@ -259,15 +283,18 @@ extern "C" void FORNAME(dgesvd)(const char *JOBU,  const char *JOBVT,  const int
 		double *VT, const int *LDVT, double *WORK, const int *LWORK, int *INFO );
 
 void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s,
-		NRMat<double> *v, const bool corder)
+		NRMat<double> *v, const bool corder, int m, int n)
 {
-	int m = a.nrows();
-	int n = a.ncols();
-	if (u) if (m != u->nrows() || m!= u->ncols())
+	int m0 = a.nrows();
+	int n0 = a.ncols();
+	if(m<=0) m=m0;
+	if(n<=0) n=n0;
+	if(n>n0 || m>m0) laerror("bad dimension in singular_decomposition");
+	if (u) if (m > u->nrows() || m> u->ncols())
 		laerror("inconsistent dimension of U Mat in singular_decomposition()");
 	if (s.size() < m && s.size() < n) 
 		laerror("inconsistent dimension of S Vec in singular_decomposition()");
-	if (v) if (n != v->nrows() || n != v->ncols())
+	if (v) if (n > v->nrows() || n > v->ncols())
 		laerror("inconsistent dimension of V Mat in singular_decomposition()");
 
 	a.copyonwrite();
@@ -282,14 +309,14 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 	double work0;
 	int lwork = -1;
 	int r;
-	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n, s, v?(*v)[0]:0, &n,
-			u?(*u)[0]:0, &m, &work0, &lwork, &r);
+	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, &work0, &lwork, &r);
 	lwork = (int) work0;
 	double *work = new double[lwork];
-	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n, s, v?(*v)[0]:0, &n,
-			u?(*u)[0]:0, &m, &work0, &lwork, &r);
+	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, &work0, &lwork, &r);
 	delete[] work;
-	if (v && corder) v->transposeme();
+	if (v && corder) v->transposeme(n);
 
 	if (r < 0) laerror("illegal argument in gesvd() of singular_decomposition()");
 	if (r > 0) laerror("convergence problem in gesvd() of ingular_decomposition()");
@@ -300,58 +327,81 @@ extern "C" void FORNAME(dgeev)(const char *JOBVL, const char *JOBVR, const int *
 		double *A, const int *LDA, double *WR, double *WI, double *VL, const int *LDVL,
 		double *VR, const int *LDVR, double *WORK, const int *LWORK, int *INFO );
 
+extern "C" void FORNAME(dggev)(const char *JOBVL, const char *JOBVR, const int *N,
+		double *A, const int *LDA, double *B, const int *LDB, double *WR, double *WI,  double *WBETA, 
+		 double *VL, const int *LDVL,  double *VR, const int *LDVR,  
+		double *WORK, const int *LWORK, int *INFO );
+
 void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
-		NRMat<double> *vl, NRMat<double> *vr, const bool corder)
+		NRMat<double> *vl, NRMat<double> *vr, const bool corder, int n,
+		NRMat<double> *b, NRVec<double> *beta)
 {
-	int n = a.nrows();
-	if (n != a.ncols()) laerror("gdiagonalize() call for a non-square matrix");
-	if (n != wr.size()) 
+	if(n<=0) n = a.nrows();
+	if (n > a.ncols() || n>a.nrows() ) laerror("gdiagonalize() call for a non-square matrix");
+	if (n > wr.size()) 
 		laerror("inconsistent dimension of eigen vector in gdiagonalize()");
-	if (vl) if (n != vl->nrows() || n != vl->ncols())
+	if (vl) if (n > vl->nrows() || n > vl->ncols())
 		laerror("inconsistent dimension of vl in gdiagonalize()");
-	if (vr) if (n != vr->nrows() || n != vr->ncols())
+	if (vr) if (n > vr->nrows() || n > vr->ncols())
 		laerror("inconsistent dimension of vr in gdiagonalize()");
+	if (beta) if(n > beta ->size()) laerror("inconsistent dimension of beta in gdiagonalize()");
+	if(b) if(n > b->nrows() || n > b->ncols())
+		 laerror("inconsistent dimension of b in gdiagonalize()");
+	if(b && !beta || beta && !b) laerror("missing array for generalized diagonalization");
 
 	a.copyonwrite();
 	wr.copyonwrite();
 	wi.copyonwrite();
 	if (vl) vl->copyonwrite();
 	if (vr) vr->copyonwrite();
+	if (beta) beta->copyonwrite();
+	if (b) b->copyonwrite();
 	
 	char jobvl = vl ? 'V' : 'N';
 	char jobvr = vr ? 'V' : 'N';
 	double work0;
 	int lwork = -1;
 	int r;
-	FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &n, wr, wi, vr?vr[0]:(double *)0,
-			&n, vl?vl[0]:(double *)0, &n, &work0, &lwork, &r);
+	int lda=a.ncols();
+	int ldb=0;
+	if(b) ldb=b->ncols();
+	int ldvl= vl?vl->ncols():lda;
+	int ldvr= vr?vr->ncols():lda;
+	if(b)  FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
+                        &ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
+			&ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
 	lwork = (int) work0;
 	double *work = new double[lwork];
-	FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &n, wr, wi, vr?vr[0]:(double *)0,
-			&n, vl?vl[0]:(double *)0, &n, &work0, &lwork, &r);
+	if(b) FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
+                        &ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
+			&ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
 	delete[] work;
 
 	if (corder) {
-		if (vl) vl->transposeme();
-		if (vr) vr->transposeme();
+		if (vl) vl->transposeme(n);
+		if (vr) vr->transposeme(n);
 	}
 
-	if (r < 0) laerror("illegal argument in geev() of gdiagonalize()");
-	if (r > 0) laerror("convergence problem in geev() of gdiagonalize()");
+	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
+	if (r > 0) laerror("convergence problem in ggev/geev in gdiagonalize()");
 }
 
 void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
-		NRMat< complex<double> >*vl, NRMat< complex<double> > *vr)
+		NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
+		const bool corder, int n,NRMat<double> *b, NRVec<double> *beta)
 {
-	int n = a.nrows();
-	if(n != a.ncols()) laerror("gdiagonalize() call for a non-square matrix");
+	if(!corder)  laerror("gdiagonalize() corder 0 not implemented");
+	if(n<=0)  n = a.nrows();
+	if(n> a.nrows() || n ==  a.nrows() && n != a.ncols()) laerror("gdiagonalize() call for a non-square matrix");
 
 	NRVec<double> wr(n), wi(n);
 	NRMat<double> *rvl = 0;
 	NRMat<double> *rvr = 0;
 	if (vl) rvl = new NRMat<double>(n, n);
 	if (vr) rvr = new NRMat<double>(n, n);
-	gdiagonalize(a, wr, wi, rvl, rvr, 0);
+	gdiagonalize(a, wr, wi, rvl, rvr, 0, n, b, beta);
 	
 	//process the results into complex matrices
 	int i;
@@ -534,9 +584,7 @@ double trace2(const NRSMat<double> &a, const NRSMat<double> &b,
 }
 
 
-//generalized diagonalization, eivecs will be in columns of a
-//counts with actual dimension smaller than allocated dimension
-
+#ifdef obsolete
 void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b, int n)
 {
 if(a.nrows()!=a.ncols() || a.nrows()!=w.size() || a.nrows()!=b.nrows()  || b.nrows()!=b.ncols() ) laerror("incompatible Mats in gendiagonalize");
@@ -606,8 +654,9 @@ for(int i=n-1; i>=0; --i)//component loop
         a(i,j) /= dl[i];
 	}
 }
-
 }
+#endif
+//obsolete
 
 //auxiliary routine to adjust eigenvectors to guarantee real logarithm
 //at the moment not rigorous yet
