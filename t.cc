@@ -9,6 +9,7 @@
 #include "davidson.h"
 #include "gmres.h"
 #include "conjgrad.h"
+#include "diis.h"
 
 
 extern void test(const NRVec<double> &x);
@@ -541,25 +542,49 @@ cout <<v;
 */
 if(0)
 {
-const int n=3;
+int n;
+cin >>n;
 NRMat<double> a(n,n);
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
 	{
 	a(i,j)= random()/(1.+RAND_MAX);
-	a(j,i)= -a(i,j);
+	a(j,i)= random()/(1.+RAND_MAX);
 	}
 NRMat<double> b; b|=a;
 NRVec<double> er(n),ei(n);
 NRMat<double> vr(n,n),vl(n,n);
-gdiagonalize(b,er,ei,&vl,&vr);
+gdiagonalize(b,er,ei,&vl,&vr,1,0,1,1);
 cout <<er<<ei;
 cout <<"left eivec\n"<<vl <<"right eivec\n"<<vr;
-NRMat<double> u=exp(a*.125);
-cout <<"norms "<<u.norm() << ' '<<(u-1.).norm()<<endl;
-gdiagonalize(u,er,ei,&vl,&vr);
+cout <<"test orthogonality\n" << vl.transpose() * vr;
+NRMat<double> u=exp(a*.1);
+gdiagonalize(u,er,ei,&vl,&vr,1,0,1,1);
 cout <<er<<ei;
 cout <<"left eivec\n"<<vl <<"right eivec\n"<<vr;
+cout <<"test orthogonality\n" << vl.transpose() * vr;
 }
+
+if(0)
+{
+int k;
+cin >>k;
+int n=2*k;
+NRMat<double> a(n,n);
+//matrix with known spectrum
+for(int i=0;i<n;++i) 
+        {
+	for(int j=0;j<k;++j) a(i,j)=j+1.+k*k-(i==j?0.:i+1.);
+	for(int j=k; j<n; ++j) a(i,j)=i-j-k*k+(i==j?i+1.:0.);
+        }
+NRVec<double> er(n),ei(n);
+NRMat<double> vr(n,n),vl(n,n);
+cout <<"input matrix\n"<<a;
+gdiagonalize(a,er,ei,&vl,&vr,1,0,1);
+cout <<er<<ei;
+cout <<"left eivec\n"<<vl <<"right eivec\n"<<vr;
+cout <<"test orthogonality\n" << vl.transpose() * vr;
+}
+
 
 if(0)
 {
@@ -785,7 +810,7 @@ NRMat<double> amat,bmat;
 cin >>amat;
 cin >>bmat;
 NRVec<double> v(amat.nrows());
-gendiagonalize(amat,v,bmat,2);
+diagonalize(amat,v,1,1,0,&bmat,1);
 cout <<amat;
 cout <<v;
 }
@@ -795,18 +820,18 @@ if(0)
 {
 int n,m;
 cin>>n >>m;
-NRMat<double> a(n,n);
+NRSMat<double> a(n,n);
 NRVec<double> rr(n);
 
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         {
         a(i,j)= random()/(1.+RAND_MAX);
-        a(j,i)= a(i,j);
 	if(i==j) a(i,i)+= .5*(i-n);
         }
 
-NRMat<double> aa;
-aa=a; diagonalize(aa,rr);
+NRSMat<double> aa;
+NRMat<double> vv(n,n);
+aa=a; diagonalize(aa,rr,&vv);
 NRVec<double> r(m);
 NRVec<double> *eivecs = new NRVec<double>[m];
 davidson(a,r,eivecs,NULL,m,1,1e-6,1,200);
@@ -820,7 +845,46 @@ cout <<"Eigenvectors compare:\n";
 for(int i=0; i<m; ++i) 
 	{
 	cout <<eivecs[i];
-	for(int j=0; j<n;++j) cout <<aa[j][i]<<" ";
+	for(int j=0; j<n;++j) cout <<vv[j][i]<<" ";
+	cout <<endl;
+	}
+
+}
+
+if(0) //davidson of a non-symmetric matrix
+{
+int n,m;
+cin>>n >>m;
+NRMat<double> a(n,n);
+NRVec<double> rr(n),ii(n);
+
+double tmp=0.;
+for(int i=0;i<n;++i) for(int j=0;j<n;++j)
+        {
+        a(i,j)= random()/(1.+RAND_MAX);
+        a(j,i)= random()/(1.+RAND_MAX);
+	if(i==j) a(i,i)+= .5*(i-n);
+	tmp+= (a(i,j)-a(j,i))*(a(i,j)-a(j,i));
+        }
+cout <<"norm of asymmetry "<<sqrt(tmp)<<endl;	
+
+NRMat<double> aa=a;
+NRMat<double> vv=aa;
+gdiagonalize(aa, rr, ii, NULL, &vv, 1, 0, 2, 0, NULL,NULL);
+NRVec<double> r(m);
+NRVec<double> *eivecs = new NRVec<double>[m];
+davidson(a,r,eivecs,NULL,m,1,1e-6,1,200);
+
+cout <<"Davidson energies " <<r;
+cout <<"Exact energies " ;
+for(int i=0; i<m; ++i) cout <<rr[i]<<" ";
+cout <<endl;
+
+cout <<"Eigenvectors compare:\n";
+for(int i=0; i<m; ++i) 
+	{
+	cout <<eivecs[i];
+	for(int j=0; j<n;++j) cout <<vv[j][i]<<" ";
 	cout <<endl;
 	}
 
@@ -829,7 +893,7 @@ for(int i=0; i<m; ++i)
 //davidson of large very sparse matrix (10n/n^2)
 
 #undef sparsity
-#define sparsity (n/2)
+#define sparsity (n*2)
 if(0)
 {
 int n,m;
@@ -842,6 +906,57 @@ NRVec<double> r(m);
 davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,0,300,300);
 cout <<r;
 }
+
+//davidson of symmetric matrix and of its unsymmetric similarity transform
+#undef sparsity
+#define sparsity (n*2)
+#define sparsity2 (n/5)
+if(1)
+{
+int n,m;
+cin >>n>>m;
+        SparseMat<double> aa(n,n);
+        aa.setsymmetric();
+        for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),random()/(1.+RAND_MAX));
+        for(int i=0; i<n; ++i) aa.add(i,i,500*random()/(1.+RAND_MAX));
+NRVec<double> r(m);
+NRVec<double> r2(m);
+davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,1,300,300);
+ SparseMat<double> bb(n,n);
+for(int i=0; i<sparsity2;i++) bb.add(randind(n),randind(n),random()/(1.+RAND_MAX));
+SparseMat<double> e1,e2,cc;
+e1=exp(bb);
+e2=exp(bb*-1.);
+aa.setunsymmetric();
+cc=e1*aa*e2;
+davidson(cc,r2,(NRVec<double> *)NULL,"eivecs2",m,1,1e-5,1,300,300);
+cout <<"original matrix" <<r;
+cout <<"transformed matrix" <<r2;
+}
+
+//davidson of large very sparse matrix unsymmetric matrix
+#undef sparsity
+#define sparsity (n)
+if(0)
+{
+int n,m;
+cin >>n>>m;
+        SparseMat<double> aa(n,n);
+        for(int i=0; i<sparsity;i++) 
+		{
+		int k= randind(n);
+		int l= randind(n);
+		double a=random()/(1.+RAND_MAX);
+		double b=random()/(1.+RAND_MAX)-.5;
+		aa.add(k,l,a);
+		aa.add(l,k,a+b/20);
+		}
+        for(int i=0; i<n; ++i) aa.add(i,i,500*random()/(1.+RAND_MAX));
+NRVec<double> r(m);
+davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,0,300,300);
+cout <<r;
+}
+
 
 if(0)
 {
@@ -881,7 +996,7 @@ for(int i=0; i<m; ++i)
 }
 
 
-if(1)
+if(0)
 {
 int n,m;
 cin>>n >>m;
@@ -898,5 +1013,37 @@ for(int i=0;i<n;++i) b[i] = i+1;
 gmres(aa,b,x,1,1e-20,20,1,1,1,1000,1);
 //conjgrad(aa,b,x,1,1e-10,1000,1,0,1);
 }
+
+if(0)
+{
+NRMat<double> A(3,3);
+A=1.;
+double *p = (double *)A;
+*p=2.;
+cout <<A;
+}
+
+if(0)
+{
+int i;
+DIIS<NRVec<double> > diis(5,1);
+int dim=8;
+NRVec<double> solution(dim), deviation(dim);
+for(i=0; i<dim; ++i) solution[i]=i&1 ? i/2.:-i-3.;
+for(i=0; i<dim; ++i) deviation[i]= (i&2 ? 1:-1) * random()/(1.+RAND_MAX);
+double norm=1e100;
+for(int iter=1; iter<100 && norm>1e-8 ; ++iter)
+	{
+	NRVec<double> trial=solution;
+	trial.copyonwrite();
+	for(i=0; i<dim; ++i) trial[i] += deviation[i]/iter;
+	cout <<"iter "<<iter<<endl;
+	cout << "trial "<<trial;
+	cout <<"diis " << (norm=diis.extrapolate(trial)) <<endl;
+	cout << "after diis "<<trial;
+	deviation=trial-solution;
+	}
+}
+
 
 }
