@@ -6,6 +6,7 @@
 #include "sparsemat.h"
 #include "matexp.h"
 #include "fourindex.h"
+#include "davidson.h"
 
 
 extern void test(const NRVec<double> &x);
@@ -489,7 +490,7 @@ for(int n=8; n<=1024*1024;n+=n)
 	}
 }
 
-if(1)
+if(0)
 {
 int n;
 cin>>n;
@@ -536,7 +537,7 @@ if(0)
 {
 const int n=3;
 NRMat<double> a(n,n);
-for(int i=0;i<n;++i) for(int j=0;j<i;++j)
+for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
 	{
 	a(i,j)= random()/(1.+RAND_MAX);
 	a(j,i)= -a(i,j);
@@ -772,7 +773,45 @@ cout <<"test "<<a.dot(a)<<endl;
 
 }
 
+if(0)
+{
+NRMat<double> amat,bmat;
+cin >>amat;
+cin >>bmat;
+NRVec<double> v(amat.nrows());
+gendiagonalize(amat,v,bmat,2);
+cout <<amat;
+cout <<v;
 }
 
 
+if(1)
+{
+int n,m;
+cin>>n >>m;
+NRMat<double> a(n,n);
+NRVec<double> rr(n);
 
+for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
+        {
+        a(i,j)= random()/(1.+RAND_MAX);
+        a(j,i)= a(i,j);
+	if(i==j) a(i,i)+= .5*(i-n);
+        }
+
+NRMat<double> aa=a;
+cout <<aa;
+diagonalize(aa,rr);
+cout <<aa;
+cout <<rr;
+
+NRVec<double> r(m);
+NRVec<double> *eivecs = new NRVec<double>[m];
+davidson(a,eivecs,r,m);
+
+cout <<r;
+
+}
+
+
+}

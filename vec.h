@@ -521,7 +521,7 @@ void NRVec<T>::resize(const int n)
 }
 
 
-// assignmet with a physical copy
+// assignmet with a physical (deep) copy
 template <typename T>
 NRVec<T> & NRVec<T>::operator|=(const NRVec<T> &rhs)
 {

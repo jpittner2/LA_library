@@ -34,7 +34,7 @@ NRSMat<T>::NRSMat(const NRMat<T> &rhs)
 
 
 
-// assing to diagonal
+// assign to diagonal
 template <typename T>
 NRSMat<T> & NRSMat<T>::operator=(const T &a)
 {
@@ -42,6 +42,17 @@ NRSMat<T> & NRSMat<T>::operator=(const T &a)
 	for (int i=0; i<nn; i++) v[i*(i+1)/2+i] = a;
 	return *this;
 }
+
+//get diagonal
+template <typename T>
+void NRSMat<T>::diagonalof(NRVec<T> &r) const
+{
+#ifdef DEBUG
+if(r.size()!=nn) laerror("incompatible vector in diagonalof()");
+#endif
+        for (int i=0; i<nn; i++) r[i] = v[i*(i+1)/2+i];
+}
+
 
 // unary minus
 template <typename T>
@@ -71,7 +82,7 @@ void NRSMat<T>::fprintf(FILE *file, const char *format, const int modulo) const
 }
 
 // read matrix from the file with specific format
-template <class T>
+template <typename T>
 void NRSMat<T>::fscanf(FILE *f, const char *format)
 {
 	int n, m;
@@ -268,7 +279,7 @@ void NRSMat< complex<double> >::axpy(const complex<double> alpha,
 }
 
 
-export template <class T>
+export template <typename T>
 ostream& operator<<(ostream &s, const NRSMat<T> &x)
                 {
                 int i,j,n;
@@ -282,7 +293,7 @@ ostream& operator<<(ostream &s, const NRSMat<T> &x)
                 }
 
 
-export template <class T>
+export template <typename T>
 istream& operator>>(istream  &s, NRSMat<T> &x)
                 {
                 int i,j,n,m;

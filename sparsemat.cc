@@ -484,6 +484,24 @@ for(i=0;i<nn;++i)
 		}
 }
 
+
+//get diagonal, do not construct a new object, but store in existing one, important for huge CI matrices
+template <class T>
+void SparseMat<T>::diagonalof(NRVec<T> &r) const
+{
+#ifdef DEBUG
+if(nn!=mm) laerror("diagonalof() non-square sparse matrix");
+#endif
+matel<T> *l=list;
+r=(T)0;
+while(l)
+	{
+	if(l->row == l->col) r[l->row]+= l->elem;
+	l= l->next;
+	}
+}
+
+
 //constructor dense matrix from sparse
 export template <class T>
 NRMat<T>::NRMat(const SparseMat<T> &rhs)

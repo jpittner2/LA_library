@@ -1,3 +1,6 @@
+#ifndef _LA_NONCLASS_H_
+#define _LA_NONCLASS_H_
+
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"
@@ -48,7 +51,7 @@ extern T trace2(const NRMat<T> &a, const NRMat<T> &b, bool trb=0); \
 extern T trace2(const NRSMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0); \
 extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0); \
-extern void diagonalize(NRMat<T> &a, NRVec<T> &w, const bool eivec=1, const bool corder=1); \
+extern void diagonalize(NRMat<T> &a, NRVec<T> &w, const bool eivec=1, const bool corder=1, int n=0); \
 extern void diagonalize(NRSMat<T> &a, NRVec<T> &w, NRMat<T> *v, const bool corder=1);\
 extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<T> &s,\
 		NRMat<T> *v, const bool corder=1);
@@ -72,7 +75,7 @@ extern NRMat<double> matrixfunction(NRMat<double> a, complex<double> (*f)(const 
 
 
 //generalized diagonalization of symmetric matrix with symmetric positive definite metric matrix b
-extern void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b);
+extern void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b, const int n=0);
 
 //functions on matrices
 inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&sqrt); }
@@ -98,3 +101,4 @@ const NRMat<T> inverse(NRMat<T> a, T *det=0)
 	return result;
 }
 
+#endif

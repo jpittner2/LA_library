@@ -43,6 +43,7 @@ public:
 	const NRMat<T> operator*(const NRMat<T> &rhs) const; // SMat*Mat 
 	const T dot(const NRSMat &rhs) const; // Smat.Smat
 	const NRVec<T> operator*(const NRVec<T> &rhs) const; 
+	void diagonalof(NRVec<T> &) const; //get diagonal
 	inline const T& operator[](const int ij) const;
 	inline T& operator[](const int ij);
 	inline const T& operator()(const int i, const int j) const;

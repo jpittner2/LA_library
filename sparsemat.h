@@ -1,3 +1,6 @@
+#ifndef _SPARSEMAT_H_
+#define _SPARSEMAT_H_
+
 //for vectors and dense matrices we shall need
 #include "la.h"
 
@@ -85,6 +88,7 @@ public:
         inline const SparseMat operator-(const SparseMat &rhs) const {return SparseMat(*this) -= rhs;} //must not be symmetric+general
 	const NRVec<T> multiplyvector(const NRVec<T> &rhs, const bool transp=0) const; //sparse matrix * dense vector optionally transposed
 	inline const NRVec<T> operator*(const NRVec<T> &rhs) const {return multiplyvector(rhs);} //sparse matrix * dense vector
+	void diagonalof(NRVec<T> &) const; //get diagonal
 	const SparseMat operator*(const SparseMat &rhs) const; 
         void gemm(const T beta, const SparseMat &a, const char transa, const SparseMat &b, const char transb, const T alpha);//this := alpha*op( A )*op( B ) + beta*this, if this is symemtric, only half will be added onto it
 	const T dot(const SparseMat &rhs) const; //supervector dot product
@@ -219,4 +223,4 @@ while(l)
 return *this;
 }
 
-
+#endif

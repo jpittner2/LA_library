@@ -34,6 +34,25 @@ NRMat<T> & NRMat<T>::operator=(const T &a)
 
 
 
+//get diagonal; for compatibility with large matrices do not return newly created object
+template <typename T>
+void NRMat<T>::diagonalof(NRVec<T> &r) const
+{
+#ifdef DEBUG
+        if (nn != mm) laerror("diagonalof() non-square matrix");
+	if (r.size() != nn) laerror("diagonalof() incompatible vector");
+#endif
+
+#ifdef MATPTR
+         for (int i=0; i< nn; i++) r[i] = v[i][i];
+#else
+         {int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) r[j] = v[i];}
+#endif
+
+}
+
+
+
 // M += a
 template <typename T>
 NRMat<T> & NRMat<T>::operator+=(const T &a)
@@ -750,7 +769,7 @@ INSTANTIZE(int)
 INSTANTIZE(char)
 
 
-export template <class T>
+export template <typename T>
 ostream& operator<<(ostream &s, const NRMat<T> &x)
                 {
                 int i,j,n,m;
@@ -764,7 +783,7 @@ ostream& operator<<(ostream &s, const NRMat<T> &x)
                 return s;
                 }
 
-export template <class T>
+export template <typename T>
 istream& operator>>(istream  &s, NRMat<T> &x)
                 {
                 int i,j,n,m;

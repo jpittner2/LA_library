@@ -186,12 +186,14 @@ extern "C" void FORNAME(dsyev)(const char *JOBZ, const char *UPLO, const int *N,
 
 // a will contain eigenvectors (columns if corder==1), w eigenvalues
 void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec, 
-		const bool corder)
+		const bool corder, int n)
 {
-	int n = a.nrows();
-	if (n != a.ncols()) laerror("diagonalize() call with non-square matrix");
+	int m = a.nrows();
+	if (m != a.ncols()) laerror("diagonalize() call with non-square matrix");
 	if (a.nrows() != w.size()) 
 		laerror("inconsistent dimension of eigenvalue vector in diagonalize()");
+	if(n==0) n=m;
+	if(n<0||n>m) laerror("actual dimension out of range in diagonalize");
 
 	a.copyonwrite();
 	w.copyonwrite();
@@ -204,16 +206,17 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 	double WORKX;
 
 	// First call is to determine size of workspace
-	FORNAME(dsyev)(&vectors, &U, &n, a, &n, w, (double *)&WORKX, &LWORK, &r );
+	FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, (double *)&WORKX, &LWORK, &r );
 	LWORK = (int)WORKX;
 	double *WORK = new double[LWORK];
-	FORNAME(dsyev)(&vectors, &U, &n, a, &n, w, WORK, &LWORK, &r );
+	FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, &r );
 	delete[] WORK;
 	if (vectors == 'V' && corder) a.transposeme();
 
 	if (r < 0) laerror("illegal argument in syev() of diagonalize()");
 	if (r > 0) laerror("convergence problem in syev() of diagonalize()");
 }
+
 
 
 extern "C" void FORNAME(dspev)(const char *JOBZ, const char *UPLO, const int *N,
@@ -526,17 +529,22 @@ double trace2(const NRSMat<double> &a, const NRSMat<double> &b,
 
 
 //generalized diagonalization, eivecs will be in columns of a
-void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b)
+//counts with actual dimension smaller than allocated dimension
+
+void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b, int n)
 {
 if(a.nrows()!=a.ncols() || a.nrows()!=w.size() || a.nrows()!=b.nrows()  || b.nrows()!=b.ncols() ) laerror("incompatible Mats in gendiagonalize");
 
 a.copyonwrite();
 w.copyonwrite();
 b.copyonwrite();
-int n=w.size();
-NRVec<double> dl(n);
+int m=w.size();
+NRVec<double> dl(m);
 int i,j;
 double x;
+
+if(n==0) n=m;
+if(n<0 || n>m) laerror("actual dimension in gendiagonalize out of range");
 
 //transform the problem to usual diagonalization
 /*
@@ -620,7 +628,7 @@ for(j=0; j<n ; ++j)
 {
 	for(i=j;i<n;++i)
 	{
-        x = a(i,j) - cblas_ddot(i-j,&a(j,j),n,&b(i,j),1)
+        x = a(i,j) - cblas_ddot(i-j,&a(j,j),m,&b(i,j),1)
 		- cblas_ddot(j,&a(j,0),1,&b(i,0),1);
         a(i,j) = x/dl[i];
 	}
@@ -630,7 +638,7 @@ for(j=0; j<n ; ++j)
 for(i=1;i<n;++i) for(j=0; j<i; ++j) a(j,i)=a(i,j);
 
 //diagonalize by a standard procedure
-diagonalize(a,w,1,1);
+diagonalize(a,w,1,1,n);
 
 //transform the eigenvectors back
 /*
@@ -669,7 +677,7 @@ for(j=0; j<n; ++j)//eigenvector loop
 {
 for(int i=n-1; i>=0; --i)//component loop
 	{
-        if(i<n-1) a(i,j) -= cblas_ddot(n-1-i,&b(i+1,i),n,&a(i+1,j),n);
+        if(i<n-1) a(i,j) -= cblas_ddot(n-1-i,&b(i+1,i),m,&a(i+1,j),m);
         a(i,j) /= dl[i];
 	}
 }

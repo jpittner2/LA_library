@@ -58,6 +58,7 @@ public:
 	const NRVec<T> operator*(const NRVec<T> &rhs) const; // Mat * Vec
 	const NRVec<T> rsum() const; //sum of rows
 	const NRVec<T> csum() const; //sum of columns
+	void diagonalof(NRVec<T> &) const; //get diagonal 
 	inline T* operator[](const int i);  //subscripting: pointer to row i
 	inline const T* operator[](const int i) const;
 	inline T& operator()(const int i, const int j); // (i,j) subscripts
@@ -348,21 +349,22 @@ NRMat<T>::~NRMat()
 template <typename T>
 NRMat<T> & NRMat<T>::operator=(const NRMat<T> &rhs)
 {
-        if (this == &rhs) return *this;
-        if (count) {
-                if (--(*count) ==0 ) {
+        if (this !=&rhs)
+		{
+        	if (count) 
+                    if (--(*count) ==0 ) {
 #ifdef MATPTR
                         delete[] (v[0]);
 #endif
                         delete[] v;
                         delete count;
-                }
+                	}
                 v = rhs.v;
                 nn = rhs.nn;
                 mm = rhs.mm;
                 count = rhs.count;
                 if (count) (*count)++;
-        }
+		}
         return *this;
 }
 
