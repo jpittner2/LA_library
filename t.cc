@@ -805,11 +805,11 @@ for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
 	if(i==j) a(i,i)+= .5*(i-n);
         }
 
-NRMat<double> aa=a;
-diagonalize(aa,rr);
+NRMat<double> aa;
+aa=a; diagonalize(aa,rr);
 NRVec<double> r(m);
 NRVec<double> *eivecs = new NRVec<double>[m];
-davidson(a,r,eivecs,m,1);
+davidson(a,r,eivecs,NULL,m,1,1e-6,1,200);
 
 cout <<"Davidson energies " <<r;
 cout <<"Exact energies " ;
@@ -824,12 +824,26 @@ for(int i=0; i<m; ++i)
 	cout <<endl;
 	}
 
-
-
 }
 
+//davidson of large very sparse matrix (10n/n^2)
 
-if(1)
+#undef sparsity
+#define sparsity (n/2)
+if(0)
+{
+int n,m;
+cin >>n>>m;
+	SparseMat<double> aa(n,n);
+	aa.setsymmetric();
+	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),random()/(1.+RAND_MAX));
+	for(int i=0; i<n; ++i) aa.add(i,i,500*random()/(1.+RAND_MAX));
+NRVec<double> r(m);
+davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,0,300,300);
+cout <<r;
+}
+
+if(0)
 {
 int n,m;
 cin>>n >>m;
@@ -851,8 +865,8 @@ NRVec<double> bb=b;
 NRMat<double>aa=a;
 linear_solve(aa,bb);
 //cout <<bb;
-//gmres   (a,b,x,1,1e-10,100,1,0,1,0);
-  conjgrad(a,b,x,1,1e-10,200,1,0,1);
+gmres   (a,b,x,1,1e-10,100,1,0,1,0);
+//conjgrad(a,b,x,1,1e-10,200,1,0,1);
 
 cout <<"\nsolution compare:\n";
 for(int i=0; i<m; ++i) 
@@ -864,9 +878,25 @@ for(int i=0; i<m; ++i)
 	cout <<endl;
 	}
 
-
-
 }
 
+
+if(1)
+{
+int n,m;
+cin>>n >>m;
+SparseMat<double> aa(n,m);
+NRVec<double> b(n);
+NRVec<double> x(m);
+
+//tridiagonal
+        for(int i=0; i<n; ++i) aa.add(i,i,random()/(1.+RAND_MAX));
+	for(int i=0; i<n-1; i+=1) aa.add(i,i+1,.002*random()/(1.+RAND_MAX));
+	for(int i=0; i<n-1; i+=1) aa.add(i+1,i,.002*random()/(1.+RAND_MAX));
+
+for(int i=0;i<n;++i) b[i] = i+1;
+gmres(aa,b,x,1,1e-20,20,1,1,1,1000,1);
+//conjgrad(aa,b,x,1,1e-10,1000,1,0,1);
+}
 
 }

@@ -496,6 +496,7 @@ void NRMat<T>::resize(const int n, const int m)
 
 
 
+
 // I/O
 template <typename T> extern ostream& operator<<(ostream &s, const NRMat<T> &x);
 template <typename T> extern istream& operator>>(istream  &s, NRMat<T> &x);

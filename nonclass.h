@@ -4,6 +4,7 @@
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"
+#include "la_traits.h"
 
 
 //MISC
@@ -103,5 +104,19 @@ const NRMat<T> inverse(NRMat<T> a, T *det=0)
 	linear_solve(a, &result, det);
 	return result;
 }
+
+//general determinant
+template<class MAT>
+const typename NRMat_traits<MAT>::elementtype determinant(MAT a)//again passed by value
+{
+typename NRMat_traits<MAT>::elementtype det;
+if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
+linear_solve(a,NULL,&det);
+return det;
+}
+
+
+//auxiliary routine to adjust eigenvectors to guarantee real logarithm
+extern void adjustphases(NRMat<double> &v);
 
 #endif

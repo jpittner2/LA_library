@@ -10,6 +10,6 @@
 //does not even have to be explicitly stored - direct CI
 
 export template <typename T, typename Matrix>
-extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, void *eivecs, 
+extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=1e-6,
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 500);

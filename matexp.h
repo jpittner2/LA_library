@@ -1,3 +1,5 @@
+#ifndef _MATEXP_H_
+#define _MATEXP_H_
 //general routine for polynomial of a matrix, tuned to minimize the number
 //of matrix-matrix multiplications on cost of additions and memory
 // the polynom and exp routines will work on any type, for which traits class
@@ -123,7 +125,7 @@ template<class T>
 const T ipow( const T &x, int i)
 {
 if(i<0) laerror("negative exponent in ipow");
-if(i==0) {T r=x; r=1.; return r;}//trick for matrix dimension
+if(i==0) {T r=x; r=(T)1; return r;}//trick for matrix dimension
 if(i==1) return x;
 T y,z;
 z=x;
@@ -223,14 +225,6 @@ return r;
 }
 
 
-template<class MAT>
-const typename NRMat_traits<MAT>::elementtype determinant(MAT a)//again passed by value
-{
-typename NRMat_traits<MAT>::elementtype det;
-if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
-linear_solve(a,NULL,&det);
-return det;
-}
 
 
 template<class M, class V>
@@ -257,3 +251,5 @@ for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it man
 
 return result;
 }
+
+#endif

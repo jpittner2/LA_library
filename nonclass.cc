@@ -608,3 +608,31 @@ for(int i=n-1; i>=0; --i)//component loop
 }
 
 }
+
+//auxiliary routine to adjust eigenvectors to guarantee real logarithm
+//at the moment not rigorous yet
+void adjustphases(NRMat<double> &v)
+{
+int n=v.nrows();
+double det=determinant(v);
+int nchange=0;
+for(int i=0; i<n;++i) if(v[i][i]<0.)
+        {
+        cblas_dscal(n,-1.,v[i],1); 
+        nchange++;
+        } 
+if(det<0) nchange++;
+if(nchange&1)//still adjust to get determinant=1
+        {
+        int imin=-1; double min=1e200;
+        for(int i=0; i<n;++i)
+                if(abs(v[i][i])<min)
+                        {
+                        imin=i;
+                        min=abs(v[i][i]);
+                        } 
+        cblas_dscal(n,-1.,v[imin],1);
+        }
+}
+
+
