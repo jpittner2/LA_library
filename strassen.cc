@@ -1,4 +1,6 @@
-#include "la.h"
+
+#include "mat.h"
+
 /*Strassen algorithm*/
 // called routine is fortran-compatible
 extern "C" void fmm(const char c_transa,const char c_transb,const int m,const int n,const int k,const double alpha,

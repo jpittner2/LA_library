@@ -1,8 +1,25 @@
 ////////////////////////////////////////////////////////////////////////////
-//LA traits classes
+//LA traits classes and generally needed includes
 
 #ifndef _LA_TRAITS_INCL
 #define _LA_TRAITS_INCL
+
+
+
+using namespace std;
+#include <stdio.h>
+#include <string.h>
+#include <iostream>
+#include <complex>
+#include "laerror.h"
+
+extern "C" {
+#include "cblas.h"
+}
+
+#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
+# define export 
+#endif
 
 //forward declarations
 template<typename C> class NRVec;

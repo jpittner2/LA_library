@@ -1,8 +1,6 @@
 #ifndef _LA_MAT_H_
 #define _LA_MAT_H_
 
-#include "vec.h"
-#include "smat.h"
 #include "la_traits.h"
 
 template <typename T>
@@ -55,7 +53,7 @@ public:
 	inline const NRMat operator-(const NRMat &rhs) const;
 	inline const NRMat operator+(const NRSMat<T> &rhs) const;
 	inline const NRMat operator-(const NRSMat<T> &rhs) const;
-	const T dot(const NRMat &rhs) const; // scalar product of Mat.Mat
+	const T dot(const NRMat &rhs) const; // scalar product of Mat.Mat//@@@for complex do conjugate
 	const NRMat operator*(const NRMat &rhs) const; // Mat * Mat
 	const NRMat oplus(const NRMat &rhs) const; //direct sum
 	const NRMat otimes(const NRMat &rhs) const; //direct product
@@ -64,7 +62,7 @@ public:
 	const NRMat operator*(const NRSMat<T> &rhs) const; // Mat * Smat
 	const NRMat operator&(const NRMat &rhs) const; // direct sum
 	const NRMat operator|(const NRMat<T> &rhs) const; // direct product
-	const NRVec<T> operator*(const NRVec<T> &rhs) const; // Mat * Vec
+	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
 	const NRVec<T> rsum() const; //sum of rows
 	const NRVec<T> csum() const; //sum of columns
 	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal 
@@ -74,13 +72,14 @@ public:
 	inline const T& operator()(const int i, const int j) const;
 	inline int nrows() const;
 	inline int ncols() const;
+	inline int size() const;
         void get(int fd, bool dimensions=1);
         void put(int fd, bool dimensions=1) const;
 	void copyonwrite();
 	void resize(const int n, const int m);
 	inline operator T*(); //get a pointer to the data
 	inline operator const T*() const;
-	NRMat & transposeme(); // square matrices only 
+	NRMat & transposeme(int n=0); // square matrices only 
 	NRMat & conjugateme(); // square matrices only
 	const NRMat transpose(bool conj=false) const;
 	const NRMat conjugate() const;
@@ -103,12 +102,18 @@ public:
 	NRMat & operator+=(const SparseMat<T> &rhs);
         NRMat & operator-=(const SparseMat<T> &rhs);
         inline void simplify() {}; //just for compatibility with sparse ones
+	bool issymmetric() const {return 0;};
 
 //Strassen's multiplication (better than n^3, analogous syntax to gemm)
 	void strassen(const T beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T alpha);//this := alpha*op( A )*op( B ) + beta*this
 	void s_cutoff(const int,const int,const int,const int) const;
 
 };
+
+//due to mutual includes this has to be after full class declaration
+#include "vec.h"
+#include "smat.h"
+#include "sparsemat.h"
 
 // ctors
 template <typename T>
@@ -292,6 +297,12 @@ template <typename T>
 inline int NRMat<T>::ncols() const
 {
 	return mm;
+}
+
+template <typename T>
+inline int NRMat<T>::size() const
+{
+	return nn*mm;
 }
 
 // reference pointer to Mat

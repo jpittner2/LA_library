@@ -15,6 +15,10 @@ extern ssize_t write(int, const void *, size_t);
 #define INSTANTIZE(T) \
 template ostream & operator<<(ostream &s, const NRVec< T > &x); \
 template istream & operator>>(istream  &s, NRVec< T > &x); \
+template void NRVec<T>::put(int fd, bool dim) const; \
+template void NRVec<T>::get(int fd, bool dim); \
+
+
 
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
@@ -26,8 +30,10 @@ INSTANTIZE(char)
 INSTANTIZE(unsigned char)
 template NRVec<double>;
 template NRVec<complex<double> >;
-template NRVec<int>;
 template NRVec<char>;
+template NRVec<int>;
+
+
 
 
 /*
@@ -228,13 +234,55 @@ NRVec< complex<double> > & NRVec< complex<double> >::normalize()
 	return *this;
 }
 
-//and for these types it does not make sense to normalize but we have them for linkage
+//stubs for linkage
 NRVec<int> &  NRVec<int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 NRVec<char> &  NRVec<char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+void NRVec<int>::gemv(const int beta,
+                const NRSMat<int> &A, const char trans,
+                const int alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+void NRVec<char>::gemv(const char beta,
+                const NRSMat<char> &A, const char trans,
+                const char alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+void NRVec<int>::gemv(const int beta,
+                const NRMat<int> &A, const char trans,
+                const int alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+void NRVec<char>::gemv(const char beta,
+                const NRMat<char> &A, const char trans,
+                const char alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+void NRVec<int>::gemv(const int beta,
+                const SparseMat<int> &A, const char trans,
+                const int alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+void NRVec<char>::gemv(const char beta,
+                const SparseMat<char> &A, const char trans,
+                const char alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
 
 
 
-// gemv call 
+
+// gemv calls 
 void NRVec<double>::gemv(const double beta, const NRMat<double> &A, 
 		const char trans, const double alpha, const NRVec &x)
 {
@@ -243,8 +291,9 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 		laerror("incompatible sizes in gemv A*x");
 #endif
 	cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans),
-			A.nrows(), A.ncols(), alpha, A[0], A.ncols(), x.v, 1, beta, v, 1);
+			A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
 }
+
 void NRVec< complex<double> >::gemv(const complex<double> beta,
 		const NRMat< complex<double> > &A, const char trans, 
 		const complex<double> alpha, const NRVec &x)
@@ -254,34 +303,37 @@ void NRVec< complex<double> >::gemv(const complex<double> beta,
 		laerror("incompatible sizes in gemv A*x");
 #endif
 	cblas_zgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans), 
-			A.nrows(), A.ncols(), (void *)(&alpha), (void *)A[0], A.ncols(), 
-			(void *)x.v, 1, (void *)(&beta), (void *)v, 1);
+			A.nrows(), A.ncols(), &alpha, A, A.ncols(), 
+			x.v, 1, &beta, v, 1);
 }
 
-// Vec * Mat
-const NRVec<double> NRVec<double>::operator*(const NRMat<double> &mat) const
+
+void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
+                const char trans, const double alpha, const NRVec &x)
 {
 #ifdef DEBUG
-	if(mat.nrows() != nn) laerror("incompatible sizes in Vec*Mat");
+	if (A.ncols()!=x.size()) laerror("incompatible dimension in gemv A*x");
 #endif
-	int n = mat.ncols();
-	NRVec<double> result(n);
-	cblas_dgemv(CblasRowMajor, CblasTrans, nn, n, 1.0, mat[0], n, v, 1,
-			0.0, result.v, 1);
-	return result;
+	NRVec<double> result(nn);
+	cblas_dspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, x.v, 1, beta, v, 1);
 }
-const NRVec< complex<double> > 
-NRVec< complex<double> >::operator*(const NRMat< complex<double> > &mat) const
+
+
+void NRVec< complex<double> >::gemv(const complex<double> beta,
+                const NRSMat< complex<double> > &A, const char trans,
+                const complex<double> alpha, const NRVec &x)
 {
 #ifdef DEBUG
-	if(mat.nrows() != nn) laerror("incompatible sizes in Vec*Mat");
+	if (A.ncols()!=x.size()) laerror("incompatible dimension in gemv");
 #endif
-	int n = mat.ncols();
-	NRVec< complex<double> > result(n);
-	cblas_zgemv(CblasRowMajor, CblasTrans, nn, n, &CONE, mat[0], n, v, 1,
-			&CZERO, result.v, 1);
-	return result;
+	NRVec< complex<double> > result(nn);
+	cblas_zhpmv(CblasRowMajor, CblasLower, A.ncols(), &alpha, A, 
+			x.v, 1, &beta, v, 1);
 }
+
+
+
+
 
 // Direc product Mat = Vec | Vec
 const NRMat<double> NRVec<double>::operator|(const NRVec<double> &b) const

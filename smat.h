@@ -1,8 +1,6 @@
 #ifndef _LA_SMAT_H_
 #define _LA_SMAT_H_
 
-#include "vec.h"
-#include "mat.h"
 #include "la_traits.h"
 
 #define NN2 (nn*(nn+1)/2)
@@ -44,8 +42,8 @@ public:
 	inline const NRMat<T> operator-(const NRMat<T> &rhs) const; 
 	const NRMat<T> operator*(const NRSMat &rhs) const; // SMat*SMat
 	const NRMat<T> operator*(const NRMat<T> &rhs) const; // SMat*Mat 
-	const T dot(const NRSMat &rhs) const; // Smat.Smat
-	const NRVec<T> operator*(const NRVec<T> &rhs) const; 
+	const T dot(const NRSMat &rhs) const; // Smat.Smat//@@@for complex do conjugate
+	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
 	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal
 	inline const T& operator[](const int ij) const;
 	inline T& operator[](const int ij);
@@ -53,6 +51,7 @@ public:
 	inline T& operator()(const int i, const int j);
 	inline int nrows() const;
 	inline int ncols() const;
+	inline int size() const;
 	const double norm(const T scalar=(T)0) const;
 	void axpy(const T alpha, const NRSMat &x); // this+= a*x
 	inline const T amax() const;
@@ -69,9 +68,15 @@ public:
 //members concerning sparse matrix
 	explicit NRSMat(const SparseMat<T> &rhs);               // dense from sparse
 	inline void simplify() {}; //just for compatibility with sparse ones
+	bool issymmetric() const {return 1;}
 };
 
-// INLINES
+//due to mutual includes this has to be after full class declaration
+#include "vec.h"
+#include "mat.h"
+#include "sparsemat.h"
+
+
 // ctors
 template <typename T>
 inline NRSMat<T>::NRSMat(const int n) : nn(n), v(new T[NN2]),
@@ -292,6 +297,13 @@ inline int NRSMat<T>::ncols() const
 {
 	return nn;
 }
+
+template <typename T>
+inline int NRSMat<T>::size() const
+{
+        return NN2;
+}
+
 
 // max value
 inline const double NRSMat<double>::amax() const

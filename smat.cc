@@ -248,27 +248,6 @@ NRSMat< complex<double> >::dot(const NRSMat< complex<double> > &rhs) const
 	return dot;
 }
 
-// x = S * x
-const NRVec<double> NRSMat<double>::operator*(const NRVec<double> &rhs) const
-{
-#ifdef DEBUG
-	if (nn!=rhs.size()) laerror("incompatible dimension in Smat*Vec");
-#endif
-	NRVec<double> result(nn);
-	cblas_dspmv(CblasRowMajor, CblasLower, nn, 1.0, v, rhs, 1, 0.0, result, 1);
-	return result;
-}
-const NRVec< complex<double> >
-NRSMat< complex<double> >::operator*(const NRVec< complex<double> > &rhs) const
-{
-#ifdef DEBUG
-	if (nn!=rhs.size()) laerror("incompatible dimension in Smat*Vec");
-#endif
-	NRVec< complex<double> > result(nn);
-	cblas_zhpmv(CblasRowMajor, CblasLower, nn, (void *)(&CONE), (void *)v, 
-			(const void *)rhs, 1, (void *)(&CZERO), (void *)result, 1);
-	return result;
-}
 
 // norm of the matrix
 const double  NRSMat<double>::norm(const double scalar) const
@@ -347,18 +326,6 @@ istream& operator>>(istream  &s, NRSMat<T> &x)
                 return s;
                 }
 
-//not implemented yet
-const NRVec<int> NRSMat<int>::operator*(NRVec<int> const&rhs) const
-{
-laerror("NRSMat<int>::operator*(NRVec<int> const&) not implemented yet");
-return rhs;
-}
-
-const NRVec<char> NRSMat<char>::operator*(NRVec<char> const&rhs) const
-{
-laerror("NRSMat<char>::operator*(NRVec<char> const&) not implemented yet");
-return rhs;
-}
 
 
 

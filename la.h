@@ -1,9 +1,7 @@
 #ifndef _LA_H_
 #define _LA_H_
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-# define export 
-#endif
+//this should be the single include file for the end user
 
 #include "vec.h"
 #include "smat.h"

@@ -1,7 +1,5 @@
 #include <string>
 #include <cmath>
-#include <complex>
-#include <iostream>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -13,10 +11,6 @@
 template SparseMat<double>;
 template SparseMat<complex<double> >;
 
-
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-# define export
-#endif
 
 
 export template <class T>
@@ -403,7 +397,7 @@ export template <class T>
 void SparseMat<T>::incsize(const SPMatindex n, const SPMatindex m)
 {
 	if(symmetric && n!=m) laerror("unsymmetric size increment of a symmetric sparsemat");
-	if(!count && nn==0 && mm==0) count=new int(1);
+	if(!count ) count=new int(1);
 	copyonwrite();//this errors if !count 
 	unsort();
         nn+=n;
@@ -883,33 +877,7 @@ else
 }
 
 
-//multiplication with dense vector from both sides
-template <class T>
-const NRVec<T> SparseMat<T>::multiplyvector(const NRVec<T> &vec, const bool transp) const
-{
-if(transp && nn!=(SPMatindex)vec.size() || !transp && mm!=(SPMatindex)vec.size()) laerror("incompatible sizes in sparsemat*vector");
-NRVec<T> result(transp?mm:nn);
-result.gemv((T)0, *this, transp?'t':'n', (T)1., vec);
-return result;
-}
 
-
-template <class T>
-const NRVec<T> NRVec<T>::operator*(const SparseMat<T> &mat) const
-{
-if(mat.nrows()!= (SPMatindex)size()) laerror("incompatible sizes in vector*sparsemat");
-NRVec<T> result((T)0,mat.ncols());
-matel<T> *l=mat.getlist();
-bool symmetric=mat.issymmetric();
-while(l)
-        {
-        result.v[l->col]+= l->elem*v[l->row];
-	if(symmetric&&l->row!=l->col) result.v[l->row]+= l->elem*v[l->col];
-        l=l->next;
-        }
-return result;
-
-}
 
 template<class T>
 const T SparseMat<T>::trace() const
@@ -1249,7 +1217,6 @@ template SparseMat<T> & SparseMat<T>::operator-=(const T a); \
 template NRMat<T>::NRMat(const SparseMat<T> &rhs); \
 template NRSMat<T>::NRSMat(const SparseMat<T> &rhs); \
 template NRVec<T>::NRVec(const SparseMat<T> &rhs); \
-template const NRVec<T> SparseMat<T>::operator*(const NRVec<T> &vec) const; \
 template const NRVec<T> NRVec<T>::operator*(const SparseMat<T> &mat) const; \
 template SparseMat<T> & SparseMat<T>::join(SparseMat<T> &rhs); \
 template const T SparseMat<T>::trace() const; \
@@ -1263,7 +1230,7 @@ template void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char tra
 
 INSTANTIZE(double)
 
+INSTANTIZE(complex<double>) //some functions are not OK for hermitean matrices, needs a revision!!!
 
-// some functions are not OK for hermitean! INSTANTIZE(complex<double>)
 
 #endif

@@ -1,4 +1,4 @@
-//DIIS convergence acceleration
+//DIIS convergence acceleration according to Pulay: Chem. Phys. Lett. 73, 393 (1980); J. Comp. Chem. 3,556 (1982)
 #ifndef _DIIS_H_
 #define _DIIS_H_
 #include "vec.h"

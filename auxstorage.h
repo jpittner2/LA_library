@@ -1,6 +1,5 @@
 #ifndef _AUXSTORAGE_H_
 #define _AUXSTORAGE_H_
-#include "laerror.h"
 #include "vec.h"
 #include "mat.h"
 #include "smat.h"
@@ -68,6 +67,7 @@ void AuxStorage<T>::get(NRVec<T> &x, const int pos) const
 {
 if(recl==0) laerror("get from an empty file in AuxStorage");
 if((off64_t)-1 == lseek64(fd,pos*((off64_t)recl),SEEK_SET)) {perror(""); laerror("seek failed in AuxStorage");}
+x.copyonwrite();
 if((ssize_t)recl!=read(fd,&x[0],recl)) {perror(""); laerror("read failed in AuxStorage");}
 }
 
@@ -86,6 +86,7 @@ void AuxStorage<T>::get(NRMat<T> &x, const int pos) const
 {
 if(recl==0) laerror("get from an empty file in AuxStorage");
 if((off64_t)-1 == lseek64(fd,pos*((off64_t)recl),SEEK_SET)) {perror(""); laerror("seek failed in AuxStorage");}
+x.copyonwrite();
 if((ssize_t)recl!=read(fd,&x(0,0),recl)) {perror(""); laerror("read failed in AuxStorage");}
 }
 
@@ -104,6 +105,7 @@ void AuxStorage<T>::get(NRSMat<T> &x, const int pos) const
 {
 if(recl==0) laerror("get from an empty file in AuxStorage");
 if((off64_t)-1 == lseek64(fd,pos*((off64_t)recl),SEEK_SET)) {perror(""); laerror("seek failed in AuxStorage");}
+x.copyonwrite();
 if((ssize_t)recl!=read(fd,&x(0,0),recl)) {perror(""); laerror("read failed in AuxStorage");}
 }
 

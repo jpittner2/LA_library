@@ -74,11 +74,6 @@ extern void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 extern NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double));
 extern NRMat<double> matrixfunction(NRMat<double> a, complex<double> (*f)(const complex<double> &),const bool adjust=0);
 
-
-//////////////////////////////
-//other than lapack functions/
-//////////////////////////////
-
 //functions on matrices
 inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&sqrt); }
 inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&log); }

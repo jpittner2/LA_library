@@ -1,14 +1,13 @@
 #ifndef _SPARSEMAT_H_
 #define _SPARSEMAT_H_
 
-//for vectors and dense matrices we shall need
-#include "la.h"
+#include "la_traits.h"
 
-template<class T>
+template<typename T>
 inline const T MAX(const T &a, const T &b)
         {return b > a ? (b) : (a);}
 
-template<class T>
+template<typename T>
 inline void SWAP(T &a, T &b)
         {T dum=a; a=b; b=dum;}
 
@@ -21,7 +20,7 @@ typedef unsigned int SPMatindex;
 typedef int SPMatindexdiff; //more clear would be to use traits
 
 //element of a linked list
-template<class T>
+template<typename T>
 struct matel
         {
         T elem;
@@ -31,7 +30,7 @@ struct matel
         };
 
 
-template <class T>
+template <typename T>
 class SparseMat {
 protected:
 	SPMatindex nn;
@@ -86,8 +85,7 @@ public:
         inline const SparseMat operator*(const T &rhs) const {return SparseMat(*this) *= rhs;}
         inline const SparseMat operator+(const SparseMat &rhs) const {return SparseMat(*this) += rhs;} //must not be symmetric+general
         inline const SparseMat operator-(const SparseMat &rhs) const {return SparseMat(*this) -= rhs;} //must not be symmetric+general
-	const NRVec<T> multiplyvector(const NRVec<T> &rhs, const bool transp=0) const; //sparse matrix * dense vector optionally transposed
-	inline const NRVec<T> operator*(const NRVec<T> &rhs) const {return multiplyvector(rhs);} //sparse matrix * dense vector
+	inline const NRVec<T> operator*(const NRVec<T> &rhs) const; // Mat * Vec
 	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal
 	const SparseMat operator*(const SparseMat &rhs) const; 
 	SparseMat & oplusequal(const SparseMat &rhs); //direct sum
@@ -128,14 +126,23 @@ public:
 	void addsafe(const SPMatindex n, const SPMatindex m, const T elem);
 };
 
-template <class T>
+//due to mutual includes this has to be after full class declaration
+#include "vec.h"
+#include "smat.h"
+#include "mat.h"
+
+template <typename T>
+inline const NRVec<T> SparseMat<T>::operator*(const NRVec<T> &rhs) const
+{NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;};
+
+template <typename T>
 	extern istream& operator>>(istream  &s, SparseMat<T> &x);
 
-template <class T>
+template <typename T>
 	extern ostream& operator<<(ostream &s, const SparseMat<T> &x);
 
 //destructor
-template <class T>
+template <typename T>
 SparseMat<T>::~SparseMat()
 {
 	unsort();
@@ -148,7 +155,7 @@ SparseMat<T>::~SparseMat()
 }
 
 //copy constructor (sort arrays are not going to be copied)
-template <class T>
+template <typename T>
 SparseMat<T>::SparseMat(const SparseMat<T> &rhs)
 {
 #ifdef debug
@@ -164,7 +171,7 @@ if(! &rhs) laerror("SparseMat copy constructor with NULL argument");
 	nonzero=0;
 }
 
-template <class T>
+template <typename T>
 const SparseMat<T> SparseMat<T>::transpose() const
 {
 if(list&&!count) laerror("some inconsistency in SparseMat transpose");
@@ -195,7 +202,7 @@ return result;
 
 
 
-template<class T>
+template<typename T>
 inline const SparseMat<T> commutator ( const SparseMat<T> &x, const SparseMat<T> &y, const bool trx=0, const bool tryy=0)
 {
 SparseMat<T> r;
@@ -204,7 +211,7 @@ r.gemm((T)1,y,tryy?'t':'n',x,trx?'t':'n',(T)-1); //saves a temporary and simplif
 return r;
 }
 
-template<class T>
+template<typename T>
 inline const SparseMat<T> anticommutator ( const SparseMat<T> &x, const SparseMat<T> &y, const bool trx=0, const bool tryy=0)
 {
 SparseMat<T> r;
@@ -215,7 +222,7 @@ return r;
 
 
 //add sparse to dense
-template<class T>
+template<typename T>
 NRMat<T> & NRMat<T>::operator+=(const SparseMat<T> &rhs)
 {
 if((unsigned int)nn!=rhs.nrows()||(unsigned int)mm!=rhs.ncols()) laerror("incompatible matrices in +=");

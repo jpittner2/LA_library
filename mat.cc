@@ -187,13 +187,14 @@ const NRVec<T> NRMat<T>::rsum() const
 
 // transpose Mat
 template <typename T>
-NRMat<T> & NRMat<T>::transposeme()
+NRMat<T> & NRMat<T>::transposeme(int n)
 {
+if(n==0) n=nn;
 #ifdef DEBUG
-	if (nn != mm) laerror("transpose of non-square Mat");
+	if (n==nn && nn != mm || n>mm || n>nn) laerror("transpose of non-square Mat");
 #endif
 	copyonwrite();
-	for(int i=1; i<nn; i++)
+	for(int i=1; i<n; i++)
 		for(int j=0; j<i; j++) {
 #ifdef MATPTR
 			T tmp = v[i][j]; 
@@ -233,26 +234,6 @@ void NRMat<T>::fscanf(FILE *f, const char *format)
 			if(std::fscanf(f,format,p++) != 1)
 				laerror("cannot read matrix element in Mat::fscanf()");
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -602,29 +583,6 @@ NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 	return result;
 }
 
-// Mat * Vec
-const NRVec<double> 
-NRMat<double>::operator*(const NRVec<double> &vec) const
-{
-#ifdef DEBUG
-	if(mm != vec.size()) laerror("incompatible sizes in Mat*Vec");
-#endif
-	NRVec<double> result(nn);
-	cblas_dgemv(CblasRowMajor, CblasNoTrans, nn, mm, 1.0, (*this)[0],
-			mm, &vec[0], 1, 0.0, &result[0], 1);
-	return result;
-}
-const NRVec< complex<double> >
-NRMat< complex<double> >::operator*(const NRVec< complex<double> > &vec) const
-{
-#ifdef DEBUG
-	if(mm != vec.size()) laerror("incompatible sizes in Mat*Vec");
-#endif
-	NRVec< complex<double> > result(nn);
-	cblas_zgemv(CblasRowMajor, CblasNoTrans, nn, mm, (void *)&CONE, (void *)(*this)[0],
-			mm, (void *)&vec[0], 1, (void *)&CZERO, (void *)&result[0], 1);
-	return result;
-}
 
 // sum of rows
 const NRVec<double> NRMat<double>::rsum() const

@@ -2,7 +2,11 @@ extern "C" {
 #include "atlas_enum.h"
 #include "clapack.h"
 }
-#include "la.h"
+#include "vec.h"
+#include "smat.h"
+#include "mat.h"
+#include "nonclass.h"
+
 
 #ifdef FORTRAN_
 #define FORNAME(x) x##_
