@@ -1,4 +1,12 @@
 #include "smat.h"
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+extern "C" {
+extern ssize_t read(int, void *, size_t);
+extern ssize_t write(int, const void *, size_t);
+}
 // TODO
 // specialize unary minus
 
@@ -16,6 +24,35 @@ template NRSMat<char>;
  *  * Templates first, specializations for BLAS next
  *
  */
+
+//raw I/O
+template <typename T>
+void NRSMat<T>::put(int fd, bool dim) const
+{
+errno=0;
+if(dim)
+{
+if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
+if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
+}
+LA_traits<T>::multiput(NN2,fd,v,dim);
+}
+
+template <typename T>
+void NRSMat<T>::get(int fd, bool dim)
+{
+int nn0[2]; //align at least 8-byte
+errno=0;
+if(dim)
+{
+if(2*sizeof(int) != read(fd,&nn0,2*sizeof(int))) laerror("cannot read");
+resize(nn0[0]);
+}
+else 
+copyonwrite();
+LA_traits<T>::multiget(NN2,fd,v,dim);
+}
+
 
 // conversion ctor, symmetrize general Mat into SMat
 template <typename T>

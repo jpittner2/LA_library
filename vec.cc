@@ -1,5 +1,14 @@
 #include <iostream>
 #include "vec.h"
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+extern "C" {
+extern ssize_t read(int, void *, size_t);
+extern ssize_t write(int, const void *, size_t);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corespoding object file
@@ -10,9 +19,13 @@ template istream & operator>>(istream  &s, NRVec< T > &x); \
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
 INSTANTIZE(int)
+INSTANTIZE(unsigned int)
+INSTANTIZE(short)
+INSTANTIZE(unsigned short)
 INSTANTIZE(char)
+INSTANTIZE(unsigned char)
 template NRVec<double>;
-template NRVec< complex<double> >;
+template NRVec<complex<double> >;
 template NRVec<int>;
 template NRVec<char>;
 
@@ -36,7 +49,7 @@ NRVec<T>::NRVec(const NRMat<T> &rhs)
 
 
 
-// ostream << NRVec
+// formatted I/O
 template <typename T>
 ostream & operator<<(ostream &s, const NRVec<T> &x)
 {
@@ -48,7 +61,6 @@ ostream & operator<<(ostream &s, const NRVec<T> &x)
   return s;
 }
 
-// istream >> NRVec
 template <typename T>
 istream & operator>>(istream &s, NRVec<T> &x)
 {
@@ -60,6 +72,39 @@ istream & operator>>(istream &s, NRVec<T> &x)
   return s;
 }
 
+
+//raw I/O
+template <typename T>
+void NRVec<T>::put(int fd, bool dim) const
+{
+errno=0;
+int pad=1; //align at least 8-byte
+if(dim)
+{
+if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
+if(sizeof(int) != write(fd,&pad,sizeof(int))) laerror("cannot write");
+}
+LA_traits<T>::multiput(nn,fd,v,dim);
+}
+
+template <typename T>
+void NRVec<T>::get(int fd, bool dim)
+{
+int nn0[2]; //align at least 8-byte
+errno=0;
+if(dim)
+{
+if(2*sizeof(int) != read(fd,&nn0,2*sizeof(int))) laerror("cannot read");
+resize(nn0[0]);
+}
+else
+copyonwrite();
+LA_traits<T>::multiget(nn,fd,v,dim);
+}
+
+
+
+
 // formatted print for NRVec
 template<typename T>
 void NRVec<T>::fprintf(FILE *file, const char *format, const int modulo) const
@@ -68,7 +113,7 @@ void NRVec<T>::fprintf(FILE *file, const char *format, const int modulo) const
 }
 
 // formatted scan for NRVec
-template <class T>
+template <typename T>
 void NRVec<T>::fscanf(FILE *f, const char *format)
 {
 	int n;

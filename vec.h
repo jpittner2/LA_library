@@ -2,7 +2,6 @@
 #define _LA_VEC_H_
 
 #include "laerror.h"
-
 extern "C" {
 #include "cblas.h"
 }
@@ -12,6 +11,8 @@ extern "C" {
 #include <iostream>
 
 using namespace std;
+
+#include "la_traits.h"
 
 template <typename T> class NRVec;
 template <typename T> class NRSMat;
@@ -69,6 +70,8 @@ public:
 	NRVec & operator=(const NRVec &rhs);
 	NRVec & operator=(const T &a);  //assign a to every element
 	NRVec & operator|=(const NRVec &rhs);
+	const bool operator!=(const NRVec &rhs) const {if(nn!=rhs.nn) return 1; return(memcmp(v,rhs.v,nn*sizeof(T)));}
+	const bool operator==(const NRVec &rhs) const {return !(*this != rhs);};
 	const NRVec operator-() const;
 	inline NRVec & operator+=(const NRVec &rhs);
 	inline NRVec & operator-=(const NRVec &rhs);
@@ -99,6 +102,8 @@ public:
 			const T alpha, const NRVec &x);
 	void copyonwrite();
 	void resize(const int n);
+        void get(int fd, bool dimensions=1);
+        void put(int fd, bool dimensions=1) const;
 	NRVec & normalize();
 	inline const double norm() const;
 	inline const T amax() const;
@@ -495,15 +500,28 @@ template <typename T>
 void NRVec<T>::resize(const int n)
 {
 #ifdef DEBUG
-  if(n<=0) laerror("illegal vector dimension");
+  if(n<0) laerror("illegal vector dimension");
 #endif
   if(count)
+  {
+    if(n==0)
+	{
+	if(--(*count) <= 0) {
+                if(v) delete[] (v);
+                delete count;
+        	}
+	count=0;
+	nn=0;
+	v=0;
+	return;
+	}
     if(*count > 1) {
       (*count)--;
       count = 0;
       v = 0;
       nn = 0;
     }
+  }
   if(!count) {
     count = new int;
     *count = 1;

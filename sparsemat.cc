@@ -2,13 +2,16 @@
 #include <cmath>
 #include <complex>
 #include <iostream>
-
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "sparsemat.h"
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corresponding object file
 template SparseMat<double>;
-template SparseMat< complex<double> >;
+template SparseMat<complex<double> >;
 
 
 #ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
@@ -55,6 +58,72 @@ istream& operator>>(istream  &s, SparseMat<T> &x)
 		x.setlist(l);
                 return s;
                 }
+
+extern "C" {
+extern ssize_t read(int, void *, size_t);
+extern ssize_t write(int, const void *, size_t);
+}
+
+
+export template <class T>
+void SparseMat<T>::get(int fd, bool dimen)
+{
+errno=0;
+SPMatindex dim[2];
+if(dimen)
+{
+if(2*sizeof(SPMatindex) != read(fd,&dim,2*sizeof(SPMatindex))) laerror("cannot read");
+resize(dim[0],dim[1]);
+int symnon[2];
+if(2*sizeof(int) != read(fd,&symnon,2*sizeof(int))) laerror("cannot read");
+symmetric=symnon[0];
+nonzero=symnon[1];
+}
+else
+copyonwrite();
+
+matel<T> *l=NULL;
+do
+          {
+	  if(2*sizeof(SPMatindex) != read(fd,&dim,2*sizeof(SPMatindex))) laerror("cannot read");
+	  if(dim[0]+1==0 && dim[1]+1==0) break;
+          matel<T> *ll = l;
+          l= new matel<T>;
+          l->next= ll;
+          l->row=dim[0];
+          l->col=dim[1];
+	  LA_traits<T>::get(fd,l->elem,dimen); //general way to work when elem is some complex class again
+          } while(1);
+list=l;
+}
+
+
+export template <class T>
+void SparseMat<T>::put(int fd,bool dimen) const
+{
+errno=0;
+if(dimen)
+{
+if(sizeof(SPMatindex) != write(fd,&nn,sizeof(SPMatindex))) laerror("cannot write");
+if(sizeof(SPMatindex) != write(fd,&mm,sizeof(SPMatindex))) laerror("cannot write");
+int symnon[2];
+symnon[0]=symmetric;
+symnon[1]=nonzero;
+if(2*sizeof(int) != write(fd,symnon,2*sizeof(int))) laerror("cannot write");
+}
+matel<T> *l=list;
+while(l)
+	{
+	if(sizeof(SPMatindex) != write(fd,&l->row,sizeof(SPMatindex))) laerror("cannot write");
+	if(sizeof(SPMatindex) != write(fd,&l->col,sizeof(SPMatindex))) laerror("cannot write");
+	LA_traits<T>::put(fd,l->elem,dimen);//general way to work when elem is some non-scalar class again
+	l=l->next;
+	}
+SPMatindex sentinel[2];
+sentinel[0]=sentinel[1]=(SPMatindex) -1;
+if(2*sizeof(SPMatindex) != write(fd,&sentinel,2*sizeof(SPMatindex))) laerror("cannot write");
+}
+
 
 //helpers to be used from different functions
 export template <class T>
@@ -314,20 +383,34 @@ unsort(); //since there were NULLs introduced, rowsorted is not dense
 export template <class T>
 void SparseMat<T>::resize(const SPMatindex n, const SPMatindex m)
 {
-        if(n<=0 || m<=0) laerror("illegal matrix dimension");
-	unsort();
+	unsort(); 
         if(count) 
 		{
 		if(*count > 1) {(*count)--; count=NULL; list=NULL;} //detach from previous
 		else if(*count==1) deletelist();
+		if(count) delete count;
 		}
         nn=n;
         mm=m;
-        count=new int(1); //empty but defined matrix
+        if(nn||mm) count=new int(1); //empty but defined matrix
 	list=NULL;
 	symmetric=0;
+	nonzero=0;
 	colsorted=rowsorted=NULL;
 }
+
+export template <class T>
+void SparseMat<T>::incsize(const SPMatindex n, const SPMatindex m)
+{
+	if(symmetric && n!=m) laerror("unsymmetric size increment of a symmetric sparsemat");
+	if(!count && nn==0 && mm==0) count=new int(1);
+	copyonwrite();//this errors if !count 
+	unsort();
+        nn+=n;
+        mm+=m;
+}
+
+
 
 export template <class T>
 void SparseMat<T>::addsafe(const SPMatindex n, const SPMatindex m, const T elem)
@@ -1072,17 +1155,80 @@ for(i=0; i<na;i++)
 simplify();
 }
 
+//direct sum and product -- only partly implemented at the moment
+export template<typename T>
+SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs)
+{
+if(issymmetric()) laerror("oplusequal symmetric-unsymmetric");
+SPMatindex n0=nn;
+SPMatindex m0=mm;
+incsize(rhs.nrows(), rhs.ncols());
+T tmp;
+for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
+	for(SPMatindex j=0; j<(SPMatindex)rhs.ncols(); ++j)
+#ifdef SPARSEEPSILON
+		if(abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
+#else
+		if((tmp=rhs(i,j))!=(T)0) add(n0+i,m0+j,tmp);
+#endif
+return *this;
+}
 
+export template<typename T>
+SparseMat<T> & SparseMat<T>::oplusequal(const NRSMat<T> &rhs)
+{
+if(!issymmetric()) laerror("oplusequal symmetric-unsymmetric");
+SPMatindex n0=nn;
+SPMatindex m0=mm;
+T tmp;
+incsize(rhs.nrows(), rhs.ncols());
+for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
+        for(SPMatindex j=0; j<(SPMatindex)rhs.ncols(); ++j)
+#ifdef SPARSEEPSILON
+                if(abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
+#else
+                if((tmp=rhs(i,j))!=(T)0) add(n0+i,m0+j,tmp);
+#endif
+return *this;
+}
+
+export template <class T>
+SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs)
+{
+if(symmetric != rhs.symmetric) laerror("incompatible symmetry of sparsemats in oplusequal");
+if(!count) {count=new int;  *count=1; list=NULL;}
+
+SPMatindex n0=nn;
+SPMatindex m0=mm; 
+incsize(rhs.nrows(), rhs.ncols());
+
+register matel<T> *l=rhs.list;
+while(l)
+	{
+#ifdef SPARSEEPSILON
+	if(abs(l->elem)>SPARSEEPSILON) 
+#endif
+		add(n0+l->row,m0+l->col,l->elem);
+	l=l->next;
+	}
+return *this;
+}
 
 
 #ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
 
 #define INSTANTIZE(T) \
+template SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs);\
+template SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs);\
+template SparseMat<T> & SparseMat<T>::oplusequal(const NRSMat<T> &rhs);\
 template ostream& operator<<(ostream &s, const SparseMat<T> &x); \
 template istream& operator>>(istream &s, SparseMat<T> &x); \
+template void SparseMat<T>::get(int fd, bool dimen); \
+template void SparseMat<T>::put(int fd, bool dimen) const; \
 template void SparseMat<T>::copyonwrite(); \
-template void SparseMat<T>::resize(const SPMatindex n, const SPMatindex m); \
 template void SparseMat<T>::unsort(); \
+template void SparseMat<T>::resize(const SPMatindex n, const SPMatindex m); \
+template void SparseMat<T>::incsize(const SPMatindex n, const SPMatindex m); \
 template unsigned int SparseMat<T>::sort(int type) const; \
 template unsigned int SparseMat<T>::length() const; \
 template void SparseMat<T>::deletelist(); \

@@ -1,4 +1,12 @@
 #include "mat.h"
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+extern "C" {
+extern ssize_t read(int, void *, size_t);
+extern ssize_t write(int, const void *, size_t);
+}
 // TODO :
 //
 
@@ -13,6 +21,48 @@ template NRMat<char>;
 /*
  *  Templates first, specializations for BLAS next
  */
+
+//raw I/O
+template <typename T>
+void NRMat<T>::put(int fd, bool dim) const
+{
+errno=0;
+if(dim)
+{
+if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
+if(sizeof(int) != write(fd,&mm,sizeof(int))) laerror("cannot write");
+}
+LA_traits<T>::multiput(nn*mm,fd,
+#ifdef MATPTR
+        v[0]
+#else
+        v
+#endif
+,dim);
+}
+
+template <typename T>
+void NRMat<T>::get(int fd, bool dim)
+{
+int nn0,mm0;
+errno=0;
+if(dim)
+{
+if(sizeof(int) != read(fd,&nn0,sizeof(int))) laerror("cannot read");
+if(sizeof(int) != read(fd,&mm0,sizeof(int))) laerror("cannot read");
+resize(nn0,mm0);
+}
+else
+copyonwrite();
+LA_traits<T>::multiget(nn*mm,fd,
+#ifdef MATPTR
+        v[0]
+#else
+        v
+#endif
+,dim);
+}
+
 
 
 
@@ -817,7 +867,7 @@ istream& operator>>(istream  &s, NRMat<T> &x)
                 return s;
                 }
 
-
+//direct sum and product (oplus, otimes) to be done
 
 
 

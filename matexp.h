@@ -6,7 +6,6 @@
 // is defined containing definition of an element type, norm and axpy operation
 
 #include "la_traits.h"
-#include "sparsemat_traits.h"
 
 template<class T,class R>
 const T polynom2(const T &x, const NRVec<R> &c)
@@ -68,7 +67,7 @@ for(i=0; i<=n/m;i++)
 		if(k>n) break;
 		if(j==0) {if(i==0) s=x; /*just to get the dimensions of the matrix*/ s=c[k]; /*create diagonal matrix*/}
 		else  
-			NRMat_traits<T>::axpy(s,xpows[j-1],c[k]); //general  s+=xpows[j-1]*c[k]; but more efficient for matrices
+			LA_traits<T>::axpy(s,xpows[j-1],c[k]); //general  s+=xpows[j-1]*c[k]; but more efficient for matrices
 		}
 
 	if(i==0) {r=s; f=xpows[m-1];}
@@ -125,7 +124,7 @@ template<class T>
 const T ipow( const T &x, int i)
 {
 if(i<0) laerror("negative exponent in ipow");
-if(i==0) {T r=x; r=(T)1; return r;}//trick for matrix dimension
+if(i==0) {T r=x; r=(typename LA_traits<T>::elementtype)1; return r;}//trick for matrix dimension
 if(i==1) return x;
 T y,z;
 z=x;
@@ -153,7 +152,7 @@ return int(ceil(log(n)/log2-log(.75)));
 
 
 template<class T>
-NRVec<typename NRMat_traits<T>::elementtype> exp_aux(const T &x, int &power)
+NRVec<typename LA_traits<T>::elementtype> exp_aux(const T &x, int &power)
 {
 //should better be computed by mathematica to have accurate last digits, chebyshev instead, see exp in glibc
 static double exptaylor[]={
@@ -179,7 +178,7 @@ static double exptaylor[]={
 8.2206352466243294955e-18,
 4.1103176233121648441e-19,
 0.};
-double mnorm= NRMat_traits<T>::norm(x);
+double mnorm= LA_traits<T>::norm(x);
 power=nextpow2(mnorm);
 double scale=exp(-log(2.)*power);
 
@@ -198,7 +197,7 @@ while(t*exptaylor[n]>precision);//taylor 0 will terminate in any case
 
 
 int i; //adjust the coefficients in order to avoid scaling the argument
-NRVec<typename NRMat_traits<T>::elementtype> taylor2(n+1);
+NRVec<typename LA_traits<T>::elementtype> taylor2(n+1);
 for(i=0,t=1.;i<=n;i++)
 	{
 	taylor2[i]=exptaylor[i]*t;
@@ -215,7 +214,7 @@ const T exp(const T &x)
 int power;
 
 //prepare the polynom of and effectively scale T
-NRVec<typename NRMat_traits<T>::elementtype> taylor2=exp_aux(x,power);
+NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux(x,power);
 
 T r=polynom(x,taylor2); //for accuracy summing from the smallest terms up would be better, but this is more efficient for matrices
 
@@ -233,7 +232,7 @@ const V exptimes(const M &mat, V vec) //uses just matrix vector multiplication
 if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)vec.size()) laerror("inappropriate sizes in exptimes");
 int power;
 //prepare the polynom of and effectively scale the matrix
-NRVec<typename NRMat_traits<M>::elementtype> taylor2=exp_aux(mat,power);
+NRVec<typename LA_traits<M>::elementtype> taylor2=exp_aux(mat,power);
 
 V result(mat.nrows());
 for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it many times, unlike if the matrix is stored explicitly

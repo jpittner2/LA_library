@@ -22,10 +22,3 @@ copyonwrite();
 fmm(transb,transa,mm,nn,k,alpha,b,b.mm, a, a.mm, beta,*this, mm,NULL,0);
 }
 
-//stub for f77 blas called from strassen routine
-extern "C" void xerbla_(const char *msg)
-{
-laerror(msg);
-}
-
-

@@ -90,6 +90,15 @@ public:
 	inline const NRVec<T> operator*(const NRVec<T> &rhs) const {return multiplyvector(rhs);} //sparse matrix * dense vector
 	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal
 	const SparseMat operator*(const SparseMat &rhs) const; 
+	SparseMat & oplusequal(const SparseMat &rhs); //direct sum
+	SparseMat & oplusequal(const NRMat<T> &rhs);
+	SparseMat & oplusequal(const NRSMat<T> &rhs);
+	const SparseMat oplus(const SparseMat &rhs) const {return SparseMat(*this).oplusequal(rhs);}; //direct sum
+	const SparseMat oplus(const NRMat<T> &rhs) const {return SparseMat(*this).oplusequal(rhs);};
+	const SparseMat oplus(const NRSMat<T> &rhs) const {return SparseMat(*this).oplusequal(rhs);};
+	const SparseMat otimes(const SparseMat &rhs) const; //direct product
+        const SparseMat otimes(const NRMat<T> &rhs) const;
+        const SparseMat otimes(const NRSMat<T> &rhs) const;
         void gemm(const T beta, const SparseMat &a, const char transa, const SparseMat &b, const char transb, const T alpha);//this := alpha*op( A )*op( B ) + beta*this, if this is symemtric, only half will be added onto it
 	const T dot(const SparseMat &rhs) const; //supervector dot product
 	const T dot(const NRMat<T> &rhs) const; //supervector dot product
@@ -99,7 +108,10 @@ public:
 	void setlist(matel<T> *l) {list=l;}
 	inline SPMatindex nrows() const {return nn;}
         inline SPMatindex ncols() const {return mm;}
-	void resize(const SPMatindex n, const SPMatindex m);
+	void get(int fd, bool dimensions=1);
+	void put(int fd, bool dimensions=1) const;
+	void resize(const SPMatindex n, const SPMatindex m); //destructive
+	void incsize(const SPMatindex n, const SPMatindex m); //increase size without destroying the data
 	void transposeme();
 	const SparseMat transpose() const;
 	inline void setsymmetric() {if(nn!=mm) laerror("non-square cannot be symmetric"); symmetric=1;}

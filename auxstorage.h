@@ -14,6 +14,8 @@
 //CAUTION:
 //it will not work if T is itself a class with dynamically allocated components
 //it cannot be implemented for SparseMat, which lacks fixed record length
+//for more complex I/O use put() and get() methods of the individual classes
+
 
 
 template<typename T>
@@ -38,6 +40,7 @@ public:
 template<typename T>
 AuxStorage<T>::AuxStorage(void)
 {
+//mkstemp probable does not support O_LARGEFILE?!
 strcpy(filename,"AUX_XXXXXX"); 
 mktemp(filename); 
 unlink(filename);

@@ -3,6 +3,7 @@
 
 #include "vec.h"
 #include "mat.h"
+#include "la_traits.h"
 
 #define NN2 (nn*(nn+1)/2)
 template <class T>
@@ -25,6 +26,8 @@ public:
 	NRSMat & operator|=(const NRSMat &rhs);	//assignment to a new copy
 	NRSMat & operator=(const NRSMat &rhs);	//assignment
 	NRSMat & operator=(const T &a);		//assign a to diagonal
+        const bool operator!=(const NRSMat &rhs) const {if(nn!=rhs.nn) return 1; return(memcmp(v,rhs.v,NN2*sizeof(T)));}
+        const bool operator==(const NRSMat &rhs) const {return !(*this != rhs);};
 	inline NRSMat & operator*=(const T &a);
 	inline NRSMat & operator+=(const T &a); 
 	inline NRSMat & operator-=(const T &a); 
@@ -54,6 +57,8 @@ public:
 	void axpy(const T alpha, const NRSMat &x); // this+= a*x
 	inline const T amax() const;
 	const T trace() const;
+	void get(int fd, bool dimensions=1);
+        void put(int fd, bool dimensions=1) const;
 	void copyonwrite();
 	void resize(const int n);
 	inline operator T*(); //get a pointer to the data
@@ -396,15 +401,29 @@ template <typename T>
 void NRSMat<T>::resize(const int n)
 {
 #ifdef DEBUG
-        if (n <= 0) laerror("illegal matrix dimension in resize of Smat");
+        if (n < 0) laerror("illegal matrix dimension in resize of Smat");
 #endif
         if (count)
+	{
+	    	if(n==0)
+	        {
+	        if(--(*count) <= 0) {
+	                if(v) delete[] (v);
+	                delete count;
+	                }
+	        count=0;
+	        nn=0;
+	        v=0;
+	        return;
+	        }
+
                 if(*count > 1) {        //detach from previous
                         (*count)--;
                         count = 0;
                         v = 0;
                         nn = 0;
                 }
+	}
         if (!count)     {                               //new uninitialized vector or just detached
                 count = new int;
                 *count = 1;

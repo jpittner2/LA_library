@@ -107,9 +107,9 @@ const NRMat<T> inverse(NRMat<T> a, T *det=0)
 
 //general determinant
 template<class MAT>
-const typename NRMat_traits<MAT>::elementtype determinant(MAT a)//again passed by value
+const typename LA_traits<MAT>::elementtype determinant(MAT a)//again passed by value
 {
-typename NRMat_traits<MAT>::elementtype det;
+typename LA_traits<MAT>::elementtype det;
 if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
 linear_solve(a,NULL,&det);
 return det;

@@ -3,6 +3,7 @@
 
 #include "vec.h"
 #include "smat.h"
+#include "la_traits.h"
 
 template <typename T>
 class NRMat {
@@ -29,6 +30,12 @@ public:
 	NRMat(const NRVec<T> &rhs, const int n, const int m);
 #endif
 	~NRMat();
+#ifdef MATPTR
+	const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return(memcmp(v[0],rhs.v[0],nn*mm*sizeof(T)));}
+#else
+        const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return(memcmp(v,rhs.v,nn*mm*sizeof(T)));}
+#endif
+	const bool operator==(const NRMat &rhs) const {return !(*this != rhs);};
 	inline int getcount() const {return count?*count:0;}
 	NRMat & operator=(const NRMat &rhs);  //assignment
 	NRMat & operator=(const T &a);    //assign a to diagonal
@@ -50,6 +57,8 @@ public:
 	inline const NRMat operator-(const NRSMat<T> &rhs) const;
 	const T dot(const NRMat &rhs) const; // scalar product of Mat.Mat
 	const NRMat operator*(const NRMat &rhs) const; // Mat * Mat
+	const NRMat oplus(const NRMat &rhs) const; //direct sum
+	const NRMat otimes(const NRMat &rhs) const; //direct product
 	void diagmultl(const NRVec<T> &rhs); //multiply by a diagonal matrix from L
 	void diagmultr(const NRVec<T> &rhs); //multiply by a diagonal matrix from R
 	const NRMat operator*(const NRSMat<T> &rhs) const; // Mat * Smat
@@ -65,6 +74,8 @@ public:
 	inline const T& operator()(const int i, const int j) const;
 	inline int nrows() const;
 	inline int ncols() const;
+        void get(int fd, bool dimensions=1);
+        void put(int fd, bool dimensions=1) const;
 	void copyonwrite();
 	void resize(const int n, const int m);
 	inline operator T*(); //get a pointer to the data
@@ -446,9 +457,24 @@ template <typename T>
 void NRMat<T>::resize(const int n, const int m)
 {
 #ifdef DEBUG
-        if (n<=0 || m<=0) laerror("illegal dimensions in Mat::resize()");
+        if (n<0 || m<0 || n>0 && m==0 || n==0 && m>0) laerror("illegal dimensions in Mat::resize()");
 #endif
         if (count)
+	    {
+	        if(n==0 && m==0)
+        		{
+		        if(--(*count) <= 0) {
+#ifdef MATPTR
+                		if(v) delete[] (v[0]);
+#endif
+                		if(v) delete[] v;
+		                delete count;
+		                }
+		        count=0;
+		        nn=mm=0;
+		        v=0;
+		        return;
+		        }
                 if (*count > 1) {
                         (*count)--;
                         count = 0;
@@ -456,6 +482,7 @@ void NRMat<T>::resize(const int n, const int m)
                         nn = 0;
                         mm = 0;
                 }
+	    }
         if (!count) {
                 count = new int;
                 *count = 1;
