@@ -59,7 +59,7 @@ public:
 	friend class NRMat<T>;
 
 	inline NRVec(): nn(0),v(0),count(0){};
-	inline explicit NRVec(const int n) : nn(n), v(new T[n]), count(new int(1)) {};
+	explicit inline NRVec(const int n) : nn(n), v(new T[n]), count(new int(1)) {};
 	inline NRVec(const T &a, const int n);
 	inline NRVec(const T *a, const int n);
 	inline NRVec(const NRVec &rhs);
