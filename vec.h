@@ -160,6 +160,7 @@ inline NRVec<double> & NRVec<double>::operator+=(const double &a)
 	cblas_daxpy(nn, 1.0, &a, 0, v, 1);
 	return *this;
 }
+
 inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator+=(const complex<double> &a)
 {
@@ -167,6 +168,17 @@ NRVec< complex<double> >::operator+=(const complex<double> &a)
 	cblas_zaxpy(nn, (void *)(&CONE), (void *)(&a), 0, (void *)v, 1);
 	return *this;
 }
+
+//and for general type
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator+=(const T &a)
+{
+        copyonwrite();
+	int i;
+	for(i=0; i<nn; ++i) v[i]+=a;
+        return *this;
+}
+
 
 // x -= a
 inline NRVec<double> & NRVec<double>::operator-=(const double &a)
@@ -182,6 +194,17 @@ NRVec< complex<double> >::operator-=(const complex<double> &a)
 	cblas_zaxpy(nn, (void *)(&CMONE), (void *)(&a), 0, (void *)v, 1);
 	return *this;
 }
+
+//and for general type
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator-=(const T &a)
+{
+        copyonwrite();
+        int i;
+        for(i=0; i<nn; ++i) v[i]-=a;
+        return *this;
+}
+
 
 // x += x
 inline NRVec<double> & NRVec<double>::operator+=(const NRVec<double> &rhs)
@@ -204,6 +227,20 @@ NRVec< complex<double> >::operator+=(const NRVec< complex<double> > &rhs)
 	return *this;
 }
 
+//and for general type
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator+=(const NRVec<T> &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+#endif
+        copyonwrite();
+	int i;
+	for(i=0; i<nn; ++i) v[i]+=rhs.v[i];
+        return *this;
+}
+
+
 // x -= x
 inline NRVec<double> & NRVec<double>::operator-=(const NRVec<double> &rhs)
 {
@@ -225,6 +262,20 @@ NRVec< complex<double> >::operator-=(const NRVec< complex<double> > &rhs)
 	return *this;
 }
 
+//and for general type
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator-=(const NRVec<T> &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+#endif
+        copyonwrite();
+        int i;
+        for(i=0; i<nn; ++i) v[i]-=rhs.v[i];
+        return *this;
+}
+
+
 // x *= a
 inline NRVec<double> & NRVec<double>::operator*=(const double &a)
 {
@@ -239,6 +290,17 @@ NRVec< complex<double> >::operator*=(const complex<double> &a)
 	cblas_zscal(nn, (void *)(&a), (void *)v, 1);
 	return *this;
 }
+
+//and for general type
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator*=(const T &a)
+{
+        copyonwrite();
+        int i;
+        for(i=0; i<nn; ++i) v[i]*=a;
+        return *this;
+}
+
 
 // scalar product x.y
 inline const double NRVec<double>::operator*(const NRVec<double> &rhs) const

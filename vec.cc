@@ -9,8 +9,12 @@ template istream & operator>>(istream  &s, NRVec< T > &x); \
 
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
+INSTANTIZE(int)
+INSTANTIZE(char)
 template NRVec<double>;
 template NRVec< complex<double> >;
+template NRVec<int>;
+template NRVec<char>;
 
 
 /*
@@ -280,6 +284,12 @@ NRVec< complex<double> > & NRVec< complex<double> >::normalize()
 	cblas_zscal(nn, (void *)(&tmp), (void *)v, 1);
 	return *this;
 }
+
+//and for these types it does not make sense to normalize but we have them for linkage
+NRVec<int> &  NRVec<int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+NRVec<char> &  NRVec<char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+
+
 
 // gemv call 
 void NRVec<double>::gemv(const double beta, const NRMat<double> &A, 

@@ -120,9 +120,17 @@ inline NRSMat< complex<double> > &
 NRSMat< complex<double> >::operator*=(const complex<double> & a)
 {
 	copyonwrite();
-	cblas_zscal(nn, (void *)(&a), (void *)v, 1);
+	cblas_zscal(NN2, (void *)(&a), (void *)v, 1);
 	return *this;
 }
+template <typename T>
+inline NRSMat<T> & NRSMat<T>::operator*=(const T & a)
+{
+        copyonwrite();
+	for(int i=0; i<NN2; ++i) v[i]*=a;
+        return *this;
+}
+
 
 
 // S += D
@@ -165,6 +173,18 @@ NRSMat< complex<double> >::operator+=(const NRSMat< complex<double> > & rhs)
 	return *this;
 }
 
+template <typename T>
+inline NRSMat<T> & NRSMat<T>::operator+=(const NRSMat<T> & rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("incompatible SMats in SMat::operator+=");
+#endif
+        copyonwrite();
+	for(int i=0; i<NN2; ++i) v[i] += rhs.v[i];
+        return *this;
+}
+
+
 // S -= S
 inline NRSMat<double> &
 NRSMat<double>::operator-=(const NRSMat<double> & rhs)
@@ -186,6 +206,18 @@ NRSMat< complex<double> >::operator-=(const NRSMat< complex<double> > & rhs)
 	cblas_zaxpy(NN2, (void *)(&CMONE), (void *)(&rhs.v), 1, (void *)(&v), 1);
 	return *this;
 }
+
+template <typename T>
+inline NRSMat<T> & NRSMat<T>::operator-=(const NRSMat<T> & rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("incompatible SMats in SMat::operator-=");
+#endif
+        copyonwrite();
+        for(int i=0; i<NN2; ++i) v[i] -= rhs.v[i];
+        return *this;
+}
+
 
 // SMat + Mat
 template <typename T>

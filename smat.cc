@@ -7,6 +7,8 @@
 ////// forced instantization in the corresponding object file
 template NRSMat<double>;
 template NRSMat< complex<double> >;
+template NRSMat<int>;
+template NRSMat<char>;
 
 
 
@@ -27,7 +29,7 @@ NRSMat<T>::NRSMat(const NRMat<T> &rhs)
 	v = new T[NN2];
 	int i, j, k=0;
 	for (i=0; i<nn; i++)
-		for (j=0; j<=i;j++) v[k++] = 0.5 * (rhs[i][j] + rhs[j][i]);
+		for (j=0; j<=i;j++) v[k++] = (rhs[i][j] + rhs[j][i])/((T)2);
 }
 
 
@@ -387,6 +389,20 @@ istream& operator>>(istream  &s, NRSMat<T> &x)
                 return s;
                 }
 
+//not implemented yet
+const NRVec<int> NRSMat<int>::operator*(NRVec<int> const&rhs) const
+{
+laerror("NRSMat<int>::operator*(NRVec<int> const&) not implemented yet");
+return rhs;
+}
+
+const NRVec<char> NRSMat<char>::operator*(NRVec<char> const&rhs) const
+{
+laerror("NRSMat<char>::operator*(NRVec<char> const&) not implemented yet");
+return rhs;
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corespoding object file
@@ -396,4 +412,6 @@ template istream & operator>>(istream  &s, NRSMat< T > &x); \
 
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
+INSTANTIZE(int)
+INSTANTIZE(char)
 

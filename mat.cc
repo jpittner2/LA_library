@@ -6,6 +6,8 @@
 //// forced instantization in the corresponding object file
 template NRMat<double>;
 template NRMat< complex<double> >;
+template NRMat<int>;
+template NRMat<char>;
 
 
 /*
@@ -376,6 +378,21 @@ NRMat< complex<double> >::operator*=(const complex<double> &a)
 	return *this;
 }
 
+//and for general type
+template <typename T>
+NRMat<T> & NRMat<T>::operator*=(const T &a)
+{
+        copyonwrite();
+#ifdef MATPTR
+         for (int i=0; i< nn*nn; i++) v[0][i] *= a;
+#else
+         for (int i=0; i< nn*nn; i++) v[i] *= a;
+#endif
+        return *this;
+}
+
+
+
 // Mat += Mat
 NRMat<double> & NRMat<double>::operator+=(const NRMat<double>  &rhs)
 {
@@ -399,6 +416,24 @@ NRMat< complex<double> >::operator+=(const NRMat< complex<double> >  &rhs)
 	 return *this;
 }
 
+//and for general type
+template <typename T>
+NRMat<T> & NRMat<T>::operator+=(const NRMat<T>  &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn || mm!= rhs.mm)
+                laerror("Mat -= Mat of incompatible matrices");
+#endif
+        copyonwrite();
+#ifdef MATPTR
+         for (int i=0; i< nn*nn; i++) v[0][i] += rhs.v[0][i] ;
+#else
+         for (int i=0; i< nn*nn; i++) v[i] += rhs.v[i] ;
+#endif
+        return *this;
+}
+
+
 // Mat -= Mat
 NRMat<double> & NRMat<double>::operator-=(const NRMat<double>  &rhs)
 {
@@ -421,6 +456,24 @@ NRMat< complex<double> >::operator-=(const NRMat< complex<double> >  &rhs)
 	 cblas_zaxpy(nn*mm, &CMONE, (void *)rhs[0], 1, (void *)(*this)[0], 1);
 	 return *this;
 }
+
+//and for general type
+template <typename T>
+NRMat<T> & NRMat<T>::operator-=(const NRMat<T>  &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn || mm!= rhs.mm)
+                laerror("Mat -= Mat of incompatible matrices");
+#endif
+        copyonwrite();
+#ifdef MATPTR
+         for (int i=0; i< nn*nn; i++) v[0][i] -= rhs.v[0][i] ;
+#else
+         for (int i=0; i< nn*nn; i++) v[i] -= rhs.v[i] ;
+#endif
+        return *this;
+}
+
 
 // Mat += SMat
 NRMat<double> & NRMat<double>::operator+=(const NRSMat<double> &rhs)
@@ -461,6 +514,28 @@ NRMat< complex<double> >::operator+=(const NRSMat< complex<double> > &rhs)
 	return *this;
 }
 
+//and for general type
+template <typename T>
+NRMat<T> & NRMat<T>::operator+=(const NRSMat<T> &rhs)
+{
+#ifdef DEBUG
+        if (nn!=mm || nn!=rhs.nrows()) laerror("incompatible matrix size in Mat+=SMat");
+#endif
+        const T *p = rhs;
+        copyonwrite();
+        for (int i=0; i<nn; i++) {
+		for(int j=0; j<i+1; ++j) *((*this)[i]+j) += p[j];
+                p += i+1;
+        }
+        p = rhs; p++;
+        for (int i=1; i<nn; i++) {
+		for(int j=0; j<i; ++j) *((*this)[i]+i+nn*j) += p[j];
+                p += i+1;
+        }
+        return *this;
+}
+
+
 // Mat -= SMat
 NRMat<double> & NRMat<double>::operator-=(const NRSMat<double> &rhs)
 {
@@ -498,6 +573,28 @@ NRMat< complex<double> >::operator-=(const NRSMat< complex<double> > &rhs)
 		p += i+1;
 	}
 	return *this;
+}
+
+
+//and for general type
+template <typename T>
+NRMat<T> & NRMat<T>::operator-=(const NRSMat<T> &rhs)
+{
+#ifdef DEBUG
+        if (nn!=mm || nn!=rhs.nrows()) laerror("incompatible matrix size in Mat+=SMat");
+#endif
+        const T *p = rhs;
+        copyonwrite();
+        for (int i=0; i<nn; i++) {
+		for(int j=0; j<i+1; ++j) *((*this)[i]+j) -= p[j];
+                p += i+1;
+        }
+        p = rhs; p++;
+        for (int i=1; i<nn; i++) {
+		for(int j=0; j<i; ++j) *((*this)[i]+i+nn*j) -= p[j];
+                p += i+1;
+        }
+        return *this;
 }
 
 // Mat.Mat - scalar product
@@ -801,6 +898,8 @@ template istream & operator>>(istream  &s, NRMat< T > &x); \
 
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
+INSTANTIZE(int)
+INSTANTIZE(char)
 
 
 export template <class T>

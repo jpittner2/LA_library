@@ -15,6 +15,8 @@ template void lawritemat(FILE *file,const T *a,int r,int c,const char *form0, \
 		int nodim,int modulo, int issym);
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
+INSTANTIZE(int)
+INSTANTIZE(char)
 
 template <typename T>
 void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
