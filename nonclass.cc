@@ -340,11 +340,21 @@ extern "C" void FORNAME(dggev)(const char *JOBVL, const char *JOBVR, const int *
 
 //statics for sorting
 static int *gdperm;
-static double *gdwr, *gdwi;
+static double *gdwr, *gdwi, *gdbeta;
 
 //compare methods
 static double realonly(const int i, const int j)
 {
+if(gdbeta)
+	{
+	if(gdbeta[i]==0. && gdbeta[j]!=0) return 1.;
+	if(gdbeta[j]==0. && gdbeta[i]!=0) return -1.;
+	if(gdbeta[i]==0. && gdbeta[j]==0) return 0.;
+	double tmp = gdwr[i]/gdbeta[i]-gdwr[j]/gdbeta[j];
+	if(tmp) return tmp;
+	return gdwi[j]/gdbeta[j]-gdwi[i]/gdbeta[i];
+	}
+//else
 double tmp = gdwr[i]-gdwr[j];
 if(tmp) return tmp;
 return gdwi[j]-gdwi[i];
@@ -354,9 +364,7 @@ static double realfirst(const int i, const int j)
 {
 if(gdwi[i] && ! gdwi[j]) return 1.;
 if(!gdwi[i] && gdwi[j]) return -1.;
-double tmp = gdwr[i]-gdwr[j];
-if(tmp) return tmp;
-return gdwi[j]-gdwi[i];
+return realonly(i,j);
 }
 
 static double (* gdcompar[2])(const int, const int) = {&realonly, &realfirst};
@@ -369,6 +377,7 @@ int itmp;
 itmp=gdperm[i]; gdperm[i]=gdperm[j]; gdperm[j]=itmp;
 tmp=gdwr[i]; gdwr[i]=gdwr[j]; gdwr[j]=tmp;
 tmp=gdwi[i]; gdwi[i]=gdwi[j]; gdwi[j]=tmp;
+if(gdbeta) {tmp=gdbeta[i]; gdbeta[i]=gdbeta[j]; gdbeta[j]=tmp;}
 }
 
 
@@ -426,7 +435,7 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 
 	if(biorthonormalize && vl && vr)
 		{
-		if(b || beta) laerror("biorthonormalize not implemented yet for generalized non-symmetric eiugenproblem");//metric b would be needed
+		if(b || beta) laerror("@@@ biorthonormalize not implemented yet for generalized non-symmetric eigenproblem");//metric b would be needed
 		int i=0;
 		while(i<n)
 			{
@@ -486,10 +495,10 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 
 	if(sorttype>0)
 		{
-		if(b || beta) laerror("sort not implemented yet for generalized non-symmetric eiugenproblem");
 		NRVec<int> perm(n);
 		for(int i=0; i<n;++i) perm[i]=i;
 		gdperm= perm;
+		if(beta) gdbeta= *beta; else gdbeta= NULL;
 		gdwr=wr, gdwi=wi;
 		genqsort(0,n-1,gdcompar[sorttype-1],gdswap);
 		if(vl)
