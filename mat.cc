@@ -34,24 +34,6 @@ NRMat<T> & NRMat<T>::operator=(const T &a)
 
 
 
-//get diagonal; for compatibility with large matrices do not return newly created object
-template <typename T>
-void NRMat<T>::diagonalof(NRVec<T> &r) const
-{
-#ifdef DEBUG
-        if (nn != mm) laerror("diagonalof() non-square matrix");
-	if (r.size() != nn) laerror("diagonalof() incompatible vector");
-#endif
-
-#ifdef MATPTR
-         for (int i=0; i< nn; i++) r[i] = v[i][i];
-#else
-         {int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) r[j] = v[i];}
-#endif
-
-}
-
-
 
 // M += a
 template <typename T>
@@ -756,6 +738,38 @@ const complex<double> NRMat< complex<double> >::trace() const
 #endif
 	return sum;
 }
+
+
+
+//get diagonal; for compatibility with large matrices do not return newly created object
+//for non-square get diagonal of A^TA, will be used as preconditioner 
+void NRMat<double>::diagonalof(NRVec<double> &r) const
+{
+#ifdef DEBUG
+	if (r.size() != nn) laerror("diagonalof() incompatible vector");
+#endif
+
+if(nn==mm)
+{
+#ifdef MATPTR
+         for (int i=0; i< nn; i++) r[i] = v[i][i];
+#else
+         {int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) r[j] = v[i];}
+#endif
+}
+else //non-square
+{
+for (int i=0; i< mm; i++)
+#ifdef MATPTR
+	r[i] = cblas_ddot(nn,v[0]+i,mm,v[0]+i,mm);
+#else
+	r[i] = cblas_ddot(nn,v+i,mm,v+i,mm);
+#endif
+}
+
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corespoding object file

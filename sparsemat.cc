@@ -490,15 +490,22 @@ template <class T>
 void SparseMat<T>::diagonalof(NRVec<T> &r) const
 {
 #ifdef DEBUG
-if(nn!=mm) laerror("diagonalof() non-square sparse matrix");
+if((int)mm!=r.size()) laerror("incompatible vector size in diagonalof()");
 #endif
 matel<T> *l=list;
 r=(T)0;
-while(l)
-	{
-	if(l->row == l->col) r[l->row]+= l->elem;
-	l= l->next;
-	}
+if(nn==mm) //square
+	while(l)
+		{
+		if(l->row == l->col) r[l->row]+= l->elem;
+		l= l->next;
+		}
+else //diagonal of A^TA, assuming it has been simplified (only one entry per position), will be used as preconditioner only anyway
+	while(l)
+		{
+		r[l->col] += l->elem*l->elem *(l->col!=l->row && symmetric?2.:1.);
+		l= l->next;
+		}
 }
 
 
