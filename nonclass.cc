@@ -6,6 +6,7 @@ extern "C" {
 #include "smat.h"
 #include "mat.h"
 #include "nonclass.h"
+#include "qsort.h"
 
 
 #ifdef FORTRAN_
@@ -228,8 +229,8 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 	int ldb=0; if(b) ldb=b->ncols();
 
 	// First call is to determine size of workspace
-	if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, (double *)&WORKX, &LWORK, &r );
-	else FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, (double *)&WORKX, &LWORK, &r );
+	if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, &r );
+	else FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, &WORKX, &LWORK, &r );
 	LWORK = (int)WORKX;
 	double *WORK = new double[LWORK];
 	if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, &r );
@@ -318,7 +319,7 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 	lwork = (int) work0;
 	double *work = new double[lwork];
 	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, &work0, &lwork, &r);
+			u?(*u)[0]:0, &m0, work, &lwork, &r);
 	delete[] work;
 	if (v && corder) v->transposeme(n);
 
@@ -336,8 +337,45 @@ extern "C" void FORNAME(dggev)(const char *JOBVL, const char *JOBVR, const int *
 		 double *VL, const int *LDVL,  double *VR, const int *LDVR,  
 		double *WORK, const int *LWORK, int *INFO );
 
+
+//statics for sorting
+static int *gdperm;
+static double *gdwr, *gdwi;
+
+//compare methods
+static double realonly(const int i, const int j)
+{
+double tmp = gdwr[i]-gdwr[j];
+if(tmp) return tmp;
+return gdwi[j]-gdwi[i];
+}
+
+static double realfirst(const int i, const int j)
+{
+if(gdwi[i] && ! gdwi[j]) return 1.;
+if(!gdwi[i] && gdwi[j]) return -1.;
+double tmp = gdwr[i]-gdwr[j];
+if(tmp) return tmp;
+return gdwi[j]-gdwi[i];
+}
+
+static double (* gdcompar[2])(const int, const int) = {&realonly, &realfirst};
+
+//swap method
+static void gdswap(const int i, const int j)
+{
+double tmp;
+int itmp;
+itmp=gdperm[i]; gdperm[i]=gdperm[j]; gdperm[j]=itmp;
+tmp=gdwr[i]; gdwr[i]=gdwr[j]; gdwr[j]=tmp;
+tmp=gdwi[i]; gdwi[i]=gdwi[j]; gdwi[j]=tmp;
+}
+
+
+
 void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 		NRMat<double> *vl, NRMat<double> *vr, const bool corder, int n,
+		const int sorttype, const bool biorthonormalize,
 		NRMat<double> *b, NRVec<double> *beta)
 {
 	if(n<=0) n = a.nrows();
@@ -378,23 +416,107 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 	lwork = (int) work0;
 	double *work = new double[lwork];
 	if(b) FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
-                        &ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+                        &ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
 	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
-			&ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
 	delete[] work;
+
+	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
+	if (r > 0) laerror("convergence problem in ggev/geev in gdiagonalize()");
+
+	if(biorthonormalize && vl && vr)
+		{
+		if(b || beta) laerror("biorthonormalize not implemented yet for generalized non-symmetric eiugenproblem");//metric b would be needed
+		int i=0;
+		while(i<n)
+			{
+			if(wi[i]==0) //real
+				{
+				//calculate scaling paramter
+				double tmp;
+				tmp=cblas_ddot(n,(*vl)[i],1,(*vr)[i], 1);
+				tmp=1./sqrt(abs(tmp));
+				cblas_dscal(n,tmp,(*vl)[i],1);
+				cblas_dscal(n,tmp,(*vr)[i],1);
+				i++;
+				}
+			else //complex pair
+				{
+				//calculate rotation parameters
+				double s11,s12;
+				//double s21,s22;
+				s11=cblas_ddot(n,(*vl)[i],1,(*vr)[i], 1);
+				s12=cblas_ddot(n,(*vl)[i],1,(*vr)[i+1], 1);
+				//s21=cblas_ddot(n,(*vl)[i+1],1,(*vr)[i], 1);
+                                //s22=cblas_ddot(n,(*vl)[i+1],1,(*vr)[i+1], 1);
+				double t,x,y;
+				t=1/(s11*s11+s12*s12);
+				x=.5*t*s11;
+				y=.5*t*s12;
+				double alp,bet;
+				t=.5*sqrt(t);
+				alp=sqrt(.5*(t+x));
+				bet=sqrt(.5*(t-x));
+				if(y<0.) bet= -bet;
+
+				//rotate left ev
+				memcpy(a[i],(*vl)[i],n*sizeof(double));
+				cblas_dscal(n,alp,a[i],1);
+				cblas_daxpy(n,-bet,(*vl)[i+1],1,a[i],1);
+				memcpy(a[i+1],(*vl)[i+1],n*sizeof(double));
+				cblas_dscal(n,alp,a[i+1],1);
+				cblas_daxpy(n,bet,(*vl)[i],1,a[i+1],1);
+				memcpy((*vl)[i],a[i],n*sizeof(double));
+				memcpy((*vl)[i+1],a[i+1],n*sizeof(double));
+
+				//rotate right ev
+				memcpy(a[i],(*vr)[i],n*sizeof(double));
+                                cblas_dscal(n,alp,a[i],1);
+                                cblas_daxpy(n,bet,(*vr)[i+1],1,a[i],1);
+                                memcpy(a[i+1],(*vr)[i+1],n*sizeof(double));
+                                cblas_dscal(n,alp,a[i+1],1);
+                                cblas_daxpy(n,-bet,(*vr)[i],1,a[i+1],1);
+                                memcpy((*vr)[i],a[i],n*sizeof(double));
+                                memcpy((*vr)[i+1],a[i+1],n*sizeof(double));
+
+				i+=2;
+				}
+			}
+		}
+
+	if(sorttype>0)
+		{
+		if(b || beta) laerror("sort not implemented yet for generalized non-symmetric eiugenproblem");
+		NRVec<int> perm(n);
+		for(int i=0; i<n;++i) perm[i]=i;
+		gdperm= perm;
+		gdwr=wr, gdwi=wi;
+		genqsort(0,n-1,gdcompar[sorttype-1],gdswap);
+		if(vl)
+			{
+			for(int i=0; i<n;++i) memcpy(a[i],(*vl)[perm[i]],n*sizeof(double));
+			*vl |= a;
+			}
+		if(vr)
+			{
+			for(int i=0; i<n;++i) memcpy(a[i],(*vr)[perm[i]],n*sizeof(double));
+			*vr |= a;
+			}
+		}
+
 
 	if (corder) {
 		if (vl) vl->transposeme(n);
 		if (vr) vr->transposeme(n);
 	}
 
-	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
-	if (r > 0) laerror("convergence problem in ggev/geev in gdiagonalize()");
 }
+
 
 void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
-		const bool corder, int n,NRMat<double> *b, NRVec<double> *beta)
+		const bool corder, int n, const int sorttype, const bool biorthonormalize,
+		NRMat<double> *b, NRVec<double> *beta)
 {
 	if(!corder)  laerror("gdiagonalize() corder 0 not implemented");
 	if(n<=0)  n = a.nrows();
@@ -405,7 +527,7 @@ void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 	NRMat<double> *rvr = 0;
 	if (vl) rvl = new NRMat<double>(n, n);
 	if (vr) rvr = new NRMat<double>(n, n);
-	gdiagonalize(a, wr, wi, rvl, rvr, 0, n, b, beta);
+	gdiagonalize(a, wr, wi, rvl, rvr, 0, n, sorttype, biorthonormalize, b, beta);
 	
 	//process the results into complex matrices
 	int i;
