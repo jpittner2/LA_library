@@ -33,83 +33,8 @@ NRVec<T>::NRVec(const NRMat<T> &rhs)
 }
 #endif
 
-// dtor
-template <typename T>
-NRVec<T>::~NRVec()
-{
-	if(!count) return;
-	if(--(*count) <= 0) {
-		if(v) delete[] (v);
-		delete count;
-	}
-}
 
-// detach from a physical vector and make own copy
-template <typename T>
-void NRVec<T>::copyonwrite()
-{
-#ifdef DEBUG
-  if(!count) laerror("probably an assignment to undefined vector");
-#endif
-  if(*count > 1)
-  {
-    (*count)--;
-    count = new int;
-    *count = 1;
-    T *newv = new T[nn];
-    memcpy(newv, v, nn*sizeof(T));
-    v = newv;
-  }
-}
 
-// Asignment
-template <typename T>
-NRVec<T> & NRVec<T>::operator=(const NRVec<T> &rhs)
-{
-  if (this != &rhs)
-  {
-    if(count)
-      if(--(*count) == 0)
-      {
-        delete[] v;
-        delete count;
-      }
-    v = rhs.v;
-    nn = rhs.nn;
-    count = rhs.count;
-    if(count) (*count)++;
-  }
-  return *this;
-}
-
-// Resize
-template <typename T>
-void NRVec<T>::resize(const int n)
-{
-#ifdef DEBUG
-  if(n<=0) laerror("illegal vector dimension");
-#endif
-  if(count)
-    if(*count > 1) {
-      (*count)--;
-      count = 0;
-      v = 0;
-      nn = 0;
-    }
-  if(!count) {
-    count = new int;
-    *count = 1;
-    nn = n;
-    v = new T[nn];
-    return;
-  }
-  // *count = 1 in this branch
-  if (n != nn) {
-    nn = n;
-    delete[] v;
-    v = new T[nn];
-  }
-}
 
 // ostream << NRVec
 template <typename T>
@@ -153,33 +78,6 @@ void NRVec<T>::fscanf(FILE *f, const char *format)
 	for (int i=0; i<n; i++)
 		if (std::fscanf(f, format, v+i) != 1)
 			laerror("cannot read the vector eleemnt");
-}
-
-// assignmet with a physical copy
-template <typename T>
-NRVec<T> & NRVec<T>::operator|=(const NRVec<T> &rhs)
-{
-	if (this != &rhs) {
-#ifdef DEBUG
-		if (!rhs.v) laerror("unallocated rhs in NRVec operator |=");
-#endif
-		if (count)
-			if (*count > 1) {
-				--(*count);
-				nn = 0;
-				count = 0;
-				v = 0;
-			}
-		if (nn != rhs.nn) {
-			if (v) delete[] (v);
-			nn = rhs.nn;
-		}
-		if(!v) v = new T[nn];
-		if(!count) count = new int;
-		*count = 1;
-		memcpy(v, rhs.v, nn*sizeof(T));
-	}
-	return *this;
 }
 
 // unary minus

@@ -8,7 +8,8 @@
 #include "fourindex.h"
 
 
-extern void test(const NRVec<double> &);
+extern void test(const NRVec<double> &x);
+
 
 double ad; 
 void f1(const double *c)
@@ -39,6 +40,8 @@ sigtraceback(SIGFPE,1);
 NRVec<double> x(1.,10);
 NRVec<double> y(2.,10);
 NRVec<double> z(-2.,10);
+
+if(0) test(x);
 
 y.axpy(3,x);
 

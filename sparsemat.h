@@ -197,11 +197,12 @@ r.gemm((T)1,y,tryy?'t':'n',x,trx?'t':'n',(T)1); //saves a temporary and simplifi
 return r;
 }
 
+
 //add sparse to dense
 template<class T>
 NRMat<T> & NRMat<T>::operator+=(const SparseMat<T> &rhs)
 {
-if(nn!=rhs.nrows()||mm!=rhs.ncols()) laerror("incompatible matrices in +=");
+if((unsigned int)nn!=rhs.nrows()||(unsigned int)mm!=rhs.ncols()) laerror("incompatible matrices in +=");
 matel<T> *l=rhs.getlist();
 bool sym=rhs.issymmetric();
 while(l)
@@ -215,6 +216,7 @@ while(l)
 #endif
         l=l->next;
         }
+return *this;
 }
 
 

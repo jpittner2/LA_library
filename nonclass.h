@@ -3,7 +3,17 @@
 #include "mat.h"
 
 //MISC
-template <class T> extern const NRMat<T> diagonalmatrix(const NRVec<T> &x);
+export template <class T>
+const NRMat<T> diagonalmatrix(const NRVec<T> &x)
+{
+int n=x.size();
+NRMat<T> result((T)0,n,n);
+T *p = result[0];
+for(int j=0; j<n; j++) {*p  = x[j]; p+=(n+1);}
+return result;
+}
+
+//these just declared at the moment
 template <class T> extern const NRVec<T> lineof(const NRMat<T> &x, const int i); 
 template <class T> extern const NRVec<T> columnof(const NRMat<T> &x, const int i);
 template <class T> extern const NRVec<T> diagonalof(const NRMat<T> &x); 

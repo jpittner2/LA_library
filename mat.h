@@ -327,6 +327,173 @@ inline const complex<double>  NRMat< complex<double> >::amax() const
 }
 
 
+//basi stuff to be available for any type ... must be in .h
+// dtor
+template <typename T>
+NRMat<T>::~NRMat()
+{
+        if (!count) return;
+        if (--(*count) <= 0) {
+                if (v) {
+#ifdef MATPTR
+                        delete[] (v[0]);
+#endif
+                        delete[] v;
+                }
+                delete count;
+        }
+}
+
+// assign NRMat = NRMat
+template <typename T>
+NRMat<T> & NRMat<T>::operator=(const NRMat<T> &rhs)
+{
+        if (this == &rhs) return *this;
+        if (count) {
+                if (--(*count) ==0 ) {
+#ifdef MATPTR
+                        delete[] (v[0]);
+#endif
+                        delete[] v;
+                        delete count;
+                }
+                v = rhs.v;
+                nn = rhs.nn;
+                mm = rhs.mm;
+                count = rhs.count;
+                if (count) (*count)--;
+        }
+        return *this;
+}
+
+
+// Explicit deep copy of NRmat
+template <typename T>
+NRMat<T> & NRMat<T>::operator|=(const NRMat<T> &rhs)
+{
+        if (this == &rhs) return *this;
+#ifdef DEBUG
+        if (!rhs.v) laerror("unallocated rhs in Mat operator |=");
+#endif
+        if (count)
+                if (*count > 1) {
+                        --(*count);
+                        nn = 0;
+                        mm = 0;
+                        count = 0;
+                        v = 0;
+                }
+        if (nn != rhs.nn || mm != rhs.mm) {
+                if (v) {
+#ifdef MATPTR
+                        delete[] (v[0]);
+#endif
+                        delete[] (v);
+                        v = 0;
+                }
+                nn = rhs.nn;
+                mm = rhs.mm;
+        }
+        if (!v) {
+#ifdef MATPTR
+                v = new T*[nn];
+                v[0] = new T[mm*nn];
+#else
+                v = new T[mm*nn];
+#endif
+        }
+#ifdef MATPTR
+        for (int i=1; i< nn; i++) v[i] = v[i-1] + mm;
+        memcpy(v[0], rhs.v[0], nn*mm*sizeof(T));
+#else
+        memcpy(v, rhs.v, nn*mm*sizeof(T));
+#endif
+
+        if (!count) count = new int;
+        *count = 1;
+
+        return *this;
+}
+
+// make detach Mat and make it's own deep copy
+template <typename T>
+void NRMat<T>::copyonwrite()
+{
+#ifdef DEBUG
+        if (!count) laerror("Mat::copyonwrite of undefined matrix");
+#endif
+        if (*count > 1) {
+                (*count)--;
+                count = new int;
+                *count = 1;
+#ifdef MATPTR
+                T **newv = new T*[nn];
+                newv[0] = new T[mm*nn];
+                memcpy(newv[0], v[0], mm*nn*sizeof(T));
+                v = newv;
+                for (int i=1; i< nn; i++) v[i] = v[i-1] + mm;
+#else
+                T *newv = new T[mm*nn];
+                memcpy(newv, v, mm*nn*sizeof(T));
+                v = newv;
+#endif
+        }
+}
+
+template <typename T>
+void NRMat<T>::resize(const int n, const int m)
+{
+#ifdef DEBUG
+        if (n<=0 || m<=0) laerror("illegal dimensions in Mat::resize()");
+#endif
+        if (count)
+                if (*count > 1) {
+                        (*count)--;
+                        count = 0;
+                        v  = 0;
+                        nn = 0;
+                        mm = 0;
+                }
+        if (!count) {
+                count = new int;
+                *count = 1;
+                nn = n;
+                mm = m;
+#ifdef MATPTR
+                v = new T*[nn];
+                v[0] = new T[m*n];
+                for (int i=1; i< n; i++) v[i] = v[i-1] + m;
+#else
+                v = new T[m*n];
+#endif
+                return;
+        }
+        // At this point *count = 1, check if resize is necessary
+        if (n!=nn || m!=mm) {
+                nn = n;
+                mm = m;
+#ifdef MATPTR
+                delete[] (v[0]);
+#endif
+                delete[] v;
+#ifdef MATPTR
+                v = new T*[nn];
+                v[0] = new T[m*n];
+                for (int i=1; i< n; i++) v[i] = v[i-1] + m;
+#else
+                v = new T[m*n];
+#endif
+        }
+}
+
+
+
+
+
+
+
+
+
 // I/O
 template <typename T> extern ostream& operator<<(ostream &s, const NRMat<T> &x);
 template <typename T> extern istream& operator>>(istream  &s, NRMat<T> &x);

@@ -315,6 +315,111 @@ inline NRSMat<T>:: operator const T*() const
 	return v;
 }
 
+//basic stuff to be available for any type ... must be in .h
+
+// dtor
+template <typename T>
+NRSMat<T>::~NRSMat()
+{
+        if (!count) return;
+        if (--(*count) <= 0) {
+                if (v) delete[] (v);
+                delete count;
+        }
+}
+
+// assignment with a physical copy
+template <typename T>
+NRSMat<T> & NRSMat<T>::operator|=(const NRSMat<T> &rhs)
+{
+        if (this != &rhs) {
+                if(!rhs.v) laerror("unallocated rhs in NRSMat operator |=");
+                if(count)
+                        if(*count > 1) {        // detach from the other
+                                --(*count);
+                                nn = 0;
+                                count = 0;
+                                v = 0;
+                        }
+                if (nn != rhs.nn) {
+                        if(v) delete [] (v);
+                        nn = rhs.nn;
+                }
+                if (!v) v = new T[NN2];
+                if (!count) count = new int;
+                *count = 1;
+                memcpy(v, rhs.v, NN2*sizeof(T));
+        }
+        return *this;
+}
+
+
+// assignment
+template <typename T>
+NRSMat<T> & NRSMat<T>::operator=(const NRSMat<T> & rhs)
+{
+        if (this == & rhs) return *this;
+        if (count)
+                if(--(*count) == 0) {
+                        delete [] v;
+                        delete count;
+                }
+        v = rhs.v;
+        nn = rhs.nn;
+        count = rhs.count;
+        if (count) (*count)++;
+        return *this;
+}
+
+
+// make new instation of the Smat, deep copy
+template <typename T>
+void NRSMat<T>::copyonwrite()
+{
+#ifdef DEBUG
+        if (!count) laerror("probably an assignment to undefined Smat");
+#endif
+        if (*count > 1) {
+                (*count)--;
+                count = new int;
+                *count = 1;
+                T *newv = new T[NN2];
+                memcpy(newv, v, NN2*sizeof(T));
+                v = newv;
+        }
+}
+
+
+// resize Smat
+template <typename T>
+void NRSMat<T>::resize(const int n)
+{
+#ifdef DEBUG
+        if (n <= 0) laerror("illegal matrix dimension in resize of Smat");
+#endif
+        if (count)
+                if(*count > 1) {        //detach from previous
+                        (*count)--;
+                        count = 0;
+                        v = 0;
+                        nn = 0;
+                }
+        if (!count)     {                               //new uninitialized vector or just detached
+                count = new int;
+                *count = 1;
+                nn = n;
+                v = new T[NN2];
+                return;
+        }
+        if (n != nn) {
+                nn = n;
+                delete[] v;
+                v = new T[NN2];
+        }
+}
+
+
+
 
 
 // I/O
