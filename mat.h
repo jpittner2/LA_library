@@ -361,7 +361,7 @@ NRMat<T> & NRMat<T>::operator=(const NRMat<T> &rhs)
                 nn = rhs.nn;
                 mm = rhs.mm;
                 count = rhs.count;
-                if (count) (*count)--;
+                if (count) (*count)++;
         }
         return *this;
 }

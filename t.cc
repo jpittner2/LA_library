@@ -25,7 +25,7 @@ void f2(double *c)
 
 inline int randind(const int n)
 {
-return int(random()/(1.+RAND_MAX)*n);
+	return int(random()/(1.+RAND_MAX)*n);
 }
 
 complex<double> mycident (const complex<double>&x) {return x;}
