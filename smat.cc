@@ -45,11 +45,17 @@ NRSMat<T> & NRSMat<T>::operator=(const T &a)
 
 //get diagonal
 template <typename T>
-void NRSMat<T>::diagonalof(NRVec<T> &r) const
+void NRSMat<T>::diagonalof(NRVec<T> &r, const bool divide) const
 {
 #ifdef DEBUG
 if(r.size()!=nn) laerror("incompatible vector in diagonalof()");
 #endif
+
+r.copyonwrite();
+
+if (divide)
+	for (int i=0; i<nn; i++) {T a =v[i*(i+1)/2+i]; if(a!=0.) r[i] /= a;}
+else
         for (int i=0; i<nn; i++) r[i] = v[i*(i+1)/2+i];
 }
 

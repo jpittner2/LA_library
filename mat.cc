@@ -743,28 +743,38 @@ const complex<double> NRMat< complex<double> >::trace() const
 
 //get diagonal; for compatibility with large matrices do not return newly created object
 //for non-square get diagonal of A^TA, will be used as preconditioner 
-void NRMat<double>::diagonalof(NRVec<double> &r) const
+void NRMat<double>::diagonalof(NRVec<double> &r, const bool divide) const
 {
 #ifdef DEBUG
 	if (r.size() != nn) laerror("diagonalof() incompatible vector");
 #endif
 
+double a;
+
+r.copyonwrite();
+
 if(nn==mm)
 {
 #ifdef MATPTR
-         for (int i=0; i< nn; i++) r[i] = v[i][i];
+if(divide) for (int i=0; i< nn; i++) if((a=v[i][i])) r[i]/=a;
+else         for (int i=0; i< nn; i++) r[i] = v[i][i];
 #else
-         {int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) r[j] = v[i];}
+if(divide) {int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) if((a=v[i])) r[j] /=a;}
+else         {int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) r[j] = v[i];}
 #endif
 }
 else //non-square
 {
 for (int i=0; i< mm; i++)
+	{
 #ifdef MATPTR
-	r[i] = cblas_ddot(nn,v[0]+i,mm,v[0]+i,mm);
+	a= cblas_ddot(nn,v[0]+i,mm,v[0]+i,mm);
 #else
-	r[i] = cblas_ddot(nn,v+i,mm,v+i,mm);
+	a=cblas_ddot(nn,v+i,mm,v+i,mm);
 #endif
+	if(divide) {if(a) r[i]/=a;}
+	else	r[i] = a;
+	}
 }
 
 }

@@ -58,7 +58,7 @@ public:
 	const NRVec<T> operator*(const NRVec<T> &rhs) const; // Mat * Vec
 	const NRVec<T> rsum() const; //sum of rows
 	const NRVec<T> csum() const; //sum of columns
-	void diagonalof(NRVec<T> &) const; //get diagonal 
+	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal 
 	inline T* operator[](const int i);  //subscripting: pointer to row i
 	inline const T* operator[](const int i) const;
 	inline T& operator()(const int i, const int j); // (i,j) subscripts

@@ -7,6 +7,8 @@
 #include "matexp.h"
 #include "fourindex.h"
 #include "davidson.h"
+#include "gmres.h"
+#include "conjgrad.h"
 
 
 extern void test(const NRVec<double> &x);
@@ -41,6 +43,10 @@ sigtraceback(SIGFPE,1);
 NRVec<double> x(1.,10);
 NRVec<double> y(2.,10);
 NRVec<double> z(-2.,10);
+
+cout.setf(ios::fixed);
+cout.precision(12);
+
 
 if(0) test(x);
 
@@ -785,7 +791,7 @@ cout <<v;
 }
 
 
-if(1)
+if(0)
 {
 int n,m;
 cin>>n >>m;
@@ -800,16 +806,65 @@ for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         }
 
 NRMat<double> aa=a;
-cout <<aa;
 diagonalize(aa,rr);
-cout <<aa;
-cout <<rr;
-
 NRVec<double> r(m);
 NRVec<double> *eivecs = new NRVec<double>[m];
-davidson(a,eivecs,r,m);
+davidson(a,r,eivecs,m,1);
 
-cout <<r;
+cout <<"Davidson energies " <<r;
+cout <<"Exact energies " ;
+for(int i=0; i<m; ++i) cout <<rr[i]<<" ";
+cout <<endl;
+
+cout <<"Eigenvectors compare:\n";
+for(int i=0; i<m; ++i) 
+	{
+	cout <<eivecs[i];
+	for(int j=0; j<n;++j) cout <<aa[j][i]<<" ";
+	cout <<endl;
+	}
+
+
+
+}
+
+
+if(1)
+{
+int n,m;
+cin>>n >>m;
+NRMat<double> a(n,m);
+NRVec<double> b(n);
+NRVec<double> x(m);
+
+for(int i=0;i<n;++i) for(int j=0;j<m;++j)
+        {
+        //a(j,i)= 2*i*i*i-5*j+ +9*8*7*6*5*4*3*2/(i+j+1.)+3*(i*i+2*j*j*j);
+	a(i,j)= random()/(1.+RAND_MAX);
+	if(i==j) a(i,i)+= .5*(i-n);
+        }
+for(int i=0;i<n;++i) b[i] = i;
+
+NRVec<double> bb=b;
+//cout <<a;
+//cout <<b;
+NRMat<double>aa=a;
+linear_solve(aa,bb);
+//cout <<bb;
+//gmres   (a,b,x,1,1e-10,100,1,0,1,0);
+  conjgrad(a,b,x,1,1e-10,200,1,0,1);
+
+cout <<"\nsolution compare:\n";
+for(int i=0; i<m; ++i) 
+	{
+	cout <<"iterative solver: ";
+	cout <<x[i];
+	cout <<" direct solver:";
+	cout <<bb[i];
+	cout <<endl;
+	}
+
+
 
 }
 

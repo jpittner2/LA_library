@@ -5,6 +5,7 @@
 #include "smat.h"
 #include "mat.h"
 
+
 //MISC
 export template <class T>
 const NRMat<T> diagonalmatrix(const NRVec<T> &x)
@@ -51,6 +52,8 @@ extern T trace2(const NRMat<T> &a, const NRMat<T> &b, bool trb=0); \
 extern T trace2(const NRSMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0); \
 extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0); \
+extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0); \
+extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, double *det=0); \
 extern void diagonalize(NRMat<T> &a, NRVec<T> &w, const bool eivec=1, const bool corder=1, int n=0); \
 extern void diagonalize(NRSMat<T> &a, NRVec<T> &w, NRMat<T> *v, const bool corder=1);\
 extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<T> &s,\

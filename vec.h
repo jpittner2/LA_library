@@ -1,7 +1,7 @@
 #ifndef _LA_VEC_H_
 #define _LA_VEC_H_
 
-
+#include "laerror.h"
 
 extern "C" {
 #include "cblas.h"
@@ -20,7 +20,6 @@ template <typename T> class SparseMat;
 
 //////////////////////////////////////////////////////////////////////////////
 // Forward declarations
-void laerror(const char *s1=0, const char *s2=0, const char *s3=0, const char *s4=0);
 template <typename T> void lawritemat(FILE *file,const T *a,int r,int c,
 		const char *form0,int nodim,int modulo, int issym);
 

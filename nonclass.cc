@@ -98,23 +98,6 @@ void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
 	}
 }
 
-// LA errorr handler
-void laerror(const char *s1, const char *s2, const char *s3, const char *s4)
-{
-  std::cerr << "LA:ERROR - ";
-  if(!s1)
-    std::cerr << "udefined.";
-  else {
-    if(s1) std::cerr << s1;
-    if(s2) std::cerr << s2;
-    if(s3) std::cerr << s3;
-    if(s4) std::cerr << s4;
-  }
-  std::cerr << endl;
-//@@@throw
-  exit(1);
-}
-
 //////////////////////
 // LAPACK interface //
 //////////////////////

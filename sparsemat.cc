@@ -486,26 +486,36 @@ for(i=0;i<nn;++i)
 
 
 //get diagonal, do not construct a new object, but store in existing one, important for huge CI matrices
+// with the divide option is used as a preconditioner, another choice of preconditioner is possible
 template <class T>
-void SparseMat<T>::diagonalof(NRVec<T> &r) const
+void SparseMat<T>::diagonalof(NRVec<T> &r, const bool divide) const
 {
 #ifdef DEBUG
 if((int)mm!=r.size()) laerror("incompatible vector size in diagonalof()");
 #endif
 matel<T> *l=list;
-r=(T)0;
+NRVec<T> *rr;
+
+r.copyonwrite();
+if(divide) {rr=new NRVec<T>(mm); *rr=(T)0;}
+else {r=(T)0; rr=&r;}
 if(nn==mm) //square
 	while(l)
 		{
-		if(l->row == l->col) r[l->row]+= l->elem;
+		if(l->row == l->col) (*rr)[l->row]+= l->elem;
 		l= l->next;
 		}
 else //diagonal of A^TA, assuming it has been simplified (only one entry per position), will be used as preconditioner only anyway
 	while(l)
 		{
-		r[l->col] += l->elem*l->elem *(l->col!=l->row && symmetric?2.:1.);
+		(*rr)[l->col] += l->elem*l->elem *(l->col!=l->row && symmetric?2.:1.);
 		l= l->next;
 		}
+if(divide)
+	{
+	for(unsigned int i=0; i<mm; ++i) if((*rr)[i]!=0.) r[i]/=(*rr)[i];
+	delete rr;
+	}
 }
 
 
