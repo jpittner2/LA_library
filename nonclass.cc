@@ -184,7 +184,7 @@ void linear_solve(NRSMat<double> &a, NRMat<double> *b, double *det)
 extern "C" void FORNAME(dsyev)(const char *JOBZ, const char *UPLO, const int *N,
 		double *A, const int *LDA, double *W, double *WORK, const int *LWORK, int *INFO);
 
-// a will contain eigenvectors, w eigenvalues
+// a will contain eigenvectors (columns if corder==1), w eigenvalues
 void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec, 
 		const bool corder)
 {
@@ -524,3 +524,154 @@ double trace2(const NRSMat<double> &a, const NRSMat<double> &b,
 	return r;
 }
 
+
+//generalized diagonalization, eivecs will be in columns of a
+void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b)
+{
+if(a.nrows()!=a.ncols() || a.nrows()!=w.size() || a.nrows()!=b.nrows()  || b.nrows()!=b.ncols() ) laerror("incompatible Mats in gendiagonalize");
+
+a.copyonwrite();
+w.copyonwrite();
+b.copyonwrite();
+int n=w.size();
+NRVec<double> dl(n);
+int i,j;
+double x;
+
+//transform the problem to usual diagonalization
+/*
+c
+c     this routine is a translation of the algol procedure reduc1,
+c     num. math. 11, 99-110(1968) by martin and wilkinson.
+c     handbook for auto. comp., vol.ii-linear algebra, 303-314(1971).
+c
+c     this routine reduces the generalized symmetric eigenproblem
+c     ax=(lambda)bx, where b is positive definite, to the standard
+c     symmetric eigenproblem using the cholesky factorization of b.
+c
+c     on input
+c
+c        nm must be set to the row dimension of two-dimensional
+c          array parameters as declared in the calling program
+c          dimension statement.
+c
+c        n is the order of the matrices a and b.  if the cholesky
+c          factor l of b is already available, n should be prefixed
+c          with a minus sign.
+c
+c        a and b contain the real symmetric input matrices.  only the
+c          full upper triangles of the matrices need be supplied.  if
+c          n is negative, the strict lower triangle of b contains,
+c          instead, the strict lower triangle of its cholesky factor l.
+c
+c        dl contains, if n is negative, the diagonal elements of l.
+c
+c     on output
+c
+c        a contains in its full lower triangle the full lower triangle
+c          of the symmetric matrix derived from the reduction to the
+c          standard form.  the strict upper triangle of a is unaltered.
+c
+c        b contains in its strict lower triangle the strict lower
+c          triangle of its cholesky factor l.  the full upper
+c          triangle of b is unaltered.
+c
+c        dl contains the diagonal elements of l.
+c
+c        ierr is set to
+c          zero       for normal return,
+c          7*n+1      if b is not positive definite.
+c
+c     questions and comments should be directed to burton s. garbow,
+c     mathematics and computer science div, argonne national laboratory
+c
+c     this version dated august 1983.
+c
+*/
+//    .......... form l in the arrays b and dl ..........
+for(i=0; i<n; ++i)
+{
+for(j=i; j<n; ++j)
+	{
+        x = b(i,j) -  cblas_ddot(i,&b(i,0),1,&b(j,0),1);
+	if(i==j)
+		{
+		if(x<=0) laerror("not positive definite metric in gendiagonalize");
+       	 	dl[i] = sqrt(x);
+		}
+	else    
+		b(j,i) = x / dl[i];
+	}
+}
+
+//     .......... form the transpose of the upper triangle of inv(l)*a
+//                in the lower triangle of the array a ..........
+for(i=0; i<n; ++i)
+{
+for(j=i; j<n ; ++j)
+	{
+        x = a(i,j) - cblas_ddot(i,&b(i,0),1,&a(j,0),1);
+        a(j,i) = x/dl[i];
+	}
+}
+
+//     .......... pre-multiply by inv(l) and overwrite ..........
+for(j=0; j<n ; ++j)
+{
+	for(i=j;i<n;++i)
+	{
+        x = a(i,j) - cblas_ddot(i-j,&a(j,j),n,&b(i,j),1)
+		- cblas_ddot(j,&a(j,0),1,&b(i,0),1);
+        a(i,j) = x/dl[i];
+	}
+}
+
+//fill in upper triangle of a for the diagonalize procedure (would not be needed with tred2,tql2)
+for(i=1;i<n;++i) for(j=0; j<i; ++j) a(j,i)=a(i,j);
+
+//diagonalize by a standard procedure
+diagonalize(a,w,1,1);
+
+//transform the eigenvectors back
+/*
+c
+c     this routine is a translation of the algol procedure rebaka,
+c     num. math. 11, 99-110(1968) by martin and wilkinson.
+c     handbook for auto. comp., vol.ii-linear algebra, 303-314(1971).
+c
+c     this routine forms the eigenvectors of a generalized
+c     symmetric eigensystem by back transforming those of the
+c     derived symmetric matrix determined by  reduc.
+c
+c     on input
+c
+c        n is the order of the matrix system.
+c
+c        b contains information about the similarity transformation
+c          (cholesky decomposition) used in the reduction by  reduc
+c          in its strict lower triangle.
+c
+c        dl contains further information about the transformation.
+c
+c        a contains the eigenvectors to be back transformed
+c          in its  columns
+c
+c     on output
+c
+c        a contains the transformed eigenvectors
+c          in its columns
+c
+c     questions and comments should be directed to burton s. garbow,
+c     mathematics and computer science div, argonne national laboratory
+c
+*/
+for(j=0; j<n; ++j)//eigenvector loop
+{
+for(int i=n-1; i>=0; --i)//component loop
+	{
+        if(i<n-1) a(i,j) -= cblas_ddot(n-1-i,&b(i+1,i),n,&a(i+1,j),n);
+        a(i,j) /= dl[i];
+	}
+}
+
+}

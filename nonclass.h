@@ -13,10 +13,6 @@ for(int j=0; j<n; j++) {*p  = x[j]; p+=(n+1);}
 return result;
 }
 
-//these just declared at the moment
-template <class T> extern const NRVec<T> lineof(const NRMat<T> &x, const int i); 
-template <class T> extern const NRVec<T> columnof(const NRMat<T> &x, const int i);
-template <class T> extern const NRVec<T> diagonalof(const NRMat<T> &x); 
 
 //more efficient commutator for a special case of full matrices
 template<class T>
@@ -52,8 +48,7 @@ extern T trace2(const NRMat<T> &a, const NRMat<T> &b, bool trb=0); \
 extern T trace2(const NRSMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0); \
 extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0); \
-extern void diagonalize(NRMat<T> &a, NRVec<T> &w, const bool eivec=1,\
-		const bool corder=1); \
+extern void diagonalize(NRMat<T> &a, NRVec<T> &w, const bool eivec=1, const bool corder=1); \
 extern void diagonalize(NRSMat<T> &a, NRVec<T> &w, NRMat<T> *v, const bool corder=1);\
 extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<T> &s,\
 		NRMat<T> *v, const bool corder=1);
@@ -62,12 +57,22 @@ declare_la(double)
 declare_la(complex<double>)
 
 // Separate declarations
+//general nonsymmetric matrix
 extern void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 		NRMat<double> *vl, NRMat<double> *vr, const bool corder=1);
 extern void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		 NRMat< complex<double> >*vl, NRMat< complex<double> > *vr);
 extern NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double));
 extern NRMat<double> matrixfunction(NRMat<double> a, complex<double> (*f)(const complex<double> &),const bool adjust=0);
+
+
+//////////////////////////////
+//other than lapack functions/
+//////////////////////////////
+
+
+//generalized diagonalization of symmetric matrix with symmetric positive definite metric matrix b
+extern void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b);
 
 //functions on matrices
 inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&sqrt); }
