@@ -229,8 +229,8 @@ ostream& operator<<(ostream &s, const fourindex<I,T> &x)
                 int n;
                 n=x.size();
                 s << n << '\n';
-                typename fourindex<I,T>::iterator it=x.begin();
-                while(it!=x.end())
+                typename fourindex<I,T>::iterator it=x.begin(),end=x.end();
+                while(it!=end)
                         {
                         s << (int)it->index.indiv.i << ' ' << (int)it->index.indiv.j<<  ' ' <<(int)it->index.indiv.k << ' ' << (int)it->index.indiv.l  << ' ' << it->elem << '\n';
 			++it;
