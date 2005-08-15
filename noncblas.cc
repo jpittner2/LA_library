@@ -1,5 +1,8 @@
 #ifdef NONCBLAS
 
+#include "noncblas.h"
+#include "laerror.h"
+
 #ifdef FORTRAN_
 #define FORNAME(x) x##_
 #else
@@ -100,10 +103,86 @@ FORNAME(zdotc) (dotc,&N,X,&incX,Y,&incY);
 }
 
 
+//Level 2 and Level 3 on symmetric/hermitian packed matrices - straightforward
+//enum CBLAS_UPLO  {CblasUpper=121, CblasLower=122};
+//enum CBLAS_ORDER {CblasRowMajor=101, CblasColMajor=102 };
+//enum CBLAS_TRANSPOSE {CblasNoTrans=111, CblasTrans=112, CblasConjTrans=113, AtlasConj=114};
+
+extern "C" void FORNAME(dspmv) (const char *uplo, const int *n, const double *alpha, const double *ap, const double *x, const int *incx, const double *beta, double *y, const int *incy);
+void cblas_dspmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
+                 const int N, const double alpha, const double *Ap,
+                 const double *X, const int incX,
+                 const double beta, double *Y, const int incY)
+{
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+FORNAME(dspmv) ("L",&N, &alpha, Ap, X, &incX, &beta, Y, &incY);
+}
+
+extern "C" void FORNAME(zhpmv) (const char *uplo, const int *n, const void *alpha, const void *ap, const void *x, const int *incx, const void *beta, void *y, const int *incy);
+void cblas_zhpmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
+                 const int N, const void *alpha, const void *Ap,
+                 const void *X, const int incX,
+                 const void *beta, void *Y, const int incY)
+{
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+FORNAME(zhpmv) ("L",&N, alpha, Ap, X, &incX, beta, Y, &incY);
+}
 
 
+//Level 2 and Level 3 on general matrices - take into account the transposed storage of matrices in Fortran and C
+
+extern "C" void FORNAME(dger) (const int *m, const int *n, const double *alpha, const double *x, const int *incx, const double *y, const int *incy, double *a, const int *lda);
+void cblas_dger(const enum CBLAS_ORDER Order, const int M, const int N,
+                const double alpha, const double *X, const int incX,
+                const double *Y, const int incY, double *A, const int lda)
+{
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+//swap m-n, y-x
+FORNAME(dger) (&N, &M, &alpha, Y, &incY, X, &incX, A, &lda);
+}
+
+void cblas_zgerc(const enum CBLAS_ORDER Order, const int M, const int N,
+                 const void *alpha, const void *X, const int incX,
+                 const void *Y, const int incY, void *A, const int lda)
+{
+laerror("cblas_zgerc cannot be simply converted to fortran order");
+}
+
+//dgemv
+
+//zgemv
 
 
-//Level 2 and Level 3 - take into account the transposed storage of matrices in Fortran and C
+extern "C" void FORNAME(dgemm) (const char *transa, const char *transb, const int *m, const int *n, const int *k, const double *alpha, const double *a, const int *lda, const double *b, const int *ldb, const double *beta, double *c, const int *ldc);
+void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA,
+                 const enum CBLAS_TRANSPOSE TransB, const int M, const int N,
+                 const int K, const double alpha, const double *A,
+                 const int lda, const double *B, const int ldb,
+                 const double beta, double *C, const int ldc)
+{
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+//swap a-b, m-n
+FORNAME(dgemm) (TransB==CblasNoTrans?"N":"T", TransA==CblasNoTrans?"N":"T",
+	 &N, &M, &K, &alpha, B, &ldb, A, &lda, &beta, C, &ldc);
+}
+
+extern "C" void FORNAME(zgemm) (const char *transa, const char *transb, const int *m, const int *n, const int *k, const void *alpha, const void *a, const int *lda, const void *b, const int *ldb, const void *beta, void *c, const int *ldc);
+void cblas_zgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA,
+                 const enum CBLAS_TRANSPOSE TransB, const int M, const int N,
+                 const int K, const void *alpha, const void *A,
+                 const int lda, const void *B, const int ldb,
+                 const void *beta, void *C, const int ldc)
+{
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+//swap a-b, m-n
+FORNAME(zgemm) ( TransB==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
+		 TransA==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
+         &N, &M, &K, alpha, B, &ldb, A, &lda, beta, C, &ldc);
+}
+
+
+//clapack_dgesv
 
 #endif
