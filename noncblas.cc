@@ -2,6 +2,7 @@
 
 #include "noncblas.h"
 #include "laerror.h"
+#include "mat.h"
 
 #ifdef FORTRAN_
 #define FORNAME(x) x##_
@@ -150,11 +151,6 @@ void cblas_zgerc(const enum CBLAS_ORDER Order, const int M, const int N,
 laerror("cblas_zgerc cannot be simply converted to fortran order");
 }
 
-//dgemv
-
-//zgemv
-
-
 extern "C" void FORNAME(dgemm) (const char *transa, const char *transb, const int *m, const int *n, const int *k, const double *alpha, const double *a, const int *lda, const double *b, const int *ldb, const double *beta, double *c, const int *ldc);
 void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA,
                  const enum CBLAS_TRANSPOSE TransB, const int M, const int N,
@@ -183,6 +179,47 @@ FORNAME(zgemm) ( TransB==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
 }
 
 
+extern "C" void FORNAME(dgemv)  (const char *TRANS, const int *M, const int *N, const double *ALPHA, const double *A,  const int *LDA,  const double *X,  const int *INCX, const double *BETA, double *Y, const int *INCY);
+void cblas_dgemv(const enum CBLAS_ORDER Order,
+                 const enum CBLAS_TRANSPOSE TransA, const int M, const int N,
+                 const double alpha, const double *A, const int lda,
+                 const double *X, const int incX, const double beta,
+                 double *Y, const int incY)
+{
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+//swap n-m and toggle transposition
+FORNAME(dgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
+}
+
+
+extern "C" void FORNAME(zgemv)  (const char *TRANS, const int *M, const int *N, const void *ALPHA, const void *A,  const int *LDA,  const void *X,  const int *INCX, const void *BETA, void *Y, const int *INCY);
+void cblas_zgemv(const enum CBLAS_ORDER Order,
+                 const enum CBLAS_TRANSPOSE TransA, const int M, const int N,
+                 const void *alpha, const void *A, const int lda,
+                 const void *X, const int incX, const void *beta,
+                 void *Y, const int incY)
+{
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(TransA == CblasConjTrans) laerror("zgemv with CblasConjTrans not supportted");
+//swap n-m and toggle transposition
+FORNAME(zgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, alpha, A, &lda, X, &incX, beta, Y, &incY );
+}
+
 //clapack_dgesv
+//allocate auxiliary storage and transpose input and output quantities to fortran/C order
+extern "C" void FORNAME(dgesv) (const int *N, const int *NRHS, double *A, const int *LDA, int *IPIV, double *B, const int *LDB, int *INFO);
+
+int clapack_dgesv(const enum CBLAS_ORDER Order, const int N, const int NRHS,
+                  double *A, const int lda, int *ipiv,
+                  double *B, const int ldb)
+{
+int INFO=0;
+if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+//B should be in the same physical order, just transpose A in place and the LU result on output
+for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {double t=A[j*lda+i]; A[j*lda+i]=A[i*lda+j]; A[i*lda+j]=t;}
+FORNAME(dgesv) (&N,&NRHS,A,&lda,ipiv,B,&ldb,&INFO);
+for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {double t=A[j*lda+i]; A[j*lda+i]=A[i*lda+j]; A[i*lda+j]=t;}
+return INFO;
+}
 
 #endif
