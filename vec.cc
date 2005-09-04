@@ -31,6 +31,7 @@ INSTANTIZE(unsigned char)
 template NRVec<double>;
 template NRVec<complex<double> >;
 template NRVec<char>;
+template NRVec<short>;
 template NRVec<int>;
 
 
@@ -236,6 +237,7 @@ NRVec< complex<double> > & NRVec< complex<double> >::normalize()
 
 //stubs for linkage
 NRVec<int> &  NRVec<int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+NRVec<short> &  NRVec<short>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 NRVec<char> &  NRVec<char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 void NRVec<int>::gemv(const int beta,
                 const NRSMat<int> &A, const char trans,
@@ -243,6 +245,14 @@ void NRVec<int>::gemv(const int beta,
 {
 laerror("not yet implemented");
 }
+
+void NRVec<short>::gemv(const short beta,
+                const NRSMat<short> &A, const char trans,
+                const short alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
 
 void NRVec<char>::gemv(const char beta,
                 const NRSMat<char> &A, const char trans,
@@ -258,6 +268,14 @@ void NRVec<int>::gemv(const int beta,
 laerror("not yet implemented");
 }
 
+void NRVec<short>::gemv(const short beta,
+                const NRMat<short> &A, const char trans,
+                const short alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+
 void NRVec<char>::gemv(const char beta,
                 const NRMat<char> &A, const char trans,
                 const char alpha, const NRVec &x)
@@ -271,6 +289,14 @@ void NRVec<int>::gemv(const int beta,
 {
 laerror("not yet implemented");
 }
+
+void NRVec<short>::gemv(const short beta,
+                const SparseMat<short> &A, const char trans,
+                const short alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
 
 void NRVec<char>::gemv(const char beta,
                 const SparseMat<char> &A, const char trans,
