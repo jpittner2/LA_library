@@ -66,11 +66,12 @@ declare_la(complex<double>)
 // Separate declarations
 //general nonsymmetric matrix and generalized diagonalization
 extern void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
-		NRMat<double> *vl, NRMat<double> *vr, const bool corder=1, int n=0,
+		NRMat<double> *vl, NRMat<double> *vr, const bool corder=1, int n=0, const int sorttype=0, const bool biorthonormalize=0,
 		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
 extern void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		 NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
-		 const bool corder=1, int n=0, NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
+		 const bool corder=1, int n=0, const int sorttype=0, const bool biorthonormalize=0,
+		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
 extern NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double));
 extern NRMat<double> matrixfunction(NRMat<double> a, complex<double> (*f)(const complex<double> &),const bool adjust=0);
 
@@ -100,12 +101,44 @@ const NRMat<T> inverse(NRMat<T> a, T *det=0)
 
 //general determinant
 template<class MAT>
-const typename LA_traits<MAT>::elementtype determinant(MAT a)//again passed by value
+const typename LA_traits<MAT>::elementtype determinant(MAT a)//passed by value
 {
 typename LA_traits<MAT>::elementtype det;
 if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
 linear_solve(a,NULL,&det);
 return det;
+}
+
+//general determinant destructive on input 
+template<class MAT>
+const typename LA_traits<MAT>::elementtype determinant_destroy(MAT &a) //passed by reference 
+{
+typename LA_traits<MAT>::elementtype det;
+if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
+linear_solve(a,NULL,&det);
+return det;
+}
+
+//general submatrix
+template<class MAT, class INDEX>
+const NRMat<typename LA_traits<MAT>::elementtype> submatrix(const MAT a, const INDEX rows, const INDEX cols, int indexshift=0, bool ignoresign=false)
+{
+NRMat<typename LA_traits<MAT>::elementtype> r(rows.size(),cols.size());
+
+if(ignoresign)
+{
+for(int i=0; i<rows.size(); ++i)
+        for(j=0; j<cols.size(); ++j)
+                r(i,j) = a(abs(rows[i])+indexshift,abs(cols[j])+indexshift);
+}
+else
+{
+for(int i=0; i<rows.size(); ++i)
+	for(j=0; j<cols.size(); ++j)
+		r(i,j) = a(rows[i]+indexshift,cols[j]+indexshift);
+}
+
+return r;
 }
 
 

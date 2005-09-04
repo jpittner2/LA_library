@@ -1,7 +1,12 @@
+#ifndef NONCBLAS
 extern "C" {
 #include "atlas_enum.h"
 #include "clapack.h"
 }
+#else
+#include "noncblas.h"
+#endif
+
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"
@@ -157,7 +162,6 @@ extern "C" void FORNAME(dspsv)(const char *UPLO, const int *N, const int *NRHS,
 static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const int ldb, double *det, int n)
 {
 	int r, *ipiv;
-	if (det) cerr << "@@@ sign of the determinant not implemented correctly yet\n";
 	a.copyonwrite();
 	ipiv = new int[n];
 	char U = 'U';
@@ -169,8 +173,7 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 	if (det && r >= 0) {
 		*det = a(0,0);
 		for (int i=1; i<n; i++) *det *= a(i,i);
-		for (int i=0; i<n; i++)
-			if (ipiv[i] != i) *det = -(*det);
+		//do not use ipiv, since the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
 	}
 	delete[] ipiv;
 	if (r > 0 && b) laerror("singular matrix in linear_solve(SMat&, Mat*, double*");
