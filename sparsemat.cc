@@ -804,6 +804,60 @@ while(l)
 return r;
 }
 
+void NRMat<complex<double> >::gemm(const complex<double>  &beta, const SparseMat<complex<double> > &a, const char transa, const NRMat<complex<double> > &b, const char transb, const complex<double>  &alpha)
+{
+laerror("not implemented yet");
+}
+
+
+void NRMat<double>::gemm(const double &beta, const SparseMat<double> &a, const char transa, const NRMat<double> &b, const char transb, const double &alpha)
+{
+bool transpa = tolower(transa)!='n'; //not OK for complex
+bool transpb = tolower(transb)!='n'; //not OK for complex
+if(nn!=(int)(transpa?a.ncols():a.nrows()) | mm!= (transpb?b.nrows():b.ncols()) || (int)(transpa?a.nrows():a.ncols()) != (transpb?b.ncols():b.nrows())) laerror("incompatible sizes in gemm");
+copyonwrite();
+if(beta!=(double)0) (*this) *= beta; 
+else memset(v,0,nn*mm*sizeof(double));
+
+matel<double> *l=a.getlist();
+if(alpha==(double)0 || !l) return;
+
+//raw pointers to the full matrices
+const double *bp= b;
+double *p= *this;
+
+int ldb=(transpb?b.ncols():1);
+int bstep=(transpb?1:b.ncols());
+int len=(transpb?b.nrows():b.ncols());
+
+if(a.issymmetric())
+	{
+	while(l)
+	        {
+		cblas_daxpy(len, alpha*l->elem , bp+l->row*bstep, ldb, p+l->col*mm, 1);
+	        if(l->row!=l->col) cblas_daxpy(len, alpha*l->elem , bp+l->col*bstep, ldb, p+l->row*mm, 1);
+	        l=l->next;
+	        }
+	}
+else
+	{
+	if(transpa)
+	while(l)
+	        {
+		cblas_daxpy(len, alpha*l->elem , bp+l->row*bstep, ldb, p+l->col*mm, 1);
+	        l=l->next;
+	        }
+	else
+	while(l)
+	        {
+		cblas_daxpy(len, alpha*l->elem , bp+l->col*bstep, ldb, p+l->row*mm, 1);
+	        l=l->next;
+	        }
+	}
+
+}
+
+
 
 template<class T>
 void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x)
