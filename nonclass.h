@@ -119,22 +119,25 @@ linear_solve(a,NULL,&det);
 return det;
 }
 
-//general submatrix
+//general submatrix, INDEX will typically be NRVec<int> or even int*
+//NOTE: in order to check consistency between nrows and rows in rows is a NRVec
+//some advanced metaprogramming would be necessary
+
 template<class MAT, class INDEX>
-const NRMat<typename LA_traits<MAT>::elementtype> submatrix(const MAT a, const INDEX rows, const INDEX cols, int indexshift=0, bool ignoresign=false)
+const NRMat<typename LA_traits<MAT>::elementtype> submatrix(const MAT a, const int nrows, const INDEX rows, const int ncols, const INDEX cols, int indexshift=0, bool ignoresign=false)
 {
-NRMat<typename LA_traits<MAT>::elementtype> r(rows.size(),cols.size());
+NRMat<typename LA_traits<MAT>::elementtype> r(nrows,ncols);
 
 if(ignoresign)
 {
-for(int i=0; i<rows.size(); ++i)
-        for(j=0; j<cols.size(); ++j)
+for(int i=0; i<nrows; ++i)
+        for(int j=0; j<ncols; ++j)
                 r(i,j) = a(abs(rows[i])+indexshift,abs(cols[j])+indexshift);
 }
 else
 {
-for(int i=0; i<rows.size(); ++i)
-	for(j=0; j<cols.size(); ++j)
+for(int i=0; i<nrows; ++i)
+	for(int j=0; j<ncols; ++j)
 		r(i,j) = a(rows[i]+indexshift,cols[j]+indexshift);
 }
 
