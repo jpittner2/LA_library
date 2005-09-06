@@ -13,9 +13,13 @@ using namespace std;
 #include <complex>
 #include "laerror.h"
 
+#ifdef NONCBLAS
+#include "noncblas.h"
+#else
 extern "C" {
 #include "cblas.h"
 }
+#endif
 
 #ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
 # define export 
@@ -64,7 +68,13 @@ SCALAR(void *)
 
 
 //now declare the traits for scalars and for composed classes
+//NOTE! methods in traits classes have to be declared static,
+//since the class itself is never instantiated.
+//for performance, it can be also inlined at the same time
 template<typename C, typename Scalar> struct LA_traits_aux {};
+
+
+//TRAITS SPECIALIZATIONS
 
 //complex scalars
 template<typename C>
@@ -72,8 +82,11 @@ struct LA_traits_aux<complex<C>, scalar_true> {
 typedef complex<C> elementtype;
 typedef complex<C> producttype;
 typedef C normtype;
-static normtype norm (const  complex<C> &x) {return abs(x);}
-static void axpy (complex<C> &s, const complex<C> &x, const complex<C> &c) {s+=x*c;}
+static inline bool gencmp(const complex<C> *x, const complex<C> *y, int n) {return memcmp(x,y,n*sizeof(complex<C>));}
+static bool bigger(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
+static bool smaller(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
+static inline normtype norm (const  complex<C> &x) {return abs(x);}
+static inline void axpy (complex<C> &s, const complex<C> &x, const complex<C> &c) {s+=x*c;}
 static void get(int fd, complex<C> &x, bool dimensions=0) {if(sizeof(complex<C>)!=read(fd,&x,sizeof(complex<C>))) laerror("read error");}
 static void put(int fd, const complex<C> &x, bool dimensions=0) {if(sizeof(complex<C>)!=write(fd,&x,sizeof(complex<C>))) laerror("write error");}
 static void multiget(unsigned int n,int fd, complex<C> *x, bool dimensions=0){if((ssize_t)(n*sizeof(complex<C>))!=read(fd,x,n*sizeof(complex<C>))) laerror("read error");}
@@ -87,8 +100,11 @@ struct LA_traits_aux<C, scalar_true> {
 typedef C elementtype;
 typedef C producttype;
 typedef C normtype;
-static normtype norm (const  C &x) {return abs(x);}
-static void axpy (C &s, const C &x, const C &c) {s+=x*c;}
+static inline bool gencmp(const C *x, const C *y, int n) {return memcmp(x,y,n*sizeof(C));}
+static inline bool bigger(const  C &x, const C &y) {return x>y;}
+static inline bool smaller(const  C &x, const C &y) {return x<y;}
+static inline normtype norm (const  C &x) {return abs(x);}
+static inline void axpy (C &s, const C &x, const C &c) {s+=x*c;}
 static void put(int fd, const C &x, bool dimensions=0) {if(sizeof(C)!=write(fd,&x,sizeof(C))) laerror("write error");}
 static void get(int fd, C &x, bool dimensions=0) {if(sizeof(C)!=read(fd,&x,sizeof(C))) laerror("read error");}
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=0){if((ssize_t)(n*sizeof(C))!=write(fd,x,n*sizeof(C))) laerror("write error");}
@@ -96,7 +112,7 @@ static void multiget(unsigned int n, int fd, C *x, bool dimensions=0) {if((ssize
 };
 
 
-//prepare for non-scalar classes
+//non-scalars except smat
 
 template<typename C>
 struct LA_traits; //forward declaration needed for template recursion
@@ -107,8 +123,11 @@ struct LA_traits_aux<X<C>, scalar_false> { \
 typedef C elementtype; \
 typedef X<C> producttype; \
 typedef typename LA_traits<C>::normtype normtype; \
-static normtype norm (const X<C> &x) {return x.norm();} \
-static void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);} \
+static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
+static inline bool bigger(const  C &x, const C &y) {return x>y;} \
+static inline bool smaller(const  C &x, const C &y) {return x<y;} \
+static inline normtype norm (const X<C> &x) {return x.norm();} \
+static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);} \
 static void put(int fd, const C &x, bool dimensions=1) {x.put(fd,dimensions);} \
 static void get(int fd, C &x, bool dimensions=1) {x.get(fd,dimensions);} \
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
@@ -123,14 +142,17 @@ generate_traits(SparseMat)
 
 #undef generate_traits
 
-//non-scalar exceptions (smat product type)
+//smat
 template<typename C> 
 struct LA_traits_aux<NRSMat<C>, scalar_false> { 
 typedef C elementtype; 
 typedef NRMat<C> producttype; 
 typedef typename LA_traits<C>::normtype normtype; 
-static normtype norm (const NRSMat<C> &x) {return x.norm();} 
-static void axpy (NRSMat<C>&s, const NRSMat<C> &x, const C c) {s.axpy(c,x);} 
+static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;}
+static inline bool bigger(const  C &x, const C &y) {return x>y;}
+static inline bool smaller(const  C &x, const C &y) {return x<y;}
+static inline normtype norm (const NRSMat<C> &x) {return x.norm();} 
+static inline void axpy (NRSMat<C>&s, const NRSMat<C> &x, const C c) {s.axpy(c,x);} 
 static void put(int fd, const C &x, bool dimensions=1) {x.put(fd,dimensions);} 
 static void get(int fd, C &x, bool dimensions=1) {x.get(fd,dimensions);} 
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \

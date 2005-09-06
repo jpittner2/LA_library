@@ -29,9 +29,9 @@ public:
 #endif
 	~NRMat();
 #ifdef MATPTR
-	const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return(memcmp(v[0],rhs.v[0],nn*mm*sizeof(T)));}
+	const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return LA_traits<T>::gencmp(v[0],rhs.v[0],nn*mm);} //memcmp for scalars else elementwise
 #else
-        const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return(memcmp(v,rhs.v,nn*mm*sizeof(T)));}
+        const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return LA_traits<T>::gencmp(v,rhs.v,nn*mm);} //memcmp for scalars else elementwise
 #endif
 	const bool operator==(const NRMat &rhs) const {return !(*this != rhs);};
 	inline int getcount() const {return count?*count:0;}
@@ -101,6 +101,7 @@ public:
 	explicit NRMat(const SparseMat<T> &rhs);                // dense from sparse
 	NRMat & operator+=(const SparseMat<T> &rhs);
         NRMat & operator-=(const SparseMat<T> &rhs);
+	void gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha);//this = alpha*op( A )*op( B ) + beta*this
         inline void simplify() {}; //just for compatibility with sparse ones
 	bool issymmetric() const {return 0;};
 

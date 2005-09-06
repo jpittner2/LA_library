@@ -85,7 +85,8 @@ public:
         inline const SparseMat operator*(const T &rhs) const {return SparseMat(*this) *= rhs;}
         inline const SparseMat operator+(const SparseMat &rhs) const {return SparseMat(*this) += rhs;} //must not be symmetric+general
         inline const SparseMat operator-(const SparseMat &rhs) const {return SparseMat(*this) -= rhs;} //must not be symmetric+general
-	inline const NRVec<T> operator*(const NRVec<T> &rhs) const; // Mat * Vec
+	inline const NRVec<T> operator*(const NRVec<T> &rhs) const; // SparseMat * Vec
+	inline const NRMat<T> operator*(const NRMat<T> &rhs) const; // SparseMat * Mat
 	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal
 	const SparseMat operator*(const SparseMat &rhs) const; 
 	SparseMat & oplusequal(const SparseMat &rhs); //direct sum
@@ -134,6 +135,10 @@ public:
 template <typename T>
 inline const NRVec<T> SparseMat<T>::operator*(const NRVec<T> &rhs) const
 {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;};
+
+template <typename T>
+inline const NRMat<T> SparseMat<T>::operator*(const NRMat<T> &rhs) const
+{NRMat<T> result(nn,rhs.ncols()); result.gemm((T)0,*this,'n',rhs,'n',(T)1); return result;};
 
 template <typename T>
 	extern istream& operator>>(istream  &s, SparseMat<T> &x);

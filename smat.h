@@ -24,7 +24,7 @@ public:
 	NRSMat & operator|=(const NRSMat &rhs);	//assignment to a new copy
 	NRSMat & operator=(const NRSMat &rhs);	//assignment
 	NRSMat & operator=(const T &a);		//assign a to diagonal
-        const bool operator!=(const NRSMat &rhs) const {if(nn!=rhs.nn) return 1; return(memcmp(v,rhs.v,NN2*sizeof(T)));}
+        const bool operator!=(const NRSMat &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,NN2);} //memcmp for scalars else elementwise
         const bool operator==(const NRSMat &rhs) const {return !(*this != rhs);};
 	inline NRSMat & operator*=(const T &a);
 	inline NRSMat & operator+=(const T &a); 

@@ -15,6 +15,7 @@ extern ssize_t write(int, const void *, size_t);
 template NRMat<double>;
 template NRMat< complex<double> >;
 template NRMat<int>;
+template NRMat<short>;
 template NRMat<char>;
 
 
@@ -798,6 +799,7 @@ template istream & operator>>(istream  &s, NRMat< T > &x); \
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
 INSTANTIZE(int)
+INSTANTIZE(short)
 INSTANTIZE(char)
 
 

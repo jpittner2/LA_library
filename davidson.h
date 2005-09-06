@@ -13,3 +13,7 @@ export template <typename T, typename Matrix>
 extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=1e-6,
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 500);
+
+//@@@options: left eigenvectors by matrix transpose, overridesymmetric (for nrmat)
+//@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
+//@@@test gdiagonalize whether it sorts the roots and what for complex ones

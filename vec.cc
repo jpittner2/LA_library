@@ -141,6 +141,35 @@ const NRVec<T> NRVec<T>::operator-() const
 	return result;
 }
 
+
+//comparison operators (for lexical order)
+
+template <typename T>
+const bool NRVec<T>::operator>(const NRVec &rhs) const
+{
+int n=nn; if(rhs.nn<n) n=rhs.nn;
+for(int i=0; i<n;++i)
+	{
+	if(LA_traits<T>::bigger(v[i],rhs.v[i])) return true;
+	if(LA_traits<T>::smaller(v[i],rhs.v[i])) return false;
+	}
+return nn>rhs.nn;
+}
+
+template <typename T>
+const bool NRVec<T>::operator<(const NRVec &rhs) const
+{
+int n=nn; if(rhs.nn<n) n=rhs.nn;
+for(int i=0; i<n;++i)
+        {
+        if(LA_traits<T>::smaller(v[i],rhs.v[i])) return true;
+        if(LA_traits<T>::bigger(v[i],rhs.v[i])) return false;
+        }
+return nn<rhs.nn;
+}
+
+
+
 // axpy call for T = double (not strided)
 void NRVec<double>::axpy(const double alpha, const NRVec<double> &x)
 {

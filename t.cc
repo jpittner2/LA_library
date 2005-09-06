@@ -194,7 +194,8 @@ cout <<" big1*big2 "<<big3[0][0]<<" time "<<clock()/((double) (CLOCKS_PER_SEC))-
 
 */
 
-/*
+if(0)
+{
 NRMat<double> atest, btest,ctest;
 {
 int cc,c1,c2,c3;
@@ -211,7 +212,7 @@ cout << dtest;
 NRMat<double> etest(atest.nrows(),btest.ncols());
 etest.strassen(0., atest, 't', btest, 'n', 1.);
 cout << etest;
-*/
+}
 
 if(0)
 {
@@ -511,6 +512,53 @@ cin>>n;
 	cout <<"difference = "<<(res1-res2).norm()<<endl;
 }
 
+if(1)
+{
+int n,k,m;
+cin >>n>>k>>m;
+{
+NRMat<double> a(n,k),b(k,m),c(n,m),d(n,m);
+for(int i=0;i<n;++i) for(int j=0;j<k;++j) a(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<k;++i) for(int j=0;j<m;++j) b(i,j)= random()/(1.+RAND_MAX);
+c.gemm(0., a, 'n', b, 'n', .6);
+SparseMat<double> aa(a);
+d.gemm(0., aa, 'n', b, 'n', .6);
+cout<<c<<d;
+cout  <<"test error = "<<(c-d).norm()<<endl;
+}
+{
+NRMat<double> a(k,n),b(k,m),c(n,m),d(n,m);
+for(int i=0;i<k;++i) for(int j=0;j<n;++j) a(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<k;++i) for(int j=0;j<m;++j) b(i,j)= random()/(1.+RAND_MAX);
+c.gemm(0., a, 't', b, 'n', .7);
+SparseMat<double> aa(a);
+d.gemm(0., aa, 't', b, 'n', .7);
+cout<<c<<d;
+cout  <<"test error = "<<(c-d).norm()<<endl;
+}
+{
+NRMat<double> a(n,k),b(m,k),c(n,m),d(n,m);
+for(int i=0;i<n;++i) for(int j=0;j<k;++j) a(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<m;++i) for(int j=0;j<k;++j) b(i,j)= random()/(1.+RAND_MAX);
+c.gemm(0., a, 'n', b, 't', .8);
+SparseMat<double> aa(a);
+d.gemm(0., aa, 'n', b, 't', .8);
+cout<<c<<d;
+cout  <<"test error = "<<(c-d).norm()<<endl;
+}
+{
+NRMat<double> a(k,n),b(m,k),c(n,m),d(n,m);
+for(int i=0;i<k;++i) for(int j=0;j<n;++j) a(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<m;++i) for(int j=0;j<k;++j) b(i,j)= random()/(1.+RAND_MAX);
+c.gemm(0., a, 't', b, 't', .9);
+SparseMat<double> aa(a);
+d.gemm(0., aa, 't', b, 't', .9);
+cout<<c<<d;
+cout  <<"test error = "<<(c-d).norm()<<endl;
+}
+
+}
+
 
 if(0)
 {
@@ -767,19 +815,21 @@ cout <<b;
 if(0)
 {
 int n;
+double d;
 cin >>n;
 //NRMat<double> a(n,n);
 NRSMat<double> a(n);
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         {
-        a(j,i)=a(i,j)=random()/(1.+RAND_MAX);
+        a(j,i)=a(i,j)=random()/(1.+RAND_MAX)*(i==j?10.:1.);
         }
 cout <<a;
 NRMat<double> y(1,n);
 for(int i=0;i<n;++i) y(0,i)=random()/(1.+RAND_MAX);
 cout <<y;
-linear_solve(a,&y);
+linear_solve(a,&y,&d);
 cout << y;
+cout <<"det is "<<d<<endl;
 }
 
 if(0)
@@ -911,7 +961,7 @@ cout <<r;
 #undef sparsity
 #define sparsity (n*2)
 #define sparsity2 (n/5)
-if(1)
+if(0)
 {
 int n,m;
 cin >>n>>m;

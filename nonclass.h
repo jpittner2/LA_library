@@ -122,12 +122,30 @@ return det;
 //general submatrix, INDEX will typically be NRVec<int> or even int*
 //NOTE: in order to check consistency between nrows and rows in rows is a NRVec
 //some advanced metaprogramming would be necessary
+//application: e.g. ignoresign=true, equalsigns=true, indexshift= -1 ... elements of Slater overlaps for RHF
 
 template<class MAT, class INDEX>
-const NRMat<typename LA_traits<MAT>::elementtype> submatrix(const MAT a, const int nrows, const INDEX rows, const int ncols, const INDEX cols, int indexshift=0, bool ignoresign=false)
+const NRMat<typename LA_traits<MAT>::elementtype> submatrix(const MAT a, const int nrows, const INDEX rows, const int ncols, const INDEX cols, int indexshift=0, bool ignoresign=false, bool equalsigns=false)
 {
 NRMat<typename LA_traits<MAT>::elementtype> r(nrows,ncols);
 
+if(equalsigns) //make the element zero if signs of both indices are opposite
+{
+if(ignoresign)
+{
+for(int i=0; i<nrows; ++i)
+        for(int j=0; j<ncols; ++j)
+                r(i,j) = rows[i]*cols[j]<0?0.:a(abs(rows[i])+indexshift,abs(cols[j])+indexshift);
+}
+else
+{
+for(int i=0; i<nrows; ++i)
+        for(int j=0; j<ncols; ++j)
+                r(i,j) = rows[i]*cols[j]<0?0.:a(rows[i]+indexshift,cols[j]+indexshift);
+}
+}
+else
+{
 if(ignoresign)
 {
 for(int i=0; i<nrows; ++i)
@@ -139,6 +157,7 @@ else
 for(int i=0; i<nrows; ++i)
 	for(int j=0; j<ncols; ++j)
 		r(i,j) = a(rows[i]+indexshift,cols[j]+indexshift);
+}
 }
 
 return r;

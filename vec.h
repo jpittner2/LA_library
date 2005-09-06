@@ -51,8 +51,12 @@ public:
 	NRVec & operator=(const NRVec &rhs);
 	NRVec & operator=(const T &a);  //assign a to every element
 	NRVec & operator|=(const NRVec &rhs);
-	const bool operator!=(const NRVec &rhs) const {if(nn!=rhs.nn) return 1; return(memcmp(v,rhs.v,nn*sizeof(T)));}
+	const bool operator!=(const NRVec &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,nn);} //memcmp for scalars else elementwise
 	const bool operator==(const NRVec &rhs) const {return !(*this != rhs);};
+	const bool operator>(const NRVec &rhs) const;
+	const bool operator<(const NRVec &rhs) const;
+	const bool operator>=(const NRVec &rhs) const {return !(*this < rhs);};
+	const bool operator<=(const NRVec &rhs) const {return !(*this > rhs);};
 	const NRVec operator-() const;
 	inline NRVec & operator+=(const NRVec &rhs);
 	inline NRVec & operator-=(const NRVec &rhs);
