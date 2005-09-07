@@ -39,7 +39,6 @@ int interpolation_find(INDEX dm0, INDEX high, const SUBJECT *x, const SUBJECT *b
 		{
 		d1=(*dist)(x,base+low*lead_dimension_base);
 		d2=(*dist)(base+high*lead_dimension_base,x);
-		cout << "intlp "<<low<<" "<<high<<" "<<d1<<" "<<d2<<endl;
 		if(d1<=0 || d2 <=0)  break;
 		d3=(*dist)(base+high*lead_dimension_base,base+low*lead_dimension_base);
 	        mid = low + (int)((d1 * (high-low)) / d3); 
