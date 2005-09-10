@@ -29,6 +29,8 @@ INSTANTIZE(int)
 INSTANTIZE(short)
 INSTANTIZE(char)
 
+#define EPSDET 1e-300
+
 template <typename T>
 void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
 		int nodim,int modulo, int issym)
@@ -127,12 +129,14 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 		delete[] ipiv;
 		laerror("illegal argument in lapack_gesv");
 	}
-	if (det && r>=0) {
-		*det = A[0][0];
-		for (int i=1; i<n; ++i) *det *= A[i][i];
+	if (det && r==0) {
+		*det = 1.;
+		//take into account some numerical instabilities in dgesv for singular matrices
+		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
 		//change sign of det by parity of ipiv permutation
-		for (int i=0; i<n; ++i) *det = -(*det);
+		if(*det) for (int i=0; i<n; ++i) *det = -(*det);
 	}
+	if(det && r>0) *det = 0;
 	delete [] ipiv;
 	if (r>0 && B) laerror("singular matrix in lapack_gesv");
 }
@@ -171,11 +175,12 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 		delete[] ipiv;
 		laerror("illegal argument in spsv() call of linear_solve()");
 	}
-	if (det && r >= 0) {
-		*det = a(0,0);
-		for (int i=1; i<n; i++) *det *= a(i,i);
+	if (det && r == 0) {
+		*det = 1.;
+		for (int i=1; i<n; i++) {double t=a(i,i); if(!finite(t) || abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;}
 		//do not use ipiv, since the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
 	}
+        if (det && r>0)  *det = 0;
 	delete[] ipiv;
 	if (r > 0 && b) laerror("singular matrix in linear_solve(SMat&, Mat*, double*");
 }
