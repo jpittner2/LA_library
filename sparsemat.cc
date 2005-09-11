@@ -60,14 +60,14 @@ extern ssize_t write(int, const void *, size_t);
 
 
 export template <class T>
-void SparseMat<T>::get(int fd, bool dimen)
+void SparseMat<T>::get(int fd, bool dimen, bool transp)
 {
 errno=0;
 SPMatindex dim[2];
 if(dimen)
 {
 if(2*sizeof(SPMatindex) != read(fd,&dim,2*sizeof(SPMatindex))) laerror("cannot read");
-resize(dim[0],dim[1]);
+if(transp) resize(dim[1],dim[0]); else resize(dim[0],dim[1]);
 int symnon[2];
 if(2*sizeof(int) != read(fd,&symnon,2*sizeof(int))) laerror("cannot read");
 symmetric=symnon[0];
@@ -84,22 +84,21 @@ do
           matel<T> *ll = l;
           l= new matel<T>;
           l->next= ll;
-          l->row=dim[0];
-          l->col=dim[1];
-	  LA_traits<T>::get(fd,l->elem,dimen); //general way to work when elem is some complex class again
+          if(transp) {l->row=dim[1]; l->col=dim[0];} else {l->row=dim[0]; l->col=dim[1];}
+	  LA_traits<T>::get(fd,l->elem,dimen,transp); //general way to work when elem is some complex class again
           } while(1);
 list=l;
 }
 
 
 export template <class T>
-void SparseMat<T>::put(int fd,bool dimen) const
+void SparseMat<T>::put(int fd,bool dimen, bool transp) const
 {
 errno=0;
 if(dimen)
 {
-if(sizeof(SPMatindex) != write(fd,&nn,sizeof(SPMatindex))) laerror("cannot write");
-if(sizeof(SPMatindex) != write(fd,&mm,sizeof(SPMatindex))) laerror("cannot write");
+if(sizeof(SPMatindex) != write(fd,&(transp ? mm : nn),sizeof(SPMatindex))) laerror("cannot write");
+if(sizeof(SPMatindex) != write(fd,&(transp ? nn : mm),sizeof(SPMatindex))) laerror("cannot write");
 int symnon[2];
 symnon[0]=symmetric;
 symnon[1]=nonzero;
@@ -108,9 +107,9 @@ if(2*sizeof(int) != write(fd,symnon,2*sizeof(int))) laerror("cannot write");
 matel<T> *l=list;
 while(l)
 	{
-	if(sizeof(SPMatindex) != write(fd,&l->row,sizeof(SPMatindex))) laerror("cannot write");
-	if(sizeof(SPMatindex) != write(fd,&l->col,sizeof(SPMatindex))) laerror("cannot write");
-	LA_traits<T>::put(fd,l->elem,dimen);//general way to work when elem is some non-scalar class again
+	if(sizeof(SPMatindex) != write(fd,&(transp ? l->col : l->row),sizeof(SPMatindex))) laerror("cannot write");
+	if(sizeof(SPMatindex) != write(fd,&(transp ? l->row : l->col),sizeof(SPMatindex))) laerror("cannot write");
+	LA_traits<T>::put(fd,l->elem,dimen,transp);//general way to work when elem is some non-scalar class again
 	l=l->next;
 	}
 SPMatindex sentinel[2];
@@ -1082,6 +1081,54 @@ return result;
 }
 
 
+template<class T>
+void SparseMat<T>::permuterows(const NRVec<SPMatindex> &p)
+{
+if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuterows");
+
+matel<T> *l=list;
+
+while(l)
+	{
+	l->row = p[l->row];
+	if(symmetric) l->col= p[l->col];
+	l=l->next;
+	}
+}
+
+
+template<class T>
+void SparseMat<T>::permutecolumns(const NRVec<SPMatindex> &p)
+{
+if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuterows");
+
+matel<T> *l=list;
+
+while(l)
+        {
+        if(symmetric) l->row = p[l->row];
+        l->col= p[l->col];
+        l=l->next;
+        }
+}
+
+template<class T>
+void SparseMat<T>::permuteindices(const NRVec<SPMatindex> &p)
+{
+if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuterows");
+
+matel<T> *l=list;
+
+while(l)
+        {
+        l->row = p[l->row];
+        l->col= p[l->col];
+        l=l->next;
+        }
+}
+
+
+
 
 template<class T>
 const SparseMat<T> SparseMat<T>::operator*(const SparseMat<T> &rhs) const
@@ -1177,6 +1224,8 @@ for(i=0; i<na;i++)
 simplify();
 }
 
+
+
 //direct sum and product -- only partly implemented at the moment
 export template<typename T>
 SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs)
@@ -1196,6 +1245,8 @@ for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
 return *this;
 }
 
+
+
 export template<typename T>
 SparseMat<T> & SparseMat<T>::oplusequal(const NRSMat<T> &rhs)
 {
@@ -1213,6 +1264,8 @@ for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
 #endif
 return *this;
 }
+
+
 
 export template <class T>
 SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs)
@@ -1245,8 +1298,8 @@ template SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs);\
 template SparseMat<T> & SparseMat<T>::oplusequal(const NRSMat<T> &rhs);\
 template ostream& operator<<(ostream &s, const SparseMat<T> &x); \
 template istream& operator>>(istream &s, SparseMat<T> &x); \
-template void SparseMat<T>::get(int fd, bool dimen); \
-template void SparseMat<T>::put(int fd, bool dimen) const; \
+template void SparseMat<T>::get(int fd, bool dimen, bool transp); \
+template void SparseMat<T>::put(int fd, bool dimen, bool transp) const; \
 template void SparseMat<T>::copyonwrite(); \
 template void SparseMat<T>::unsort(); \
 template void SparseMat<T>::resize(const SPMatindex n, const SPMatindex m); \
@@ -1280,6 +1333,10 @@ template const SparseMat<T> SparseMat<T>::operator*(const SparseMat<T> &rhs) con
 template const T SparseMat<T>::dot(const SparseMat<T> &rhs) const; \
 template void SparseMat<T>::gemm(const T beta, const SparseMat<T> &a, const char transa, const SparseMat<T> &b, const char transb, const T alpha); \
 template void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x);\
+template void SparseMat<T>::permuterows(const NRVec<SPMatindex> &p);\
+template void SparseMat<T>::permutecolumns(const NRVec<SPMatindex> &p);\
+template void SparseMat<T>::permuteindices(const NRVec<SPMatindex> &p);\
+
 
 
 INSTANTIZE(double)

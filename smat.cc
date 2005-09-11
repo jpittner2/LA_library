@@ -28,7 +28,7 @@ template NRSMat<char>;
 
 //raw I/O
 template <typename T>
-void NRSMat<T>::put(int fd, bool dim) const
+void NRSMat<T>::put(int fd, bool dim, bool transp) const
 {
 errno=0;
 if(dim)
@@ -40,7 +40,7 @@ LA_traits<T>::multiput(NN2,fd,v,dim);
 }
 
 template <typename T>
-void NRSMat<T>::get(int fd, bool dim)
+void NRSMat<T>::get(int fd, bool dim, bool transp)
 {
 int nn0[2]; //align at least 8-byte
 errno=0;

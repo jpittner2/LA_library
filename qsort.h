@@ -1,3 +1,5 @@
+#ifndef _QSORT_H
+#define _QSORT_H
 //general quicksort suitable if we do not want to create extra class for the member type but prefer to encapsulate it into compare and swap soutines
 //returns parity of the permutation
 
@@ -39,3 +41,5 @@ else
 	{if(i<r) parity ^=genqsort(i,r,cmp,swap); if(l<j) parity ^=genqsort(l,j,cmp,swap);}
 return parity;
 }
+
+#endif

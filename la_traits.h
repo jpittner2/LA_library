@@ -87,8 +87,8 @@ static bool bigger(const  complex<C> &x, const complex<C> &y) {laerror("complex 
 static bool smaller(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
 static inline normtype norm (const  complex<C> &x) {return abs(x);}
 static inline void axpy (complex<C> &s, const complex<C> &x, const complex<C> &c) {s+=x*c;}
-static void get(int fd, complex<C> &x, bool dimensions=0) {if(sizeof(complex<C>)!=read(fd,&x,sizeof(complex<C>))) laerror("read error");}
-static void put(int fd, const complex<C> &x, bool dimensions=0) {if(sizeof(complex<C>)!=write(fd,&x,sizeof(complex<C>))) laerror("write error");}
+static inline void get(int fd, complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=read(fd,&x,sizeof(complex<C>))) laerror("read error");}
+static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=write(fd,&x,sizeof(complex<C>))) laerror("write error");}
 static void multiget(unsigned int n,int fd, complex<C> *x, bool dimensions=0){if((ssize_t)(n*sizeof(complex<C>))!=read(fd,x,n*sizeof(complex<C>))) laerror("read error");}
 static void multiput(unsigned int n, int fd, const complex<C> *x, bool dimensions=0) {if((ssize_t)(n*sizeof(complex<C>))!=write(fd,x,n*sizeof(complex<C>))) laerror("write error");}
 
@@ -105,8 +105,8 @@ static inline bool bigger(const  C &x, const C &y) {return x>y;}
 static inline bool smaller(const  C &x, const C &y) {return x<y;}
 static inline normtype norm (const  C &x) {return abs(x);}
 static inline void axpy (C &s, const C &x, const C &c) {s+=x*c;}
-static void put(int fd, const C &x, bool dimensions=0) {if(sizeof(C)!=write(fd,&x,sizeof(C))) laerror("write error");}
-static void get(int fd, C &x, bool dimensions=0) {if(sizeof(C)!=read(fd,&x,sizeof(C))) laerror("read error");}
+static inline void put(int fd, const C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=write(fd,&x,sizeof(C))) laerror("write error");}
+static inline void get(int fd, C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=read(fd,&x,sizeof(C))) laerror("read error");}
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=0){if((ssize_t)(n*sizeof(C))!=write(fd,x,n*sizeof(C))) laerror("write error");}
 static void multiget(unsigned int n, int fd, C *x, bool dimensions=0) {if((ssize_t)(n*sizeof(C))!=read(fd,x,n*sizeof(C))) laerror("read error");}
 };
@@ -128,8 +128,8 @@ static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
 static inline normtype norm (const X<C> &x) {return x.norm();} \
 static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);} \
-static void put(int fd, const C &x, bool dimensions=1) {x.put(fd,dimensions);} \
-static void get(int fd, C &x, bool dimensions=1) {x.get(fd,dimensions);} \
+static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions,transp);} \
+static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions,transp);} \
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
 };
@@ -153,8 +153,8 @@ static inline bool bigger(const  C &x, const C &y) {return x>y;}
 static inline bool smaller(const  C &x, const C &y) {return x<y;}
 static inline normtype norm (const NRSMat<C> &x) {return x.norm();} 
 static inline void axpy (NRSMat<C>&s, const NRSMat<C> &x, const C c) {s.axpy(c,x);} 
-static void put(int fd, const C &x, bool dimensions=1) {x.put(fd,dimensions);} 
-static void get(int fd, C &x, bool dimensions=1) {x.get(fd,dimensions);} 
+static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);} 
+static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);} 
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
 };

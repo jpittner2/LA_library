@@ -15,8 +15,8 @@ extern ssize_t write(int, const void *, size_t);
 #define INSTANTIZE(T) \
 template ostream & operator<<(ostream &s, const NRVec< T > &x); \
 template istream & operator>>(istream  &s, NRVec< T > &x); \
-template void NRVec<T>::put(int fd, bool dim) const; \
-template void NRVec<T>::get(int fd, bool dim); \
+template void NRVec<T>::put(int fd, bool dim, bool transp) const; \
+template void NRVec<T>::get(int fd, bool dim, bool transp); \
 
 
 
@@ -82,7 +82,7 @@ istream & operator>>(istream &s, NRVec<T> &x)
 
 //raw I/O
 template <typename T>
-void NRVec<T>::put(int fd, bool dim) const
+void NRVec<T>::put(int fd, bool dim, bool transp) const
 {
 errno=0;
 int pad=1; //align at least 8-byte
@@ -95,7 +95,7 @@ LA_traits<T>::multiput(nn,fd,v,dim);
 }
 
 template <typename T>
-void NRVec<T>::get(int fd, bool dim)
+void NRVec<T>::get(int fd, bool dim, bool transp)
 {
 int nn0[2]; //align at least 8-byte
 errno=0;

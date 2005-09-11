@@ -2,6 +2,7 @@
 #define _fourindex_included
 
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
+//note: nn is never compared with individual indices, so indexing from 1 as well as from 0 is possible
 
 
 template<class I, class T>
@@ -252,7 +253,7 @@ istream& operator>>(istream  &s, fourindex<I,T> &x)
                         {
 			s>>elem;
 			x.add(i,j,k,l,elem);
-			s >> i >> j >>k >>ll;
+			s >> i >> j >>k >>l;
                         }
                 return s;
                 }

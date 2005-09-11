@@ -107,12 +107,15 @@ public:
 	void setlist(matel<T> *l) {list=l;}
 	inline SPMatindex nrows() const {return nn;}
         inline SPMatindex ncols() const {return mm;}
-	void get(int fd, bool dimensions=1);
-	void put(int fd, bool dimensions=1) const;
+	void get(int fd, bool dimensions=1, bool transposed=false);
+	void put(int fd, bool dimensions=1, bool transposed=false) const;
 	void resize(const SPMatindex n, const SPMatindex m); //destructive
 	void incsize(const SPMatindex n, const SPMatindex m); //increase size without destroying the data
 	void transposeme();
 	const SparseMat transpose() const;
+	void permuteindices(const NRVec<SPMatindex> &p);
+	void permuterows(const NRVec<SPMatindex> &p);
+	void permutecolumns(const NRVec<SPMatindex> &p);
 	inline void setsymmetric() {if(nn!=mm) laerror("non-square cannot be symmetric"); symmetric=1;}
 	inline void defineunsymmetric() {symmetric=0;} //just define and do nothing with it
 	void setunsymmetric();//unwind the matrix assuming it was indeed symmetric

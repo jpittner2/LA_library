@@ -90,8 +90,8 @@ public:
 	void axpy(const T alpha, const T *x, const int stride=1); // this+= a*x
 	void copyonwrite();
 	void resize(const int n);
-        void get(int fd, bool dimensions=1);
-        void put(int fd, bool dimensions=1) const;
+        void get(int fd, bool dimensions=1, bool transp=0);
+        void put(int fd, bool dimensions=1, bool transp=0) const;
 	NRVec & normalize();
 	inline const double norm() const;
 	inline const T amax() const;

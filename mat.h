@@ -73,8 +73,8 @@ public:
 	inline int nrows() const;
 	inline int ncols() const;
 	inline int size() const;
-        void get(int fd, bool dimensions=1);
-        void put(int fd, bool dimensions=1) const;
+        void get(int fd, bool dimensions=1, bool transposed=false);
+        void put(int fd, bool dimensions=1, bool transposed=false) const;
 	void copyonwrite();
 	void resize(const int n, const int m);
 	inline operator T*(); //get a pointer to the data
@@ -83,6 +83,7 @@ public:
 	NRMat & conjugateme(); // square matrices only
 	const NRMat transpose(bool conj=false) const;
 	const NRMat conjugate() const;
+        const NRMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const; //there is also independent less efficient routine for generally indexed submatrix
 	void gemm(const T &beta, const NRMat &a, const char transa, const NRMat &b,
 			const char transb, const T &alpha);//this = alpha*op( A )*op( B ) + beta*this
 /*

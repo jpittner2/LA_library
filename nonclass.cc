@@ -134,7 +134,7 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 		//take into account some numerical instabilities in dgesv for singular matrices
 		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
 		//change sign of det by parity of ipiv permutation
-		if(*det) for (int i=0; i<n; ++i) *det = -(*det);
+		if(*det) for (int i=0; i<n; ++i) if(i!=ipiv[i]) *det = -(*det);
 	}
 	if(det && r>0) *det = 0;
 	delete [] ipiv;
@@ -642,6 +642,21 @@ NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double))
 	r.gemm(0.0, u, 't', v, 'n', 1.0);
 	return r;
 }
+
+NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double))
+{
+        int n = a.nrows();
+        NRVec<double> w(n);
+        diagonalize(a, w, true, false);
+
+        for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i]);
+        NRMat<double> u = a;
+        a.diagmultl(w);
+        NRMat<double> r(n, n);
+        r.gemm(0.0, u, 't', a, 'n', 1.0);
+        return r;
+}
+
 
 // instantize template to an addresable function
 complex<double> myclog (const complex<double> &x) 

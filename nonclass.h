@@ -73,10 +73,12 @@ extern void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		 const bool corder=1, int n=0, const int sorttype=0, const bool biorthonormalize=0,
 		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
 extern NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double));
+extern NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double)); //a has to by in fact symmetric
 extern NRMat<double> matrixfunction(NRMat<double> a, complex<double> (*f)(const complex<double> &),const bool adjust=0);
 
 //functions on matrices
 inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&sqrt); }
+inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfunction(a,&sqrt); }
 inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&log); }
 extern NRMat<double> log(const NRMat<double> &a);
 
@@ -118,6 +120,7 @@ if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
 linear_solve(a,NULL,&det);
 return det;
 }
+
 
 //general submatrix, INDEX will typically be NRVec<int> or even int*
 //NOTE: in order to check consistency between nrows and rows in rows is a NRVec

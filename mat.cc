@@ -25,15 +25,28 @@ template NRMat<char>;
 
 //raw I/O
 template <typename T>
-void NRMat<T>::put(int fd, bool dim) const
+void NRMat<T>::put(int fd, bool dim, bool transp) const
 {
 errno=0;
 if(dim)
 {
-if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
-if(sizeof(int) != write(fd,&mm,sizeof(int))) laerror("cannot write");
+if(sizeof(int) != write(fd,&(transp?mm:nn),sizeof(int))) laerror("cannot write");
+if(sizeof(int) != write(fd,&(transp?nn:mm),sizeof(int))) laerror("cannot write");
 }
-LA_traits<T>::multiput(nn*mm,fd,
+
+if(transp)  //not particularly efficient
+        {
+        for(int j=0; j<mm; ++j)
+                for(int i=0; i<nn; ++i)
+                        LA_traits<T>::put(fd, 
+#ifdef MATPTR
+                                v[i][j]
+#else
+                                v[i*mm+j]
+#endif
+                        ,dim,transp); 
+        }
+else LA_traits<T>::multiput(nn*mm,fd,
 #ifdef MATPTR
         v[0]
 #else
@@ -43,7 +56,7 @@ LA_traits<T>::multiput(nn*mm,fd,
 }
 
 template <typename T>
-void NRMat<T>::get(int fd, bool dim)
+void NRMat<T>::get(int fd, bool dim, bool transp)
 {
 int nn0,mm0;
 errno=0;
@@ -51,11 +64,23 @@ if(dim)
 {
 if(sizeof(int) != read(fd,&nn0,sizeof(int))) laerror("cannot read");
 if(sizeof(int) != read(fd,&mm0,sizeof(int))) laerror("cannot read");
-resize(nn0,mm0);
+if(transp) resize(mm0,nn0); else resize(nn0,mm0);
 }
 else
 copyonwrite();
-LA_traits<T>::multiget(nn*mm,fd,
+if(transp)  //not particularly efficient
+	{
+	for(int j=0; j<mm; ++j)
+		for(int i=0; i<nn; ++i)
+			LA_traits<T>::get(fd,
+#ifdef MATPTR
+				v[i][j]
+#else
+				v[i*mm+j]
+#endif
+			,dim,transp);
+	}
+else LA_traits<T>::multiget(nn*mm,fd,
 #ifdef MATPTR
         v[0]
 #else
@@ -184,6 +209,24 @@ const NRVec<T> NRMat<T>::rsum() const
 	return result;
 }
 
+//block submatrix
+template <typename T>
+const NRMat<T> NRMat<T>::submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const
+{
+#ifdef DEBUG
+if(fromrow <0 ||fromrow >=nn||torow <0 ||torow >=nn ||fromcol<0||fromcol>=mm||tocol<0||tocol>=mm||fromrow>torow||fromcol>tocol) laerror("bad indices in submatrix");
+#endif
+int n=torow-fromrow+1;
+int m=tocol-fromcol+1;
+NRMat<T> r(n,m);
+for(int i=fromrow; i<=torow; ++i)
+#ifdef MATPTR
+	memcpy(r.v[i-fromrow],v[i]+fromcol,m*sizeof(T));
+#else
+	memcpy(r.v+(i-fromrow)*m,v+i*mm+fromcol,m*sizeof(T));
+#endif
+return r;
+}
 
 
 // transpose Mat

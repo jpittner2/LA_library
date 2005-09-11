@@ -56,8 +56,8 @@ public:
 	void axpy(const T alpha, const NRSMat &x); // this+= a*x
 	inline const T amax() const;
 	const T trace() const;
-	void get(int fd, bool dimensions=1);
-        void put(int fd, bool dimensions=1) const;
+	void get(int fd, bool dimensions=1, bool transp=0);
+        void put(int fd, bool dimensions=1, bool transp=0) const;
 	void copyonwrite();
 	void resize(const int n);
 	inline operator T*(); //get a pointer to the data

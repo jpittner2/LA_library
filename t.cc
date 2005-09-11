@@ -512,7 +512,7 @@ cin>>n;
 	cout <<"difference = "<<(res1-res2).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int n,k,m;
 cin >>n>>k>>m;
@@ -1093,6 +1093,16 @@ for(int iter=1; iter<100 && norm>1e-8 ; ++iter)
 	cout << "after diis "<<trial;
 	deviation=trial-solution;
 	}
+}
+
+if(1)
+{
+NRMat<double> a,b;
+cin >>a;
+b=realsqrt(a);
+cout <<b;
+cout <<b*b;
+cout <<(b*b-a).norm();
 }
 
 
