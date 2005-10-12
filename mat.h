@@ -86,11 +86,6 @@ public:
         const NRMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const; //there is also independent less efficient routine for generally indexed submatrix
 	void gemm(const T &beta, const NRMat &a, const char transa, const NRMat &b,
 			const char transb, const T &alpha);//this = alpha*op( A )*op( B ) + beta*this
-/*
-	void strassen(const T beta, const NRMat &a, const char transa, const NRMat &b,
-			const char transb, const T alpha);//this := alpha*op( A )*op( B ) + beta*this
-	void s_cutoff(const int,const int,const int,const int) const;
-*/
 	void fprintf(FILE *f, const char *format, const int modulo) const;
 	void fscanf(FILE *f, const char *format);
 	const double norm(const T scalar=(T)0) const;
@@ -105,11 +100,11 @@ public:
 	void gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha);//this = alpha*op( A )*op( B ) + beta*this
         inline void simplify() {}; //just for compatibility with sparse ones
 	bool issymmetric() const {return 0;};
-
+#ifndef NO_STRASSEN
 //Strassen's multiplication (better than n^3, analogous syntax to gemm)
 	void strassen(const T beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T alpha);//this := alpha*op( A )*op( B ) + beta*this
 	void s_cutoff(const int,const int,const int,const int) const;
-
+#endif
 };
 
 //due to mutual includes this has to be after full class declaration

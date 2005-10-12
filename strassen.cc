@@ -1,6 +1,7 @@
 
 #include "mat.h"
 
+#ifndef NO_STRASSEN
 /*Strassen algorithm*/
 // called routine is fortran-compatible
 extern "C" void fmm(const char c_transa,const char c_transb,const int m,const int n,const int k,const double alpha,
@@ -23,4 +24,4 @@ copyonwrite();
 //swap transpositions and order of matrices
 fmm(transb,transa,mm,nn,k,alpha,b,b.mm, a, a.mm, beta,*this, mm,NULL,0);
 }
-
+#endif

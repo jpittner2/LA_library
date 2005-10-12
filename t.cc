@@ -194,12 +194,14 @@ cout <<" big1*big2 "<<big3[0][0]<<" time "<<clock()/((double) (CLOCKS_PER_SEC))-
 
 */
 
+#ifndef NO_STRASSEN
 if(0)
 {
 NRMat<double> atest, btest,ctest;
 {
 int cc,c1,c2,c3;
 cin >>cc>>c1>>c2>>c3;
+
 atest.s_cutoff(cc,c1,c2,c3);
 }
 cin>>atest;
@@ -237,6 +239,7 @@ for (int c=64; c<=512;c+=64)
 	cout <<"cutoff "<<c<<" big1*big2 "<<big4[0][0]<<" time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
 	}
 }
+#endif
 
 if(0)
 {
