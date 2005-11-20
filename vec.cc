@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 extern "C" {
 extern ssize_t read(int, void *, size_t);
 extern ssize_t write(int, const void *, size_t);
@@ -171,6 +172,7 @@ return nn<rhs.nn;
 
 
 // axpy call for T = double (not strided)
+template<>
 void NRVec<double>::axpy(const double alpha, const NRVec<double> &x)
 {
 #ifdef DEBUG
@@ -181,6 +183,7 @@ void NRVec<double>::axpy(const double alpha, const NRVec<double> &x)
 }
 
 // axpy call for T = complex<double> (not strided)
+template<>
 void NRVec< complex<double> >::axpy(const complex<double> alpha, 
 			const NRVec< complex<double> > &x)
 {
@@ -192,6 +195,7 @@ void NRVec< complex<double> >::axpy(const complex<double> alpha,
 }
 
 // axpy call for T = double (strided)
+template<>
 void NRVec<double>::axpy(const double alpha, const double *x, const int stride)
 {
 	copyonwrite();
@@ -199,6 +203,7 @@ void NRVec<double>::axpy(const double alpha, const double *x, const int stride)
 }
 
 // axpy call for T = complex<double> (strided)
+template<>
 void NRVec< complex<double> >::axpy(const complex<double> alpha, 
 			const complex<double> *x, const int stride)
 {
@@ -207,6 +212,7 @@ void NRVec< complex<double> >::axpy(const complex<double> alpha,
 }
 
 // unary minus
+template<>
 const NRVec<double> NRVec<double>::operator-() const
 {
 	NRVec<double> result(*this);
@@ -214,6 +220,8 @@ const NRVec<double> NRVec<double>::operator-() const
 	cblas_dscal(nn, -1.0, result.v, 1);
 	return result;
 }
+
+template<>
 const NRVec< complex<double> > 
 NRVec< complex<double> >::operator-() const
 {
@@ -236,6 +244,7 @@ NRVec<T> & NRVec<T>::operator=(const T &a)
 }
 
 // Normalization of NRVec<double>
+template<>
 NRVec<double> & NRVec<double>::normalize()
 {
 	double tmp;
@@ -251,6 +260,7 @@ NRVec<double> & NRVec<double>::normalize()
 }
 
 // Normalization of NRVec< complex<double> >
+template<>
 NRVec< complex<double> > & NRVec< complex<double> >::normalize()
 {
 	complex<double> tmp;
@@ -265,9 +275,13 @@ NRVec< complex<double> > & NRVec< complex<double> >::normalize()
 }
 
 //stubs for linkage
+template<>
 NRVec<int> &  NRVec<int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+template<>
 NRVec<short> &  NRVec<short>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+template<>
 NRVec<char> &  NRVec<char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+template<>
 void NRVec<int>::gemv(const int beta,
                 const NRSMat<int> &A, const char trans,
                 const int alpha, const NRVec &x)
@@ -275,6 +289,7 @@ void NRVec<int>::gemv(const int beta,
 laerror("not yet implemented");
 }
 
+template<>
 void NRVec<short>::gemv(const short beta,
                 const NRSMat<short> &A, const char trans,
                 const short alpha, const NRVec &x)
@@ -283,6 +298,7 @@ laerror("not yet implemented");
 }
 
 
+template<>
 void NRVec<char>::gemv(const char beta,
                 const NRSMat<char> &A, const char trans,
                 const char alpha, const NRVec &x)
@@ -290,6 +306,7 @@ void NRVec<char>::gemv(const char beta,
 laerror("not yet implemented");
 }
 
+template<>
 void NRVec<int>::gemv(const int beta,
                 const NRMat<int> &A, const char trans,
                 const int alpha, const NRVec &x)
@@ -297,6 +314,7 @@ void NRVec<int>::gemv(const int beta,
 laerror("not yet implemented");
 }
 
+template<>
 void NRVec<short>::gemv(const short beta,
                 const NRMat<short> &A, const char trans,
                 const short alpha, const NRVec &x)
@@ -305,6 +323,7 @@ laerror("not yet implemented");
 }
 
 
+template<>
 void NRVec<char>::gemv(const char beta,
                 const NRMat<char> &A, const char trans,
                 const char alpha, const NRVec &x)
@@ -312,6 +331,7 @@ void NRVec<char>::gemv(const char beta,
 laerror("not yet implemented");
 }
 
+template<>
 void NRVec<int>::gemv(const int beta,
                 const SparseMat<int> &A, const char trans,
                 const int alpha, const NRVec &x)
@@ -319,6 +339,7 @@ void NRVec<int>::gemv(const int beta,
 laerror("not yet implemented");
 }
 
+template<>
 void NRVec<short>::gemv(const short beta,
                 const SparseMat<short> &A, const char trans,
                 const short alpha, const NRVec &x)
@@ -327,6 +348,7 @@ laerror("not yet implemented");
 }
 
 
+template<>
 void NRVec<char>::gemv(const char beta,
                 const SparseMat<char> &A, const char trans,
                 const char alpha, const NRVec &x)
@@ -338,6 +360,7 @@ laerror("not yet implemented");
 
 
 // gemv calls 
+template<>
 void NRVec<double>::gemv(const double beta, const NRMat<double> &A, 
 		const char trans, const double alpha, const NRVec &x)
 {
@@ -349,6 +372,7 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 			A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
 }
 
+template<>
 void NRVec< complex<double> >::gemv(const complex<double> beta,
 		const NRMat< complex<double> > &A, const char trans, 
 		const complex<double> alpha, const NRVec &x)
@@ -363,6 +387,7 @@ void NRVec< complex<double> >::gemv(const complex<double> beta,
 }
 
 
+template<>
 void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
                 const char trans, const double alpha, const NRVec &x)
 {
@@ -374,6 +399,7 @@ void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
 }
 
 
+template<>
 void NRVec< complex<double> >::gemv(const complex<double> beta,
                 const NRSMat< complex<double> > &A, const char trans,
                 const complex<double> alpha, const NRVec &x)
@@ -391,12 +417,14 @@ void NRVec< complex<double> >::gemv(const complex<double> beta,
 
 
 // Direc product Mat = Vec | Vec
+template<>
 const NRMat<double> NRVec<double>::operator|(const NRVec<double> &b) const
 {
 	NRMat<double> result(0.,nn,b.nn);
 	cblas_dger(CblasRowMajor, nn, b.nn, 1., v, 1, b.v, 1, result, b.nn);
 	return result;
 }
+template<>
 const NRMat< complex<double> > 
 NRVec< complex<double> >::operator|(const NRVec< complex<double> > &b) const
 {

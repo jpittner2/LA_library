@@ -45,6 +45,7 @@ class isscalar {
 
 //specializations
 #define SCALAR(X) \
+template<>\
 class isscalar<X> {typedef scalar_true scalar_type;};
 
 //declare what is scalar

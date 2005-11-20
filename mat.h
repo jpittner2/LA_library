@@ -24,8 +24,10 @@ public:
 	NRMat(const T *a, const int n, const int m);
 	inline NRMat(const NRMat &rhs);
 	explicit NRMat(const NRSMat<T> &rhs);
-#ifndef MATPTR
-	NRMat(const NRVec<T> &rhs, const int n, const int m);
+#ifdef MATPTR
+	explicit NRMat(const NRVec<T> &rhs, const int n, const int m) :NRMat(&rhs[0][0],n,m) {};
+#else
+	explicit NRMat(const NRVec<T> &rhs, const int n, const int m);
 #endif
 	~NRMat();
 #ifdef MATPTR
@@ -329,6 +331,7 @@ inline NRMat<T>::operator const T* () const
 }
 
 // max element of Mat
+template<>
 inline const double  NRMat<double>::amax() const
 {
 #ifdef MATPTR
@@ -337,6 +340,7 @@ inline const double  NRMat<double>::amax() const
 	return v[cblas_idamax(nn*mm, v, 1)];
 #endif
 }
+template<>
 inline const complex<double>  NRMat< complex<double> >::amax() const
 {
 #ifdef MATPTR

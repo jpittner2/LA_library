@@ -45,7 +45,9 @@ public:
 	inline NRVec(const T *a, const int n);
 	inline NRVec(const NRVec &rhs);
 	inline explicit NRVec(const NRSMat<T> & S);
-#ifndef MATPTR
+#ifdef MATPTR
+	explicit NRVec(const NRMat<T> &rhs) : NRVec(&rhs[0][0],rhs.nrows()*rhs.ncols()) {};
+#else
 	explicit NRVec(const NRMat<T> &rhs);
 #endif
 	NRVec & operator=(const NRVec &rhs);
@@ -152,6 +154,7 @@ inline NRVec<T>::NRVec(const NRSMat<T> &rhs)
 }
 
 // x += a
+template<>
 inline NRVec<double> & NRVec<double>::operator+=(const double &a)
 {
 	copyonwrite();
@@ -159,6 +162,7 @@ inline NRVec<double> & NRVec<double>::operator+=(const double &a)
 	return *this;
 }
 
+template<>
 inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator+=(const complex<double> &a)
 {
@@ -179,12 +183,15 @@ inline NRVec<T> & NRVec<T>::operator+=(const T &a)
 
 
 // x -= a
+template<>
 inline NRVec<double> & NRVec<double>::operator-=(const double &a)
 {
 	copyonwrite();
 	cblas_daxpy(nn, 1.0, &a, 0, v, 1);
 	return *this;
 }
+
+template<>
 inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator-=(const complex<double> &a)
 {
@@ -205,6 +212,7 @@ inline NRVec<T> & NRVec<T>::operator-=(const T &a)
 
 
 // x += x
+template<>
 inline NRVec<double> & NRVec<double>::operator+=(const NRVec<double> &rhs)
 {
 #ifdef DEBUG
@@ -214,6 +222,8 @@ inline NRVec<double> & NRVec<double>::operator+=(const NRVec<double> &rhs)
 	cblas_daxpy(nn, 1.0, rhs.v, 1, v, 1);
 	return *this;
 }
+
+template<>
 inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator+=(const NRVec< complex<double> > &rhs)
 {
@@ -240,6 +250,7 @@ inline NRVec<T> & NRVec<T>::operator+=(const NRVec<T> &rhs)
 
 
 // x -= x
+template<>
 inline NRVec<double> & NRVec<double>::operator-=(const NRVec<double> &rhs)
 {
 #ifdef DEBUG
@@ -249,6 +260,8 @@ inline NRVec<double> & NRVec<double>::operator-=(const NRVec<double> &rhs)
 	cblas_daxpy(nn, -1.0, rhs.v, 1, v, 1);
 	return *this;
 }
+
+template<>
 inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator-=(const NRVec< complex<double> > &rhs)
 {
@@ -275,12 +288,15 @@ inline NRVec<T> & NRVec<T>::operator-=(const NRVec<T> &rhs)
 
 
 // x *= a
+template<>
 inline NRVec<double> & NRVec<double>::operator*=(const double &a)
 {
 	copyonwrite();
 	cblas_dscal(nn, a, v, 1);
 	return *this;
 }
+
+template<>
 inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator*=(const complex<double> &a)
 {
@@ -301,6 +317,7 @@ inline NRVec<T> & NRVec<T>::operator*=(const T &a)
 
 
 // scalar product x.y
+template<>
 inline const double NRVec<double>::operator*(const NRVec<double> &rhs) const
 {
 #ifdef DEBUG
@@ -310,6 +327,7 @@ inline const double NRVec<double>::operator*(const NRVec<double> &rhs) const
 }
 
 
+template<>
 inline const complex<double>
 NRVec< complex<double> >::operator*(const NRVec< complex<double> > &rhs) const
 {
@@ -335,10 +353,12 @@ inline const T NRVec<T>::operator*(const NRVec<T> &rhs) const
 
 
 // Sum of elements
+template<>
 inline const double NRVec<double>::sum() const
 {
 	return cblas_dasum(nn, v, 1);
 }
+template<>
 inline const complex<double>
 NRVec< complex<double> >::sum() const
 {
@@ -348,10 +368,12 @@ NRVec< complex<double> >::sum() const
 }
 
 // Dot product: x * y
+template<>
 inline const double NRVec<double>::dot(const double *y, const int stride) const
 {
 	return cblas_ddot(nn, y, stride, v, 1);
 }
+template<>
 inline const complex<double>
 NRVec< complex<double> >::dot(const complex<double> *y, const int stride) const
 {
@@ -407,20 +429,24 @@ inline NRVec<T>::operator const T*() const
 }
 
 // return norm of the Vec
+template<>
 inline const double  NRVec<double>::norm() const
 {
 	return cblas_dnrm2(nn, v, 1);
 }
+template<>
 inline const double NRVec< complex<double> >::norm() const
 {
 	return cblas_dznrm2(nn, (void *)v, 1);
 }
 
 // Max element of the array
+template<>
 inline const double  NRVec<double>::amax() const
 {
 	return v[cblas_idamax(nn, v, 1)];
 }
+template<>
 inline const complex<double> NRVec< complex<double> >::amax() const
 {
 	return v[cblas_izamax(nn, (void *)v, 1)];

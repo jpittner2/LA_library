@@ -14,7 +14,7 @@ public:
 	friend class NRVec<T>;
 	friend class NRMat<T>;
 	
-	inline NRSMat<T>::NRSMat() : nn(0),v(0),count(0) {};
+	inline NRSMat() : nn(0),v(0),count(0) {};
 	inline explicit NRSMat(const int n);			// Zero-based array
 	inline NRSMat(const T &a, const int n);	//Initialize to constant
 	inline NRSMat(const T *a, const int n);	// Initialize to array
@@ -121,12 +121,15 @@ NRSMat<T>::NRSMat(const NRVec<T> &rhs, const int n) // type conversion
 }
 
 // S *= a
+template<>
 inline NRSMat<double> & NRSMat<double>::operator*=(const double & a)
 {
 	copyonwrite();
 	cblas_dscal(NN2, a, v, 1);
 	return *this;
 }
+
+template<>
 inline NRSMat< complex<double> > &
 NRSMat< complex<double> >::operator*=(const complex<double> & a)
 {
@@ -163,6 +166,7 @@ inline NRSMat<T> & NRSMat<T>::operator-=(const T &a)
 }
 
 // S += S
+template<>
 inline NRSMat<double> &
 NRSMat<double>::operator+=(const NRSMat<double> & rhs)
 {
@@ -173,6 +177,8 @@ NRSMat<double>::operator+=(const NRSMat<double> & rhs)
 	cblas_daxpy(NN2, 1.0, rhs.v, 1, v, 1);
 	return *this;
 }
+
+template<>
 NRSMat< complex<double> > &
 NRSMat< complex<double> >::operator+=(const NRSMat< complex<double> > & rhs)
 {
@@ -197,6 +203,7 @@ inline NRSMat<T> & NRSMat<T>::operator+=(const NRSMat<T> & rhs)
 
 
 // S -= S
+template<>
 inline NRSMat<double> &
 NRSMat<double>::operator-=(const NRSMat<double> & rhs)
 {
@@ -207,6 +214,8 @@ NRSMat<double>::operator-=(const NRSMat<double> & rhs)
 	cblas_daxpy(NN2, -1.0, rhs.v, 1, v, 1);
 	return *this;
 }
+
+template<>
 inline NRSMat< complex<double> > &
 NRSMat< complex<double> >::operator-=(const NRSMat< complex<double> > & rhs)
 {
@@ -306,10 +315,12 @@ inline int NRSMat<T>::size() const
 
 
 // max value
+template<>
 inline const double NRSMat<double>::amax() const
 {
 	return v[cblas_idamax(NN2, v, 1)];
 }
+template<>
 inline const complex<double> NRSMat< complex<double> >::amax() const
 {
 	return v[cblas_izamax(NN2, (void *)v, 1)];
