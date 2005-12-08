@@ -103,15 +103,15 @@ public:
 		piterator(matel4<I,T> *pp): symmetry(nosymmetry),p(pp),permindex(0){};
                 ~piterator() {};
 		piterator(const fourindex &x): symmetry(x.symmetry),p(x.list),permindex(0) {setup();};
-		piterator& operator++() {if(++permindex==fourindex_permnumbers[symmetry]) {permindex=0; p=p->next;} setup(); return *this;}
+		piterator& operator++() {if(++permindex>=fourindex_permnumbers[symmetry]) {permindex=0; p=p->next;} setup(); return *this;}
                 const matel4<I,T> & operator*() const {return my;}
                 const matel4<I,T> * operator->() const {return &my;}
 		piterator operator++(int) {laerror("postincrement not possible on permute-iterator");}
-                bool operator==(const piterator &rhs) const {return p==rhs.p && permindex==rhs.permindex && symmetry==rhs.symmetry;}
-                bool operator!=(const piterator &rhs) const {return p!=rhs.p || permindex!=rhs.permindex || symmetry!=rhs.symmetry;}
+                bool operator==(const piterator &rhs) const {return p==rhs.p && (!p || permindex==rhs.permindex);}
+                bool operator!=(const piterator &rhs) const {return p!=rhs.p || p && rhs.p && permindex!=rhs.permindex;}
         };
-        piterator pbegin() const {return *this;}
-        piterator pend() const {return NULL;}
+        piterator pbegin() const {return piterator(*this);}
+        piterator pend() const {return piterator(NULL);}
 
 	//constructors etc.
 	inline fourindex() :nn(0),count(NULL),list(NULL) {};

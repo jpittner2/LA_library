@@ -29,11 +29,11 @@ INSTANTIZE(short)
 INSTANTIZE(unsigned short)
 INSTANTIZE(char)
 INSTANTIZE(unsigned char)
-template NRVec<double>;
-template NRVec<complex<double> >;
-template NRVec<char>;
-template NRVec<short>;
-template NRVec<int>;
+template class NRVec<double>;
+template class NRVec<complex<double> >;
+template class NRVec<char>;
+template class NRVec<short>;
+template class NRVec<int>;
 
 
 

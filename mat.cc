@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 extern "C" {
 extern ssize_t read(int, void *, size_t);
 extern ssize_t write(int, const void *, size_t);
@@ -12,11 +13,11 @@ extern ssize_t write(int, const void *, size_t);
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corresponding object file
-template NRMat<double>;
-template NRMat< complex<double> >;
-template NRMat<int>;
-template NRMat<short>;
-template NRMat<char>;
+template class NRMat<double>;
+template class NRMat< complex<double> >;
+template class NRMat<int>;
+template class NRMat<short>;
+template class NRMat<char>;
 
 
 /*
@@ -288,12 +289,16 @@ void NRMat<T>::fscanf(FILE *f, const char *format)
  */
 
 // Mat *= a
+template<>
 NRMat<double> & NRMat<double>::operator*=(const double &a)
 {
 	copyonwrite();
 	cblas_dscal(nn*mm, a, *this, 1);
 	return *this;
 }
+
+
+template<>
 NRMat< complex<double> > &
 NRMat< complex<double> >::operator*=(const complex<double> &a)
 {
@@ -301,6 +306,7 @@ NRMat< complex<double> >::operator*=(const complex<double> &a)
 	cblas_zscal(nn*mm, &a, (void *)(*this)[0], 1);
 	return *this;
 }
+
 
 //and for general type
 template <typename T>
@@ -318,6 +324,7 @@ NRMat<T> & NRMat<T>::operator*=(const T &a)
 
 
 // Mat += Mat
+template<>
 NRMat<double> & NRMat<double>::operator+=(const NRMat<double>  &rhs)
 {
 #ifdef DEBUG
@@ -328,6 +335,9 @@ NRMat<double> & NRMat<double>::operator+=(const NRMat<double>  &rhs)
 	cblas_daxpy(nn*mm, 1.0, rhs, 1, *this, 1);
 	return *this;
 }
+
+
+template<>
 NRMat< complex<double> > &
 NRMat< complex<double> >::operator+=(const NRMat< complex<double> >  &rhs)
 {
@@ -339,6 +349,8 @@ NRMat< complex<double> >::operator+=(const NRMat< complex<double> >  &rhs)
 	 cblas_zaxpy(nn*mm, &CONE, (void *)rhs[0], 1, (void *)(*this)[0], 1);
 	 return *this;
 }
+
+
 
 //and for general type
 template <typename T>
@@ -359,6 +371,7 @@ NRMat<T> & NRMat<T>::operator+=(const NRMat<T>  &rhs)
 
 
 // Mat -= Mat
+template<>
 NRMat<double> & NRMat<double>::operator-=(const NRMat<double>  &rhs)
 {
 #ifdef DEBUG
@@ -369,6 +382,10 @@ NRMat<double> & NRMat<double>::operator-=(const NRMat<double>  &rhs)
 	cblas_daxpy(nn*mm, -1.0, rhs, 1, *this, 1);
 	return *this;
 }
+
+
+
+template<>
 NRMat< complex<double> > &
 NRMat< complex<double> >::operator-=(const NRMat< complex<double> >  &rhs)
 {
@@ -380,6 +397,8 @@ NRMat< complex<double> >::operator-=(const NRMat< complex<double> >  &rhs)
 	 cblas_zaxpy(nn*mm, &CMONE, (void *)rhs[0], 1, (void *)(*this)[0], 1);
 	 return *this;
 }
+
+
 
 //and for general type
 template <typename T>
@@ -400,6 +419,7 @@ NRMat<T> & NRMat<T>::operator-=(const NRMat<T>  &rhs)
 
 
 // Mat += SMat
+template<>
 NRMat<double> & NRMat<double>::operator+=(const NRSMat<double> &rhs)
 {
 #ifdef DEBUG
@@ -418,6 +438,10 @@ NRMat<double> & NRMat<double>::operator+=(const NRSMat<double> &rhs)
 	}
 	return *this;
 }
+
+
+
+template<>
 NRMat< complex<double> > & 
 NRMat< complex<double> >::operator+=(const NRSMat< complex<double> > &rhs)
 {
@@ -437,6 +461,9 @@ NRMat< complex<double> >::operator+=(const NRSMat< complex<double> > &rhs)
 	}
 	return *this;
 }
+
+
+
 
 //and for general type
 template <typename T>
@@ -461,6 +488,7 @@ NRMat<T> & NRMat<T>::operator+=(const NRSMat<T> &rhs)
 
 
 // Mat -= SMat
+template<>
 NRMat<double> & NRMat<double>::operator-=(const NRSMat<double> &rhs)
 {
 #ifdef DEBUG
@@ -479,6 +507,10 @@ NRMat<double> & NRMat<double>::operator-=(const NRSMat<double> &rhs)
 	}
 	return *this;
 }
+
+
+
+template<>
 NRMat< complex<double> > & 
 NRMat< complex<double> >::operator-=(const NRSMat< complex<double> > &rhs)
 {
@@ -521,7 +553,11 @@ NRMat<T> & NRMat<T>::operator-=(const NRSMat<T> &rhs)
         return *this;
 }
 
+
+
+
 // Mat.Mat - scalar product
+template<>
 const double NRMat<double>::dot(const NRMat<double> &rhs) const
 {
 #ifdef DEBUG
@@ -529,6 +565,10 @@ const double NRMat<double>::dot(const NRMat<double> &rhs) const
 #endif
 	return cblas_ddot(nn*mm, (*this)[0], 1, rhs[0], 1);
 }
+
+
+
+template<>
 const complex<double>
 NRMat< complex<double> >::dot(const NRMat< complex<double> > &rhs) const
 {
@@ -542,6 +582,7 @@ NRMat< complex<double> >::dot(const NRMat< complex<double> > &rhs) const
 }
 
 // Mat * Mat
+template<>
 const NRMat<double> NRMat<double>::operator*(const NRMat<double> &rhs) const
 {
 #ifdef DEBUG
@@ -552,6 +593,10 @@ const NRMat<double> NRMat<double>::operator*(const NRMat<double> &rhs) const
 			*this, mm, rhs, rhs.mm, 0.0, result, rhs.mm);
 	return result;
 }
+
+
+
+template<>
 const NRMat< complex<double> > 
 NRMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
 {
@@ -565,7 +610,9 @@ NRMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
 	return result;
 }
 
+
 // Multiply by diagonal from L
+template<>
 void NRMat<double>::diagmultl(const NRVec<double> &rhs)
 {
 #ifdef DEBUG
@@ -574,6 +621,10 @@ void NRMat<double>::diagmultl(const NRVec<double> &rhs)
 	copyonwrite();
 	for(int i=0; i<nn; i++) cblas_dscal(mm, rhs[i], (*this)[i], 1);
 }
+
+
+
+template<>
 void NRMat< complex<double> >::diagmultl(const NRVec< complex<double> > &rhs)
 {
 #ifdef DEBUG
@@ -583,7 +634,11 @@ void NRMat< complex<double> >::diagmultl(const NRVec< complex<double> > &rhs)
 	for (int i=0; i<nn; i++) cblas_zscal(mm, &rhs[i], (*this)[i], 1);
 }
 
+
+
+
 // Multiply by diagonal from R
+template<>
 void NRMat<double>::diagmultr(const NRVec<double> &rhs)
 {
 #ifdef DEBUG
@@ -592,6 +647,10 @@ void NRMat<double>::diagmultr(const NRVec<double> &rhs)
 	copyonwrite();
 	for (int i=0; i<mm; i++) cblas_dscal(nn, rhs[i], (*this)[i], mm);
 }
+
+
+
+template<>
 void NRMat< complex<double> >::diagmultr(const NRVec< complex<double> > &rhs)
 {
 #ifdef DEBUG
@@ -601,7 +660,11 @@ void NRMat< complex<double> >::diagmultr(const NRVec< complex<double> > &rhs)
 	for (int i=0; i<mm; i++) cblas_zscal(nn, &rhs[i], (*this)[i], mm);
 }
 
+
+
+
 // Mat * Smat, decomposed to nn x Vec * Smat
+template<>
 const NRMat<double> 
 NRMat<double>::operator*(const NRSMat<double> &rhs) const
 {
@@ -614,6 +677,10 @@ NRMat<double>::operator*(const NRSMat<double> &rhs) const
 				(*this)[i], 1, 0.0, result[i], 1);
 	return result;
 }
+
+
+
+template<>
 const NRMat< complex<double> >
 NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 {
@@ -629,6 +696,7 @@ NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 
 
 // sum of rows
+template<>
 const NRVec<double> NRMat<double>::rsum() const
 {
 	NRVec<double> result(mm);
@@ -637,6 +705,7 @@ const NRVec<double> NRMat<double>::rsum() const
 }
 
 // sum of columns
+template<>
 const NRVec<double> NRMat<double>::csum() const
 {
 	NRVec<double> result(nn);
@@ -645,8 +714,10 @@ const NRVec<double> NRMat<double>::csum() const
 }
 
 // complex conjugate of Mat
+template<>
 NRMat<double> &NRMat<double>::conjugateme() {return *this;}
 
+template<>
 NRMat< complex<double> > & NRMat< complex<double> >::conjugateme()
 {
 	copyonwrite();
@@ -655,12 +726,14 @@ NRMat< complex<double> > & NRMat< complex<double> >::conjugateme()
 }
 
 // transpose and optionally conjugate
+template<>
 const NRMat<double> NRMat<double>::transpose(bool conj) const
 {
 	NRMat<double> result(mm,nn);
 	for(int i=0; i<nn; i++) cblas_dcopy(mm, (*this)[i], 1, result[0]+i, nn);
 	return result;
 }
+template<>
 const NRMat< complex<double> >
 NRMat< complex<double> >::transpose(bool conj) const
 {
@@ -672,6 +745,7 @@ NRMat< complex<double> >::transpose(bool conj) const
 }
 
 // gemm : this = alpha*op( A )*op( B ) + beta*this
+template<>
 void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 		const char transa, const NRMat<double> &b, const char transb, 
 		const double &alpha)
@@ -691,6 +765,10 @@ void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 			(transb=='n' ? CblasNoTrans : CblasTrans), nn, mm, k, alpha, a,
 			a.mm, b , b.mm, beta, *this , mm);
 }
+
+
+
+template<>
 void NRMat< complex<double> >::gemm(const complex<double> & beta,
 		const NRMat< complex<double> > & a, const char transa, 
 		const NRMat< complex<double> > & b, const char transb, 
@@ -714,6 +792,7 @@ void NRMat< complex<double> >::gemm(const complex<double> & beta,
 }
 
 // norm of Mat
+template<>
 const double  NRMat<double>::norm(const double scalar) const
 {
 	if (!scalar) return cblas_dnrm2(nn*mm, (*this)[0], 1);
@@ -731,6 +810,10 @@ const double  NRMat<double>::norm(const double scalar) const
 		}
 	return sqrt(sum);
 }
+
+
+
+template<>
 const double  NRMat< complex<double> >::norm(const complex<double> scalar) const
 {
 	if (scalar == CZERO) return cblas_dznrm2(nn*mm, (*this)[0], 1);
@@ -749,7 +832,11 @@ const double  NRMat< complex<double> >::norm(const complex<double> scalar) const
 	return sqrt(sum);
 }
 
+
+
+
 // axpy: this = a * Mat
+template<>
 void NRMat<double>::axpy(const double alpha, const NRMat<double> &mat)
 {
 #ifdef DEBUG
@@ -758,6 +845,10 @@ void NRMat<double>::axpy(const double alpha, const NRMat<double> &mat)
 	copyonwrite();
 	cblas_daxpy(nn*mm, alpha, mat, 1, *this, 1);
 }
+
+
+
+template<>
 void NRMat< complex<double> >::axpy(const complex<double> alpha, 
 		const NRMat< complex<double> > & mat)
 {
@@ -768,14 +859,24 @@ void NRMat< complex<double> >::axpy(const complex<double> alpha,
 	cblas_zaxpy(nn*mm, (void *)&alpha, mat, 1, (void *)(*this)[0], 1);
 }
 
+
+
+
 // trace of Mat
+template<>
 const double NRMat<double>::trace() const
 {
 #ifdef DEBUG
 	if (nn != mm) laerror("no-square matrix in Mat::trace()");
 #endif
 	return cblas_dasum(nn, (*this)[0], nn+1);
+
+
 }
+
+
+
+template<>
 const complex<double> NRMat< complex<double> >::trace() const
 {
 #ifdef DEBUG
@@ -795,6 +896,7 @@ const complex<double> NRMat< complex<double> >::trace() const
 
 //get diagonal; for compatibility with large matrices do not return newly created object
 //for non-square get diagonal of A^TA, will be used as preconditioner 
+template<>
 void NRMat<double>::diagonalof(NRVec<double> &r, const bool divide) const
 {
 #ifdef DEBUG

@@ -4,12 +4,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "sparsemat.h"
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corresponding object file
-template SparseMat<double>;
-template SparseMat<complex<double> >;
+template class SparseMat<double>;
+template class SparseMat<complex<double> >;
 
 
 
@@ -790,6 +791,7 @@ while(l)
 return *this;
 }
 
+template<>
 const double SparseMat<double>::dot(const NRMat<double> &rhs) const
 {
 double r=0;
@@ -803,12 +805,14 @@ while(l)
 return r;
 }
 
+template<>
 void NRMat<complex<double> >::gemm(const complex<double>  &beta, const SparseMat<complex<double> > &a, const char transa, const NRMat<complex<double> > &b, const char transb, const complex<double>  &alpha)
 {
 laerror("not implemented yet");
 }
 
 
+template<>
 void NRMat<double>::gemm(const double &beta, const SparseMat<double> &a, const char transa, const NRMat<double> &b, const char transb, const double &alpha)
 {
 bool transpa = tolower(transa)!='n'; //not OK for complex

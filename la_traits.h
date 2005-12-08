@@ -39,14 +39,12 @@ typedef class scalar_true {};
 
 //default is non-scalar
 template<typename C>
-class isscalar {
-	typedef scalar_false scalar_type;
-	};
+class isscalar { public: typedef scalar_false scalar_type;};
 
 //specializations
 #define SCALAR(X) \
 template<>\
-class isscalar<X> {typedef scalar_true scalar_type;};
+class isscalar<X> {public: typedef scalar_true scalar_type;};
 
 //declare what is scalar
 SCALAR(char)

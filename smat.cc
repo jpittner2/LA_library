@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 extern "C" {
 extern ssize_t read(int, void *, size_t);
 extern ssize_t write(int, const void *, size_t);
@@ -13,11 +14,11 @@ extern ssize_t write(int, const void *, size_t);
 
 //////////////////////////////////////////////////////////////////////////////
 ////// forced instantization in the corresponding object file
-template NRSMat<double>;
-template NRSMat< complex<double> >;
-template NRSMat<int>;
-template NRSMat<short>;
-template NRSMat<char>;
+template class NRSMat<double>;
+template class NRSMat< complex<double> >;
+template class NRSMat<int>;
+template class NRSMat<short>;
+template class NRSMat<char>;
 
 
 
@@ -146,6 +147,7 @@ void NRSMat<T>::fscanf(FILE *f, const char *format)
  */
 
 // SMat * Mat
+template<>
 const NRMat<double> NRSMat<double>::operator*(const NRMat<double> &rhs) const
 {
 #ifdef DEBUG
@@ -157,6 +159,9 @@ const NRMat<double> NRSMat<double>::operator*(const NRMat<double> &rhs) const
 				0.0, result[0]+k, rhs.ncols());
 	return result;
 }
+
+
+template<>
 const NRMat< complex<double> >
 NRSMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
 {
@@ -170,7 +175,9 @@ NRSMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
 	return result;
 }
 
+
 // SMat * SMat
+template<>
 const NRMat<double> NRSMat<double>::operator*(const NRSMat<double> &rhs) const
 {
 #ifdef DEBUG
@@ -218,6 +225,10 @@ const NRMat<double> NRSMat<double>::operator*(const NRSMat<double> &rhs) const
 
 	return result;
 }
+
+
+
+template<>
 const NRMat< complex<double> > 
 NRSMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 {
@@ -230,7 +241,12 @@ NRSMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 	return result;
 //	laerror("complex SMat*Smat not implemented");
 }
+
+
+
+
 // S dot S
+template<>
 const double NRSMat<double>::dot(const NRSMat<double> &rhs) const
 {
 #ifdef DEBUG
@@ -238,6 +254,10 @@ const double NRSMat<double>::dot(const NRSMat<double> &rhs) const
 #endif
 	return cblas_ddot(NN2, v, 1, rhs.v, 1);
 }
+
+
+
+template<>
 const complex<double> 
 NRSMat< complex<double> >::dot(const NRSMat< complex<double> > &rhs) const
 {
@@ -251,6 +271,7 @@ NRSMat< complex<double> >::dot(const NRSMat< complex<double> > &rhs) const
 
 
 // norm of the matrix
+template<>
 const double  NRSMat<double>::norm(const double scalar) const
 {
 	if (!scalar) return cblas_dnrm2(NN2, v, 1);
@@ -265,8 +286,11 @@ const double  NRSMat<double>::norm(const double scalar) const
 		}
 	return sqrt(sum);
 }
-const double
-NRSMat< complex<double> >::norm(const complex<double> scalar) const
+
+
+
+template<>
+const double NRSMat< complex<double> >::norm(const complex<double> scalar) const
 {
 	if (!(scalar.real()) && !(scalar.imag()))
 		return cblas_dznrm2(NN2, (void *)v, 1);
@@ -282,7 +306,12 @@ NRSMat< complex<double> >::norm(const complex<double> scalar) const
 	return sqrt(sum);
 }
 
+
+
+
+
 // axpy: S = S * a
+template<>
 void NRSMat<double>::axpy(const double alpha, const NRSMat<double> & x)
 {
 #ifdef DEBUG
@@ -291,6 +320,10 @@ void NRSMat<double>::axpy(const double alpha, const NRSMat<double> & x)
 	copyonwrite();
 	cblas_daxpy(NN2, alpha, x.v, 1, v, 1);
 }
+
+
+
+template<>
 void NRSMat< complex<double> >::axpy(const complex<double> alpha,
 			const NRSMat< complex<double> > & x)
 {
