@@ -1,5 +1,6 @@
 #ifndef _fourindex_included
 #define _fourindex_included
+#include <string.h>
 
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
 //note: nn is never compared with individual indices, so indexing from 1 as well as from 0 is possible
@@ -25,7 +26,7 @@ struct matel4
 typedef enum {nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //if twoelectron, only permutation-nonequivalent elements are stored
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
 static const int fourindex_n_symmetrytypes=4;
-static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={0,7,7,3};
+static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4};
 static const int fourindex_permutations[fourindex_n_symmetrytypes][8][5]=
 		{
 		{{0,1,2,3,1},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}},
@@ -37,8 +38,8 @@ static const int fourindex_permutations[fourindex_n_symmetrytypes][8][5]=
 template <class I, class T>
 class fourindex {
 protected:
-	I nn;
 	fourindexsymtype symmetry;
+	I nn;
         int *count;
 	matel4<I,T> *list;
 private:
@@ -55,10 +56,12 @@ public:
 		iterator(matel4<I,T> *list): p(list) {};
 		bool operator==(const iterator &rhs) const {return p==rhs.p;}
 		bool operator!=(const iterator &rhs) const {return p!=rhs.p;}
-		iterator operator++() {return p=p->next;}
-		iterator operator++(int) {matel4<I,T> *q=p; p=p->next; return q;}
-		matel4<I,T> & operator*() const {return *p;}
-		matel4<I,T> * operator->() const {return p;}
+		iterator &operator++() {p=p->next; return *this;}
+		iterator operator++(int) {iterator q(p); p=p->next; return q;}
+		matel4<I,T> & operator*()  {return *p;}
+		matel4<I,T> * operator->()  {return p;}
+                const matel4<I,T> * operator->() const {return p;}
+                const matel4<I,T> & operator*() const {return *p;}
 	};
 	iterator begin() const {return list;}
 	iterator end() const {return NULL;}
@@ -67,27 +70,47 @@ public:
         //has to take into account the symmetry type of the fourindex
         typedef class piterator {
 	private:
+		fourindexsymtype symmetry;
 		matel4<I,T> *p;
 		matel4<I,T> my;
 		int permindex;
-		void setup(void)
+		void setup(void) //make a copy of *p to my with scaled element and anti/permuted indices
 			{
-			switch (symmetry) {
-				case twoelectronreal:
+			if(!p) {permindex=0; memset(&my,0,sizeof(my)); return;}
+			for(int i=0; i<4; ++i)
+				my.index.packed[i] = p->index.packed[fourindex_permutations[symmetry][permindex][i]];
+			my.elem = p->elem * fourindex_permutations[symmetry][permindex][4];
+			//now treat the redundancy by possibly equal indices
+			switch(symmetry)
+				{
+				case twoelectronrealmullikan:
+					if(p->index.indiv.i==p->index.indiv.j) my.elem*=.5;
+					if(p->index.indiv.k==p->index.indiv.l) my.elem*=.5;
+					if(p->index.indiv.i==p->index.indiv.k && p->index.indiv.j==p->index.indiv.l) my.elem*=.5;
+					break;	
+				case twoelectronrealdirac:
+					if(p->index.indiv.i==p->index.indiv.k) my.elem*=.5;
+                                        if(p->index.indiv.j==p->index.indiv.l) my.elem*=.5;
+                                        if(p->index.indiv.i==p->index.indiv.j && p->index.indiv.k==p->index.indiv.l) my.elem*=.5;
 					break;
-				default: laerror("piterator not supported for this symmetry type yet");
+				case T2ijab_real: break; //result will automatically vanish due to antisymmetry
+				case nosymmetry: break;
+				default: laerror("illegal symmetry in piterator");
 				}
 			};
         public:
                 piterator() {};
+		piterator(matel4<I,T> *pp): symmetry(nosymmetry),p(pp),permindex(0){};
                 ~piterator() {};
-		piterator(matel4<I,T> *list): p(list),permindex(0) {setup();};
-		piterator operator++() {}
+		piterator(const fourindex &x): symmetry(x.symmetry),p(x.list),permindex(0) {setup();};
+		piterator& operator++() {if(++permindex==fourindex_permnumbers[symmetry]) {permindex=0; p=p->next;} setup(); return *this;}
+                const matel4<I,T> & operator*() const {return my;}
+                const matel4<I,T> * operator->() const {return &my;}
 		piterator operator++(int) {laerror("postincrement not possible on permute-iterator");}
-                bool operator==(const piterator &rhs) const {return p==rhs.p && permindex==rhs.permindex;}
-                bool operator!=(const piterator &rhs) const {return p!=rhs.p || permindex!=rhs.permindex;}
+                bool operator==(const piterator &rhs) const {return p==rhs.p && permindex==rhs.permindex && symmetry==rhs.symmetry;}
+                bool operator!=(const piterator &rhs) const {return p!=rhs.p || permindex!=rhs.permindex || symmetry!=rhs.symmetry;}
         };
-        piterator pbegin() const {return list;}
+        piterator pbegin() const {return *this;}
         piterator pend() const {return NULL;}
 
 	//constructors etc.
