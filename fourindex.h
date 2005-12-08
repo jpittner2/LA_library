@@ -22,7 +22,17 @@ struct matel4
 	packedindex index;
         };
 
-typedef enum {nosymmetry=0, twoelectronreal=1, twoelectroncomplex=2, twobodyantisym=3} fourindexsymtype; //if twoelectron, only permutation-nonequivalent elements are stored
+typedef enum {nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //if twoelectron, only permutation-nonequivalent elements are stored
+// these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
+static const int fourindex_n_symmetrytypes=4;
+static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={0,7,7,3};
+static const int fourindex_permutations[fourindex_n_symmetrytypes][8][5]=
+		{
+		{{0,1,2,3,1},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}},
+		{{0,1,2,3,1}, {1,0,2,3,1}, {0,1,3,2,1}, {1,0,3,2,1}, {2,3,0,1,1}, {3,2,0,1,1}, {2,3,1,0,1}, {3,2,1,0,1}},
+		{{0,1,2,3,1},{2,1,0,3,1},{0,3,2,1,1},{2,3,0,1,1},{1,0,3,2,1},{3,0,1,2,1},{1,2,3,0,1},{3,2,1,0,1}},
+		{{0,1,2,3,1},{1,0,2,3,-1},{0,1,3,2,-1},{1,0,3,2,1},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}}
+		};
 
 template <class I, class T>
 class fourindex {
@@ -43,8 +53,8 @@ public:
 		iterator() {};
 		~iterator() {};
 		iterator(matel4<I,T> *list): p(list) {};
-		bool operator==(const iterator rhs) const {return p==rhs.p;}
-		bool operator!=(const iterator rhs) const {return p!=rhs.p;}
+		bool operator==(const iterator &rhs) const {return p==rhs.p;}
+		bool operator!=(const iterator &rhs) const {return p!=rhs.p;}
 		iterator operator++() {return p=p->next;}
 		iterator operator++(int) {matel4<I,T> *q=p; p=p->next; return q;}
 		matel4<I,T> & operator*() const {return *p;}
@@ -52,6 +62,33 @@ public:
 	};
 	iterator begin() const {return list;}
 	iterator end() const {return NULL;}
+        
+        //permiterator ... iterates also over all permutations, with a possibly scaled matrix element or skips permutations yielding equivalent result
+        //has to take into account the symmetry type of the fourindex
+        typedef class piterator {
+	private:
+		matel4<I,T> *p;
+		matel4<I,T> my;
+		int permindex;
+		void setup(void)
+			{
+			switch (symmetry) {
+				case twoelectronreal:
+					break;
+				default: laerror("piterator not supported for this symmetry type yet");
+				}
+			};
+        public:
+                piterator() {};
+                ~piterator() {};
+		piterator(matel4<I,T> *list): p(list),permindex(0) {setup();};
+		piterator operator++() {}
+		piterator operator++(int) {laerror("postincrement not possible on permute-iterator");}
+                bool operator==(const piterator &rhs) const {return p==rhs.p && permindex==rhs.permindex;}
+                bool operator!=(const piterator &rhs) const {return p!=rhs.p || permindex!=rhs.permindex;}
+        };
+        piterator pbegin() const {return list;}
+        piterator pend() const {return NULL;}
 
 	//constructors etc.
 	inline fourindex() :nn(0),count(NULL),list(NULL) {};
