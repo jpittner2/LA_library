@@ -81,6 +81,7 @@ public:
 				my.index.packed[i] = p->index.packed[fourindex_permutations[symmetry][permindex][i]];
 			my.elem = p->elem * fourindex_permutations[symmetry][permindex][4];
 			//now treat the redundancy by possibly equal indices
+			//if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
 			switch(symmetry)
 				{
 				case twoelectronrealmullikan:
@@ -109,9 +110,11 @@ public:
 		piterator operator++(int) {laerror("postincrement not possible on permute-iterator");}
                 bool operator==(const piterator &rhs) const {return p==rhs.p && (!p || permindex==rhs.permindex);}
                 bool operator!=(const piterator &rhs) const {return p!=rhs.p || p && rhs.p && permindex!=rhs.permindex;}
+		bool end(void) {return !p;}
+		bool notend(void) {return p;}
         };
         piterator pbegin() const {return piterator(*this);}
-        piterator pend() const {return piterator(NULL);}
+        piterator pend() const {return piterator(NULL);}//deprecated, inefficient
 
 	//constructors etc.
 	inline fourindex() :nn(0),count(NULL),list(NULL) {};
