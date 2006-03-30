@@ -4,26 +4,44 @@
 #include "vec.h"
 
 //compressed storage of large bit vectors
-class bitvector : public NRVec<unsigned char>
+//any reasonable compiler changes the dividions and modulos to shift/and instructions
+
+typedef unsigned long bitvector_block; //should be automatically portable and efficiently use wordlength of each machine (32 vs 64)
+
+#define blockbits (8*sizeof(bitvector_block))
+
+inline unsigned int bitvector_rounded(unsigned int n)
+{
+return ((n+blockbits-1)/blockbits)*blockbits; 
+}
+
+class bitvector : public NRVec<bitvector_block>
 	{
 private:
-	int modulo;
+	unsigned int modulo;
 public:
-	bitvector() : NRVec<unsigned char>() {};
-	explicit bitvector (const int n):NRVec<unsigned char>((n+7)>>3) {modulo=n&7;};
-	bitvector (const int a, const int n):NRVec<unsigned char>(a,(n+7)>>3) {modulo=n&7;};
-	bitvector(const bitvector &rhs) : NRVec<unsigned char>(rhs) {};
-	//overrige dereferencing to address single bits, is however possible
+	bitvector() : NRVec<bitvector_block>() {};
+	explicit bitvector (const unsigned int n):NRVec<bitvector_block>((n+blockbits-1)/blockbits) {modulo=n%blockbits;};
+	bitvector (const bitvector_block a, const unsigned int n):NRVec<bitvector_block>(a,(n+blockbits-1)/blockbits) {modulo=n%blockbits;};
+	bitvector(const bitvector &rhs) : NRVec<bitvector_block>(rhs) {};
+	//override dereferencing to address single bits, is however possible
 	//only in the const context (otherwise we would have to define a type which, when assigned to, changes a single bit - possible but probably inefficient)
-	void resize(const int n) {NRVec<unsigned char>::resize((n+7)>>3); modulo=n&7;};
-	const int size() const {return (nn<<3)-8+modulo?modulo:8;};
-        const bool operator[](const int i) const {return (v[i>>3] >>(i&7))&1;};
-	void set(const int i) {v[i>>3] |= (1<<(i&7));};
-	void reset(const int i) {v[i>>3] &= ~(1<<(i&7));};
-	const bool get(const int i) {return (v[i>>3] >>(i&7))&1;};
-	const bool assign(const int i, const bool r) {if(r) set(i); else reset(i); return r;};
-	void clear() {memset(v,0,nn);};
-	void fill() {memset(v,0xff,nn);};
+	void resize(const unsigned int n) {NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits); modulo=n%blockbits;};
+	unsigned int size() const {return (nn*blockbits)-blockbits+(modulo?modulo:blockbits);};
+	//arguments must be unsigned to keep the resulting assembly code simple and efficient
+        const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1;};
+	void set(const unsigned int i) {v[i/blockbits] |= (1<<(i%blockbits));};
+	void reset(const unsigned int i) {v[i/blockbits] &= ~(1<<(i%blockbits));};
+	const bool get(const unsigned int i) {return (v[i/blockbits] >>(i%blockbits))&1;};
+	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
+	void clear() {memset(v,0,nn*sizeof(bitvector_block));};
+	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
+	const bool operator!=(const bitvector &rhs) const {};
+	const bool operator==(const bitvector &rhs) const {return !(*this != rhs);};
 	};
+
+
+extern ostream & operator<<(ostream &s, const bitvector &x);
+extern istream & operator>>(istream  &s, bitvector &x);
 
 #endif
