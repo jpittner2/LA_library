@@ -23,7 +23,8 @@ public:
 	bitvector() : NRVec<bitvector_block>() {};
 	explicit bitvector (const unsigned int n):NRVec<bitvector_block>((n+blockbits-1)/blockbits) {modulo=n%blockbits;};
 	bitvector (const bitvector_block a, const unsigned int n):NRVec<bitvector_block>(a,(n+blockbits-1)/blockbits) {modulo=n%blockbits;};
-	bitvector(const bitvector &rhs) : NRVec<bitvector_block>(rhs) {};
+	bitvector(const bitvector &rhs) : NRVec<bitvector_block>(rhs) {modulo=rhs.modulo;};
+	//operator= seems to be correctly synthetized by the compiler
 	//override dereferencing to address single bits, is however possible
 	//only in the const context (otherwise we would have to define a type which, when assigned to, changes a single bit - possible but probably inefficient)
 	void resize(const unsigned int n) {NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits); modulo=n%blockbits;};
@@ -36,8 +37,23 @@ public:
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
 	void clear() {memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
-	const bool operator!=(const bitvector &rhs) const {};
-	const bool operator==(const bitvector &rhs) const {return !(*this != rhs);};
+	bool operator!=(const bitvector &rhs) const;
+	bool operator==(const bitvector &rhs) const {return !(*this != rhs);};
+	bool operator>(const bitvector &rhs) const;
+	bool operator<(const bitvector &rhs) const;
+	bool operator>=(const bitvector &rhs) const {return !(*this < rhs);};
+	bool operator<=(const bitvector &rhs) const {return !(*this > rhs);};
+	bitvector operator~() const;
+	bitvector& operator&=(const bitvector &rhs);
+	bitvector& operator|=(const bitvector &rhs);
+	bitvector& operator^=(const bitvector &rhs);
+	bitvector operator&(const bitvector &rhs) const {return bitvector(*this) &= rhs;};
+	bitvector operator|(const bitvector &rhs) const {return bitvector(*this) |= rhs;};
+	bitvector operator^(const bitvector &rhs) const {return bitvector(*this) ^= rhs;};
+	unsigned int population(const unsigned int before=0) const; //@@@number of 1's
+	//extended, truncated const i.e. not on *this but return new entity, take care of modulo's bits
+	//logical shifts  <<= >>= << >> not implemented yet
+	//logical rotations not implemented yet
 	};
 
 
