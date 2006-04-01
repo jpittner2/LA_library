@@ -493,36 +493,11 @@ NRVec< complex<double> >::operator|(const NRVec< complex<double> > &b) const
 }
 
 
-//sorting of elements in the vector
 template<typename T>
-static inline void SWAP(T &a, T &b)
-        {T dum=a; a=b; b=dum;}
-
-static void *sortbase; //global for sort !!! is not thread-safe
-
-template<typename T>
-static void myswap(int i, int j)
-{
-SWAP(((T *)sortbase)[i],((T *)sortbase)[j]);
-}
-
-template<typename T>
-static bool mybigger(int i, int j)
-{
-return LA_traits<T>::bigger(((T *)sortbase)[i],((T *)sortbase)[j]);
-}
-
-template<typename T>
-static bool mysmaller(int i, int j)
-{
-return LA_traits<T>::smaller(((T *)sortbase)[i],((T *)sortbase)[j]);
-}
-
-template<typename T>
-int NRVec<T>::sort(int direction)
+int NRVec<T>::sort(int direction, int from, int to)
 {
 copyonwrite();
-sortbase = v;
-if(direction) return genqsort2(0,nn-1,mysmaller<T>,myswap<T>);
-else return genqsort2(0,nn-1,mybigger<T>,myswap<T>);
+if(to == -1) to=nn-1;
+if(direction) return memqsort<1,NRVec<T>,int>(*this,from,to);
+else return memqsort<0,NRVec<T>,int>(*this,from,to);
 }

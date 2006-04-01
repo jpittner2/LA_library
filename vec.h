@@ -103,8 +103,12 @@ public:
 //sparse matrix concerning members
 	explicit NRVec(const SparseMat<T> &rhs);                // dense from sparse matrix with one of dimensions =1
 	inline void simplify() {}; //just for compatibility with sparse ones
-	int sort(int direction=0); //sort, ascending by default, returns parity of permutation
+	bool bigger(int i, int j) const {return LA_traits<T>::bigger(v[i],v[j]);};
+	bool smaller(int i, int j) const {return LA_traits<T>::smaller(v[i],v[j]);};
+	void swap(int i, int j) {T tmp; tmp=v[i]; v[i]=v[j]; v[j]=tmp;};
+	int sort(int direction=0, int from=0, int to= -1); //sort, ascending by default, returns parity of permutation
 };
+
 
 //due to mutual includes this has to be after full class declaration
 #include "mat.h"

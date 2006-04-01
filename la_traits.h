@@ -31,6 +31,22 @@ template<typename C> class NRMat;
 template<typename C> class NRSMat;
 template<typename C> class SparseMat;
 
+//for general sortable classes
+template<typename T, typename I, int type> struct LA_sort_traits;
+
+template<typename T, typename I>
+struct LA_sort_traits<T,I,0>
+        {
+        static inline bool compare(T object, I i, I j) {return object.bigger(i,j);};
+        };
+
+template<typename T, typename I>
+struct LA_sort_traits<T,I,1>
+        {
+        static inline bool compare(T object, I i, I j) {return object.smaller(i,j);};
+        };
+
+
 //we will need to treat char and unsigned char as numbers in << and >> I/O operators
 template<typename C>
 struct LA_traits_io

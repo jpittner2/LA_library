@@ -3,14 +3,6 @@
 
 #include "la_traits.h"
 
-template<typename T>
-inline const T MAX(const T &a, const T &b)
-        {return b > a ? (b) : (a);}
-
-template<typename T>
-inline void SWAP(T &a, T &b)
-        {T dum=a; a=b; b=dum;}
-
 
 //threshold for neglecting elements, if not defined, no tests are done except exact zero test in simplify - might be even faster
 //seems to perform better with a threshold, in spite of abs() tests
