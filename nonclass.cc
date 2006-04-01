@@ -28,6 +28,8 @@ INSTANTIZE(complex<double>)
 INSTANTIZE(int)
 INSTANTIZE(short)
 INSTANTIZE(char)
+INSTANTIZE(unsigned char)
+INSTANTIZE(unsigned long)
 
 #define EPSDET 1e-300
 
@@ -643,7 +645,7 @@ NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double))
 	return r;
 }
 
-NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double))
+NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (const double))
 {
         int n = a.nrows();
         NRVec<double> w(n);
@@ -657,12 +659,45 @@ NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double))
         return r;
 }
 
+NRMat<complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (const double), double (*fim) (const double))
+{
+        int n = a.nrows();
+        NRVec<double> wre(n),wim(n);
+        diagonalize(a, wre, true, false);
+	for (int i=0; i<a.nrows(); i++) wim[i] = (*fim)(wre[i]);
+        for (int i=0; i<a.nrows(); i++) wre[i] = (*fre)(wre[i]);
+        NRMat<double> u = a;
+	NRMat<double> b = a;
+        a.diagmultl(wre);
+        b.diagmultl(wim);
+	NRMat<double> t(n,n),tt(n,n);
+        t.gemm(0.0, u, 't', a, 'n', 1.0);
+	tt.gemm(0.0, u, 't', b, 'n', 1.0);
+        NRMat<complex<double> > r(n, n);
+	for (int i=0; i<a.nrows(); i++) for(int j=0; j<a.ncols(); ++j) r(i,j)=complex<double>(t(i,j),tt(i,j));
+        return r;
+}
+
+
+
+
 
 // instantize template to an addresable function
 complex<double> myclog (const complex<double> &x) 
 {
 	return log(x);
 }
+
+complex<double> sqrtinv (const complex<double> &x)
+{
+        return 1./sqrt(x);
+}
+
+double sqrtinv (const double x)
+{
+        return 1./sqrt(x);
+}
+
 
 NRMat<double>  log(const NRMat<double> &a)
 {

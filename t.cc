@@ -10,6 +10,7 @@
 #include "gmres.h"
 #include "conjgrad.h"
 #include "diis.h"
+#include "bitvector.h"
 
 
 extern void test(const NRVec<double> &x);

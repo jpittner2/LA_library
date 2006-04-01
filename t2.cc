@@ -5,6 +5,7 @@
 #include "sparsemat.h"
 #include "matexp.h"
 #include "fourindex.h"
+#include "bitvector.h"
 
 
 void test(const NRVec<double> &x)

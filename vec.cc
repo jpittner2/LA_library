@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "qsort.h"
 extern "C" {
 extern ssize_t read(int, void *, size_t);
 extern ssize_t write(int, const void *, size_t);
@@ -29,11 +30,14 @@ INSTANTIZE(short)
 INSTANTIZE(unsigned short)
 INSTANTIZE(char)
 INSTANTIZE(unsigned char)
+INSTANTIZE(unsigned long)
+
 template class NRVec<double>;
 template class NRVec<complex<double> >;
 template class NRVec<char>;
 template class NRVec<short>;
 template class NRVec<int>;
+template class NRVec<unsigned long>;
 
 
 
@@ -65,7 +69,7 @@ ostream & operator<<(ostream &s, const NRVec<T> &x)
 
   n = x.size();
   s << n << endl;
-  for(i=0; i<n; i++) s << x[i] << (i == n-1 ? '\n' : ' ');
+  for(i=0; i<n; i++) s << (typename LA_traits_io<T>::IOtype)x[i] << (i == n-1 ? '\n' : ' ');
   return s;
 }
 
@@ -76,7 +80,8 @@ istream & operator>>(istream &s, NRVec<T> &x)
 
   s >> n;
   x.resize(n);
-  for(i=0; i<n; i++) s >> x[i];
+  typename LA_traits_io<T>::IOtype tmp;
+  for(i=0; i<n; i++) {s >> tmp; x[i]=tmp;}
   return s;
 }
 
@@ -282,6 +287,10 @@ NRVec<short> &  NRVec<short>::normalize() {laerror("normalize() impossible for i
 template<>
 NRVec<char> &  NRVec<char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 template<>
+NRVec<unsigned long> &  NRVec<unsigned long>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+
+
+template<>
 void NRVec<int>::gemv(const int beta,
                 const NRSMat<int> &A, const char trans,
                 const int alpha, const NRVec &x)
@@ -293,6 +302,22 @@ template<>
 void NRVec<short>::gemv(const short beta,
                 const NRSMat<short> &A, const char trans,
                 const short alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+template<>
+void NRVec<unsigned long>::gemv(const unsigned long beta,
+                const NRSMat<unsigned long> &A, const char trans,
+                const unsigned long alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+template<>
+void NRVec<unsigned char>::gemv(const unsigned char beta,
+                const NRSMat<unsigned char> &A, const char trans,
+                const unsigned char alpha, const NRVec &x)
 {
 laerror("not yet implemented");
 }
@@ -321,6 +346,24 @@ void NRVec<short>::gemv(const short beta,
 {
 laerror("not yet implemented");
 }
+
+template<>
+void NRVec<unsigned long>::gemv(const unsigned long beta,
+                const NRMat<unsigned long> &A, const char trans,
+                const unsigned long alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+template<>
+void NRVec<unsigned char>::gemv(const unsigned char beta,
+                const NRMat<unsigned char> &A, const char trans,
+                const unsigned char alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+
 
 
 template<>
@@ -352,6 +395,22 @@ template<>
 void NRVec<char>::gemv(const char beta,
                 const SparseMat<char> &A, const char trans,
                 const char alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+template<>
+void NRVec<unsigned long>::gemv(const unsigned long beta,
+                const SparseMat<unsigned long> &A, const char trans,
+                const unsigned long alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
+template<>
+void NRVec<unsigned char>::gemv(const unsigned char beta,
+                const SparseMat<unsigned char> &A, const char trans,
+                const unsigned char alpha, const NRVec &x)
 {
 laerror("not yet implemented");
 }
@@ -434,3 +493,36 @@ NRVec< complex<double> >::operator|(const NRVec< complex<double> > &b) const
 }
 
 
+//sorting of elements in the vector
+template<typename T>
+static inline void SWAP(T &a, T &b)
+        {T dum=a; a=b; b=dum;}
+
+static void *sortbase; //global for sort !!! is not thread-safe
+
+template<typename T>
+static void myswap(int i, int j)
+{
+SWAP(((T *)sortbase)[i],((T *)sortbase)[j]);
+}
+
+template<typename T>
+static bool mybigger(int i, int j)
+{
+return LA_traits<T>::bigger(((T *)sortbase)[i],((T *)sortbase)[j]);
+}
+
+template<typename T>
+static bool mysmaller(int i, int j)
+{
+return LA_traits<T>::smaller(((T *)sortbase)[i],((T *)sortbase)[j]);
+}
+
+template<typename T>
+int NRVec<T>::sort(int direction)
+{
+copyonwrite();
+sortbase = v;
+if(direction) return genqsort2(0,nn-1,mysmaller<T>,myswap<T>);
+else return genqsort2(0,nn-1,mybigger<T>,myswap<T>);
+}

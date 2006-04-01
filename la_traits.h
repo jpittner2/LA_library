@@ -31,6 +31,26 @@ template<typename C> class NRMat;
 template<typename C> class NRSMat;
 template<typename C> class SparseMat;
 
+//we will need to treat char and unsigned char as numbers in << and >> I/O operators
+template<typename C>
+struct LA_traits_io
+	{
+	typedef C IOtype;
+	};
+
+template<>
+struct LA_traits_io<char>
+	{
+	typedef int IOtype;
+	};
+
+template<>
+struct LA_traits_io<unsigned char>
+        {
+        typedef unsigned int IOtype;
+        };
+
+
 //let's do some simple template metaprogramming and preprocessing
 //to keep the thing general and compact
 
@@ -90,7 +110,7 @@ static inline void get(int fd, complex<C> &x, bool dimensions=0, bool transp=0) 
 static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=write(fd,&x,sizeof(complex<C>))) laerror("write error");}
 static void multiget(unsigned int n,int fd, complex<C> *x, bool dimensions=0){if((ssize_t)(n*sizeof(complex<C>))!=read(fd,x,n*sizeof(complex<C>))) laerror("read error");}
 static void multiput(unsigned int n, int fd, const complex<C> *x, bool dimensions=0) {if((ssize_t)(n*sizeof(complex<C>))!=write(fd,x,n*sizeof(complex<C>))) laerror("write error");}
-
+static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest,src,n*sizeof(complex<C>));}
 };
 
 //non-complex scalars
@@ -108,6 +128,7 @@ static inline void put(int fd, const C &x, bool dimensions=0, bool transp=0) {if
 static inline void get(int fd, C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=read(fd,&x,sizeof(C))) laerror("read error");}
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=0){if((ssize_t)(n*sizeof(C))!=write(fd,x,n*sizeof(C))) laerror("write error");}
 static void multiget(unsigned int n, int fd, C *x, bool dimensions=0) {if((ssize_t)(n*sizeof(C))!=read(fd,x,n*sizeof(C))) laerror("read error");}
+static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));}
 };
 
 
@@ -131,6 +152,7 @@ static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,
 static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions,transp);} \
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
+static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
 };
 
 
@@ -156,6 +178,7 @@ static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,
 static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);} 
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
+static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
 };
 
 

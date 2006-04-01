@@ -74,11 +74,17 @@ extern void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
 extern NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double));
 extern NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double)); //a has to by in fact symmetric
+extern NRMat<complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (double), double (*fim) (double)); //a has to by in fact symmetric
 extern NRMat<double> matrixfunction(NRMat<double> a, complex<double> (*f)(const complex<double> &),const bool adjust=0);
+
+extern complex<double> sqrtinv(const complex<double> &);
+extern double sqrtinv(const double);
 
 //functions on matrices
 inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&sqrt); }
+inline NRMat<double>  sqrtinv(const NRSMat<double> &a) { return matrixfunction(a,&sqrtinv); }
 inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfunction(a,&sqrt); }
+inline NRMat<double>  realsqrtinv(const NRMat<double> &a) { return realmatrixfunction(a,&sqrtinv); }
 inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&log); }
 extern NRMat<double> log(const NRMat<double> &a);
 
@@ -169,5 +175,12 @@ return r;
 
 //auxiliary routine to adjust eigenvectors to guarantee real logarithm
 extern void adjustphases(NRMat<double> &v);
+
+template<class T>
+T abssqr(const complex<T> &x)
+{
+return x.real()*x.real()+x.imag()*x.imag();
+}
+
 
 #endif

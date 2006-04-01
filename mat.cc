@@ -14,15 +14,36 @@ extern ssize_t write(int, const void *, size_t);
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corresponding object file
 template class NRMat<double>;
-template class NRMat< complex<double> >;
+template class NRMat<complex<double> >;
 template class NRMat<int>;
 template class NRMat<short>;
 template class NRMat<char>;
+template class NRMat<unsigned char>;
+template class NRMat<unsigned long>;
 
 
 /*
  *  Templates first, specializations for BLAS next
- */
+*/
+
+//row of
+template <typename T>
+const NRVec<T> NRMat<T>::row(const int i) const
+{
+#ifdef DEBUG
+if(i<0||i>=nn) laerror("illegal index in row()");
+#endif
+NRVec<T> r(mm);
+LA_traits<T>::copy(&r[0],
+#ifdef MATPTR
+        v[i]
+#else
+        v+i*mm
+#endif
+,mm);
+return r;
+}
+
 
 //raw I/O
 template <typename T>
@@ -287,6 +308,101 @@ void NRMat<T>::fscanf(FILE *f, const char *format)
 /*
  * BLAS specializations for double and complex<double>
  */
+
+template<>
+const NRSMat<double>  NRMat<double>::transposedtimes() const
+{
+NRSMat<double> r(mm,mm);
+int i,j;
+for(i=0; i<mm; ++i) for(j=0; j<=i; ++j)
+#ifdef MATPTR
+	r(i,j) = cblas_ddot(nn,v[0]+i,mm,v[0]+j,mm);
+#else
+	r(i,j) = cblas_ddot(nn,v+i,mm,v+j,mm);
+#endif
+return r;
+}
+
+template<>
+const NRSMat<complex<double> >  NRMat<complex<double> >::transposedtimes() const
+{
+NRSMat<complex<double> > r(mm,mm);
+int i,j;
+for(i=0; i<mm; ++i) for(j=0; j<=i; ++j)
+#ifdef MATPTR
+	cblas_zdotc_sub(nn, v[0]+i , mm,v[0]+j, mm, (void *)(&r(i,j)));
+#else
+	cblas_zdotc_sub(nn, v+i , mm,v+j, mm, (void *)(&r(i,j)));
+#endif
+return r;
+}
+
+
+
+//and for general type
+template <typename T>
+const NRSMat<T>  NRMat<T>::transposedtimes() const
+{
+NRSMat<T> r(mm,mm);
+int i,j;
+for(i=0; i<mm; ++i) for(j=0; j<=i; ++j)
+	{
+	T s =(T)0;
+	for(int k=0; k<nn; ++k) s+= (*this)(k,i) * (*this)(k,j);
+	r(i,j)=s;
+	}
+return r;
+}
+
+
+
+template<>
+const NRSMat<double>  NRMat<double>::timestransposed() const
+{
+NRSMat<double> r(nn,nn);
+int i,j;
+for(i=0; i<nn; ++i) for(j=0; j<=i; ++j)
+#ifdef MATPTR
+	r(i,j) = cblas_ddot(mm,v[i],1,v[j],1);
+#else
+	r(i,j) = cblas_ddot(mm,v+i*mm,1,v+j*mm,1);
+#endif
+return r;
+}
+
+template<>
+const NRSMat<complex<double> >  NRMat<complex<double> >::timestransposed() const
+{
+NRSMat<complex<double> > r(nn,nn);
+int i,j;
+for(i=0; i<nn; ++i) for(j=0; j<=i; ++j)
+#ifdef MATPTR
+	cblas_zdotc_sub(mm, v[i] , 1,v[j], 1, (void *)(&r(i,j)));
+#else
+	cblas_zdotc_sub(mm, v+i*mm , 1,v+j*mm, 1, (void *)(&r(i,j)));
+#endif
+return r;
+}
+
+
+
+//and for general type
+template <typename T>
+const NRSMat<T>  NRMat<T>::timestransposed() const
+{
+NRSMat<T> r(nn,nn);
+int i,j;
+for(i=0; i<nn; ++i) for(j=0; j<=i; ++j)
+	{
+	T s =(T)0;
+	for(int k=0; k<mm; ++k) s+= (*this)(i,k) * (*this)(j,k);
+	r(i,j)=s;
+	}
+return r;
+}
+
+
+
 
 // Mat *= a
 template<>
@@ -946,6 +1062,8 @@ INSTANTIZE(complex<double>)
 INSTANTIZE(int)
 INSTANTIZE(short)
 INSTANTIZE(char)
+INSTANTIZE(unsigned char)
+INSTANTIZE(unsigned long)
 
 
 export template <typename T>
@@ -957,7 +1075,7 @@ ostream& operator<<(ostream &s, const NRMat<T> &x)
                 s << n << ' ' << m << '\n';
                 for(i=0;i<n;i++)
                         {
-                        for(j=0; j<m;j++) s << x[i][j] << (j==m-1 ? '\n' : ' '); // endl cannot be used in the conditional expression, since it is an overloaded function
+                        for(j=0; j<m;j++) s << (typename LA_traits_io<T>::IOtype) x[i][j] << (j==m-1 ? '\n' : ' '); // endl cannot be used in the conditional expression, since it is an overloaded function
                         }
                 return s;
                 }
@@ -968,7 +1086,8 @@ istream& operator>>(istream  &s, NRMat<T> &x)
                 int i,j,n,m;
                 s >> n >> m;
                 x.resize(n,m);
-                for(i=0;i<n;i++) for(j=0; j<m;j++) s>>x[i][j] ;
+		typename LA_traits_io<T>::IOtype tmp;
+                for(i=0;i<n;i++) for(j=0; j<m;j++) { s>>tmp; x[i][j]=tmp;}
                 return s;
                 }
 

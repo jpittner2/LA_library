@@ -103,6 +103,7 @@ public:
 //sparse matrix concerning members
 	explicit NRVec(const SparseMat<T> &rhs);                // dense from sparse matrix with one of dimensions =1
 	inline void simplify() {}; //just for compatibility with sparse ones
+	int sort(int direction=0); //sort, ascending by default, returns parity of permutation
 };
 
 //due to mutual includes this has to be after full class declaration
@@ -588,6 +589,15 @@ NRVec<T> & NRVec<T>::operator|=(const NRVec<T> &rhs)
 		memcpy(v, rhs.v, nn*sizeof(T));
 	}
 	return *this;
+}
+
+
+template<typename T>
+NRVec<complex<T> > complexify(const NRVec<T> &rhs)
+{
+NRVec<complex<T> > r(rhs.size());
+for(int i=0; i<rhs.size(); ++i)  r[i]=rhs[i];
+return r;
 }
 
 

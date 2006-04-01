@@ -7,6 +7,16 @@
 #include <errno.h>
 #include "sparsemat.h"
 
+template<typename T>
+static inline const T MAX(const T &a, const T &b)
+        {return b > a ? (b) : (a);}
+
+template<typename T>
+static inline void SWAP(T &a, T &b)
+        {T dum=a; a=b; b=dum;}
+
+
+
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corresponding object file
 template class SparseMat<double>;
@@ -24,7 +34,7 @@ ostream& operator<<(ostream &s, const SparseMat<T> &x)
 		matel<T> *list=x.getlist();
 		while(list)
                         {
-                        s << (int)list->row << ' ' << (int)list->col  << ' ' << list->elem << '\n';
+                        s << (int)list->row << ' ' << (int)list->col  << ' ' << (typename LA_traits_io<T>::IOtype)list->elem << '\n';
 			list=list->next;
                         }
 		s << "-1 -1\n";
@@ -47,7 +57,9 @@ istream& operator>>(istream  &s, SparseMat<T> &x)
 			l->next= ll;
 			l->row=i;
 			l->col=j;
-			s >> l->elem;	
+			typename LA_traits_io<T>::IOtype tmp;
+			s >> tmp;
+			l->elem=tmp;	
 			s >> i >> j;
 			}
 		x.setlist(l);
@@ -188,7 +200,8 @@ inline static SPMatindexdiff EXEC(register const SPMatindex i, register const SP
 	register matel<T> *ii,*jj;
 	ii=((matel<T> **)globsorted)[i];
 	jj=((matel<T> **)globsorted)[j];
-	if (k=ii->col-jj->col) return k; else return ii->row-jj->row;}
+	if (k=ii->col-jj->col) return k; else return ii->row-jj->row;
+	}
 };
 
 
@@ -200,7 +213,8 @@ inline static SPMatindexdiff EXEC(register const SPMatindex i, register const SP
         register matel<T> *ii,*jj;
         ii=((matel<T> **)globsorted)[i];
         jj=((matel<T> **)globsorted)[j];
-	if (k=ii->row-jj->row) return k; else return ii->col-jj->col;}
+	if (k=ii->row-jj->row) return k; else return ii->col-jj->col;
+	}
 };
 
 
@@ -215,7 +229,7 @@ SWAP(((matel<T> **)globsorted)[i],((matel<T> **)globsorted)[j]);
 
 
 template<class T, int type>
-void genqsort(SPMatindex l,SPMatindex r) /*safer version for worst case*/
+void myqsort(SPMatindex l,SPMatindex r) /*safer version for worst case*/
 {
 register SPMatindex i,j,piv;
 
@@ -250,9 +264,9 @@ do{
   }while(i<=j);
 
 if(j-l < r-i)   /*because of the stack in bad case process first the shorter subarray*/
-        {if(l<j) genqsort<T,type>(l,j); if(i<r) genqsort<T,type>(i,r);}
+        {if(l<j) myqsort<T,type>(l,j); if(i<r) myqsort<T,type>(i,r);}
 else
-        {if(i<r) genqsort<T,type>(i,r); if(l<j) genqsort<T,type>(l,j);}
+        {if(i<r) myqsort<T,type>(i,r); if(l<j) myqsort<T,type>(l,j);}
 }
 
 
@@ -302,8 +316,8 @@ while(l)
 
 //now sort the array of pointers according to type
 globsorted =sorted; 
-if(type==0) {genqsort<T,0>(0,nonzero-1); ((SparseMat<T> *)this)->rowsorted=sorted;} //type handled at compile time for more efficiency
-else {genqsort<T,1>(0,nonzero-1); ((SparseMat<T> *)this)->colsorted=sorted;} //should better be const cast
+if(type==0) {myqsort<T,0>(0,nonzero-1); ((SparseMat<T> *)this)->rowsorted=sorted;} //type handled at compile time for more efficiency
+else {myqsort<T,1>(0,nonzero-1); ((SparseMat<T> *)this)->colsorted=sorted;} //should better be const cast
 
 //cout <<"sort: nonzero ="<<nonzero<<"\n";
 return nonzero; //number of (in principle) nonzero elements

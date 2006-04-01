@@ -462,6 +462,17 @@ void NRSMat<T>::resize(const int n)
 }
 
 
+template<typename T>
+NRSMat<complex<T> > complexify(const NRSMat<T> &rhs)
+{
+NRSMat<complex<T> > r(rhs.nrows());
+for(int i=0; i<rhs.nrows(); ++i) 
+        for(int j=0; j<=i; ++j) r(i,j)=rhs(i,j);
+return r;
+}
+
+
+
 
 
 

@@ -61,12 +61,16 @@ public:
 	const NRMat otimes(const NRMat &rhs) const; //direct product
 	void diagmultl(const NRVec<T> &rhs); //multiply by a diagonal matrix from L
 	void diagmultr(const NRVec<T> &rhs); //multiply by a diagonal matrix from R
+	const NRSMat<T> transposedtimes() const; //A^T . A
+	const NRSMat<T> timestransposed() const; //A . A^T
 	const NRMat operator*(const NRSMat<T> &rhs) const; // Mat * Smat
 	const NRMat operator&(const NRMat &rhs) const; // direct sum
 	const NRMat operator|(const NRMat<T> &rhs) const; // direct product
 	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
 	const NRVec<T> rsum() const; //sum of rows
 	const NRVec<T> csum() const; //sum of columns
+	const NRVec<T> row(const int i) const; //row of, efficient
+	const NRVec<T> column(const int j) const {NRVec<T> r(nn); for(int i=0; i<nn; ++i) r[i]= (*this)(i,j); return r;}; //column of, general but not very efficient
 	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal 
 	inline T* operator[](const int i);  //subscripting: pointer to row i
 	inline const T* operator[](const int i) const;
@@ -530,6 +534,14 @@ void NRMat<T>::resize(const int n, const int m)
 
 
 
+template<typename T>
+NRMat<complex<T> > complexify(const NRMat<T> &rhs)
+{
+NRMat<complex<T> > r(rhs.nrows(),rhs.ncols());
+for(int i=0; i<rhs.nrows(); ++i) 
+	for(int j=0; j<rhs.ncols(); ++j) r(i,j)= rhs(i,j);
+return r;
+}
 
 
 

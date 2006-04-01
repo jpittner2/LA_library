@@ -1,5 +1,6 @@
 #ifndef _fourindex_included
 #define _fourindex_included
+#include <iostream>
 #include <string.h>
 
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
@@ -23,7 +24,7 @@ struct matel4
 	packedindex index;
         };
 
-typedef enum {nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //if twoelectron, only permutation-nonequivalent elements are stored
+typedef enum {nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //only permutation-nonequivalent elements are stored
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
 static const int fourindex_n_symmetrytypes=4;
 static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4};
