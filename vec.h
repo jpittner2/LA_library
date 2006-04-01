@@ -106,7 +106,7 @@ public:
 	bool bigger(int i, int j) const {return LA_traits<T>::bigger(v[i],v[j]);};
 	bool smaller(int i, int j) const {return LA_traits<T>::smaller(v[i],v[j]);};
 	void swap(int i, int j) {T tmp; tmp=v[i]; v[i]=v[j]; v[j]=tmp;};
-	int sort(int direction=0, int from=0, int to= -1); //sort, ascending by default, returns parity of permutation
+	int sort(int direction=0, int from=0, int to= -1, int *perm=NULL); //sort, ascending by default, returns parity of permutation
 };
 
 

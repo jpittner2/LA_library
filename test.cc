@@ -1,4 +1,6 @@
 #include "bitvector.h"
+#include "qsort.h"
+
 
 int main(void)
 {
@@ -23,6 +25,10 @@ for(int i=0; i<10; ++i) t[i]=i;
 cout <<t;
 t.sort(1);
 cout <<t;
-t.sort(0);
+NRVec<int> u(10);
+for(int i=0; i<10;++i) u[i]=i;
+ptrqsortup(&t[0],&t[9],&u[0]);
+cout<<t <<"U= "<<u;
+ptrqsortdown<int,int>(&t[0],&t[9]);
 cout<<t;
 }
