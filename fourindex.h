@@ -2,9 +2,13 @@
 #define _fourindex_included
 #include <iostream>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
 //note: nn is never compared with individual indices, so indexing from 1 as well as from 0 is possible
+//it is actually not needed for the algorithms here, but may be useful for the
+//user of this class to keep this piece of information along with the data
 
 template<class I>
 union packed_index {
@@ -119,13 +123,12 @@ public:
                 const matel4<I,T> & operator*() const {return my;}
                 const matel4<I,T> * operator->() const {return &my;}
 		piterator operator++(int) {laerror("postincrement not possible on permute-iterator");}
-                bool operator==(const piterator &rhs) const {return p==rhs.p && (!p || permindex==rhs.permindex);}
-                bool operator!=(const piterator &rhs) const {return p!=rhs.p || p && rhs.p && permindex!=rhs.permindex;}
+                bool operator!=(const piterator &rhs) const {return p!=rhs.p;} //should only be used for comparison with pend()
 		bool end(void) {return !p;}
 		bool notend(void) {return p;}
         };
         piterator pbegin() const {return piterator(*this);}
-        piterator pend() const {return piterator(NULL);}//deprecated, inefficient
+        piterator pend() const {return piterator(NULL);}//inefficient, use end() or notend() instead
 
 	//constructors etc.
 	inline fourindex() :nn(0),count(NULL),list(NULL) {};
@@ -155,7 +158,63 @@ public:
 };
 
 
-//and a class for accessing a disc-stored fourindex
+//and a class for accessing a disc-stored fourindex, taking care of permutational index symmetry
+template <class I, class T>
+class fourindex_ext {
+private: //at the moment for simplicity forbid some operations, otherwise reference counting on the buffer has to be done
+	fourindex_ext();
+	fourindex_ext(const fourindex_ext &rhs);
+	fourindex_ext & operator=(const fourindex_ext &rhs);
+protected:
+	int fd;
+        fourindexsymtype symmetry;
+	I nn;
+	unsigned int bufsize;
+	matel4stored<I,T> *buffer;
+	matel4stored<I,T> *current;
+	unsigned int nread;
+	void tryread()
+		{
+		current=NULL;
+		ssize_t r=read(fd,buffer,bufsize*sizeof(matel4stored<I,T>));
+		if(r<0) {perror("read error"); laerror("read error in fourindex_ext");}
+		if(r%sizeof(matel4stored<I,T>)) laerror("read inconsistency in fourindex_ext");
+		nread= r/sizeof(matel4stored<I,T>);
+		if(nread) current=buffer;
+		}
+	void next() { if(current && ++current - buffer >=nread) tryread(); }
+	bool eof() {return !current;};
+public:
+        fourindex_ext(const int file, const fourindexsymtype s=nosymmetry, const I nn=0, const unsigned int b=256) :nn(n),fd(file),symmetry(s),bufsize(b) {buffer = new matel4stored<I,T>[bufsize]; current=NULL; nread=0;}
+	~fourindex_ext() {if(buffer) delete[] buffer;}
+	void setsymmetry(fourindexsymtype s) {symmetry=s;};
+	void rewind() {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); la_error("cannot seek in fourindex_ext");} };
+	inline I size() const {return nn;}
+	
+//iterator and permute-iterator are both implemented as poiters to the original class, using private functions of this class
+//this is possible, since one instance of this class can have only one active iterator at a time
+	
+//iterator
+        typedef class iterator {
+        private:
+                fourindex_ext *base; 
+        public:
+		iterator() {};
+                iterator(fourindex_ext *p): base(p) {};
+                ~iterator() {};
+                bool operator!=(const iterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
+                iterator &operator++() {base->next(); if(base->eof()) return *this; else return NULL;} 
+		iterator operator++(int) {laerror("postincrement not possible");}
+                const matel4stored<I,T> * operator->() const {return base->current;}
+                const matel4stored<I,T> & operator*() const {return *base->current;}
+        };
+        iterator begin() const {tryread(); if(!eof()) return this; else return NULL;}
+        iterator end() const {return NULL;}
+
+//permiterator
+
+};
+
 
 
 /////////////////////////////implementations///////////////////////////////////
@@ -328,6 +387,23 @@ while(l)
 	}
 return n;
 }
+
+template <class I, class T>
+ostream& operator<<(ostream &s, const fourindex_ext<I,T> &x)
+                {
+                int n;
+                n=x.size();
+                s << n << '\n';
+                typename fourindex<I,T>::iterator it=x.begin();
+                while(it!=x.end())
+                        {
+                        s << (int)it->index.indiv.i << ' ' << (int)it->index.indiv.j<<  ' ' <<(int)it->index.indiv.k << ' ' << (int)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
+                        ++it;
+                        }
+                s << "-1 -1 -1 -1\n";
+                return s;
+                }
+
 
 
 template <class I, class T>
