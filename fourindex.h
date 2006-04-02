@@ -6,23 +6,33 @@
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
 //note: nn is never compared with individual indices, so indexing from 1 as well as from 0 is possible
 
+template<class I>
+union packed_index {
+                I packed[4];
+                struct {
+                        I i;
+                        I j;
+                        I k;
+                        I l;
+                        } indiv;
+                };
 
 template<class I, class T>
 struct matel4
         {
         T elem;
         matel4 *next;
-	typedef union {
-		I packed[4];
-		struct {
-			I i;
-			I j;
-			I k;	
-			I l;
-			} indiv;
-		} packedindex;
-	packedindex index;
+	union packed_index<I> index;
         };
+
+
+template<class I, class T>
+struct matel4stored
+        {
+        T elem;
+        union packed_index<I> index;
+        };
+
 
 typedef enum {nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //only permutation-nonequivalent elements are stored
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
@@ -135,11 +145,11 @@ public:
 	inline void add(const I i, const I j, const I k, const I l, const T elem) 
 		{matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; list->index.indiv.i=i;list->index.indiv.j=j;list->index.indiv.k=k;list->index.indiv.l=l; list->elem=elem;}
 
-	inline void add(const typename matel4<I,T>::packedindex &index , const T elem) 
+	inline void add(const union packed_index<I> &index , const T elem) 
                 {matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; list->index=index; list->elem=elem;}
 	
 	inline void add(const I (&index)[4], const T elem)
-                {matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; memcpy(&list->index.packed, &index, sizeof(typename matel4<I,T>::packedindex)); list->elem=elem;}
+                {matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; memcpy(&list->index.packed, &index, sizeof(union packed_index<I>)); list->elem=elem;}
 
 		
 
@@ -297,7 +307,7 @@ ostream& operator<<(ostream &s, const fourindex<I,T> &x)
                 typename fourindex<I,T>::iterator it=x.begin(),end=x.end();
                 while(it!=end)
                         {
-                        s << (int)it->index.indiv.i << ' ' << (int)it->index.indiv.j<<  ' ' <<(int)it->index.indiv.k << ' ' << (int)it->index.indiv.l  << ' ' << it->elem << '\n';
+                        s << (int)it->index.indiv.i << ' ' << (int)it->index.indiv.j<<  ' ' <<(int)it->index.indiv.k << ' ' << (int)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
 			++it;
                         }
                 s << "-1 -1 -1 -1\n";
@@ -308,7 +318,7 @@ template <class I, class T>
 istream& operator>>(istream  &s, fourindex<I,T> &x)
                 {
                 int i,j,k,l;
-		T elem;
+		typename LA_traits_io<T>::IOtype elem;
 		int n;
                 s >> n ;
                 x.resize(n);
@@ -316,7 +326,7 @@ istream& operator>>(istream  &s, fourindex<I,T> &x)
                 while(i>=0 && j>=0 &&k>=0 &&l>=0)
                         {
 			s>>elem;
-			x.add(i,j,k,l,elem);
+			x.add(i,j,k,l,(T)elem);
 			s >> i >> j >>k >>l;
                         }
                 return s;
