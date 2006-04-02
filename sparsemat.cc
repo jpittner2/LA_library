@@ -881,7 +881,7 @@ void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const
 {
 if((trans=='n'?a.ncols():a.nrows())!= (SPMatindex)x.size()) laerror("incompatible sizes in gemv");
 copyonwrite();
-if(beta!=(T)0) (*this) *= beta;
+if(beta!=(T)0) {if(beta!=(T)1) (*this) *= beta;}
 else memset(v,0,nn*sizeof(T));
 
 bool transp = tolower(trans)!='n'; //not OK for complex
