@@ -141,7 +141,7 @@ public:
 	inline I size() const {return nn;}
 	void resize(const I n);
 	void copyonwrite();
-	int length() const;
+	unsigned long length() const;
 	inline void add(const I i, const I j, const I k, const I l, const T elem) 
 		{matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; list->index.indiv.i=i;list->index.indiv.j=j;list->index.indiv.k=k;list->index.indiv.l=l; list->elem=elem;}
 
@@ -150,10 +150,42 @@ public:
 	
 	inline void add(const I (&index)[4], const T elem)
                 {matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; memcpy(&list->index.packed, &index, sizeof(union packed_index<I>)); list->elem=elem;}
-
-		
-
+	unsigned long put(int fd) const;
+	unsigned long get(int fd);
 };
+
+
+//and a class for accessing a disc-stored fourindex
+
+
+/////////////////////////////implementations///////////////////////////////////
+
+template <class I,class T>
+unsigned long fourindex<I,T>::put(int fd) const
+{
+unsigned long n=0;
+matel4<I,T> *l=list;
+matel4stored<I,T> buf;
+while(l)
+	{
+	++n;
+	buf.elem= l->elem;
+	buf.dindex= l->index;
+	if(sizeof(buf)!=write(fd,buf,sizeof(buf))) la_error("write error in fourindex::put");
+	l=l->next;
+	}
+return n;
+}
+
+
+template <class I,class T>
+unsigned long fourindex<I,T>::get(int fd)
+{
+unsigned long n=0;
+matel4stored<I,T> buf;
+while(sizeof(buf)==read(fd,buf,sizeof(buf))) {++n; add(buf.index,buf.elem);}
+return n;
+}
 
 
 //destructor
@@ -285,9 +317,9 @@ void fourindex<I,T>::copyonwrite()
 }
 
 template <class I, class T>
-int fourindex<I,T>::length() const
+unsigned long fourindex<I,T>::length() const
 {
-int n=0;
+unsigned long n=0;
 matel4<I,T> *l=list;
 while(l)
 	{
