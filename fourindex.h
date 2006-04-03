@@ -211,11 +211,62 @@ public:
 		iterator operator++(int) {laerror("postincrement not possible");}
                 const matel4stored<I,T> * operator->() const {return base->current;}
                 const matel4stored<I,T> & operator*() const {return *base->current;}
+		bool notNULL() const {return base;}
         };
         iterator begin() {tryread(); if(!eof()) return this; else return NULL;}
         iterator end() const {return iterator(NULL);}
 
-//permiterator
+//piterator ... iterate over all allowed permutations; conveniently expressed via the basic iterator which does the block-buffering
+        typedef class piterator {
+        private:
+                fourindex_ext *base;
+		matel4stored<I,T> my;
+		int permindex;
+		fourindex_ext::iterator it;
+
+		//private methods
+                void setup(void) //make a copy of *it to my with scaled element and anti/permuted indices
+                        {
+                        if(base->symmetry==undefined_symmetry) laerror("fourindex symmetry has not been set");
+                        if(!it.notNULL()) {permindex=0; memset(&my,0,sizeof(my)); return;} //we rely that end() is NULL
+                        for(int i=0; i<4; ++i)
+                                my.index.packed[i] = it->index.packed[fourindex_permutations[base->symmetry][permindex][i]];
+                        my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4];
+                        //now treat the redundancy by possibly equal indices
+                        //if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
+                        switch(base->symmetry)
+                                {
+                                case twoelectronrealmullikan:
+                                        if(it->index.indiv.i==it->index.indiv.j) my.elem*=.5;
+                                        if(it->index.indiv.k==it->index.indiv.l) my.elem*=.5;
+                                        if(it->index.indiv.i==it->index.indiv.k && it->index.indiv.j==it->index.indiv.l) my.elem*=.5;
+                                        break;
+                                case twoelectronrealdirac:
+                                        if(it->index.indiv.i==it->index.indiv.k) my.elem*=.5;
+                                        if(it->index.indiv.j==it->index.indiv.l) my.elem*=.5;
+                                        if(it->index.indiv.i==it->index.indiv.j && it->index.indiv.k==it->index.indiv.l) my.elem*=.5;
+                                        break;
+                                case T2ijab_real: break; //result will automatically vanish due to antisymmetry
+                                case nosymmetry: break;
+                                default: laerror("illegal symmetry in piterator");
+                                }
+                        };
+        public:
+		piterator() {};
+                piterator(fourindex_ext *p): base(p),permindex(0) {if(p) {it=p->begin(); setup();}};
+		piterator(fourindex_ext &x): base(&x),permindex(0) {it= x.begin(); setup();};
+                ~piterator() {};
+                bool operator!=(const piterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
+                piterator &operator++() {if(++permindex>=fourindex_permnumbers[base->symmetry]) {permindex=0; ++it;} if(it.notNULL()) setup(); else base=NULL; return *this;} 
+		piterator operator++(int) {laerror("postincrement not possible");}
+                const matel4stored<I,T> * operator->() const {return &my;}
+                const matel4stored<I,T> & operator*() const {return my;}
+		bool end(void) {return !base;}
+                bool notend(void) {return base;}
+	};
+	piterator pbegin() {return piterator(*this);}
+	piterator pend() const {return piterator(NULL);} //inefficient, use end() or notend() instead
+
 
 };
 
