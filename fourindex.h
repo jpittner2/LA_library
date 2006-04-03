@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "la.h"
 
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
 //note: nn is never compared with individual indices, so indexing from 1 as well as from 0 is possible
@@ -38,7 +39,7 @@ struct matel4stored
         };
 
 
-typedef enum {nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //only permutation-nonequivalent elements are stored
+typedef enum {undefined_symmetry=-1,nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //only permutation-nonequivalent elements are stored
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
 static const int fourindex_n_symmetrytypes=4;
 static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4};
@@ -91,6 +92,7 @@ public:
 		int permindex;
 		void setup(void) //make a copy of *p to my with scaled element and anti/permuted indices
 			{
+			if(symmetry==undefined_symmetry) laerror("fourindex symmetry has not been set");
 			if(!p) {permindex=0; memset(&my,0,sizeof(my)); return;}
 			for(int i=0; i<4; ++i)
 				my.index.packed[i] = p->index.packed[fourindex_permutations[symmetry][permindex][i]];
@@ -131,8 +133,8 @@ public:
         piterator pend() const {return piterator(NULL);}//inefficient, use end() or notend() instead
 
 	//constructors etc.
-	inline fourindex() :nn(0),count(NULL),list(NULL) {};
-	inline fourindex(const I n) :nn(n),count(new int(1)),list(NULL) {};
+	inline fourindex() :symmetry(undefined_symmetry),nn(0),count(NULL),list(NULL) {};
+	inline fourindex(const I n) :symmetry(undefined_symmetry),nn(n),count(new int(1)),list(NULL) {};
 	fourindex(const fourindex &rhs); //copy constructor
 	inline int getcount() const {return count?*count:0;}
 	fourindex & operator=(const fourindex &rhs);
@@ -185,7 +187,7 @@ protected:
 	void next() { if(current && ++current - buffer >=nread) tryread(); }
 	bool eof() {return !current;};
 public:
-        fourindex_ext(const int file, const fourindexsymtype s=nosymmetry, const I nn=0, const unsigned int b=256) :nn(n),fd(file),symmetry(s),bufsize(b) {buffer = new matel4stored<I,T>[bufsize]; current=NULL; nread=0;}
+        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I nn=0, const unsigned int b=256) :nn(n),fd(file),symmetry(s),bufsize(b) {buffer = new matel4stored<I,T>[bufsize]; current=NULL; nread=0;}
 	~fourindex_ext() {if(buffer) delete[] buffer;}
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
 	void rewind() {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); la_error("cannot seek in fourindex_ext");} };
@@ -229,8 +231,8 @@ while(l)
 	{
 	++n;
 	buf.elem= l->elem;
-	buf.dindex= l->index;
-	if(sizeof(buf)!=write(fd,buf,sizeof(buf))) la_error("write error in fourindex::put");
+	buf.index= l->index;
+	if(sizeof(buf)!=write(fd,&buf,sizeof(buf))) laerror("write error in fourindex::put");
 	l=l->next;
 	}
 return n;
@@ -242,7 +244,7 @@ unsigned long fourindex<I,T>::get(int fd)
 {
 unsigned long n=0;
 matel4stored<I,T> buf;
-while(sizeof(buf)==read(fd,buf,sizeof(buf))) {++n; add(buf.index,buf.elem);}
+while(sizeof(buf)==read(fd,&buf,sizeof(buf))) {++n; add(buf.index,buf.elem);}
 return n;
 }
 
@@ -397,7 +399,7 @@ ostream& operator<<(ostream &s, const fourindex_ext<I,T> &x)
                 typename fourindex<I,T>::iterator it=x.begin();
                 while(it!=x.end())
                         {
-                        s << (int)it->index.indiv.i << ' ' << (int)it->index.indiv.j<<  ' ' <<(int)it->index.indiv.k << ' ' << (int)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
+                        s << (typename LA_traits_io<I>::IOtype)it->index.indiv.i << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.j<<  ' ' <<(typename LA_traits_io<I>::IOtype)it->index.indiv.k << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
                         ++it;
                         }
                 s << "-1 -1 -1 -1\n";
@@ -415,7 +417,7 @@ ostream& operator<<(ostream &s, const fourindex<I,T> &x)
                 typename fourindex<I,T>::iterator it=x.begin(),end=x.end();
                 while(it!=end)
                         {
-                        s << (int)it->index.indiv.i << ' ' << (int)it->index.indiv.j<<  ' ' <<(int)it->index.indiv.k << ' ' << (int)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
+                        s << (typename LA_traits_io<I>::IOtype)it->index.indiv.i << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.j<<  ' ' <<(typename LA_traits_io<I>::IOtype)it->index.indiv.k << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
 			++it;
                         }
                 s << "-1 -1 -1 -1\n";
@@ -425,16 +427,16 @@ ostream& operator<<(ostream &s, const fourindex<I,T> &x)
 template <class I, class T>
 istream& operator>>(istream  &s, fourindex<I,T> &x)
                 {
-                int i,j,k,l;
+                typename LA_traits_io<I>::IOtype i,j,k,l;
 		typename LA_traits_io<T>::IOtype elem;
 		int n;
                 s >> n ;
                 x.resize(n);
                 s >> i >> j >>k >>l;
-                while(i>=0 && j>=0 &&k>=0 &&l>=0)
+                while(i!= (typename LA_traits_io<I>::IOtype)-1 && j!= (typename LA_traits_io<I>::IOtype)-1 &&  k != (typename LA_traits_io<I>::IOtype)-1 && l!= (typename LA_traits_io<I>::IOtype)-1)
                         {
 			s>>elem;
-			x.add(i,j,k,l,(T)elem);
+			x.add((I)i,(I)j,(I)k,(I)l,(T)elem);
 			s >> i >> j >>k >>l;
                         }
                 return s;
