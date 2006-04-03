@@ -39,17 +39,47 @@ struct matel4stored
         };
 
 
-typedef enum {undefined_symmetry=-1,nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3} fourindexsymtype; //only permutation-nonequivalent elements are stored
+//later add symmetry of complex integrals
+typedef enum {undefined_symmetry=-1,nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_real=3, antisymtwoelectronrealmullikan=4,antisymtwoelectronrealdirac=5} fourindexsymtype; //only permutation-nonequivalent elements are stored
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
-static const int fourindex_n_symmetrytypes=4;
-static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4};
-static const int fourindex_permutations[fourindex_n_symmetrytypes][8][5]=
+static const int fourindex_n_symmetrytypes=6;
+static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,16,16};
+static const int fourindex_permutations[fourindex_n_symmetrytypes][16][5]=
 		{
-		{{0,1,2,3,1},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}},
+		{{0,1,2,3,1}},
 		{{0,1,2,3,1}, {1,0,2,3,1}, {0,1,3,2,1}, {1,0,3,2,1}, {2,3,0,1,1}, {3,2,0,1,1}, {2,3,1,0,1}, {3,2,1,0,1}},
 		{{0,1,2,3,1},{2,1,0,3,1},{0,3,2,1,1},{2,3,0,1,1},{1,0,3,2,1},{3,0,1,2,1},{1,2,3,0,1},{3,2,1,0,1}},
-		{{0,1,2,3,1},{1,0,2,3,-1},{0,1,3,2,-1},{1,0,3,2,1},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}}
+		{{0,1,2,3,1},{1,0,2,3,-1},{0,1,3,2,-1},{1,0,3,2,1}},
+		{{0,1,2,3,1}, {1,0,2,3,1}, {0,1,3,2,1}, {1,0,3,2,1}, {2,3,0,1,1}, {3,2,0,1,1}, {2,3,1,0,1}, {3,2,1,0,1}, {0,3,2,1,-1}, {1,3,2,0,-1}, {0,2,3,1,-1}, {1,2,3,1,-1}, {2,1,0,3,-1}, {3,1,0,2,-1}, {2,0,1,3,-1}, {3,0,1,2,-1}},
+		{{0,1,2,3,1},{2,1,0,3,1},{0,3,2,1,1},{2,3,0,1,1},{1,0,3,2,1},{3,0,1,2,1},{1,2,3,0,1},{3,2,1,0,1}, {0,1,3,2,-1},{2,1,3,0,-1},{0,3,1,2,-1},{2,3,1,0,-1},{1,0,2,3,-1},{3,0,2,1,-1},{1,2,0,3,-1},{3,2,0,1,-1}},
 		};
+
+
+template <class I, class T>
+void symmetry_faktor(const fourindexsymtype symmetry,const union packed_index<I> &index, T &elem)
+{
+switch(symmetry)
+	{
+	case antisymtwoelectronrealmullikan: //in case of antisymmetry it will vanish anyway, first two  conditions apply the same
+	case twoelectronrealmullikan:
+		if(index.indiv.i==index.indiv.j) elem*=.5;
+		if(index.indiv.k==index.indiv.l) elem*=.5;
+		if(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l
+			|| index.indiv.i==index.indiv.l && index.indiv.j==index.indiv.k		) elem*=.5; 
+		break;	
+	case antisymtwoelectronrealdirac: //in case of antisymmetry it will vanish anyway, first two  conditions apply the same
+	case twoelectronrealdirac:
+		if(index.indiv.i==index.indiv.k) elem*=.5;
+                if(index.indiv.j==index.indiv.l) elem*=.5;
+                if(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l
+			|| index.indiv.k==index.indiv.j && index.indiv.i==index.indiv.l) elem*=.5; 
+		break;
+	case T2ijab_real: break; //result will automatically vanish due to generated antisymmetry; i!=a from principle
+	case nosymmetry: break;
+	default: laerror("illegal symmetry in piterator");
+	}
+}
+
 
 template <class I, class T>
 class fourindex {
@@ -97,24 +127,9 @@ public:
 			for(int i=0; i<4; ++i)
 				my.index.packed[i] = p->index.packed[fourindex_permutations[symmetry][permindex][i]];
 			my.elem = p->elem * fourindex_permutations[symmetry][permindex][4];
-			//now treat the redundancy by possibly equal indices
+			//now treat the redundancy due to possibly equal indices by a scaling factor
 			//if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
-			switch(symmetry)
-				{
-				case twoelectronrealmullikan:
-					if(p->index.indiv.i==p->index.indiv.j) my.elem*=.5;
-					if(p->index.indiv.k==p->index.indiv.l) my.elem*=.5;
-					if(p->index.indiv.i==p->index.indiv.k && p->index.indiv.j==p->index.indiv.l) my.elem*=.5;
-					break;	
-				case twoelectronrealdirac:
-					if(p->index.indiv.i==p->index.indiv.k) my.elem*=.5;
-                                        if(p->index.indiv.j==p->index.indiv.l) my.elem*=.5;
-                                        if(p->index.indiv.i==p->index.indiv.j && p->index.indiv.k==p->index.indiv.l) my.elem*=.5;
-					break;
-				case T2ijab_real: break; //result will automatically vanish due to antisymmetry
-				case nosymmetry: break;
-				default: laerror("illegal symmetry in piterator");
-				}
+			symmetry_faktor(symmetry, p->index, my.elem);
 			};
         public:
                 piterator() {};
@@ -232,24 +247,9 @@ public:
                         for(int i=0; i<4; ++i)
                                 my.index.packed[i] = it->index.packed[fourindex_permutations[base->symmetry][permindex][i]];
                         my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4];
-                        //now treat the redundancy by possibly equal indices
+                        //redundancy due to possibly equal indices
                         //if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
-                        switch(base->symmetry)
-                                {
-                                case twoelectronrealmullikan:
-                                        if(it->index.indiv.i==it->index.indiv.j) my.elem*=.5;
-                                        if(it->index.indiv.k==it->index.indiv.l) my.elem*=.5;
-                                        if(it->index.indiv.i==it->index.indiv.k && it->index.indiv.j==it->index.indiv.l) my.elem*=.5;
-                                        break;
-                                case twoelectronrealdirac:
-                                        if(it->index.indiv.i==it->index.indiv.k) my.elem*=.5;
-                                        if(it->index.indiv.j==it->index.indiv.l) my.elem*=.5;
-                                        if(it->index.indiv.i==it->index.indiv.j && it->index.indiv.k==it->index.indiv.l) my.elem*=.5;
-                                        break;
-                                case T2ijab_real: break; //result will automatically vanish due to antisymmetry
-                                case nosymmetry: break;
-                                default: laerror("illegal symmetry in piterator");
-                                }
+			symmetry_faktor(base->symmetry, it->index, my.elem);
                         };
         public:
 		piterator() {};
