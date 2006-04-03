@@ -168,13 +168,15 @@ private: //at the moment for simplicity forbid some operations, otherwise refere
 	fourindex_ext(const fourindex_ext &rhs);
 	fourindex_ext & operator=(const fourindex_ext &rhs);
 protected:
-	int fd;
-        fourindexsymtype symmetry;
-	I nn;
-	unsigned int bufsize;
 	matel4stored<I,T> *buffer;
 	matel4stored<I,T> *current;
+	int fd;
+	unsigned int bufsize;
 	unsigned int nread;
+        fourindexsymtype symmetry;
+	I nn;
+
+	//methods
 	void tryread()
 		{
 		current=NULL;
@@ -184,10 +186,10 @@ protected:
 		nread= r/sizeof(matel4stored<I,T>);
 		if(nread) current=buffer;
 		}
-	void next() { if(current && ++current - buffer >=nread) tryread(); }
+	void next() { if(current && (unsigned int) (++current - buffer) >=nread) tryread(); }
 	bool eof() {return !current;};
 public:
-        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I nn=0, const unsigned int b=256) :nn(n),fd(file),symmetry(s),bufsize(b) {buffer = new matel4stored<I,T>[bufsize]; current=NULL; nread=0;}
+        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=256) :current(NULL),fd(file),bufsize(b),nread(0),symmetry(s),nn(n) {buffer = new matel4stored<I,T>[bufsize]; }
 	~fourindex_ext() {if(buffer) delete[] buffer;}
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
 	void rewind() {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); la_error("cannot seek in fourindex_ext");} };
@@ -205,13 +207,13 @@ public:
                 iterator(fourindex_ext *p): base(p) {};
                 ~iterator() {};
                 bool operator!=(const iterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
-                iterator &operator++() {base->next(); if(base->eof()) return *this; else return NULL;} 
+                iterator &operator++() {if(base) base->next(); if(base->eof()) base=NULL; return *this;} 
 		iterator operator++(int) {laerror("postincrement not possible");}
                 const matel4stored<I,T> * operator->() const {return base->current;}
                 const matel4stored<I,T> & operator*() const {return *base->current;}
         };
-        iterator begin() const {tryread(); if(!eof()) return this; else return NULL;}
-        iterator end() const {return NULL;}
+        iterator begin() {tryread(); if(!eof()) return this; else return NULL;}
+        iterator end() const {return iterator(NULL);}
 
 //permiterator
 
