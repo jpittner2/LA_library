@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "la.h"
+#include "laerror.h"
 
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
 //note: nn is never compared with individual indices, so indexing from 1 as well as from 0 is possible
@@ -170,8 +171,8 @@ public:
 	
 	inline void add(const I (&index)[4], const T elem)
                 {matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; memcpy(&list->index.packed, &index, sizeof(union packed_index<I>)); list->elem=elem;}
-	unsigned long put(int fd) const;
-	unsigned long get(int fd);
+	unsigned long put(int fd,bool withattr=true) const;
+	unsigned long get(int fd,bool withattr=true);
 };
 
 
@@ -203,11 +204,13 @@ protected:
 		}
 	void next() { if(current && (unsigned int) (++current - buffer) >=nread) tryread(); }
 	bool eof() {return !current;};
+
+
 public:
         fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=256) :current(NULL),fd(file),bufsize(b),nread(0),symmetry(s),nn(n) {buffer = new matel4stored<I,T>[bufsize]; }
 	~fourindex_ext() {if(buffer) delete[] buffer;}
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
-	void rewind() {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); la_error("cannot seek in fourindex_ext");} };
+	void rewind() {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); laerror("cannot seek in fourindex_ext");} };
 	inline I size() const {return nn;}
 	
 //iterator and permute-iterator are both implemented as poiters to the original class, using private functions of this class
@@ -228,7 +231,7 @@ public:
                 const matel4stored<I,T> & operator*() const {return *base->current;}
 		bool notNULL() const {return base;}
         };
-        iterator begin() {tryread(); if(!eof()) return this; else return NULL;}
+        iterator begin() {rewind(); tryread(); if(!eof()) return this; else return NULL;}
         iterator end() const {return iterator(NULL);}
 
 //piterator ... iterate over all allowed permutations; conveniently expressed via the basic iterator which does the block-buffering
@@ -275,11 +278,19 @@ public:
 /////////////////////////////implementations///////////////////////////////////
 
 template <class I,class T>
-unsigned long fourindex<I,T>::put(int fd) const
+unsigned long fourindex<I,T>::put(int fd, bool withattr) const
 {
 unsigned long n=0;
 matel4<I,T> *l=list;
 matel4stored<I,T> buf;
+if(withattr)
+        {
+	union {fourindexsymtype sym; I n; T padding;} u;
+	u.sym=symmetry;
+	if(sizeof(u)!=write(fd,&u,sizeof(u))) laerror("write error in fourindex::put");
+	u.n=nn;
+	if(sizeof(u)!=write(fd,&u,sizeof(u))) laerror("write error in fourindex::put");
+        }
 while(l)
 	{
 	++n;
@@ -293,10 +304,19 @@ return n;
 
 
 template <class I,class T>
-unsigned long fourindex<I,T>::get(int fd)
+unsigned long fourindex<I,T>::get(int fd,bool withattr)
 {
 unsigned long n=0;
 matel4stored<I,T> buf;
+if(withattr)
+	{
+	union {fourindexsymtype sym; I n; T padding;} u;
+        if(sizeof(u)!=read(fd,&u,sizeof(u))) laerror("read inconsistency in fourindex::put");
+        symmetry=u.sym;
+        if(sizeof(u)!=read(fd,&u,sizeof(u))) laerror("read inconsistency in fourindex::put");
+        nn=u.n;
+
+	}
 while(sizeof(buf)==read(fd,&buf,sizeof(buf))) {++n; add(buf.index,buf.elem);}
 return n;
 }
