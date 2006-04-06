@@ -515,5 +515,77 @@ istream& operator>>(istream  &s, fourindex<I,T> &x)
                 return s;
                 }
 
+/////////////////////densely stored fourindex///////////////////////////////////
+//not all symmetry cases implemented yet, but a general template declaration used
+//we use a general template forward declaration, but then it has to be done differently for (almost) each case
+//by means of partial template specialization
+
+template<fourindexsymtype S, class T, class DUMMY> class fourindex_dense;
+
+//make it as a derived class in order to be able to use it in a base class context - "supermatrix" operations
+template<class T, class I> 
+class fourindex_dense<twoelectronrealmullikan,T,I> : public NRSMat<T> {
+public:
+	fourindex_dense(): NRSMat<T>() {};
+	explicit fourindex_dense(const int n): NRSMat<T>(n*(n+1)/2) {};
+	fourindex_dense(const NRSMat<T> &rhs): NRSMat<T>(rhs) {}; //be able to convert the parent class  transparently to this
+	fourindex_dense(const T &a, const int n): NRSMat<T>(a,n*(n+1)/2) {};
+	fourindex_dense(const T *a, const int n): NRSMat<T>(a,n*(n+1)/2) {};
+	//and also construct it from sparse and externally stored fourindex classes
+	//it seems not possible to nest template<class I> just for the two constructors
+	fourindex_dense(const fourindex<I,T> &rhs);
+	fourindex_dense(const fourindex_ext<I,T> &rhs);
+
+	T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l);
+	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
+
+};
+
+template<class T, class I> 
+fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmullikan,T,I>(const fourindex<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
+{
+typename fourindex<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
+}
+
+template<class T, class I>
+fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmullikan,T,I>(const fourindex_ext<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
+{
+typename fourindex_ext<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j
+,p->index.indiv.k,p->index.indiv.l) = p->elem;
+}
+
+
+
+template<class T, class DUMMY>
+T& fourindex_dense<twoelectronrealmullikan,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l)
+{
+unsigned long I = i>j? i*(i-1)/2+j-1 : j*(j-1)/2+i-1;
+unsigned long J = k>l? k*(k-1)/2+l-1 : l*(l-1)/2+k-1;
+//I,J act as indices of a NRSmat
+#ifdef DEBUG
+     	if (*count != 1) laerror("lval (i,j,k,l) with count > 1 in fourindex_dense");
+       	if (I<0 || I>=nn || J<0 || J>=nn) laerror("fourindex_dense index out of range");
+       	if (!v) laerror("access to unallocated fourindex_dense");
+#endif
+return I>=J ? v[I*(I+1)/2+J] : v[J*(J+1)/2+I];
+}
+
+template<class T, class DUMMY>
+const T& fourindex_dense<twoelectronrealmullikan,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const
+{
+unsigned long I = i>j? i*(i-1)/2+j-1 : j*(j-1)/2+i-1;
+unsigned long J = k>l? k*(k-1)/2+l-1 : l*(l-1)/2+k-1;
+//I,J act as indices of a NRSmat
+#ifdef DEBUG
+       	if (I<0 || I>=nn || J<0 || J>=nn) laerror("fourindex_dense index out of range");
+       	if (!v) laerror("access to unallocated fourindex_dense");
+#endif
+return I>=J ? v[I*(I+1)/2+J] : v[J*(J+1)/2+I];
+}
+
+
+
 
 #endif /*_fourindex_included*/
