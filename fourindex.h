@@ -77,7 +77,7 @@ switch(symmetry)
 		break;
 	case T2ijab_real: break; //result will automatically vanish due to generated antisymmetry; i!=a from principle
 	case nosymmetry: break;
-	default: laerror("illegal symmetry in piterator");
+	default: laerror("illegal symmetry");
 	}
 }
 
@@ -155,7 +155,8 @@ public:
 	inline int getcount() const {return count?*count:0;}
 	fourindex & operator=(const fourindex &rhs);
         fourindex & operator+=(const fourindex &rhs);
-	inline void setsymmetry(fourindexsymtype s) {symmetry=s;}
+	void setsymmetry(fourindexsymtype s) {symmetry=s;}
+	fourindexsymtype getsymmetry() const {return symmetry;}
         fourindex & join(fourindex &rhs); //more efficient +=, rhs will be emptied
 	inline ~fourindex();
 	inline matel4<I,T> *getlist() const {return list;}
@@ -193,24 +194,25 @@ protected:
 	I nn;
 
 	//methods
-	void tryread()
+	void tryread() const
 		{
-		current=NULL;
+		const_cast<fourindex_ext<I,T> *>(this)->current=NULL;
 		ssize_t r=read(fd,buffer,bufsize*sizeof(matel4stored<I,T>));
 		if(r<0) {perror("read error"); laerror("read error in fourindex_ext");}
 		if(r%sizeof(matel4stored<I,T>)) laerror("read inconsistency in fourindex_ext");
-		nread= r/sizeof(matel4stored<I,T>);
-		if(nread) current=buffer;
+		const_cast<fourindex_ext<I,T> *>(this)->nread = r/sizeof(matel4stored<I,T>);
+		if(nread) const_cast<fourindex_ext<I,T> *>(this)->current=buffer;
 		}
-	void next() { if(current && (unsigned int) (++current - buffer) >=nread) tryread(); }
-	bool eof() {return !current;};
+	void next() const { if(current && (unsigned int) (++ const_cast<fourindex_ext<I,T> *>(this)->current - buffer) >=nread) tryread(); }
+	bool eof() const {return !current;};
 
 
 public:
         fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=256) :current(NULL),fd(file),bufsize(b),nread(0),symmetry(s),nn(n) {buffer = new matel4stored<I,T>[bufsize]; }
 	~fourindex_ext() {if(buffer) delete[] buffer;}
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
-	void rewind() {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); laerror("cannot seek in fourindex_ext");} };
+	fourindexsymtype getsymmetry() const {return symmetry;}
+	void rewind() const {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); laerror("cannot seek in fourindex_ext");} };
 	inline I size() const {return nn;}
 	
 //iterator and permute-iterator are both implemented as poiters to the original class, using private functions of this class
@@ -219,10 +221,10 @@ public:
 //iterator
         typedef class iterator {
         private:
-                fourindex_ext *base; 
+                const fourindex_ext *base; 
         public:
 		iterator() {};
-                iterator(fourindex_ext *p): base(p) {};
+                iterator(const fourindex_ext *p): base(p) {};
                 ~iterator() {};
                 bool operator!=(const iterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
                 iterator &operator++() {if(base) base->next(); if(base->eof()) base=NULL; return *this;} 
@@ -231,7 +233,7 @@ public:
                 const matel4stored<I,T> & operator*() const {return *base->current;}
 		bool notNULL() const {return base;}
         };
-        iterator begin() {rewind(); tryread(); if(!eof()) return this; else return NULL;}
+        iterator begin() const {rewind(); tryread(); if(!eof()) return this; else return NULL;}
         iterator end() const {return iterator(NULL);}
 
 //piterator ... iterate over all allowed permutations; conveniently expressed via the basic iterator which does the block-buffering
@@ -544,6 +546,7 @@ public:
 template<class T, class I> 
 fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmullikan,T,I>(const fourindex<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
 {
+if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex<I,T>::iterator p;
 for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
 }
@@ -551,6 +554,7 @@ for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j
 template<class T, class I>
 fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmullikan,T,I>(const fourindex_ext<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
 {
+if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex_ext<I,T>::iterator p;
 for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j
 ,p->index.indiv.k,p->index.indiv.l) = p->elem;
@@ -566,7 +570,7 @@ unsigned long J = k>l? k*(k-1)/2+l-1 : l*(l-1)/2+k-1;
 //I,J act as indices of a NRSmat
 #ifdef DEBUG
      	if (*count != 1) laerror("lval (i,j,k,l) with count > 1 in fourindex_dense");
-       	if (I<0 || I>=nn || J<0 || J>=nn) laerror("fourindex_dense index out of range");
+       	if (I<0 || I>=(unsigned long)nn || J<0 || J>=(unsigned long)nn) laerror("fourindex_dense index out of range");
        	if (!v) laerror("access to unallocated fourindex_dense");
 #endif
 return I>=J ? v[I*(I+1)/2+J] : v[J*(J+1)/2+I];
