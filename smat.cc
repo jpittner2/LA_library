@@ -85,7 +85,7 @@ NRSMat<T> & NRSMat<T>::operator=(const T &a)
 
 //get diagonal
 template <typename T>
-void NRSMat<T>::diagonalof(NRVec<T> &r, const bool divide) const
+const T* NRSMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const
 {
 #ifdef DEBUG
 if(r.size()!=nn) laerror("incompatible vector in diagonalof()");
@@ -97,6 +97,7 @@ if (divide)
 	for (int i=0; i<nn; i++) {T a =v[i*(i+1)/2+i]; if(a!=0.) r[i] /= a;}
 else
         for (int i=0; i<nn; i++) r[i] = v[i*(i+1)/2+i];
+return divide?NULL:&r[0];
 }
 
 
@@ -266,7 +267,31 @@ NRSMat< complex<double> >::dot(const NRSMat< complex<double> > &rhs) const
 	if (nn != rhs.nn) laerror("dot of incompatible SMat's");
 #endif
 	complex<double> dot;
-	cblas_zdotc_sub(nn, (void *)v, 1, (void *)rhs.v, 1, (void *)(&dot));
+	cblas_zdotc_sub(NN2, (void *)v, 1, (void *)rhs.v, 1, (void *)(&dot));
+	return dot;
+}
+
+
+template<>
+const double NRSMat<double>::dot(const NRVec<double> &rhs) const
+{
+#ifdef DEBUG
+	if (NN2 != rhs.nn) laerror("dot of incompatible SMat's");
+#endif
+	return cblas_ddot(NN2, v, 1, rhs.v, 1);
+}
+
+
+
+template<>
+const complex<double> 
+NRSMat< complex<double> >::dot(const NRVec< complex<double> > &rhs) const
+{
+#ifdef DEBUG
+	if (NN2 != rhs.nn) laerror("dot of incompatible SMat's");
+#endif
+	complex<double> dot;
+	cblas_zdotc_sub(NN2, (void *)v, 1, (void *)rhs.v, 1, (void *)(&dot));
 	return dot;
 }
 

@@ -11,6 +11,8 @@
 
 //matrix can be any class which has nrows(), ncols(), diagonalof(), issymmetric(), and gemv() available
 //does not even have to be explicitly stored - direct CI
+//therefore the whole implementation must be a template in a header
+//Note that for efficiency in a direct CI case the diagonalof() should cache its result
 
 export template <typename T, typename Matrix>
 extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
@@ -62,10 +64,10 @@ int oldnroot;
 smallS=0;
 smallH=0;     
 //guess based on lowest diagonal element of the matrix
-bigmat.diagonalof(vec2);
+const T *diagonal = bigmat.diagonalof(vec2,false,true);
 vec1=0;
 {T t=1e100; int i,j;  
-for(i=0, j= -1; i<n; ++i) if(vec2[i]<t) {t=vec2[i]; j=i;}
+for(i=0, j= -1; i<n; ++i) if(diagonal[i]<t) {t=diagonal[i]; j=i;}
 vec1[j]=1;}
 
 //init Krylov matrices
@@ -170,11 +172,11 @@ for(j=0; j<=krylovsize; ++j)
 	if(!incore) s1->get(vec2,j);
         vec1.axpy(smallV(j,nroot),incore?v1[j]:vec2);
 	}
-bigmat.diagonalof(vec2);
+diagonal = bigmat.diagonalof(vec2,false,true);
 eival_n = r[nroot];
 for(i=0; i<n; ++i)
 	{
-	T denom = vec2[i] - eival_n;
+	T denom = diagonal[i] - eival_n;
         denom = denom<0?-max(0.1,abs(denom)):max(0.1,abs(denom));
         vec1[i] /= denom;
 	}

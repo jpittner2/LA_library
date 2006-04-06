@@ -79,7 +79,8 @@ public:
         inline const SparseMat operator-(const SparseMat &rhs) const {return SparseMat(*this) -= rhs;} //must not be symmetric+general
 	inline const NRVec<T> operator*(const NRVec<T> &rhs) const; // SparseMat * Vec
 	inline const NRMat<T> operator*(const NRMat<T> &rhs) const; // SparseMat * Mat
-	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal
+	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal
+	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x, bool treat_as_symmetric=false) const {r.gemv(beta,*this,trans,alpha,x,treat_as_symmetric);};
 	const SparseMat operator*(const SparseMat &rhs) const; 
 	SparseMat & oplusequal(const SparseMat &rhs); //direct sum
 	SparseMat & oplusequal(const NRMat<T> &rhs);

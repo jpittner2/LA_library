@@ -43,8 +43,10 @@ public:
 	const NRMat<T> operator*(const NRSMat &rhs) const; // SMat*SMat
 	const NRMat<T> operator*(const NRMat<T> &rhs) const; // SMat*Mat 
 	const T dot(const NRSMat &rhs) const; // Smat.Smat//@@@for complex do conjugate
+	const T dot(const NRVec<T> &rhs) const; //Smat(as vec).vec //@@@for complex do conjugate
 	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
-	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal
+	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal
+	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
 	inline const T& operator[](const int ij) const;
 	inline T& operator[](const int ij);
 	inline const T& operator()(const int i, const int j) const;
@@ -52,6 +54,7 @@ public:
 	inline int nrows() const;
 	inline int ncols() const;
 	inline int size() const;
+	inline bool transp(const int i, const int j) const {return i>j;} //this can be used for compact storage of matrices, which are actually not symmetric, but one triangle of them is redundant
 	const double norm(const T scalar=(T)0) const;
 	void axpy(const T alpha, const NRSMat &x); // this+= a*x
 	inline const T amax() const;
@@ -274,6 +277,18 @@ inline const T & NRSMat<T>::operator[](const int ij) const
 	return v[ij];
 }
 
+template<typename T>
+inline T SMat_index(T i, T j)
+{
+return i>=j ? i*(i+1)/2+j : j*(j+1)/2+i;
+}
+
+template<typename T>
+inline T SMat_index_1(T i, T j)
+{
+return i>j? i*(i-1)/2+j-1 : j*(j-1)/2+i-1;
+}
+
 // access the element, 2-dim array case
 template <typename T>
 inline T & NRSMat<T>::operator()(const int i, const int j)
@@ -283,7 +298,7 @@ inline T & NRSMat<T>::operator()(const int i, const int j)
 	if (i<0 || i>=nn || j<0 || j>=nn) laerror("SMat (i,j) out of range");
 	if (!v) laerror("(i,j) for unallocated Smat");
 #endif
-	return i>=j ? v[i*(i+1)/2+j] : v[j*(j+1)/2+i];
+	return v[SMat_index(i,j)];
 }
 template <typename T>
 inline const T & NRSMat<T>::operator()(const int i, const int j) const
@@ -292,7 +307,7 @@ inline const T & NRSMat<T>::operator()(const int i, const int j) const
 	if (i<0 || i>=nn || j<0 || j>=nn) laerror("SMat (i,j) out of range");
 	if (!v) laerror("(i,j) for unallocated Smat");
 #endif
-	return i>=j ? v[i*(i+1)/2+j] : v[j*(j+1)/2+i];
+	return v[SMat_index(i,j)];
 }
 
 // return the number of rows and columns
@@ -471,17 +486,9 @@ for(int i=0; i<rhs.nrows(); ++i)
 return r;
 }
 
-
-
-
-
-
 // I/O
 template <typename T> extern ostream& operator<<(ostream &s, const NRSMat<T> &x);
 template <typename T> extern istream& operator>>(istream  &s, NRSMat<T> &x);
-
-
-
 
 // generate operators: SMat + a, a + SMat, SMat * a
 NRVECMAT_OPER(SMat,+)
@@ -490,5 +497,36 @@ NRVECMAT_OPER(SMat,*)
 // generate SMat + SMat, SMat - SMat
 NRVECMAT_OPER2(SMat,+)
 NRVECMAT_OPER2(SMat,-)
+
+//optional indexing from 1
+//all possible constructors have to be given explicitly, other stuff is inherited
+//with exception of the operator() which differs
+template<typename T>
+class NRSMat_from1 : public NRSMat<T> {
+public:
+        NRSMat_from1(): NRSMat<T>() {};
+        explicit NRSMat_from1(const int n): NRSMat<T>(n) {};
+	NRSMat_from1(const NRSMat<T> &rhs): NRSMat<T>(rhs) {}; //be able to convert the parent class  transparently to this
+        NRSMat_from1(const T &a, const int n): NRSMat<T>(a,n) {}; 
+        NRSMat_from1(const T *a, const int n): NRSMat<T>(a,n) {}; 
+        explicit NRSMat_from1(const NRMat<T> &rhs): NRSMat<T>(rhs) {};
+        explicit NRSMat_from1(const NRVec<T> &rhs, const int n): NRSMat<T>(rhs,n) {};
+
+        inline const T& operator() (const int i, const int j) const 
+		{
+#ifdef DEBUG
+		if(i<=0||j<=0||i>nn||j>nn) laerror("index out of range in NRSMat_from1");
+#endif
+		return v[SMat_index_1(i,j)];
+		}
+        inline  T& operator() (const int i, const int j) 
+		{
+#ifdef DEBUG
+                if(i<=0||j<=0||i>nn||j>nn) laerror("index out of range in NRSMat_from1");
+#endif
+		return v[SMat_index_1(i,j)];
+		}
+};
+
 
 #endif /* _LA_SMAT_H_ */

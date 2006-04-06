@@ -377,7 +377,7 @@ laerror("not yet implemented");
 template<>
 void NRVec<int>::gemv(const int beta,
                 const SparseMat<int> &A, const char trans,
-                const int alpha, const NRVec &x)
+                const int alpha, const NRVec &x, bool s)
 {
 laerror("not yet implemented");
 }
@@ -385,7 +385,7 @@ laerror("not yet implemented");
 template<>
 void NRVec<short>::gemv(const short beta,
                 const SparseMat<short> &A, const char trans,
-                const short alpha, const NRVec &x)
+                const short alpha, const NRVec &x, bool s)
 {
 laerror("not yet implemented");
 }
@@ -394,7 +394,7 @@ laerror("not yet implemented");
 template<>
 void NRVec<char>::gemv(const char beta,
                 const SparseMat<char> &A, const char trans,
-                const char alpha, const NRVec &x)
+                const char alpha, const NRVec &x, bool s)
 {
 laerror("not yet implemented");
 }
@@ -402,7 +402,7 @@ laerror("not yet implemented");
 template<>
 void NRVec<unsigned long>::gemv(const unsigned long beta,
                 const SparseMat<unsigned long> &A, const char trans,
-                const unsigned long alpha, const NRVec &x)
+                const unsigned long alpha, const NRVec &x, bool s)
 {
 laerror("not yet implemented");
 }
@@ -410,7 +410,7 @@ laerror("not yet implemented");
 template<>
 void NRVec<unsigned char>::gemv(const unsigned char beta,
                 const SparseMat<unsigned char> &A, const char trans,
-                const unsigned char alpha, const NRVec &x)
+                const unsigned char alpha, const NRVec &x, bool s)
 {
 laerror("not yet implemented");
 }

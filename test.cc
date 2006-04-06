@@ -1,5 +1,7 @@
 #include "bitvector.h"
 #include "qsort.h"
+#include "la.h"
+#include "fourindex.h"
 
 
 int main(void)
@@ -31,4 +33,10 @@ ptrqsortup(&t[0],&t[9],&u[0]);
 cout<<t <<"U= "<<u;
 ptrqsortdown<int,int>(&t[0],&t[9]);
 cout<<t;
+
+NRSMat_from1<double> a(5),b(5),c;
+c=a+b;
+
+fourindex<int,double> f;
+fourindex_dense<twoelectronrealmullikan,double,int> ff(f);
 }

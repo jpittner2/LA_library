@@ -62,6 +62,8 @@ public:
 	const NRVec operator-() const;
 	inline NRVec & operator+=(const NRVec &rhs);
 	inline NRVec & operator-=(const NRVec &rhs);
+	inline NRVec & operator*=(const NRVec &rhs); //elementwise
+	inline NRVec & operator/=(const NRVec &rhs); //elementwise
 	inline NRVec & operator+=(const T &a);
 	inline NRVec & operator-=(const T &a);
 	inline NRVec & operator*=(const T &a);
@@ -75,7 +77,7 @@ public:
 	inline const T dot(const NRVec &rhs) const {return *this * rhs;}; //@@@for complex do conjugate
 	void gemv(const T beta, const NRMat<T> &a, const char trans, const T alpha, const NRVec &x);
 	void gemv(const T beta, const NRSMat<T> &a, const char trans /*just for compatibility*/,  const T alpha, const NRVec &x);
-	void gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x);
+	void gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x,const bool treat_as_symmetric=false);
 	const NRVec operator*(const NRMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const NRSMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const SparseMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
@@ -252,6 +254,32 @@ inline NRVec<T> & NRVec<T>::operator+=(const NRVec<T> &rhs)
 	for(i=0; i<nn; ++i) v[i]+=rhs.v[i];
         return *this;
 }
+
+//for general type only
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator*=(const NRVec<T> &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("*= of incompatible vectors");
+#endif
+        copyonwrite();
+        int i;
+        for(i=0; i<nn; ++i) v[i]*=rhs.v[i];
+        return *this;
+}
+
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator/=(const NRVec<T> &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("/= of incompatible vectors");
+#endif
+        copyonwrite();
+        int i;
+        for(i=0; i<nn; ++i) v[i]/=rhs.v[i];
+        return *this;
+}
+
 
 
 // x -= x
@@ -568,7 +596,7 @@ void NRVec<T>::resize(const int n)
 }
 
 
-// assignmet with a physical (deep) copy
+// assignment with a physical (deep) copy
 template <typename T>
 NRVec<T> & NRVec<T>::operator|=(const NRVec<T> &rhs)
 {

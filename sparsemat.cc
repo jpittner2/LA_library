@@ -579,7 +579,7 @@ for(i=0;i<nn;++i)
 //get diagonal, do not construct a new object, but store in existing one, important for huge CI matrices
 // with the divide option is used as a preconditioner, another choice of preconditioner is possible
 template <class T>
-void SparseMat<T>::diagonalof(NRVec<T> &r, const bool divide) const
+const T* SparseMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const
 {
 #ifdef DEBUG
 if((int)mm!=r.size()) laerror("incompatible vector size in diagonalof()");
@@ -607,6 +607,7 @@ if(divide)
 	for(unsigned int i=0; i<mm; ++i) if((*rr)[i]!=0.) r[i]/=(*rr)[i];
 	delete rr;
 	}
+return divide?NULL:&r[0];
 }
 
 
@@ -877,7 +878,7 @@ else
 
 
 template<class T>
-void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x)
+void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x, const bool treat_as_symmetric)
 {
 if((trans=='n'?a.ncols():a.nrows())!= (SPMatindex)x.size()) laerror("incompatible sizes in gemv");
 copyonwrite();
@@ -893,7 +894,7 @@ T *vec=x.v;
 
 if(alpha==(T)1)
 {
-        if(a.issymmetric())
+        if(a.issymmetric()||treat_as_symmetric)
         {
         while(l)
                 {
@@ -920,7 +921,7 @@ if(alpha==(T)1)
 }
 else
 {
-	if(a.issymmetric())
+	if(a.issymmetric()||treat_as_symmetric)
 	{
 	while(l)
 	        {
@@ -1350,7 +1351,7 @@ template void SparseMat<T>::axpy(const T alpha, const SparseMat<T> &x, const boo
 template const SparseMat<T> SparseMat<T>::operator*(const SparseMat<T> &rhs) const; \
 template const T SparseMat<T>::dot(const SparseMat<T> &rhs) const; \
 template void SparseMat<T>::gemm(const T beta, const SparseMat<T> &a, const char transa, const SparseMat<T> &b, const char transb, const T alpha); \
-template void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x);\
+template void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x, const bool treat_as_symmetric);\
 template void SparseMat<T>::permuterows(const NRVec<SPMatindex> &p);\
 template void SparseMat<T>::permutecolumns(const NRVec<SPMatindex> &p);\
 template void SparseMat<T>::permuteindices(const NRVec<SPMatindex> &p);\

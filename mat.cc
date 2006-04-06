@@ -866,12 +866,12 @@ void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 		const char transa, const NRMat<double> &b, const char transb, 
 		const double &alpha)
 {
-	int l(transa=='n'?a.nn:a.mm);
 	int k(transa=='n'?a.mm:a.nn);
-	int kk(transb=='n'?b.nn:b.mm);
-	int ll(transb=='n'?b.mm:b.nn);
 
 #ifdef DEBUG
+	int l(transa=='n'?a.nn:a.mm);
+	int kk(transb=='n'?b.nn:b.mm);
+	int ll(transb=='n'?b.mm:b.nn);
 	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in Mat:gemm()");
 #endif
 	if (alpha==0.0 && beta==1.0) return;
@@ -890,12 +890,12 @@ void NRMat< complex<double> >::gemm(const complex<double> & beta,
 		const NRMat< complex<double> > & b, const char transb, 
 		const complex<double> & alpha)
 {
-	int l(transa=='n'?a.nn:a.mm);
 	int k(transa=='n'?a.mm:a.nn);
-	int kk(transb=='n'?b.nn:b.mm);
-	int ll(transb=='n'?b.mm:b.nn);
 
 #ifdef DEBUG
+	int l(transa=='n'?a.nn:a.mm);
+	int kk(transb=='n'?b.nn:b.mm);
+	int ll(transb=='n'?b.mm:b.nn);
 	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in Mat:gemm()");
 #endif
 	if (alpha==CZERO && beta==CONE) return;
@@ -1013,7 +1013,7 @@ const complex<double> NRMat< complex<double> >::trace() const
 //get diagonal; for compatibility with large matrices do not return newly created object
 //for non-square get diagonal of A^TA, will be used as preconditioner 
 template<>
-void NRMat<double>::diagonalof(NRVec<double> &r, const bool divide) const
+const double * NRMat<double>::diagonalof(NRVec<double> &r, const bool divide, bool cache) const
 {
 #ifdef DEBUG
 	if (r.size() != nn) laerror("diagonalof() incompatible vector");
@@ -1047,6 +1047,7 @@ for (int i=0; i< mm; i++)
 	}
 }
 
+return divide?NULL:&r[0];
 }
 
 

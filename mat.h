@@ -71,7 +71,8 @@ public:
 	const NRVec<T> csum() const; //sum of columns
 	const NRVec<T> row(const int i) const; //row of, efficient
 	const NRVec<T> column(const int j) const {NRVec<T> r(nn); for(int i=0; i<nn; ++i) r[i]= (*this)(i,j); return r;}; //column of, general but not very efficient
-	void diagonalof(NRVec<T> &, const bool divide=0) const; //get diagonal 
+	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal 
+	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
 	inline T* operator[](const int i);  //subscripting: pointer to row i
 	inline const T* operator[](const int i) const;
 	inline T& operator()(const int i, const int j); // (i,j) subscripts

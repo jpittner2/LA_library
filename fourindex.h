@@ -12,6 +12,8 @@
 //it is actually not needed for the algorithms here, but may be useful for the
 //user of this class to keep this piece of information along with the data
 
+//when patient enough, make const_casts for piterators to have pbegin() const
+
 template<class I>
 union packed_index {
                 I packed[4];
@@ -565,28 +567,28 @@ for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j
 template<class T, class DUMMY>
 T& fourindex_dense<twoelectronrealmullikan,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l)
 {
-unsigned long I = i>j? i*(i-1)/2+j-1 : j*(j-1)/2+i-1;
-unsigned long J = k>l? k*(k-1)/2+l-1 : l*(l-1)/2+k-1;
+unsigned long I = SMat_index_1(i,j);
+unsigned long J = SMat_index_1(k,l);
 //I,J act as indices of a NRSmat
 #ifdef DEBUG
      	if (*count != 1) laerror("lval (i,j,k,l) with count > 1 in fourindex_dense");
        	if (I<0 || I>=(unsigned long)nn || J<0 || J>=(unsigned long)nn) laerror("fourindex_dense index out of range");
        	if (!v) laerror("access to unallocated fourindex_dense");
 #endif
-return I>=J ? v[I*(I+1)/2+J] : v[J*(J+1)/2+I];
+return v[SMat_index(I,J)];
 }
 
 template<class T, class DUMMY>
 const T& fourindex_dense<twoelectronrealmullikan,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const
 {
-unsigned long I = i>j? i*(i-1)/2+j-1 : j*(j-1)/2+i-1;
-unsigned long J = k>l? k*(k-1)/2+l-1 : l*(l-1)/2+k-1;
+unsigned long I = SMat_index_1(i,j);
+unsigned long J = SMat_index_1(k,l);
 //I,J act as indices of a NRSmat
 #ifdef DEBUG
-       	if (I<0 || I>=nn || J<0 || J>=nn) laerror("fourindex_dense index out of range");
+       	if (I<0 || I>=(unsigned long)nn || J<0 || J>=(unsigned long)nn) laerror("fourindex_dense index out of range");
        	if (!v) laerror("access to unallocated fourindex_dense");
 #endif
-return I>=J ? v[I*(I+1)/2+J] : v[J*(J+1)/2+I];
+return v[SMat_index(I,J)];
 }
 
 
