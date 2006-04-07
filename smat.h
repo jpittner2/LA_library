@@ -284,10 +284,36 @@ return (i>=j) ? i*(i+1)/2+j : j*(j+1)/2+i;
 }
 
 template<typename T>
+inline T SMat_index_igej(T i, T j)
+{
+return i*(i+1)/2+j;
+}
+
+template<typename T>
+inline T SMat_index_ilej(T i, T j)
+{
+return j*(j+1)/2+i;
+}
+
+
+template<typename T>
 inline T SMat_index_1(T i, T j)
 {
 return (i>=j)? i*(i-1)/2+j-1 : j*(j-1)/2+i-1;
 }
+
+template<typename T>
+inline T SMat_index_1igej(T i, T j)
+{
+return i*(i-1)/2+j-1;
+}
+
+template<typename T>
+inline T SMat_index_1ilej(T i, T j)
+{
+return j*(j-1)/2+i-1;
+}
+
 
 // access the element, 2-dim array case
 template <typename T>

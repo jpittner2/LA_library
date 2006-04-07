@@ -524,6 +524,9 @@ istream& operator>>(istream  &s, fourindex<I,T> &x)
 //we use a general template forward declaration, but then it has to be done differently for (almost) each case
 //by means of partial template specialization
 
+//note - loops for the twoelectronrealmullikan integral to be unique and in canonical order
+// i=1..n, j=1..i, k=1..i, l=1..(i==k?j:k)
+
 template<fourindexsymtype S, class T, class DUMMY> class fourindex_dense;
 
 //make it as a derived class in order to be able to use it in a base class context - "supermatrix" operations
