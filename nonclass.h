@@ -182,5 +182,32 @@ T abssqr(const complex<T> &x)
 return x.real()*x.real()+x.imag()*x.imag();
 }
 
+//declaration of template interface to cblas routines with full options available
+//just to facilitate easy change between float, double, complex in a user code
+//very incomplete, add new ones as needed
+template<class T> inline void xcopy(int n, const T *x, int incx, T *y, int incy);
+template<class T> inline void xaxpy(int n, const T &a, const T *x, int incx, T *y, int incy);
+template<class T> inline T xdot(int n, const T *x, int incx, const T *y, int incy);
+
+//specialized definitions have to be in the header file to be inlineable, eliminating any runtime overhead
+
+template<>
+inline void xcopy<double> (int n, const double *x, int incx, double *y, int incy)
+{
+cblas_dcopy(n, x, incx, y, incy);
+}
+
+template<>
+inline void xaxpy<double>(int n, const double &a, const double *x, int incx, double *y, int incy)
+{
+cblas_daxpy(n, a, x, incx, y, incy);
+}
+
+template<>
+inline double xdot<double>(int n, const double *x, int incx, const double *y, int incy)
+{
+return cblas_ddot(n,x,incx,y,incy);
+}
+
 
 #endif

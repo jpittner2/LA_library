@@ -878,4 +878,3 @@ if(nchange&1)//still adjust to get determinant=1
         }
 }
 
-
