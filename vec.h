@@ -52,6 +52,7 @@ public:
 #endif
 	NRVec & operator=(const NRVec &rhs);
 	NRVec & operator=(const T &a);  //assign a to every element
+	void clear() {LA_traits<T>::clear(v,nn);}; //zero out
 	NRVec & operator|=(const NRVec &rhs);
 	const bool operator!=(const NRVec &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,nn);} //memcmp for scalars else elementwise
 	const bool operator==(const NRVec &rhs) const {return !(*this != rhs);};

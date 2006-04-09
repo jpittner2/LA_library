@@ -23,6 +23,7 @@ public:
 	explicit NRSMat(const NRVec<T> &rhs, const int n); //construct matrix from vector
 	NRSMat & operator|=(const NRSMat &rhs);	//assignment to a new copy
 	NRSMat & operator=(const NRSMat &rhs);	//assignment
+	void clear() {LA_traits<T>::clear(v,NN2);}; //zero out
 	NRSMat & operator=(const T &a);		//assign a to diagonal
         const bool operator!=(const NRSMat &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,NN2);} //memcmp for scalars else elementwise
         const bool operator==(const NRSMat &rhs) const {return !(*this != rhs);};

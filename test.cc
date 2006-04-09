@@ -2,10 +2,21 @@
 #include "qsort.h"
 #include "la.h"
 #include "fourindex.h"
+#include "laerror.h"
+#include "traceback.h"
 
+void test2(char *msg)
+{
+laerror(msg);
+}
 
 int main(void)
 {
+sigtraceback(SIGSEGV,1);
+sigtraceback(SIGABRT,1);
+sigtraceback(SIGBUS,1);
+sigtraceback(SIGFPE,1);
+
 bitvector v(100);
 v.fill();
 bitvector x(50); x=v;
@@ -36,6 +47,8 @@ cout<<t;
 
 NRSMat_from1<double> a(5),b(5),c;
 c=a+b;
+
+test2("pokus");
 
 fourindex<int,double> f;
 fourindex_dense<twoelectronrealmullikan,double,int> ff(f);

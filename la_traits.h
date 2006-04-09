@@ -127,6 +127,7 @@ static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool tran
 static void multiget(unsigned int n,int fd, complex<C> *x, bool dimensions=0){if((ssize_t)(n*sizeof(complex<C>))!=read(fd,x,n*sizeof(complex<C>))) laerror("read error");}
 static void multiput(unsigned int n, int fd, const complex<C> *x, bool dimensions=0) {if((ssize_t)(n*sizeof(complex<C>))!=write(fd,x,n*sizeof(complex<C>))) laerror("write error");}
 static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest,src,n*sizeof(complex<C>));}
+static void clear(complex<C> *dest, unsigned int n) {memset(dest,0,n*sizeof(complex<C>));}
 };
 
 //non-complex scalars
@@ -145,6 +146,7 @@ static inline void get(int fd, C &x, bool dimensions=0, bool transp=0) {if(sizeo
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=0){if((ssize_t)(n*sizeof(C))!=write(fd,x,n*sizeof(C))) laerror("write error");}
 static void multiget(unsigned int n, int fd, C *x, bool dimensions=0) {if((ssize_t)(n*sizeof(C))!=read(fd,x,n*sizeof(C))) laerror("read error");}
 static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));}
+static void clear(C *dest, unsigned int n) {memset(dest,0,n*sizeof(C));}
 };
 
 
@@ -169,6 +171,7 @@ static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimens
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
+static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=C(0);}\
 };
 
 
@@ -192,9 +195,10 @@ static inline normtype norm (const NRSMat<C> &x) {return x.norm();}
 static inline void axpy (NRSMat<C>&s, const NRSMat<C> &x, const C c) {s.axpy(c,x);} 
 static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);} 
 static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);} 
-static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
-static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
-static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
+static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} 
+static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} 
+static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} 
+static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=C(0);}
 };
 
 
