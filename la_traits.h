@@ -171,7 +171,7 @@ static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimens
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
-static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=C(0);}\
+static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}\
 };
 
 
@@ -198,7 +198,7 @@ static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimens
 static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} 
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} 
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} 
-static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=C(0);}
+static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}
 };
 
 

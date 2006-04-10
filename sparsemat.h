@@ -71,6 +71,7 @@ public:
         SparseMat & operator+=(const SparseMat &rhs);
 	SparseMat & addtriangle(const SparseMat &rhs, const bool lower, const char sign);
         SparseMat & join(SparseMat &rhs); //more efficient +=, rhs will be emptied
+	void clear() {unsort();deletelist();}
         SparseMat & operator-=(const SparseMat &rhs);
 	inline const SparseMat operator+(const T &rhs) const {return SparseMat(*this) += rhs;}
         inline const SparseMat operator-(const T &rhs) const {return SparseMat(*this) -= rhs;}
