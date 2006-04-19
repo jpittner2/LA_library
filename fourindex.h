@@ -210,13 +210,18 @@ protected:
 
 
 public:
-        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=256) :current(NULL),fd(file),bufsize(b),nread(0),symmetry(s),nn(n) {buffer = new matel4stored<I,T>[bufsize]; }
+        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=1024) :current(NULL),fd(file),bufsize(b),nread(0),symmetry(s),nn(n) {buffer = new matel4stored<I,T>[bufsize]; }
 	~fourindex_ext() {if(buffer) delete[] buffer;}
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
 	fourindexsymtype getsymmetry() const {return symmetry;}
 	void rewind() const {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); laerror("cannot seek in fourindex_ext");} };
 	inline I size() const {return nn;}
 	
+//the default buffer size 1024 corresponds typically to 3-4 pages of memory and should be reasonably efficient
+//@@@we could allocate the buffer at page boundary, lock it in memory and
+//implement the O_DIRECT approach to avoid filling of the buffer cache when reading
+//large file sequentially
+
 //iterator and permute-iterator are both implemented as poiters to the original class, using private functions of this class
 //this is possible, since one instance of this class can have only one active iterator at a time
 	
