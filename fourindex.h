@@ -3,9 +3,44 @@
 #include <iostream>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/vfs.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "la.h"
 #include "laerror.h"
+
+
+static unsigned int hcd0(unsigned int big,unsigned int small)
+{
+register unsigned int help;
+
+
+if(big==0)
+        {
+        if(small==0) laerror("bad arguments in hcd");
+        return small;
+        }
+if(small==0) return big;
+if(small==1||big==1) return 1;
+
+if(small>big) {help=big; big=small; small=help;}
+do      {
+        help=small;
+        small= big%small;
+        big=help;
+        }
+while(small != 0);
+return big;
+}
+
+
+inline unsigned int lcm0(unsigned int i,unsigned int j)
+{
+return (i/hcd0(i,j)*j);
+}
+
 
 //element of a linked list, indices in a portable way, no bit shifts and endianity problems any more!
 //note: nn is never compared with individual indices, so indexing from 1 as well as from 0 is possible
@@ -180,6 +215,11 @@ public:
 
 
 //and a class for accessing a disc-stored fourindex, taking care of permutational index symmetry
+//O_DIRECT approach to avoid filling of the buffer cache when reading
+//large file sequentially is implemented:
+//the user of the class must open the file with O_DIRECT
+//NOTE!!! it will not work on linux 2.4, where O_DIRECT requires filesize to be a multiple of the block; 2.6 kernel is necessary!!!
+
 template <class I, class T>
 class fourindex_ext {
 private: //at the moment for simplicity forbid some operations, otherwise reference counting on the buffer has to be done
@@ -187,6 +227,7 @@ private: //at the moment for simplicity forbid some operations, otherwise refere
 	fourindex_ext(const fourindex_ext &rhs);
 	fourindex_ext & operator=(const fourindex_ext &rhs);
 protected:
+	matel4stored<I,T> *buffer0;
 	matel4stored<I,T> *buffer;
 	matel4stored<I,T> *current;
 	int fd;
@@ -205,22 +246,41 @@ protected:
 		const_cast<fourindex_ext<I,T> *>(this)->nread = r/sizeof(matel4stored<I,T>);
 		if(nread) const_cast<fourindex_ext<I,T> *>(this)->current=buffer;
 		}
-	void next() const { if(current && (unsigned int) (++ const_cast<fourindex_ext<I,T> *>(this)->current - buffer) >=nread) tryread(); }
+	void next() const { 
+			   if(current)
+				{
+			 	if( (unsigned int) (++ const_cast<fourindex_ext<I,T> *>(this)->current - buffer) >=nread) tryread(); 
+				}
+			  }
 	bool eof() const {return !current;};
 
 
 public:
-        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=1024) :current(NULL),fd(file),bufsize(b),nread(0),symmetry(s),nn(n) {buffer = new matel4stored<I,T>[bufsize]; }
-	~fourindex_ext() {if(buffer) delete[] buffer;}
+        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=1024) :current(NULL),fd(file),nread(0),symmetry(s),nn(n) 
+		{
+		struct statfs sfs;
+		struct struct stat64 sf;
+		if(fstat64(df,&sf,)) {perror("cannot fstat");laerror("I/O error");}
+		if(fstatfs(fd,&sfs)) {perror("cannot fstatfs");laerror("I/O error");}
+		const unsigned int pagesize=getpagesize();
+		//make bufsize*sizeof(matel4stored<I,T>) a multiple of fs block size and page size
+		bufsize=b*sizeof(matel4stored<I,T>);
+		bufsize=lcm0(bufsize,pagesize);
+		bufsize=lcm0(bufsize,sfs.f_bsize);
+		bufsize=lcm0(bufsize,sf.st_blksize);
+		buffer0 = new matel4stored<I,T>[(bufsize+pagesize)/sizeof(matel4stored<I,T>)+1]; //ensure alignment at page boundary
+		unsigned char *buf= (unsigned char *) buffer0;
+		buf= buf + pagesize - ((unsigned long)buf % pagesize);
+		buffer = (matel4stored<I,T> *) buf;
+		mlock(buf,bufsize); //ignore error when not root, hope we will not be paged out anyway
+		bufsize /= sizeof(matel4stored<I,T>);
+		}
+	~fourindex_ext() {if(buffer0) delete[] buffer0;}
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
 	fourindexsymtype getsymmetry() const {return symmetry;}
-	void rewind() const {if(0!=lseek(fd,0L,SEEK_SET)) {perror("seek error"); laerror("cannot seek in fourindex_ext");} };
+	void rewind() const {if(0!=lseek64(fd,0L,SEEK_SET)) {perror("seek error"); laerror("cannot seek in fourindex_ext");} };
 	inline I size() const {return nn;}
 	
-//the default buffer size 1024 corresponds typically to 3-4 pages of memory and should be reasonably efficient
-//@@@we could allocate the buffer at page boundary, lock it in memory and
-//implement the O_DIRECT approach to avoid filling of the buffer cache when reading
-//large file sequentially
 
 //iterator and permute-iterator are both implemented as poiters to the original class, using private functions of this class
 //this is possible, since one instance of this class can have only one active iterator at a time
@@ -242,6 +302,7 @@ public:
         };
         iterator begin() const {rewind(); tryread(); if(!eof()) return this; else return NULL;}
         iterator end() const {return iterator(NULL);}
+
 
 //piterator ... iterate over all allowed permutations; conveniently expressed via the basic iterator which does the block-buffering
         typedef class piterator {
