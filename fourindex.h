@@ -259,8 +259,8 @@ public:
         fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=1024) :current(NULL),fd(file),nread(0),symmetry(s),nn(n) 
 		{
 		struct statfs sfs;
-		struct struct stat64 sf;
-		if(fstat64(df,&sf,)) {perror("cannot fstat");laerror("I/O error");}
+		struct stat64 sf;
+		if(fstat64(fd,&sf)) {perror("cannot fstat");laerror("I/O error");}
 		if(fstatfs(fd,&sfs)) {perror("cannot fstatfs");laerror("I/O error");}
 		const unsigned int pagesize=getpagesize();
 		//make bufsize*sizeof(matel4stored<I,T>) a multiple of fs block size and page size
