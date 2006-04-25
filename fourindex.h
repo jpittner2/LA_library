@@ -36,7 +36,7 @@ return big;
 }
 
 
-inline unsigned int lcm0(unsigned int i,unsigned int j)
+static inline unsigned int lcm0(unsigned int i,unsigned int j)
 {
 return (i/hcd0(i,j)*j);
 }
