@@ -60,6 +60,8 @@ extern void diagonalize(NRSMat<T> &a, NRVec<T> &w, NRMat<T> *v, const bool corde
 extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<T> &s,\
 		NRMat<T> *v, const bool corder=1, int m=0, int n=0);
 
+/*NOTE!!! all versions of diagonalize DESTROY A and generalized diagonalize also B matrix */
+
 declare_la(double)
 declare_la(complex<double>)
 
