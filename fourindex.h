@@ -539,7 +539,7 @@ ostream& operator<<(ostream &s, const fourindex_ext<I,T> &x)
                 int n;
                 n=x.size();
                 s << n << '\n';
-                typename fourindex<I,T>::iterator it=x.begin();
+                typename fourindex_ext<I,T>::iterator it=x.begin();
                 while(it!=x.end())
                         {
                         s << (typename LA_traits_io<I>::IOtype)it->index.indiv.i << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.j<<  ' ' <<(typename LA_traits_io<I>::IOtype)it->index.indiv.k << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
