@@ -310,7 +310,7 @@ public:
                 fourindex_ext *base;
 		matel4stored<I,T> my;
 		int permindex;
-		fourindex_ext::iterator it;
+		typename fourindex_ext::iterator it;
 
 		//private methods
                 void setup(void) //make a copy of *it to my with scaled element and anti/permuted indices
@@ -642,9 +642,9 @@ unsigned long J = SMat_index_1(k,l);
 #ifdef DEBUG
      	if (*count != 1) laerror("lval (i,j,k,l) with count > 1 in fourindex_dense");
        	if (I<0 || I>=(unsigned long)nn || J<0 || J>=(unsigned long)nn) laerror("fourindex_dense index out of range");
-       	if (!v) laerror("access to unallocated fourindex_dense");
+       	if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
-return v[SMat_index(I,J)];
+return NRSMat<T>::v[SMat_index(I,J)];
 }
 
 template<class T, class DUMMY>
@@ -655,9 +655,9 @@ unsigned long J = SMat_index_1(k,l);
 //I,J act as indices of a NRSmat
 #ifdef DEBUG
        	if (I<0 || I>=(unsigned long)nn || J<0 || J>=(unsigned long)nn) laerror("fourindex_dense index out of range");
-       	if (!v) laerror("access to unallocated fourindex_dense");
+       	if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
-return v[SMat_index(I,J)];
+return NRSMat<T>::v[SMat_index(I,J)];
 }
 
 

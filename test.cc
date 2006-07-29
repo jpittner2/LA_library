@@ -3,7 +3,9 @@
 #include "la.h"
 #include "fourindex.h"
 #include "laerror.h"
+#ifdef USE_TRSACEBACK
 #include "traceback.h"
+#endif
 
 void test2(char *msg)
 {
@@ -12,10 +14,12 @@ laerror(msg);
 
 int main(void)
 {
+#ifdef USE_TRSACEBACK
 sigtraceback(SIGSEGV,1);
 sigtraceback(SIGABRT,1);
 sigtraceback(SIGBUS,1);
 sigtraceback(SIGFPE,1);
+#endif
 
 bitvector v(100);
 v.fill();

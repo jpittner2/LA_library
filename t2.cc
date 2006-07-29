@@ -1,12 +1,14 @@
 
 #include <time.h>
 #include "la.h"
-#include "traceback.h"
 #include "sparsemat.h"
 #include "matexp.h"
 #include "fourindex.h"
 #include "bitvector.h"
 
+#ifdef USE_TRACEBACK
+#include "traceback.h"
+#endif
 
 void test(const NRVec<double> &x)
 {

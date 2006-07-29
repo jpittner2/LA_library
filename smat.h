@@ -183,7 +183,7 @@ NRSMat<double>::operator+=(const NRSMat<double> & rhs)
 }
 
 template<>
-NRSMat< complex<double> > &
+inline NRSMat< complex<double> > &
 NRSMat< complex<double> >::operator+=(const NRSMat< complex<double> > & rhs)
 {
 #ifdef DEBUG
@@ -544,14 +544,14 @@ public:
 #ifdef DEBUG
 		if(i<=0||j<=0||i>nn||j>nn) laerror("index out of range in NRSMat_from1");
 #endif
-		return v[SMat_index_1(i,j)];
+		return NRSMat<T>::v[SMat_index_1(i,j)];
 		}
         inline  T& operator() (const int i, const int j) 
 		{
 #ifdef DEBUG
                 if(i<=0||j<=0||i>nn||j>nn) laerror("index out of range in NRSMat_from1");
 #endif
-		return v[SMat_index_1(i,j)];
+		return NRSMat<T>::v[SMat_index_1(i,j)];
 		}
 };
 

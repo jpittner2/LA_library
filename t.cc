@@ -2,7 +2,6 @@
 
 #include <time.h>
 #include "la.h"
-#include "traceback.h"
 #include "sparsemat.h"
 #include "matexp.h"
 #include "fourindex.h"
@@ -11,6 +10,9 @@
 #include "conjgrad.h"
 #include "diis.h"
 #include "bitvector.h"
+#ifdef USE_TRACEBACK
+#include "traceback.h"
+#endif
 
 
 extern void test(const NRVec<double> &x);
@@ -38,10 +40,14 @@ complex<double> mycident (const complex<double>&x) {return x;}
 
 int main()
 {
+#ifdef USE_TRACEBACK
 sigtraceback(SIGSEGV,1);
 sigtraceback(SIGABRT,1);
 sigtraceback(SIGBUS,1);
 sigtraceback(SIGFPE,1);
+#endif
+
+
 NRVec<double> x(1.,10);
 NRVec<double> y(2.,10);
 NRVec<double> z(-2.,10);

@@ -1,6 +1,6 @@
 #ifndef NONCBLAS
 extern "C" {
-#include "atlas_enum.h"
+#include "cblas.h"
 #include "clapack.h"
 }
 #else
