@@ -542,14 +542,14 @@ public:
         inline const T& operator() (const int i, const int j) const 
 		{
 #ifdef DEBUG
-		if(i<=0||j<=0||i>nn||j>nn) laerror("index out of range in NRSMat_from1");
+		if(i<=0||j<=0||i>NRSMat<T>::nn||j>NRSMat<T>::nn) laerror("index out of range in NRSMat_from1");
 #endif
 		return NRSMat<T>::v[SMat_index_1(i,j)];
 		}
         inline  T& operator() (const int i, const int j) 
 		{
 #ifdef DEBUG
-                if(i<=0||j<=0||i>nn||j>nn) laerror("index out of range in NRSMat_from1");
+                if(i<=0||j<=0||i>NRSMat<T>::nn||j>NRSMat<T>::nn) laerror("index out of range in NRSMat_from1");
 #endif
 		return NRSMat<T>::v[SMat_index_1(i,j)];
 		}
