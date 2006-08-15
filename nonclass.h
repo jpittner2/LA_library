@@ -9,6 +9,28 @@
 
 //MISC
 export template <class T>
+const NRSMat<T> twoside_transform(const NRSMat<T> &S, const NRMat<T> &C) //calculate C^dagger S C
+{
+NRMat<T> tmp = S * C;
+NRMat<T> result(C.ncols(),C.ncols());
+result.gemm((T)0,C,'t',tmp,'n',(T)1);
+return NRSMat<T>(result);
+}
+
+
+export template <class T>
+const NRSMat<T> twoside_transform_t(const NRSMat<T> &S, const NRMat<T> &C) //calculate C S C^dagger
+{
+NRMat<T> tmp =  C * S;
+NRMat<T> result(C.rows(),C.nrows());
+result.gemm((T)0,tmp,'n',C,'t',(T)1);
+return NRSMat<T>(result);
+}
+
+
+
+
+export template <class T>
 const NRMat<T> diagonalmatrix(const NRVec<T> &x)
 {
 int n=x.size();
