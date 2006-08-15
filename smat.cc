@@ -148,6 +148,7 @@ void NRSMat<T>::fscanf(FILE *f, const char *format)
  * BLAS specializations for double and complex<double>
  */
 
+#ifdef oldversion
 // SMat * Mat
 template<>
 const NRMat<double> NRSMat<double>::operator*(const NRMat<double> &rhs) const
@@ -176,6 +177,36 @@ NRSMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
 				&CZERO, result[0]+k, rhs.ncols());
 	return result;
 }
+
+#else
+
+// SMat * Mat
+template<>
+const NRMat<double> NRSMat<double>::operator*(const NRMat<double> &rhs) const
+{
+#ifdef DEBUG
+        if (nn != rhs.nrows()) laerror("incompatible dimensions in SMat*Mat");
+#endif
+        NRMat<double> result(nn, rhs.ncols());
+	cblas_dsymm(CblasRowMajor, CblasLeft, CblasLower, nn, rhs.ncols(), 1., (*this),nn, rhs[0],rhs.ncols(), 0.,result[0],rhs.ncols());
+        return result;
+}
+
+
+template<>
+const NRMat< complex<double> >
+NRSMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
+{
+#ifdef DEBUG
+        if (nn != rhs.nrows()) laerror("incompatible dimensions in SMat*Mat");
+#endif
+        NRMat< complex<double> > result(nn, rhs.ncols());
+        cblas_zhemm(CblasRowMajor, CblasLeft, CblasLower, nn, rhs.ncols(), &CONE, (*this),nn, rhs[0],rhs.ncols(), &CZERO,result[0],rhs.ncols());
+        return result;
+}
+
+
+#endif
 
 
 // SMat * SMat

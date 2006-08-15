@@ -779,6 +779,7 @@ void NRMat< complex<double> >::diagmultr(const NRVec< complex<double> > &rhs)
 
 
 
+#ifdef oldversion
 // Mat * Smat, decomposed to nn x Vec * Smat
 template<>
 const NRMat<double> 
@@ -809,6 +810,37 @@ NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 				(void *)(*this)[i], 1, (void *)&CZERO, (void *)result[i], 1);
 	return result;
 }
+
+#else
+
+// Mat * Smat
+template<>
+const NRMat<double>
+NRMat<double>::operator*(const NRSMat<double> &rhs) const
+{
+#ifdef DEBUG
+        if (mm != rhs.nrows()) laerror("incompatible dimension in Mat*SMat");
+#endif
+        NRMat<double> result(nn, rhs.ncols());
+	cblas_dsymm(CblasRowMajor, CblasRight, CblasLower, nn, mm, 1., &rhs[0],mm,(*this)[0],mm,0.,result[0],mm);
+        return result;
+}
+
+template<>
+const NRMat< complex<double> >
+NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
+{
+#ifdef DEBUG
+        if (mm != rhs.nrows()) laerror("incompatible dimension in Mat*SMat");
+#endif
+        NRMat< complex<double> > result(nn, rhs.ncols());
+	cblas_zhemm(CblasRowMajor, CblasRight, CblasLower, nn, mm, (void *)&CONE, &rhs[0],mm,(*this)[0],mm,(void *)&CZERO,result[0],mm);
+        return result;
+}
+
+
+
+#endif
 
 
 // sum of rows
