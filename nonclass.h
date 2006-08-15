@@ -14,7 +14,7 @@ const NRSMat<T> twoside_transform(const NRSMat<T> &S, const NRMat<T> &C, bool tr
 if(transp)
 	{
 	NRMat<T> tmp =  C * S;
-	NRMat<T> result(C.rows(),C.nrows());
+	NRMat<T> result(C.nrows(),C.nrows());
 	result.gemm((T)0,tmp,'n',C,'t',(T)1);
 	return NRSMat<T>(result);
 	}
