@@ -61,6 +61,7 @@ LA_traits<T>::multiget(NN2,fd,v,dim);
 template <typename T>
 NRSMat<T>::NRSMat(const NRMat<T> &rhs)
 {
+nn=rhs.nrows();
 #ifdef DEBUG
 	if (nn != rhs.ncols()) laerror("attempt to convert non-square Mat to SMat");
 #endif
@@ -148,8 +149,10 @@ void NRSMat<T>::fscanf(FILE *f, const char *format)
  * BLAS specializations for double and complex<double>
  */
 
-#ifdef oldversion
+
+
 // SMat * Mat
+//NOTE: dsymm is not appropriate as it works on UNPACKED symmetric matrix
 template<>
 const NRMat<double> NRSMat<double>::operator*(const NRMat<double> &rhs) const
 {
@@ -178,35 +181,6 @@ NRSMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
 	return result;
 }
 
-#else
-
-// SMat * Mat
-template<>
-const NRMat<double> NRSMat<double>::operator*(const NRMat<double> &rhs) const
-{
-#ifdef DEBUG
-        if (nn != rhs.nrows()) laerror("incompatible dimensions in SMat*Mat");
-#endif
-        NRMat<double> result(nn, rhs.ncols());
-	cblas_dsymm(CblasRowMajor, CblasLeft, CblasLower, nn, rhs.ncols(), 1., (*this),nn, rhs[0],rhs.ncols(), 0.,result[0],rhs.ncols());
-        return result;
-}
-
-
-template<>
-const NRMat< complex<double> >
-NRSMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
-{
-#ifdef DEBUG
-        if (nn != rhs.nrows()) laerror("incompatible dimensions in SMat*Mat");
-#endif
-        NRMat< complex<double> > result(nn, rhs.ncols());
-        cblas_zhemm(CblasRowMajor, CblasLeft, CblasLower, nn, rhs.ncols(), &CONE, (*this),nn, rhs[0],rhs.ncols(), &CZERO,result[0],rhs.ncols());
-        return result;
-}
-
-
-#endif
 
 
 // SMat * SMat

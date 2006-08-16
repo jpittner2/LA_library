@@ -21,9 +21,6 @@ extern "C" {
 }
 #endif
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-# define export 
-#endif
 
 //forward declarations
 template<typename C> class NRVec;

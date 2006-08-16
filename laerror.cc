@@ -3,6 +3,8 @@
 #include "laerror.h"
 #include <stdio.h>
 #include <errno.h>
+#include <stdarg.h>
+
 
 #ifdef USE_TRACEBACK
 #include "traceback.h"
@@ -30,7 +32,7 @@ void laerror(const char *s1)
 //stub for f77 blas called from strassen routine
 extern "C" void xerbla_(const char name[6], int *n)
 {
-char msg[128];
+char msg[1024];
 strcpy(msg,"LAPACK or BLAS error in routine ");
 strncat(msg,name,6);
 sprintf(msg+strlen(msg),": illegal value of parameter #%d",*n);
@@ -38,3 +40,30 @@ laerror(msg);
 }
 
 
+//with atlas-cblas another error routine is necessary
+
+extern "C" void ATL_xerbla(int p, char *rout, char *form, ...)
+{
+  char msg0[1024], *msg;
+   va_list argptr;
+   va_start(argptr, form);
+   strcpy(msg0,"ATLAS error\n");
+   msg=msg0+strlen(msg0);
+   if (p) {sprintf(msg, "Parameter %d to routine %s was incorrect\n", p, rout); msg+=strlen(msg);}
+   vsprintf(msg, form, argptr);
+   va_end(argptr);
+   laerror(msg0);
+}
+
+int cblas_errprn(int ierr, int info, char *form, ...)
+{
+  char msg0[1024], *msg;
+   va_list argptr;
+   va_start(argptr, form);
+   sprintf(msg0,"CBLAS error %d %d\n",ierr,info);
+   msg=msg0+strlen(msg0);
+   vsprintf(msg, form, argptr);
+   va_end(argptr);
+   laerror(msg0);
+return 0;
+}

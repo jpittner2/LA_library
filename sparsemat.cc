@@ -1309,7 +1309,6 @@ return *this;
 }
 
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
 
 #define INSTANTIZE(T) \
 template SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs);\
@@ -1363,4 +1362,3 @@ INSTANTIZE(double)
 INSTANTIZE(complex<double>) //some functions are not OK for hermitean matrices, needs a revision!!!
 
 
-#endif

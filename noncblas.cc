@@ -222,4 +222,5 @@ for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {double t=A[j*lda+i]; A[j*lda+i]=
 return INFO;
 }
 
+
 #endif

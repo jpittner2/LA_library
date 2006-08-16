@@ -619,6 +619,11 @@ fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmul
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex<I,T>::iterator p;
+#ifdef DEBUG
+unsigned long I = SMat_index_1(p->index.indiv.i,p->index.indiv.j);
+unsigned long J = SMat_index_1(p->index.indiv.k,p->index.indiv.l);
+if (I<0 || I>=(unsigned long)NRSMat<T>::nn || J<0 || J>=(unsigned long)NRSMat<T>::nn) laerror("fourindex_dense index out of range in constructor");
+#endif
 for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
 }
 
@@ -627,8 +632,12 @@ fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmul
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex_ext<I,T>::iterator p;
-for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j
-,p->index.indiv.k,p->index.indiv.l) = p->elem;
+#ifdef DEBUG
+unsigned long I = SMat_index_1(p->index.indiv.i,p->index.indiv.j);
+unsigned long J = SMat_index_1(p->index.indiv.k,p->index.indiv.l);
+if (I<0 || I>=(unsigned long)NRSMat<T>::nn || J<0 || J>=(unsigned long)NRSMat<T>::nn) laerror("fourindex_dense index out of range in constructor");
+#endif
+for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j ,p->index.indiv.k,p->index.indiv.l) = p->elem;
 }
 
 

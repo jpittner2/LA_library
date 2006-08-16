@@ -16,7 +16,7 @@
 #define CBLAS_INDEX int
 
 int cblas_errprn(int ierr, int info, char *form, ...);
-
+void ATL_xerbla(int p, char *rout, char *form, ...);
 /*
  * ===========================================================================
  * Prototypes for level 1 BLAS functions (complex are recast as routines)

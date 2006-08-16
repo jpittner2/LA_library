@@ -1105,7 +1105,7 @@ for(int iter=1; iter<100 && norm>1e-8 ; ++iter)
 	}
 }
 
-if(1)
+if(0)
 {
 NRMat<double> a,b;
 cin >>a;
@@ -1113,6 +1113,15 @@ b=realsqrt(a);
 cout <<b;
 cout <<b*b;
 cout <<(b*b-a).norm();
+}
+
+if(1)
+{
+NRSMat<double> a;
+NRMat<double> b;
+cin >>a>>b;
+cout <<a*b;
+
 }
 
 
