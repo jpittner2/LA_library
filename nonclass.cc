@@ -30,6 +30,7 @@ INSTANTIZE(short)
 INSTANTIZE(char)
 INSTANTIZE(unsigned char)
 INSTANTIZE(unsigned long)
+INSTANTIZE(unsigned int)
 
 #define EPSDET 1e-300
 
@@ -440,6 +441,8 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
 			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
 	delete[] work;
+//@@@
+//cout <<"TEST dgeev\n"<<wr<<wi<<*vr<<*vl<<endl;
 
 	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
 	if (r > 0) laerror("convergence problem in ggev/geev in gdiagonalize()");
@@ -614,10 +617,20 @@ NRMat<double> matrixfunction(NRMat<double> a, complex<double>
 	int n = a.nrows();
 	NRMat< complex<double> > u(n, n), v(n, n);
 	NRVec< complex<double> > w(n);
-	gdiagonalize(a, w, &u, &v);
+NRMat<complex<double> > a0=complexify(a);
+	gdiagonalize(a, w, &u, &v);//a gets destroyed, eigenvectors are rows
 	NRVec< complex<double> > z = diagofproduct(u, v, 1, 1);
+/*
+cout <<"TEST matrixfunction\n"<<w<<u<<v<<z;
+cout <<"TEST matrixfunction1 "<< u*a0 - diagonalmatrix(w)*u<<endl;
+cout <<"TEST matrixfunction2 "<< a0*v.transpose(1) - v.transpose(1)*diagonalmatrix(w)<<endl;
+cout <<"TEST matrixfunction3 "<< u*v.transpose(1)<<diagonalmatrix(z)<<endl;
+NRVec< complex<double> > wz(n);
+for (int i=0; i<a.nrows(); i++) wz[i] = w[i]/z[i];
+cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*u<<endl;
+*/
 
-	for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i]/z[i]);
+	for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i])/z[i];
 	u.diagmultl(w);
 
 	NRMat< complex<double> > r(n, n);
@@ -688,6 +701,12 @@ complex<double> myclog (const complex<double> &x)
 	return log(x);
 }
 
+complex<double> mycexp (const complex<double> &x)
+{
+        return exp(x);
+}
+
+
 complex<double> sqrtinv (const complex<double> &x)
 {
         return 1./sqrt(x);
@@ -703,6 +722,12 @@ NRMat<double>  log(const NRMat<double> &a)
 {
 	return matrixfunction(a, &myclog, 1);
 }
+
+NRMat<double>  exp0(const NRMat<double> &a)
+{
+        return matrixfunction(a, &mycexp, 1);
+}
+
 
 
 const NRVec<double> diagofproduct(const NRMat<double> &a, const NRMat<double> &b,
@@ -773,9 +798,23 @@ double trace2(const NRSMat<double> &a, const NRSMat<double> &b,
 
 	double r = 2.0*cblas_ddot(a.nrows()*(a.nrows()+1)/2, a, 1, b, 1);
 	if (diagscaled) return r;
-	for (int i=0; i<a.nrows(); i++) r -= a(i,i)*b(i,i);
+	//for (int i=0; i<a.nrows(); i++) r -= a(i,i)*b(i,i);
+	r -= cblas_ddot(a.nrows(),a,a.nrows()+1,b,a.nrows()+1);
 	return r;
 }
+
+double trace2(const NRSMat<double> &a, const NRMat<double> &b, const bool diagscaled)
+{
+        if (a.nrows() != b.nrows()||b.nrows()!=b.ncols()) laerror("incompatible SMats in trace2()");
+double r=0;
+        int i, j, k=0;
+        for (i=0; i<a.nrows(); i++)
+                for (j=0; j<=i;j++) r += a[k++] * (b[i][j] + (i!=j||diagscaled ? b[j][i] : 0 ));
+
+
+return r;
+}
+
 
 
 #ifdef obsolete
