@@ -19,6 +19,7 @@ template class NRMat<int>;
 template class NRMat<short>;
 template class NRMat<char>;
 template class NRMat<unsigned char>;
+template class NRMat<unsigned int>;
 template class NRMat<unsigned long>;
 
 
@@ -123,8 +124,10 @@ NRMat<T> & NRMat<T>::operator=(const T &a)
 	if (nn != mm) laerror("RMat.operator=scalar on non-square matrix");
 #endif
 #ifdef MATPTR
+	 memset(v[0],0,nn*nn*sizeof(T));
 	 for (int i=0; i< nn; i++) v[i][i] = a;
 #else
+	 memset(v,0,nn*nn*sizeof(T));
 	 for (int i=0; i< nn*nn; i+=nn+1) v[i] = a;
 #endif
 	 return *this;
@@ -1067,6 +1070,7 @@ INSTANTIZE(short)
 INSTANTIZE(char)
 INSTANTIZE(unsigned char)
 INSTANTIZE(unsigned long)
+INSTANTIZE(unsigned int)
 
 
 export template <typename T>

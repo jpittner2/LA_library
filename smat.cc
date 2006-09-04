@@ -19,6 +19,7 @@ template class NRSMat< complex<double> >;
 template class NRSMat<int>;
 template class NRSMat<short>;
 template class NRSMat<char>;
+template class NRSMat<unsigned int>;
 template class NRSMat<unsigned long>;
 
 
@@ -80,6 +81,7 @@ template <typename T>
 NRSMat<T> & NRSMat<T>::operator=(const T &a)
 {
 	copyonwrite();
+	memset(v,0,NN2*sizeof(T));
 	for (int i=0; i<nn; i++) v[i*(i+1)/2+i] = a;
 	return *this;
 }
@@ -406,5 +408,6 @@ INSTANTIZE(complex<double>)
 INSTANTIZE(int)
 INSTANTIZE(short)
 INSTANTIZE(char)
+INSTANTIZE(unsigned int)
 INSTANTIZE(unsigned long)
 

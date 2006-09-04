@@ -8,7 +8,7 @@
 #include "la_traits.h"
 
 template<class T,class R>
-const T polynom2(const T &x, const NRVec<R> &c)
+const T polynom0(const T &x, const NRVec<R> &c)
 {
 int order=c.size()-1;
 T z,y;
@@ -30,13 +30,14 @@ return y;
 }
 
 
+//algorithm which minimazes number of multiplications, at the cost of storage
 template<class T,class R>
 const T polynom(const T &x, const NRVec<R> &c)
 {
 int n=c.size()-1;
 int i,j,k,m=0,t;
 
-if(n<=4) return polynom2(x,c); //here the horner scheme is optimal
+if(n<=4) return polynom0(x,c); //here the horner scheme is optimal
 
 //first find m which minimizes the number of multiplications
 j=10*n;
@@ -49,6 +50,7 @@ for(i=2;i<=n+1;i++)
 	m=i;
 	}
     }
+
 
 //allocate array for powers up to m
 T *xpows = new T[m];
@@ -65,7 +67,10 @@ for(i=0; i<=n/m;i++)
 		{
 		k++;
 		if(k>n) break;
-		if(j==0) {if(i==0) s=x; /*just to get the dimensions of the matrix*/ s=c[k]; /*create diagonal matrix*/}
+		if(j==0) {
+			  if(i==0) s=x; /*just to get the dimensions of the matrix*/ 
+			  s=c[k]; /*create diagonal matrix*/
+			  }
 		else  
 			LA_traits<T>::axpy(s,xpows[j-1],c[k]); //general  s+=xpows[j-1]*c[k]; but more efficient for matrices
 		}
@@ -196,6 +201,7 @@ do	{
 while(t*exptaylor[n]>precision);//taylor 0 will terminate in any case
 
 
+
 int i; //adjust the coefficients in order to avoid scaling the argument
 NRVec<typename LA_traits<T>::elementtype> taylor2(n+1);
 for(i=0,t=1.;i<=n;i++)
@@ -209,14 +215,16 @@ return taylor2;
 
 
 template<class T>
-const T exp(const T &x)
+const T exp(const T &x, const bool simple=false)
 {
 int power;
 
 //prepare the polynom of and effectively scale T
 NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux(x,power);
 
-T r=polynom(x,taylor2); //for accuracy summing from the smallest terms up would be better, but this is more efficient for matrices
+
+T r= simple?polynom0(x,taylor2):polynom(x,taylor2); 
+//for accuracy summing from the smallest terms up would be better, but this is more efficient for matrices
 
 //power the result back
 for(int i=0; i<power; i++) r=r*r;
