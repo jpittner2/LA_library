@@ -267,7 +267,7 @@ inline T & NRMat<T>::operator()(const int i, const int j)
 {
 #ifdef DEBUG
 	if (*count != 1) laerror("Mat lval use of (,) with count > 1");
-	if (i<0 || i>=nn || j<0 || j>mm) laerror("Mat (,) out of range");
+	if (i<0 || i>=nn || j<0 || j>=mm) laerror("Mat (,) out of range");
 	if (!v) laerror("(,) for unallocated Mat");
 #endif
 #ifdef MATPTR
@@ -280,7 +280,7 @@ template <typename T>
 inline const T & NRMat<T>::operator()(const int i, const int j) const
 {
 #ifdef DEBUG
-	if (i<0 || i>=nn || j<0 || j>mm) laerror("Mat (,) out of range");
+	if (i<0 || i>=nn || j<0 || j>=mm) laerror("Mat (,) out of range");
 	if (!v) laerror("(,) for unallocated Mat");
 #endif
 #ifdef MATPTR
@@ -547,12 +547,50 @@ return r;
 
 
 
-
-
-
 // I/O
 template <typename T> extern ostream& operator<<(ostream &s, const NRMat<T> &x);
 template <typename T> extern istream& operator>>(istream  &s, NRMat<T> &x);
+
+//optional indexing from 1
+//all possible constructors have to be given explicitly, other stuff is inherited
+//with exception of the operator() which differs
+template<typename T>
+class NRMat_from1 : public NRMat<T> {
+public:
+        NRMat_from1(): NRMat<T>() {};
+        explicit NRMat_from1(const int n): NRMat<T>(n) {};
+        NRMat_from1(const NRMat<T> &rhs): NRMat<T>(rhs) {}; //be able to convert the parent class  transparently to this
+        NRMat_from1(const T &a, const int n, const int m): NRMat<T>(a,n,m) {};
+        NRMat_from1(const T *a, const int n, const int m): NRMat<T>(a,n,m) {};
+
+        inline const T& operator() (const int i, const int j) const
+                {
+#ifdef DEBUG
+        if (i<1 || i>NRMat<T>::nn || j<1 || j>NRMat<T>::mm) laerror("Mat (,) out of range");
+        if (!NRMat<T>::v) laerror("(,) for unallocated Mat");
+#endif
+#ifdef MATPTR
+        return NRMat<T>::v[i-1][j-1];
+#else
+        return NRMat<T>::v[(i-1)*NRMat<T>::mm+j-1];
+#endif
+                }
+        inline  T& operator() (const int i, const int j)
+                {
+#ifdef DEBUG
+        if (*NRMat<T>::count != 1) laerror("Mat lval use of (,) with count > 1");
+        if (i<1 || i>NRMat<T>::nn || j<1 || j>NRMat<T>::mm) laerror("Mat (,) out of range");
+        if (!NRMat<T>::v) laerror("(,) for unallocated Mat");
+#endif
+#ifdef MATPTR
+        return NRMat<T>::v[i-1][j-1];
+#else
+        return NRMat<T>::v[(i-1)*NRMat<T>::mm+j-1];
+#endif
+                }
+};
+
+
 
 
 
