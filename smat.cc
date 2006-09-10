@@ -12,16 +12,6 @@ extern ssize_t write(int, const void *, size_t);
 // specialize unary minus
 
 
-//////////////////////////////////////////////////////////////////////////////
-////// forced instantization in the corresponding object file
-template class NRSMat<double>;
-template class NRSMat< complex<double> >;
-template class NRSMat<int>;
-template class NRSMat<short>;
-template class NRSMat<char>;
-template class NRSMat<unsigned int>;
-template class NRSMat<unsigned long>;
-
 
 
 /*
@@ -410,4 +400,16 @@ INSTANTIZE(short)
 INSTANTIZE(char)
 INSTANTIZE(unsigned int)
 INSTANTIZE(unsigned long)
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+////// forced instantization in the corresponding object file
+template class NRSMat<double>;
+template class NRSMat< complex<double> >;
+template class NRSMat<int>;
+template class NRSMat<short>;
+template class NRSMat<char>;
+template class NRSMat<unsigned int>;
+template class NRSMat<unsigned long>;
 

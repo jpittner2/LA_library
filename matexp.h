@@ -109,7 +109,7 @@ return z;
 
 //general BCH expansion (can be written more efficiently in a specialization for matrices)
 template<class T>
-const T BCHexpansion (const T &h, const T &t, const int n, const bool verbose=1)\
+const T BCHexpansion (const T &h, const T &t, const int n, const bool verbose=0)\
 {
 T result=h;
 double factor=1.;
@@ -118,7 +118,7 @@ for(int i=1; i<=n; ++i)
 	{
 	factor/=i;
 	z= z*t-t*z;
-	if(verbose) cerr << "BCH contribution at order "<<i<<" : "<<z.norm()<<endl;
+	if(verbose) cerr << "BCH contribution at order "<<i<<" : "<<z.norm()*factor<<endl;
 	result+= z*factor; 
 	}
 return result;
@@ -184,12 +184,12 @@ static double exptaylor[]={
 4.1103176233121648441e-19,
 0.};
 double mnorm= LA_traits<T>::norm(x);
-power=nextpow2(mnorm);
+power=nextpow2(mnorm); 
 double scale=exp(-log(2.)*power);
 
 
 //find how long taylor expansion will be necessary
-const double precision=1e-16;
+const double precision=1e-14; //decreasing brings nothing
 double s,t;
 s=mnorm*scale;
 int n=0;
@@ -199,6 +199,7 @@ do	{
 	t*=s;
 	}
 while(t*exptaylor[n]>precision);//taylor 0 will terminate in any case
+
 
 
 
@@ -214,8 +215,9 @@ return taylor2;
 
 
 
+//it seems that we do not gain anything by polynom vs polynom0, check the m-optimization!
 template<class T>
-const T exp(const T &x, const bool simple=false)
+const T exp(const T &x, const bool horner=true)
 {
 int power;
 
@@ -223,7 +225,7 @@ int power;
 NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux(x,power);
 
 
-T r= simple?polynom0(x,taylor2):polynom(x,taylor2); 
+T r= horner?polynom0(x,taylor2):polynom(x,taylor2); 
 //for accuracy summing from the smallest terms up would be better, but this is more efficient for matrices
 
 //power the result back

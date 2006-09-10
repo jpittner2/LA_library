@@ -25,19 +25,12 @@ template void NRVec<T>::get(int fd, bool dim, bool transp); \
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
 INSTANTIZE(int)
-INSTANTIZE(unsigned int)
 INSTANTIZE(short)
 INSTANTIZE(unsigned short)
 INSTANTIZE(char)
 INSTANTIZE(unsigned char)
+INSTANTIZE(unsigned int)
 INSTANTIZE(unsigned long)
-
-template class NRVec<double>;
-template class NRVec<complex<double> >;
-template class NRVec<char>;
-template class NRVec<short>;
-template class NRVec<int>;
-template class NRVec<unsigned long>;
 
 
 
@@ -288,6 +281,8 @@ template<>
 NRVec<char> &  NRVec<char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 template<>
 NRVec<unsigned long> &  NRVec<unsigned long>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+template<>
+NRVec<unsigned int> &  NRVec<unsigned int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 
 
 template<>
@@ -313,6 +308,15 @@ void NRVec<unsigned long>::gemv(const unsigned long beta,
 {
 laerror("not yet implemented");
 }
+
+template<>
+void NRVec<unsigned int>::gemv(const unsigned int beta,
+                const NRSMat<unsigned int> &A, const char trans,
+                const unsigned int alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
 
 template<>
 void NRVec<unsigned char>::gemv(const unsigned char beta,
@@ -354,6 +358,15 @@ void NRVec<unsigned long>::gemv(const unsigned long beta,
 {
 laerror("not yet implemented");
 }
+
+template<>
+void NRVec<unsigned int>::gemv(const unsigned int beta,
+                const NRMat<unsigned int> &A, const char trans,
+                const unsigned int alpha, const NRVec &x)
+{
+laerror("not yet implemented");
+}
+
 
 template<>
 void NRVec<unsigned char>::gemv(const unsigned char beta,
@@ -406,6 +419,16 @@ void NRVec<unsigned long>::gemv(const unsigned long beta,
 {
 laerror("not yet implemented");
 }
+
+template<>
+void NRVec<unsigned int>::gemv(const unsigned int beta,
+                const SparseMat<unsigned int> &A, const char trans,
+                const unsigned int alpha, const NRVec &x, bool s)
+{
+laerror("not yet implemented");
+}
+
+
 
 template<>
 void NRVec<unsigned char>::gemv(const unsigned char beta,
@@ -501,3 +524,17 @@ if(to == -1) to=nn-1;
 if(direction) return memqsort<1,NRVec<T>,int,int>(*this,perm,from,to);
 else return memqsort<0,NRVec<T>,int,int>(*this,perm,from,to);
 }
+
+
+//////////////////////////////////////////////////////////////////////////////
+//// forced instantization in the corespoding object file
+
+
+template class NRVec<double>;
+template class NRVec<complex<double> >;
+template class NRVec<char>;
+template class NRVec<short>;
+template class NRVec<int>;
+template class NRVec<unsigned int>;
+template class NRVec<unsigned long>;
+

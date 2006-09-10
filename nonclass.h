@@ -70,6 +70,7 @@ extern const  NRVec<T> diagofproduct(const NRMat<T> &a, const NRMat<T> &b,\
 		bool trb=0, bool conjb=0); \
 extern T trace2(const NRMat<T> &a, const NRMat<T> &b, bool trb=0); \
 extern T trace2(const NRSMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
+extern T trace2(const NRSMat<T> &a, const NRMat<T> &b, const bool diagscaled=0);\
 extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0,int n=0); \
 extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0, int n=0); \
 extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
@@ -108,6 +109,7 @@ inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfuncti
 inline NRMat<double>  realsqrtinv(const NRMat<double> &a) { return realmatrixfunction(a,&sqrtinv); }
 inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&log); }
 extern NRMat<double> log(const NRMat<double> &a);
+extern NRMat<double> exp0(const NRMat<double> &a);
 
 
 extern const NRMat<double> realpart(const NRMat< complex<double> >&);

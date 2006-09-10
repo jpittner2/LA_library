@@ -17,11 +17,6 @@ static inline void SWAP(T &a, T &b)
 
 
 
-//////////////////////////////////////////////////////////////////////////////
-//// forced instantization in the corresponding object file
-template class SparseMat<double>;
-template class SparseMat<complex<double> >;
-
 
 
 export template <class T>
@@ -1327,13 +1322,13 @@ template unsigned int SparseMat<T>::length() const; \
 template void SparseMat<T>::deletelist(); \
 template void SparseMat<T>::simplify(); \
 template void SparseMat<T>::copylist(const matel<T> *l); \
-template void SparseMat<T>::add(const SPMatindex n, const SPMatindex m, const T elem); \
 template SparseMat<T> & SparseMat<T>::operator=(const SparseMat<T> &rhs); \
 template SparseMat<T> & SparseMat<T>::operator+=(const SparseMat<T> &rhs); \
 template SparseMat<T> & SparseMat<T>::operator-=(const SparseMat<T> &rhs); \
 template SparseMat<T>::SparseMat(const NRMat<T> &rhs); \
 template SparseMat<T>::SparseMat(const NRSMat<T> &rhs); \
 template void SparseMat<T>::transposeme(); \
+template const T* SparseMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const; \
 template SparseMat<T> & SparseMat<T>::operator*=(const T a); \
 template void SparseMat<T>::setunsymmetric(); \
 template SparseMat<T> & SparseMat<T>::operator=(const T a); \
@@ -1361,4 +1356,9 @@ INSTANTIZE(double)
 
 INSTANTIZE(complex<double>) //some functions are not OK for hermitean matrices, needs a revision!!!
 
+
+//////////////////////////////////////////////////////////////////////////////
+//// forced instantization in the corresponding object file
+template class SparseMat<double>;
+template class SparseMat<complex<double> >;
 

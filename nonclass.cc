@@ -617,7 +617,9 @@ NRMat<double> matrixfunction(NRMat<double> a, complex<double>
 	int n = a.nrows();
 	NRMat< complex<double> > u(n, n), v(n, n);
 	NRVec< complex<double> > w(n);
+/*
 NRMat<complex<double> > a0=complexify(a);
+*/
 	gdiagonalize(a, w, &u, &v);//a gets destroyed, eigenvectors are rows
 	NRVec< complex<double> > z = diagofproduct(u, v, 1, 1);
 /*

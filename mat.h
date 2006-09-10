@@ -560,6 +560,7 @@ public:
         NRMat_from1(): NRMat<T>() {};
         explicit NRMat_from1(const int n): NRMat<T>(n) {};
         NRMat_from1(const NRMat<T> &rhs): NRMat<T>(rhs) {}; //be able to convert the parent class  transparently to this
+        NRMat_from1(const int n, const int m): NRMat<T>(n,m) {};
         NRMat_from1(const T &a, const int n, const int m): NRMat<T>(a,n,m) {};
         NRMat_from1(const T *a, const int n, const int m): NRMat<T>(a,n,m) {};
 

@@ -11,17 +11,6 @@ extern ssize_t write(int, const void *, size_t);
 // TODO :
 //
 
-//////////////////////////////////////////////////////////////////////////////
-//// forced instantization in the corresponding object file
-template class NRMat<double>;
-template class NRMat<complex<double> >;
-template class NRMat<int>;
-template class NRMat<short>;
-template class NRMat<char>;
-template class NRMat<unsigned char>;
-template class NRMat<unsigned int>;
-template class NRMat<unsigned long>;
-
 
 /*
  *  Templates first, specializations for BLAS next
@@ -1112,4 +1101,15 @@ istream& operator>>(istream  &s, NRMat<T> &x)
 
 
 
+
+//////////////////////////////////////////////////////////////////////////////
+//// forced instantization in the corresponding object file
+template class NRMat<double>;
+template class NRMat<complex<double> >;
+template class NRMat<int>;
+template class NRMat<short>;
+template class NRMat<char>;
+template class NRMat<unsigned char>;
+template class NRMat<unsigned int>;
+template class NRMat<unsigned long>;
 

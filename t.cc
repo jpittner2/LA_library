@@ -52,7 +52,8 @@ NRVec<double> x(1.,10);
 NRVec<double> y(2.,10);
 NRVec<double> z(-2.,10);
 
-cout.setf(ios::fixed);
+cout.setf(ios::scientific);
+//cc:cout.setf(ios::fixed);
 cout.precision(12);
 
 
@@ -646,7 +647,6 @@ cout <<"test orthogonality\n" << vl.transpose() * vr;
 
 if(0)
 {
-/*
 int n;
 cin>>n;
 NRMat<double> a(n,n);
@@ -655,38 +655,48 @@ for(int i=0;i<n;++i) for(int j=0;j<i;++j)
         a(i,j)= random()/(1.+RAND_MAX);
         a(j,i)= -a(i,j);
         }
-NRMat<double> b=exp(a);
-cout <<a;
-*/
-NRMat<double> a,b;
-cin >>b;
-int n=b.nrows();
-cout <<"difference from identity = "<<b.norm(1.)<<endl;
+cout <<"a matrix \n"<<a;
+cout<<"EXP\n";
+NRMat<double> b=exp0(a);
+cout <<"b=exp(a) matrix\n"<<b;
 
-NRMat<double> x(0.,n,n),x0;
-	double r;
-int i=0;
-do
-	{
-	x0=x;
-	NRMat<double> y=exp(x*-.5);
-	x+= y*b*y; 
-	x-= 1.;
-	x=(x-x.transpose())*.5;
-	cout <<"matrix x\n"<<x;
-	cout <<"iter "<<i <<" residue "<< (r=(exp(x)-b).norm())<<endl;
-	cout <<"iter "<<i <<" conv "<<(r=(x-x0).norm())<<endl;
-	++i;
-	} while(abs(r)>1e-10);
-cout <<"result\n"<<x<<endl;
-cout <<"exp(result)"<<exp(x)<<endl;
+cout <<"LOG\n";
 NRMat<double> c=log(b); //matrixfunction(a,&mycident,1);
-cout <<c;
-NRMat<double> d=exp(c);
-cout <<"exp(log(x))\n"<<d;
-cout<<(d-b).norm()<<endl;
+cout <<"c=log(exp(a))\n"<<c <<"error: "<<(c-a).norm()<<endl;
+cout <<"EXP-MY\n";
+NRMat<double> e=exp(c);
+cout <<"e=exp(c)\n"<<e;
+cout<<"error2 = "<<(e-b).norm()<<endl;
+}
+
+if(1)
+{
+int n;
+double f;
+cin>>n >>f ;
+NRMat<double> a(n,n);
+for(int i=0;i<n;++i) for(int j=0;j<n;++j)
+        {
+        a(i,j)= f*random()/(1.+RAND_MAX);
+        }
+//cout <<"a matrix \n"<<a;
+//cout<<"EXP\n";
+double t=clock()/((double) (CLOCKS_PER_SEC));
+NRMat<double> b=exp0(a);
+cout <<"exp0 took "<<clock()/((double) (CLOCKS_PER_SEC))-t<<endl;
+//cout <<"b=exp0(a) matrix\n"<<b;
+t=clock()/((double) (CLOCKS_PER_SEC));
+NRMat<double> c=exp(a,true);
+cout <<" horner exp  took "<<clock()/((double) (CLOCKS_PER_SEC))-t<<endl;
+//cout <<"exp(a)\n"<<c;
+cout<<"error1 = "<<(c-b).norm()/b.norm()<<endl;
+t=clock()/((double) (CLOCKS_PER_SEC));
+c=exp(a,false);
+cout <<" tricky exp  took "<<clock()/((double) (CLOCKS_PER_SEC))-t<<endl;
+cout<<"error2 = "<<(c-b).norm()/b.norm()<<endl;
 
 }
+
 
 if(0)
 {
@@ -1115,7 +1125,7 @@ cout <<b*b;
 cout <<(b*b-a).norm();
 }
 
-if(1)
+if(0)
 {
 NRSMat<double> a;
 NRMat<double> b;

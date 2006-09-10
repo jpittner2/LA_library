@@ -622,7 +622,7 @@ public:
 };
 
 template<class T, class I> 
-fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmullikan,T,I>(const fourindex<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
+fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex<I,T>::iterator p;
@@ -635,7 +635,7 @@ for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j
 }
 
 template<class T, class I>
-fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense<twoelectronrealmullikan,T,I>(const fourindex_ext<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
+fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense(const fourindex_ext<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex_ext<I,T>::iterator p;
