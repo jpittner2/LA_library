@@ -167,7 +167,7 @@ return int(ceil(log(n)/log2-log(.75)));
 
 
 template<class T, class C>
-NRVec<C> exp_aux(const T &x, int &power)
+NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1)
 {
 //should better be computed by mathematica to have accurate last digits, chebyshev instead, see exp in glibc
 static double exptaylor[]={
@@ -195,6 +195,7 @@ static double exptaylor[]={
 0.};
 double mnorm= x.norm();
 power=nextpow2(mnorm); 
+if(maxpower>=0 && power>maxpower) power=maxpower;
 double scale=exp(-log(2.)*power);
 
 
@@ -210,7 +211,7 @@ do	{
 	}
 while(t*exptaylor[n]>precision);//taylor 0 will terminate in any case
 
-
+if(maxtaylor>=0 && n>maxtaylor) n=maxtaylor; //useful e.g. if the matrix is nilpotent in order n+1 as the CC T operator for n electrons
 
 
 int i; //adjust the coefficients in order to avoid scaling the argument
@@ -227,12 +228,12 @@ return taylor2;
 
 //it seems that we do not gain anything by polynom vs polynom0, check the m-optimization!
 template<class T>
-const T exp(const T &x, const bool horner=true)
+const T exp(const T &x, bool horner=true, int maxpower= -1, int maxtaylor= -1 )
 {
 int power;
 
 //prepare the polynom of and effectively scale T
-NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux<T,typename LA_traits<T>::elementtype>(x,power);
+NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux<T,typename LA_traits<T>::elementtype>(x,power,maxpower,maxtaylor);
 
 
 T r= horner?polynom0(x,taylor2):polynom(x,taylor2); 
@@ -248,16 +249,15 @@ return r;
 
 //this simple implementation seems not to be numerically stable enough
 //and probably not efficient either
-//@@@ make more efficient - for nilpotent mat at known power and 
 
 template<class M, class V>
-void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const double scale=1. ) //uses just matrix vector multiplication
+void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1) //uses just matrix vector multiplication
 {
 if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.size()) laerror("inappropriate sizes in exptimes");
 
 int power;
 //prepare the polynom of and effectively scale the matrix
-NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power);
+NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power,maxpower,maxtaylor);
 cerr <<"test power "<<power<<endl;
 
 V tmp;
@@ -281,10 +281,10 @@ return;
 
 
 template<class M, class V>
-const V exptimes(const M &mat, V rhs, bool transpose=false, const double scale=1.)
+const V exptimes(const M &mat, V rhs, bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1 )
 {
 V result;
-exptimesdestructive(mat,result,rhs,transpose,scale);
+exptimesdestructive(mat,result,rhs,transpose,scale,maxpower,maxtaylor);
 return result;
 }
 
