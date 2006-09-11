@@ -257,7 +257,6 @@ int power;
 NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power);
 
 V result(mat.nrows());
-cerr <<"power = "<<power<<endl;
 for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it many times, unlike if the matrix is stored explicitly
 	{
 	if(i>1) vec=result; //apply again to the result of previous application
@@ -584,7 +583,11 @@ L100:
     i__1 = m;
     for (j = 1; j <= i__1; ++j) {
 	++nmult;
-	(matvec)(&wsp[j1v - n], &wsp[j1v]);
+	{
+	NRVec<double> res(&wsp[j1v],n,true);
+	NRVec<double> rhs(&wsp[j1v - n],n,true);
+	mat.gemv(0.,res,transpose?'t':'n',1.,rhs);
+	}
 	i__2 = j;
 	for (i__ = 1; i__ <= i__2; ++i__) {
 	    hij = cblas_ddot(n, &wsp[iv + (i__ - 1) * n], 1, &wsp[j1v], 1);
@@ -610,7 +613,11 @@ L100:
 /* L200: */
     }
     ++nmult;
-    (matvec)(&wsp[j1v - n], &wsp[j1v]);
+    {
+    NRVec<double> res(&wsp[j1v],n,true);
+    NRVec<double> rhs(&wsp[j1v - n],n,true);
+    mat.gemv(0.,res,transpose?'t':'n',1.,rhs);
+    }
     avnorm = cblas_dnrm2(n, &wsp[j1v], 1);
 
 /* ---  set 1 for the 2-corrected scheme ... */
@@ -630,7 +637,7 @@ L401:
     if (ideg != 0) {
 /* ---     irreducible rational Pade approximation ... */
 	d__1 = sgn * t_step__;
-	dgpadm_(&ideg, &mx, &d__1, &wsp[ih], &mh, &wsp[ifree], &lfree, &iwsp[1]
+	FORNAME(dgpadm)(&ideg, &mx, &d__1, &wsp[ih], &mh, &wsp[ifree], &lfree, &iwsp[1]
 		, &iexph, &ns, &iflag);
 	iexph = ifree + iexph - 1;
 	nscale += ns;
@@ -643,7 +650,7 @@ L401:
 	}
 	wsp[iexph] = 1.;
 	d__1 = sgn * t_step__;
-	dnchbv_(&mx, &d__1, &wsp[ih], &mh, &wsp[iexph], &wsp[ifree + mx]);
+	FORNAME(dnchbv)(&mx, &d__1, &wsp[ih], &mh, &wsp[iexph], &wsp[ifree + mx]);
     }
 /* L402: */
 
