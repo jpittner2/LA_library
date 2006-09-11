@@ -261,4 +261,7 @@ for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it man
 return result;
 }
 
+//@@@ power series matrix logarithm?
+//@@@ interface to expokit?
+
 #endif

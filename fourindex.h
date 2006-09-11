@@ -719,7 +719,7 @@ public:
 
 //we cannot return reference due to the possible sign change
 //stored values are for i>j a>b
-        inline T operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b)
+        inline T operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b) const
 {
 #ifdef DEBUG
 if(i<1||i>nocc ||j<1||j>nocc|| a<1||a>nvrt||b<1||b>nvrt) laerror("T2ijab_aces fourindex out of range")
