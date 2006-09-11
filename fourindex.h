@@ -693,7 +693,7 @@ public:
         inline T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b)
 {
 #ifdef DEBUG
-if(i<1||i>noca ||j<1||j>nocb|| a<1||a>nvra||b<1||b>nvrb) laerror("T2IjAb_aces fourindex out of range")
+if(i<1||i>noca ||j<1||j>nocb|| a<1||a>nvra||b<1||b>nvrb) laerror("T2IjAb_aces fourindex out of range");
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 return (*this).NRMat<T>::operator() ((j-1)*noca+i-1,(b-1)*nvra+a-1);
@@ -701,7 +701,7 @@ return (*this).NRMat<T>::operator() ((j-1)*noca+i-1,(b-1)*nvra+a-1);
         inline const T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b) const
 {
 #ifdef DEBUG
-if(i<1||i>noca ||j<1||j>nocb|| a<1||a>nvra||b<1||b>nvrb) laerror("T2IjAb_aces fourindex out of range")
+if(i<1||i>noca ||j<1||j>nocb|| a<1||a>nvra||b<1||b>nvrb) laerror("T2IjAb_aces fourindex out of range");
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 return (*this).NRMat<T>::operator() ((j-1)*noca+i-1,(b-1)*nvra+a-1);
@@ -722,7 +722,7 @@ public:
         inline T operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b) const
 {
 #ifdef DEBUG
-if(i<1||i>nocc ||j<1||j>nocc|| a<1||a>nvrt||b<1||b>nvrt) laerror("T2ijab_aces fourindex out of range")
+if(i<1||i>nocc ||j<1||j>nocc|| a<1||a>nvrt||b<1||b>nvrt) laerror("T2ijab_aces fourindex out of range");
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 int minus=0;
