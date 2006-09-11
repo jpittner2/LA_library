@@ -6,6 +6,16 @@
 // is defined containing definition of an element type, norm and axpy operation
 
 #include "la_traits.h"
+#include "laerror.h"
+#ifndef NONCBLAS
+extern "C" {
+#include "cblas.h"
+#include "clapack.h"
+}
+#else
+#include "noncblas.h"
+#endif
+
 
 template<class T,class R>
 const T polynom0(const T &x, const NRVec<R> &c)
@@ -264,26 +274,69 @@ for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it man
 return result;
 }
 
+
+
+
+
+
+
+
+
 //this comes from dgexpv from expokit, it had to be translated to C to make a template
+// dgexpv.f -- translated by f2c (version 20030320).
+
+static double dipow(double x,int i)
+{
+double y=1.0;
+if(x==0.0)
+        {
+        if(i>0) return(0.0);
+        if(i==0) laerror("dipow: 0^0");
+        return(1./x);
+        }
+if(i) {
+        if(i<0) {i= -i; x= 1.0/x;}
+        do
+                {
+                if(i&1) y *= x;
+                x *= x;
+                }
+        while((i >>= 1)/*!=0*/);
+        }
+return(y);
+}
+
+static int nint(double x)
+{
+int sgn= x>=0 ? 1 : -1;
+return sgn * (int)(abs(x)+.5);
+}
+
+
+#ifdef FORTRAN_
+#define FORNAME(x) x##_
+#else
+#define FORNAME(x) x
+#endif
+
+extern "C" void FORNAME(dgpadm)(const int *, int *, double *, double *, int *, double *, int *, int *, int *, int *, int *);
+extern "C" void FORNAME(dnchbv)(int *, double *, double *, int *, double *, double *);
 
 //partial template specialization leaving still free room for generic matrix type
 template<class M>
-extern void exptimes(const M &mat, NRVec<double> &result, bool transpose, const double t, const NRVec<double> &rhs)
+extern void exptimes(const M &mat, NRVec<double> &result, const NRVec<double> &rhs, bool transpose=false, const double t=1., int mxkrylov=0, double tol=1e-14, int mxstep=1000, int mxreject=0, int ideg=6)
 {
-if(mat.nrows()!= mat.ncols()) laerorr("non-square matrix in exptimes");
-n=mat.nrows();
-if(result.size()!=n || rhs.size()!=n) laerorr("inconsistent vector and matrix size in exptimes");
+if(mat.nrows()!= mat.ncols()) laerror("non-square matrix in exptimes");
+int n=mat.nrows();
+int m;
+if(mxkrylov)  m=mxkrylov; else m= n>100? 100: n-1;
+if (m >= n || m <= 0) laerror("illegal mxkrylov");
+if(result.size()!=n || rhs.size()!=n) laerror("inconsistent vector and matrix size in exptimes");
 
-// dgexpv.f -- translated by f2c (version 20030320).
- int dgexpv(int n, int m, double t, 
-	double *v, double *w, double tol, double *anorm, 
-	double *wsp, int *lwsp, int *iwsp, int *liwsp,
-	int *itrace, int mxstep=1000, int mxreject=0, int ideg=6)
-{
-static const double c_b4 = 1.;
-static const int c__1 = 1;
-static const double c_b8 = 10.;
-static const double c_b25 = 0.;
+const double *v=rhs;
+double *w=result;
+double anorm=mat.norm(); 
+
 
 int iflag;
 
@@ -291,10 +344,7 @@ int iflag;
     int i__1, i__2;
     double d__1;
 
-    double  d_sign(double *, double *), pow_di(double *, int *), pow_dd(double *, double *), 
-	    d_lg10(double *);
-    int i_dnnt(double *);
-    double d_int(double *);
+#define  pow_dd(x,y) (exp(y*log(x)))
 
     /* Local variables */
     int ibrkflag;
@@ -307,31 +357,17 @@ int iflag;
     double xm;
     int j1v;
     double hij, sgn, eps, hj1j, sqr1, beta;
-    extern double ddot_(int *, double *, int *, double *, 
-	    int *);
     double hump;
-    extern double dnrm2_(int *, double *, int *);
-    extern /* Subroutine */ int dscal_(int *, double *, double *, 
-	    int *);
     int ifree, lfree;
     double t_old__;
-    extern /* Subroutine */ int dgemv_(char *, int *, int *, 
-	    double *, double *, int *, double *, int *, 
-	    double *, double *, int *, ftnlen);
     int iexph;
     double t_new__;
-    extern /* Subroutine */ int dcopy_(int *, double *, int *, 
-	    double *, int *);
     int nexph;
-    extern /* Subroutine */ int daxpy_(int *, double *, double *, 
-	    int *, double *, int *);
     double t_now__;
     int nstep;
     double t_out__;
     int nmult;
     double vnorm;
-    extern "C" void FORNAME(dgpadm)(const int *, int *, double *, double *, int *, double *, int *, int *, int *, int *, int *)
-    extern "C" void FORNAME(dnchbv)(int *, double *, double *, int *, double *, double *);
     int nscale;
     double rndoff, t_step__, avnorm;
     int ireject;
@@ -385,7 +421,6 @@ int iflag;
 /*              computes: y(1:n) <- A*x(1:n) */
 /*                        where A is the principal matrix. */
 
-/*     itrace : (input) running mode. 0=silent, 1=print step-by-step info */
 
 /*     iflag  : (output) exit flag. */
 /*              <0 - bad input arguments */
@@ -449,30 +484,20 @@ int iflag;
 /*     EXPOKIT: Software Package for Computing Matrix Exponentials. */
 /*     ACM - Transactions On Mathematical Software, 24(1):130-156, 1998 */
 /* ----------------------------------------------------------------------| */
+    iflag = 0;
 
-/* ---  check restrictions on input parameters ... */
+    i__1 = m + 2;
+    int lwsp= n * (m + 2) + i__1 * i__1 * 5 + ideg + 1;
+    double *wsp = new double[lwsp];
+    int *iwsp = new int[m+2];
+
+
     /* Parameter adjustments */
     --w;
     --v;
     --wsp;
     --iwsp;
 
-    /* Function Body */
-    iflag = 0;
-/* Computing 2nd power */
-    i__1 = m + 2;
-    if (*lwsp < n * (m + 2) + i__1 * i__1 * 5 + ideg + 1) {
-	iflag = -1;
-    }
-    if (*liwsp < m + 2) {
-	iflag = -2;
-    }
-    if (m >= n || m <= 0) {
-	iflag = -3;
-    }
-    if (iflag != 0) {
-	la_error("bad sizes (in input of DGEXPV)");
-    }
 
 /* ---  initialisations ... */
 
@@ -481,7 +506,7 @@ int iflag;
     iv = 1;
     ih = iv + n * (m + 1) + n;
     ifree = ih + mh * mh;
-    lfree = *lwsp - ifree + 1;
+    lfree = lwsp - ifree + 1;
     ibrkflag = 0;
     mbrkdwn = m;
     nmult = 0;
@@ -508,13 +533,13 @@ L1:
     if (tol <= eps) {
 	tol = sqrt(eps);
     }
-    rndoff = eps * *anorm;
+    rndoff = eps * anorm;
     break_tol__ = 1e-7;
 /* >>>  break_tol = tol */
 /* >>>  break_tol = anorm*tol */
-    sgn = d_sign(&c_b4, t);
-    dcopy_(n, &v[1], &c__1, &w[1], &c__1);
-    beta = dnrm2_(n, &w[1], &c__1);
+    sgn = t>=0?1. : -1.; 
+    cblas_dcopy(n, &v[1], 1, &w[1], 1);
+    beta = cblas_dnrm2(n, &w[1], 1);
     vnorm = beta;
     hump = beta;
 
@@ -524,14 +549,14 @@ L1:
     xm = 1. / (double) (m);
     d__1 = (m + 1) / 2.72;
     i__1 = m + 1;
-    p1 = tol * pow_di(&d__1, &i__1) * sqrt((m + 1) * 6.2800000000000002);
-    d__1 = p1 / (beta * 4. * *anorm);
-    t_new__ = 1. / *anorm * pow_dd(&d__1, &xm);
-    d__1 = d_lg10(&t_new__) - sqr1;
-    i__1 = i_dnnt(&d__1) - 1;
-    p1 = pow_di(&c_b8, &i__1);
+    p1 = tol * dipow(d__1, i__1) * sqrt((m + 1) * 6.28);
+    d__1 = p1 / (beta * 4. * anorm);
+    t_new__ = 1. / anorm * pow_dd(d__1, xm);
+    d__1 = log10(t_new__) - sqr1;
+    i__1 = nint(d__1) - 1;
+    p1 = dipow(10., i__1);
     d__1 = t_new__ / p1 + .55;
-    t_new__ = d_int(&d__1) * p1;
+    t_new__ = floor(d__1) * p1;
 
 /* ---  step-by-step integration ... */
 
@@ -562,14 +587,12 @@ L100:
 	(matvec)(&wsp[j1v - n], &wsp[j1v]);
 	i__2 = j;
 	for (i__ = 1; i__ <= i__2; ++i__) {
-	    hij = ddot_(n, &wsp[iv + (i__ - 1) * n], &c__1, &wsp[j1v], &c__1)
-		    ;
+	    hij = cblas_ddot(n, &wsp[iv + (i__ - 1) * n], 1, &wsp[j1v], 1);
 	    d__1 = -hij;
-	    daxpy_(n, &d__1, &wsp[iv + (i__ - 1) * n], &c__1, &wsp[j1v], &
-		    c__1);
+	    cblas_daxpy(n, d__1, &wsp[iv + (i__ - 1) * n], 1, &wsp[j1v], 1);
 	    wsp[ih + (j - 1) * mh + i__ - 1] = hij;
 	}
-	hj1j = dnrm2_(n, &wsp[j1v], &c__1);
+	hj1j = cblas_dnrm2(n, &wsp[j1v], 1);
 /* ---     if `happy breakdown' go straightforward at the end ... */
 	if (hj1j <= break_tol__) {
 /*           print*,'happy breakdown: mbrkdwn =',j,' h =',hj1j */
@@ -582,13 +605,13 @@ L100:
 	}
 	wsp[ih + (j - 1) * mh + j] = hj1j;
 	d__1 = 1. / hj1j;
-	dscal_(n, &d__1, &wsp[j1v], &c__1);
+	cblas_dscal(n, d__1, &wsp[j1v], 1);
 	j1v += n;
 /* L200: */
     }
     ++nmult;
     (matvec)(&wsp[j1v - n], &wsp[j1v]);
-    avnorm = dnrm2_(n, &wsp[j1v], &c__1);
+    avnorm = cblas_dnrm2(n, &wsp[j1v], 1);
 
 /* ---  set 1 for the 2-corrected scheme ... */
 
@@ -649,18 +672,18 @@ L401:
 	    ireject < mxreject)) {
 	t_old__ = t_step__;
 	d__1 = t_step__ * tol / err_loc__;
-	t_step__ = t_step__ * .9 * pow_dd(&d__1, &xm);
-	d__1 = d_lg10(&t_step__) - sqr1;
-	i__1 = i_dnnt(&d__1) - 1;
-	p1 = pow_di(&c_b8, &i__1);
+	t_step__ = t_step__ * .9 * pow_dd(d__1, xm);
+	d__1 = log10(t_step__) - sqr1;
+	i__1 = nint(d__1) - 1;
+	p1 = dipow(10., i__1);
 	d__1 = t_step__ / p1 + .55;
-	t_step__ = d_int(&d__1) * p1;
-	if (*itrace != 0) {
+	t_step__ = floor(d__1) * p1;
+#ifdef DEBUG
 /*           print*,'t_step =',t_old */
 /*           print*,'err_loc =',err_loc */
 /*           print*,'err_required =',delta*t_old*tol */
 /*           print*,'stepsize rejected, stepping down to:',t_step */
-	}
+#endif
 	++ireject;
 	++nreject;
 	if (mxreject != 0 && ireject > mxreject) {
@@ -675,20 +698,19 @@ L401:
 /* Computing MAX */
     i__1 = 0, i__2 = k1 - 1;
     mx = mbrkdwn + max(i__1,i__2);
-    dgemv_("n", n, &mx, &beta, &wsp[iv], n, &wsp[iexph], &c__1, &c_b25, &w[1],
-	     &c__1, (ftnlen)1);
-    beta = dnrm2_(n, &w[1], &c__1);
+   cblas_dgemv(CblasRowMajor, CblasTrans, n, mx, beta,  &wsp[iv], n, &wsp[iexph], 1,  0.,  &w[1],1);
+    beta = cblas_dnrm2(n, &w[1], 1);
     hump = max(hump,beta);
 
 /* ---  suggested value for the next stepsize ... */
 
     d__1 = t_step__ * tol / err_loc__;
-    t_new__ = t_step__ * .9 * pow_dd(&d__1, &xm);
-    d__1 = d_lg10(&t_new__) - sqr1;
-    i__1 = i_dnnt(&d__1) - 1;
-    p1 = pow_di(&c_b8, &i__1);
+    t_new__ = t_step__ * .9 * pow_dd(d__1, xm);
+    d__1 = log10(t_new__) - sqr1;
+    i__1 = nint(d__1) - 1;
+    p1 = dipow(10., i__1);
     d__1 = t_new__ / p1 + .55;
-    t_new__ = d_int(&d__1) * p1;
+    t_new__ = floor(d__1) * p1;
     err_loc__ = max(err_loc__,rndoff);
 
 /* ---  update the time covered ... */
@@ -697,13 +719,13 @@ L401:
 
 /* ---  display and keep some information ... */
 
-    if (*itrace != 0) {
+#ifdef DEBUG
 /*        print*,'integration',nstep,'---------------------------------' */
 /*        print*,'scale-square =',ns */
 /*        print*,'step_size =',t_step */
 /*        print*,'err_loc   =',err_loc */
 /*        print*,'next_step =',t_new */
-    }
+#endif
     step_min__ = min(step_min__,t_step__);
     step_max__ = max(step_max__,t_step__);
     s_error__ += err_loc__;
@@ -731,11 +753,11 @@ L500:
 /*     wsp(9)  = hump/vnorm */
 /*     wsp(10) = beta/vnorm */
     if(iflag) laerror("dgexpv error");
-    return; 
-} 
-
+delete[] ++wsp; delete[] ++iwsp;
 return;
-}
+} 
+#undef FORNAME
+#undef pow_dd
 
 
 //@@@ power series matrix logarithm?
