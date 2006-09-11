@@ -156,8 +156,8 @@ return int(ceil(log(n)/log2-log(.75)));
 }
 
 
-template<class T>
-NRVec<typename LA_traits<T>::elementtype> exp_aux(const T &x, int &power)
+template<class T, class C>
+NRVec<C> exp_aux(const T &x, int &power)
 {
 //should better be computed by mathematica to have accurate last digits, chebyshev instead, see exp in glibc
 static double exptaylor[]={
@@ -183,7 +183,7 @@ static double exptaylor[]={
 8.2206352466243294955e-18,
 4.1103176233121648441e-19,
 0.};
-double mnorm= LA_traits<T>::norm(x);
+double mnorm= x.norm();
 power=nextpow2(mnorm); 
 double scale=exp(-log(2.)*power);
 
@@ -204,7 +204,7 @@ while(t*exptaylor[n]>precision);//taylor 0 will terminate in any case
 
 
 int i; //adjust the coefficients in order to avoid scaling the argument
-NRVec<typename LA_traits<T>::elementtype> taylor2(n+1);
+NRVec<C> taylor2(n+1);
 for(i=0,t=1.;i<=n;i++)
 	{
 	taylor2[i]=exptaylor[i]*t;
@@ -222,7 +222,7 @@ const T exp(const T &x, const bool horner=true)
 int power;
 
 //prepare the polynom of and effectively scale T
-NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux(x,power);
+NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux<T,typename LA_traits<T>::elementtype>(x,power);
 
 
 T r= horner?polynom0(x,taylor2):polynom(x,taylor2); 
@@ -242,7 +242,7 @@ const V exptimes(const M &mat, V vec) //uses just matrix vector multiplication
 if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)vec.size()) laerror("inappropriate sizes in exptimes");
 int power;
 //prepare the polynom of and effectively scale the matrix
-NRVec<typename LA_traits<M>::elementtype> taylor2=exp_aux(mat,power);
+NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power);
 
 V result(mat.nrows());
 for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it many times, unlike if the matrix is stored explicitly
