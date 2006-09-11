@@ -42,7 +42,8 @@ public:
 	inline NRVec(): nn(0),v(0),count(0){};
 	explicit inline NRVec(const int n) : nn(n), v(new T[n]), count(new int(1)) {};
 	inline NRVec(const T &a, const int n);
-	inline NRVec(const T *a, const int n);
+        inline NRVec(const T *a, const int n);
+	inline NRVec(T *a, const int n, bool skeleton);
 	inline NRVec(const NRVec &rhs);
 	inline explicit NRVec(const NRSMat<T> & S);
 #ifdef MATPTR
@@ -136,10 +137,27 @@ inline NRVec<T>::NRVec(const T& a, const int n) : nn(n), v(new T[n]), count(new 
 }
 
 template <typename T>
-inline NRVec<T>::NRVec(const T *a, const int n) : nn(n), v(new T[n]), count(new int)
+inline NRVec<T>::NRVec(const T *a, const int n) : nn(n), count(new int)
 {
-	*count = 1;
-	memcpy(v, a, n*sizeof(T));
+		v=new T[n];
+		*count = 1;
+		memcpy(v, a, n*sizeof(T));
+}
+
+template <typename T>
+inline NRVec<T>::NRVec(T *a, const int n, bool skeleton) : nn(n), count(new int)
+{
+	if(!skeleton)
+		{
+		v=new T[n];
+		*count = 1;
+		memcpy(v, a, n*sizeof(T));
+		}
+	else
+		{
+		*count = 2;
+		v=a;
+		}
 }
 
 template <typename T>

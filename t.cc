@@ -675,9 +675,12 @@ int n;
 double f;
 cin>>n >>f ;
 NRMat<double> a(n,n);
-for(int i=0;i<n;++i) for(int j=0;j<n;++j)
+NRVec<double>u(n),v,w;
+for(int i=0;i<n;++i) 
         {
-        a(i,j)= f*random()/(1.+RAND_MAX);
+	u[i]=f*random()/(1.+RAND_MAX);
+	for(int j=0;j<n;++j)
+       		 a(i,j)= f*random()/(1.+RAND_MAX);
         }
 //cout <<"a matrix \n"<<a;
 //cout<<"EXP\n";
@@ -694,6 +697,13 @@ t=clock()/((double) (CLOCKS_PER_SEC));
 c=exp(a,false);
 cout <<" tricky exp  took "<<clock()/((double) (CLOCKS_PER_SEC))-t<<endl;
 cout<<"error2 = "<<(c-b).norm()/b.norm()<<endl;
+
+v=b*u;
+t=clock()/((double) (CLOCKS_PER_SEC));
+w=exptimes(a,u);
+cout <<"exptimes  took "<<clock()/((double) (CLOCKS_PER_SEC))-t<<endl;
+cout <<"error of exptimes = "<<(v-w).norm()/v.norm()<<endl;
+
 
 }
 

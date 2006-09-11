@@ -186,9 +186,9 @@ void cblas_dgemv(const enum CBLAS_ORDER Order,
                  const double *X, const int incX, const double beta,
                  double *Y, const int incY)
 {
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(Order!=CblasRowMajor) FORNAME(dgemv) (TransA==CblasNoTrans?"N":"T", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
 //swap n-m and toggle transposition
-FORNAME(dgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
+else FORNAME(dgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
 }
 
 

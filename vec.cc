@@ -450,6 +450,7 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 	if ((trans == 'n'?A.ncols():A.nrows()) != x.size())
 		laerror("incompatible sizes in gemv A*x");
 #endif
+	copyonwrite();
 	cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans),
 			A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
 }
@@ -463,6 +464,7 @@ void NRVec< complex<double> >::gemv(const complex<double> beta,
 	if ((trans == 'n'?A.ncols():A.nrows()) != x.size()) 
 		laerror("incompatible sizes in gemv A*x");
 #endif
+	copyonwrite();
 	cblas_zgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans), 
 			A.nrows(), A.ncols(), &alpha, A, A.ncols(), 
 			x.v, 1, &beta, v, 1);
@@ -476,7 +478,7 @@ void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
 #ifdef DEBUG
 	if (A.ncols()!=x.size()) laerror("incompatible dimension in gemv A*x");
 #endif
-	NRVec<double> result(nn);
+	copyonwrite();
 	cblas_dspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, x.v, 1, beta, v, 1);
 }
 
@@ -489,7 +491,7 @@ void NRVec< complex<double> >::gemv(const complex<double> beta,
 #ifdef DEBUG
 	if (A.ncols()!=x.size()) laerror("incompatible dimension in gemv");
 #endif
-	NRVec< complex<double> > result(nn);
+	copyonwrite();
 	cblas_zhpmv(CblasRowMajor, CblasLower, A.ncols(), &alpha, A, 
 			x.v, 1, &beta, v, 1);
 }

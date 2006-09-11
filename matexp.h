@@ -248,28 +248,43 @@ return r;
 
 //this simple implementation seems not to be numerically stable enough
 //and probably not efficient either
+//@@@ make more efficient - for nilpotent mat at known power and 
+
 template<class M, class V>
-const V exptimesnaive(const M &mat, V vec) //uses just matrix vector multiplication
+void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const double scale=1. ) //uses just matrix vector multiplication
 {
-if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)vec.size()) laerror("inappropriate sizes in exptimes");
+if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.size()) laerror("inappropriate sizes in exptimes");
+
 int power;
 //prepare the polynom of and effectively scale the matrix
 NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power);
+cerr <<"test power "<<power<<endl;
 
-V result(mat.nrows());
+V tmp;
+
 for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it many times, unlike if the matrix is stored explicitly
 	{
-	if(i>1) vec=result; //apply again to the result of previous application
-	//apply polynom of the matrix to the vector iteratively
-	V y=vec;
-	result=y*taylor2[0];
+	if(i>1) rhs=result; //apply again to the result of previous application
+	else result=rhs;
+	tmp=rhs; //now rhs can be used as scratch	
+	result*=taylor2[0];
 	for(int j=1; j<taylor2.size(); ++j)
 		{
-		y=mat*y;
-		result.axpy(taylor2[j],y);
+		mat.gemv(0.,rhs,transpose?'t':'n',scale,tmp);
+		tmp=rhs;
+		result.axpy(taylor2[j],tmp);
 		}
 	}
 
+return;
+}
+
+
+template<class M, class V>
+const V exptimes(const M &mat, V rhs, bool transpose=false, const double scale=1.)
+{
+V result;
+exptimesdestructive(mat,result,rhs,transpose,scale);
 return result;
 }
 
@@ -279,8 +294,7 @@ return result;
 
 
 
-
-
+#ifdef EXPOKIT
 //this comes from dgexpv from expokit, it had to be translated to C to make a template
 // dgexpv.f -- translated by f2c (version 20030320).
 
@@ -323,13 +337,13 @@ extern "C" void FORNAME(dnchbv)(int *, double *, double *, int *, double *, doub
 
 //partial template specialization leaving still free room for generic matrix type
 template<class M>
-extern void exptimes(const M &mat, NRVec<double> &result, const NRVec<double> &rhs, bool transpose=false, const double t=1., int mxkrylov=0, double tol=1e-14, int mxstep=1000, int mxreject=0, int ideg=6)
+extern void dgexpv(const M &mat, NRVec<double> &result, const NRVec<double> &rhs, bool transpose=false, const double t=1., int mxkrylov=0, double tol=1e-14, int mxstep=1000, int mxreject=0, int ideg=6)
 {
 if(mat.nrows()!= mat.ncols()) laerror("non-square matrix in exptimes");
 int n=mat.nrows();
 int m;
-if(mxkrylov)  m=mxkrylov; else m= n>100? 100: n-1;
-if (m >= n || m <= 0) laerror("illegal mxkrylov");
+if(mxkrylov)  m=mxkrylov; else m= n>100? 100: (n>1?n-1:1);
+if (m > n || m <= 0) laerror("illegal mxkrylov");
 if(result.size()!=n || rhs.size()!=n) laerror("inconsistent vector and matrix size in exptimes");
 
 const double *v=rhs;
@@ -765,6 +779,9 @@ return;
 } 
 #undef FORNAME
 #undef pow_dd
+
+#endif 
+//EXPOKIT
 
 
 //@@@ power series matrix logarithm?
