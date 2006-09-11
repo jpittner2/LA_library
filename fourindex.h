@@ -639,12 +639,15 @@ fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense(const fourindex_ex
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex_ext<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p) 
+	{
 #ifdef DEBUG
 unsigned int IJ = SMat_index_1(p->index.indiv.i,p->index.indiv.j);
 unsigned int KL = SMat_index_1(p->index.indiv.k,p->index.indiv.l);
 if (IJ<0 || IJ>=(unsigned int)NRSMat<T>::nn || KL<0 || KL>=(unsigned int)NRSMat<T>::nn) laerror("fourindex_dense index out of range in constructor");
 #endif
-for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j ,p->index.indiv.k,p->index.indiv.l) = p->elem;
+	(*this)(p->index.indiv.i,p->index.indiv.j ,p->index.indiv.k,p->index.indiv.l) = p->elem;
+	}
 }
 
 
