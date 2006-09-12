@@ -233,4 +233,26 @@ return cblas_ddot(n,x,incx,y,incy);
 }
 
 
+
+//debugging aid: reconstruct an explicit matrix from the implicit version
+//which provides gemv only
+template<typename M, typename T>
+NRMat<T> reconstructmatrix(const M &implicitmat)
+{
+NRMat<T> r(implicitmat.nrows(),implicitmat.ncols());
+NRVec<T> rhs(0.,implicitmat.ncols());
+NRVec<T> tmp(implicitmat.nrows());
+for(int i=0; i<implicitmat.ncols(); ++i)
+	{
+	rhs[i]=1.;
+	implicitmat.gemv(0.,tmp,'n',1.,rhs);
+	for(int j=0; j<implicitmat.nrows(); ++j) r(j,i)=tmp[j];
+	rhs[i]=0.;
+	}
+return r;
+}
+
+
+
+
 #endif
