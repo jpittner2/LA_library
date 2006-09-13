@@ -267,7 +267,7 @@ inline T & NRMat<T>::operator()(const int i, const int j)
 {
 #ifdef DEBUG
 	if (*count != 1) laerror("Mat lval use of (,) with count > 1");
-	if (i<0 || i>=nn || j<0 || j>=mm) laerror("Mat (,) out of range");
+	if (i<0 || i>=nn &&nn>0 || j<0 || j>=mm && mm>0) laerror("Mat (,) out of range");
 	if (!v) laerror("(,) for unallocated Mat");
 #endif
 #ifdef MATPTR
@@ -280,7 +280,7 @@ template <typename T>
 inline const T & NRMat<T>::operator()(const int i, const int j) const
 {
 #ifdef DEBUG
-	if (i<0 || i>=nn || j<0 || j>=mm) laerror("Mat (,) out of range");
+	if (i<0 || i>=nn&&nn>0 || j<0 || j>=mm&& mm>0) laerror("Mat (,) out of range");
 	if (!v) laerror("(,) for unallocated Mat");
 #endif
 #ifdef MATPTR
