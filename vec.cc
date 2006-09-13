@@ -274,6 +274,8 @@ NRVec< complex<double> > & NRVec< complex<double> >::normalize()
 
 //stubs for linkage
 template<>
+NRVec<unsigned char> &  NRVec<unsigned char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
+template<>
 NRVec<int> &  NRVec<int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 template<>
 NRVec<short> &  NRVec<short>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
@@ -535,6 +537,7 @@ else return memqsort<0,NRVec<T>,int,int>(*this,perm,from,to);
 template class NRVec<double>;
 template class NRVec<complex<double> >;
 template class NRVec<char>;
+template class NRVec<unsigned char>;
 template class NRVec<short>;
 template class NRVec<int>;
 template class NRVec<unsigned int>;

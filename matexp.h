@@ -258,7 +258,6 @@ if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.siz
 int power;
 //prepare the polynom of and effectively scale the matrix
 NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power,maxpower,maxtaylor);
-cerr <<"test power "<<power<<endl;
 
 V tmp;
 

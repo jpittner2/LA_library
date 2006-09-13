@@ -18,19 +18,20 @@ extern ssize_t write(int, const void *, size_t);
 
 //row of
 template <typename T>
-const NRVec<T> NRMat<T>::row(const int i) const
+const NRVec<T> NRMat<T>::row(const int i, int l) const
 {
 #ifdef DEBUG
 if(i<0||i>=nn) laerror("illegal index in row()");
 #endif
-NRVec<T> r(mm);
+if(l < 0) l=mm;
+NRVec<T> r(l);
 LA_traits<T>::copy(&r[0],
 #ifdef MATPTR
         v[i]
 #else
-        v+i*mm
+        v+i*l
 #endif
-,mm);
+,l);
 return r;
 }
 
