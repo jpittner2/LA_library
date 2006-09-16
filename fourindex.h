@@ -729,7 +729,7 @@ if(i<1||i>nocc ||j<1||j>nocc|| a<1||a>nvrt||b<1||b>nvrt) laerror("T2ijab_aces fo
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 int minus=0;
-if(i==j||a==b) return (T)0;
+if(i==j||a==b) return (T)0; //important, needed
 if(i<j) {minus++; unsigned int t=i; i=j; j=t;}
 if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
 T val=(*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1);
