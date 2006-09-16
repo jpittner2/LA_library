@@ -213,7 +213,7 @@ template<>
 inline NRVec<double> & NRVec<double>::operator-=(const double &a)
 {
 	copyonwrite();
-	cblas_daxpy(nn, 1.0, &a, 0, v, 1);
+	cblas_daxpy(nn, -1.0, &a, 0, v, 1);
 	return *this;
 }
 
