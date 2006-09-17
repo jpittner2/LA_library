@@ -735,6 +735,19 @@ if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
 T val=(*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1);
 return (minus&1)? -val:val;
 }
+	inline void set(unsigned int i, unsigned int j, unsigned int a, unsigned int b, T elem)
+{
+#ifdef DEBUG
+if(i<1||i>nocc ||j<1||j>nocc|| a<1||a>nvrt||b<1||b>nvrt) laerror("T2ijab_aces fourindex out of range");
+if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
+if(i==j||a==b && elem) laerror("antisymmetry violation in fourindex_dense<T2ijab_aces>");
+#endif
+int minus=0;
+if(i<j) {minus++; unsigned int t=i; i=j; j=t;}
+if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
+(*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1) = minus? -elem : elem;
+}
+
 
 };
 
