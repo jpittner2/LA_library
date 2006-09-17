@@ -720,6 +720,7 @@ private:
 public:
         fourindex_dense(): NRMat<T>() {nocc=nvrt=ntri=0;};
         explicit fourindex_dense(const int noc, const int nvr): NRMat<T>(noc*(noc-1)/2,nvr*(nvr-1)/2) {nocc=noc; nvrt=nvr; ntri=nvr*(nvr-1)/2;};
+	void resize(const int noc, const int nvr) {(*this).NRMat<T>::resize(noc*(noc-1)/2,nvr*(nvr-1)/2); nocc=noc; nvrt=nvr; ntri=nvr*(nvr-1)/2;};
 
 //we cannot return reference due to the possible sign change
 //stored values are for i>j a>b
