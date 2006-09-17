@@ -690,6 +690,7 @@ private:
 	unsigned int noca,nocb,nvra,nvrb;
 public:
         fourindex_dense(): NRMat<T>() {noca=nocb=nvra=nvrb=0;};
+	void resize(const int nocca, const int noccb, const int nvrta, const int nvrtb) {noca=nocca; nocb=noccb; nvra=nvrta; nvrb=nvrtb; (*this).NRMat<T>::resize(nocca*noccb,nvrta*nvrtb);};
         explicit fourindex_dense(const int nocca, const int noccb, const int nvrta, const int nvrtb): NRMat<T>(nocca*noccb,nvrta*nvrtb) {noca=nocca; nocb=noccb; nvra=nvrta; nvrb=nvrtb;};
 
 //here i,a are alpha j,b beta
