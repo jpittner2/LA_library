@@ -9,7 +9,9 @@
 #include "la_traits.h"
 #include "auxstorage.h"
 
-// T is some solution vector in form of NRVec, NRMat, or NRSMat over double or complex<double> fields
+// Typically, T is some solution vector in form of NRVec, NRMat, or NRSMat over double or complex<double> fields
+// actually it can be anything what has operator=(), dot() , axpy(), norm() and copyonwrite(), and LA_traits<T>::normtype and elementtype
+// and get() and put() if external storage is requested
 
 template<typename T>
 class DIIS
@@ -23,7 +25,9 @@ class DIIS
 	AuxStorage<Te> *st;
 	T *stor;
 public:
+	DIIS() {dim=0;}; //for array of diis
 	DIIS(const int n, const bool core=1);
+	void setup(const int n, const bool core=1);
 	~DIIS();
 	typename LA_traits<T>::normtype extrapolate(T &vec); //vec is input/output; returns square residual norm
 	};
@@ -35,8 +39,20 @@ st=incore?NULL: new AuxStorage<Te>;
 stor= incore? new T[dim] : NULL;
 bmat= (Te)0; for(int i=1; i<n; ++i) bmat(0,i) = (Te)-1; 
 aktdim=cyclicshift=0;
-
 }
+
+template<typename T>
+void DIIS<T>::setup(const int n, const bool core)
+{
+dim=n;
+incore=core;
+bmat.resize(n);
+st=incore?NULL: new AuxStorage<Te>;
+stor= incore? new T[dim] : NULL;
+bmat= (Te)0; for(int i=1; i<n; ++i) bmat(0,i) = (Te)-1;
+aktdim=cyclicshift=0;
+}
+
 
 template<typename T>
 DIIS<T>::~DIIS()
@@ -49,6 +65,7 @@ if(stor) delete[] stor;
 template<typename T>
 typename LA_traits<T>::normtype DIIS<T>::extrapolate(T &vec)
 {
+if(!dim) laerror("attempt to extrapolate from uninitialized DIIS");
 //if dim exceeded, shift 
 if(aktdim==dim)
 	{
@@ -68,12 +85,12 @@ if(aktdim==1) return (typename LA_traits<T>::normtype)1000000000;
 
 //calculate difference; 
 vec.copyonwrite();
-if(incore) vec -= stor[(aktdim-2+cyclicshift)%dim];
+if(incore) vec.axpy((Te)-1,stor[(aktdim-2+cyclicshift)%dim]);
 else
 	{
 	T tmp=vec;
 	st->get(tmp,(aktdim-2+cyclicshift)%dim);
-	vec -= tmp;
+	vec.axpy((Te)-1,tmp);
 	}
 
 //calculate overlaps of differences (if storage is cheap, they could rather be stored than recomputed)

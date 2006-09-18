@@ -25,7 +25,9 @@ extern "C" {
 //forward declarations
 template<typename C> class NRVec;
 template<typename C> class NRMat;
+template<typename C> class NRMat_from1;
 template<typename C> class NRSMat;
+template<typename C> class NRSMat_from1;
 template<typename C> class SparseMat;
 
 //for general sortable classes
@@ -174,30 +176,34 @@ static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest
 
 //non-scalar types defined in this library
 generate_traits(NRMat)
+generate_traits(NRMat_from1)
 generate_traits(NRVec)
 generate_traits(SparseMat)
 
 #undef generate_traits
 
 //smat
-template<typename C> 
-struct LA_traits_aux<NRSMat<C>, scalar_false> { 
-typedef C elementtype; 
-typedef NRMat<C> producttype; 
-typedef typename LA_traits<C>::normtype normtype; 
-static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;}
-static inline bool bigger(const  C &x, const C &y) {return x>y;}
-static inline bool smaller(const  C &x, const C &y) {return x<y;}
-static inline normtype norm (const NRSMat<C> &x) {return x.norm();} 
-static inline void axpy (NRSMat<C>&s, const NRSMat<C> &x, const C c) {s.axpy(c,x);} 
-static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);} 
-static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);} 
-static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} 
-static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} 
-static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} 
-static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}
+#define generate_traits_smat(X) \
+template<typename C>  \
+struct LA_traits_aux<X<C>, scalar_false> {  \
+typedef C elementtype;  \
+typedef NRMat<C> producttype;  \
+typedef typename LA_traits<C>::normtype normtype;  \
+static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
+static inline bool bigger(const  C &x, const C &y) {return x>y;} \
+static inline bool smaller(const  C &x, const C &y) {return x<y;} \
+static inline normtype norm (const X<C> &x) {return x.norm();}  \
+static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);}  \
+static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);}  \
+static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);}  \
+static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);}  \
+static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
+static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];}  \
+static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();} \
 };
 
+generate_traits_smat(NRSMat)
+generate_traits_smat(NRSMat_from1)
 
 //the final traits class
 template<typename C>

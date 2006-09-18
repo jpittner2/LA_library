@@ -600,7 +600,16 @@ istream& operator>>(istream  &s, fourindex<I,T> &x)
 //note - loops for the twoelectronrealmullikan integral to be unique and in canonical order
 // i=1..n, j=1..i, k=1..i, l=1..(i==k?j:k)
 
+//general template declaration
 template<fourindexsymtype S, class T, class DUMMY> class fourindex_dense;
+
+//traits class
+template<fourindexsymtype S, class T, class DUMMY>
+struct LA_traits<fourindex_dense<S,T,DUMMY> > {
+typedef T elementtype;
+typedef typename LA_traits<T>::normtype normtype;
+};
+
 
 //make it as a derived class in order to be able to use it in a base class context - "supermatrix" operations
 template<class T, class I> 
@@ -765,9 +774,6 @@ if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
 
 
 };
-
-
-
 
 
 
