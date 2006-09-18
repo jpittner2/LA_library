@@ -10,7 +10,7 @@
 #include "auxstorage.h"
 
 // Typically, T is some solution vector in form of NRVec, NRMat, or NRSMat over double or complex<double> fields
-// actually it can be anything what has operator=(), dot() , axpy(), norm() and copyonwrite(), and LA_traits<T>::normtype and elementtype
+// actually it can be anything what has operator=(const T&), clear(), dot() , axpy(), norm() and copyonwrite(), and LA_traits<T>::normtype and elementtype
 // and get() and put() if external storage is requested
 
 template<typename T>
@@ -124,7 +124,7 @@ linear_solve(amat,rhs,NULL,aktdim);
 }
 
 //build the new linear combination
-vec = (Te)0;
+vec.clear();
 if(incore)
 	for(int i=1; i<aktdim; ++i) vec.axpy(rhs[i],stor[(i+cyclicshift)%dim]);
 else
