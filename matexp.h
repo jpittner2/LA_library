@@ -251,8 +251,9 @@ return r;
 //and probably not efficient either
 
 template<class M, class V>
-void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1) //uses just matrix vector multiplication
+void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
 {
+if(mat_is_0) {result=rhs; return;}
 if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.size()) laerror("inappropriate sizes in exptimes");
 
 int power;
@@ -280,10 +281,10 @@ return;
 
 
 template<class M, class V>
-const V exptimes(const M &mat, V rhs, bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1 )
+const V exptimes(const M &mat, V rhs, bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false )
 {
 V result;
-exptimesdestructive(mat,result,rhs,transpose,scale,maxpower,maxtaylor);
+exptimesdestructive(mat,result,rhs,transpose,scale,maxpower,maxtaylor,mat_is_0);
 return result;
 }
 
