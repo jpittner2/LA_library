@@ -696,6 +696,7 @@ const NRMat<double> NRMat<double>::operator*(const NRMat<double> &rhs) const
 {
 #ifdef DEBUG
 	if (mm != rhs.nn) laerror("product of incompatible matrices");
+	if (rhs.mm <=0) laerror("illegal matrix dimension in gemm");
 #endif
 	NRMat<double> result(nn, rhs.mm);
 	cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nn, rhs.mm, mm, 1.0,
@@ -868,6 +869,7 @@ void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 	int kk(transb=='n'?b.nn:b.mm);
 	int ll(transb=='n'?b.mm:b.nn);
 	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in Mat:gemm()");
+	if(b.mm <=0 || mm<=0) laerror("illegal matrix dimension in gemm");
 #endif
 	if (alpha==0.0 && beta==1.0) return;
 
