@@ -92,6 +92,7 @@ public:
 	const NRMat transpose(bool conj=false) const;
 	const NRMat conjugate() const;
         const NRMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const; //there is also independent less efficient routine for generally indexed submatrix
+	void storesubmatrix(const int fromrow, const int fromcol, const NRMat &rhs); //overwrite a block with external matrix
 	void gemm(const T &beta, const NRMat &a, const char transa, const NRMat &b,
 			const char transb, const T &alpha);//this = alpha*op( A )*op( B ) + beta*this
 	void fprintf(FILE *f, const char *format, const int modulo) const;

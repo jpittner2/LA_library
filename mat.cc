@@ -243,6 +243,24 @@ for(int i=fromrow; i<=torow; ++i)
 return r;
 }
 
+template <typename T>
+void NRMat<T>::storesubmatrix(const int fromrow, const int fromcol, const NRMat &rhs)
+{
+int tocol=fromcol+rhs.ncols()-1;
+int torow=fromrow+rhs.nrows()-1;
+#ifdef DEBUG
+if(fromrow <0 ||fromrow >=nn||torow >=nn ||fromcol<0||fromcol>=mm||tocol>=mm) laerror("bad indices in storesubmatrix");
+#endif
+int n=torow-fromrow+1;
+int m=tocol-fromcol+1;
+for(int i=fromrow; i<=torow; ++i)
+#ifdef MATPTR
+        memcpy(v[i]+fromcol,rhs.v[i-fromrow],m*sizeof(T));
+#else
+        memcpy(v+i*mm+fromcol,rhs.v+(i-fromrow)*m,m*sizeof(T));
+#endif
+}
+
 
 // transpose Mat
 template <typename T>
