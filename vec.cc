@@ -15,8 +15,6 @@ extern ssize_t write(int, const void *, size_t);
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corespoding object file
 #define INSTANTIZE(T) \
-template ostream & operator<<(ostream &s, const NRVec< T > &x); \
-template istream & operator>>(istream  &s, NRVec< T > &x); \
 template void NRVec<T>::put(int fd, bool dim, bool transp) const; \
 template void NRVec<T>::get(int fd, bool dim, bool transp); \
 
@@ -53,30 +51,6 @@ NRVec<T>::NRVec(const NRMat<T> &rhs)
 
 
 
-
-// formatted I/O
-template <typename T>
-ostream & operator<<(ostream &s, const NRVec<T> &x)
-{
-  int i, n;
-
-  n = x.size();
-  s << n << endl;
-  for(i=0; i<n; i++) s << (typename LA_traits_io<T>::IOtype)x[i] << (i == n-1 ? '\n' : ' ');
-  return s;
-}
-
-template <typename T>
-istream & operator>>(istream &s, NRVec<T> &x)
-{
-  int i,n;
-
-  s >> n;
-  x.resize(n);
-  typename LA_traits_io<T>::IOtype tmp;
-  for(i=0; i<n; i++) {s >> tmp; x[i]=tmp;}
-  return s;
-}
 
 
 //raw I/O

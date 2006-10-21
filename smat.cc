@@ -358,50 +358,6 @@ void NRSMat< complex<double> >::axpy(const complex<double> alpha,
 }
 
 
-export template <typename T>
-ostream& operator<<(ostream &s, const NRSMat<T> &x)
-                {
-                int i,j,n;
-                n=x.nrows();
-                s << n << ' ' << n << '\n';
-                for(i=0;i<n;i++)
-                        {
-                        for(j=0; j<n;j++) s << (typename LA_traits_io<T>::IOtype)x(i,j) << (j==n-1 ? '\n' : ' ');
-                        }
-                return s;
-                }
-
-
-export template <typename T>
-istream& operator>>(istream  &s, NRSMat<T> &x)
-                {
-                int i,j,n,m;
-                s >> n >> m;
-                if(n!=m) laerror("input symmetric matrix not square");
-                x.resize(n);
-		typename LA_traits_io<T>::IOtype tmp;
-                for(i=0;i<n;i++) for(j=0; j<m;j++) {s>>tmp; x(i,j)=tmp;}
-                return s;
-                }
-
-
-
-
-//////////////////////////////////////////////////////////////////////////////
-//// forced instantization in the corespoding object file
-#define INSTANTIZE(T) \
-template ostream & operator<<(ostream &s, const NRSMat< T > &x); \
-template istream & operator>>(istream  &s, NRSMat< T > &x); \
-
-INSTANTIZE(double)
-INSTANTIZE(complex<double>)
-INSTANTIZE(int)
-INSTANTIZE(short)
-INSTANTIZE(char)
-INSTANTIZE(unsigned int)
-INSTANTIZE(unsigned long)
-
-
 
 //////////////////////////////////////////////////////////////////////////////
 ////// forced instantization in the corresponding object file

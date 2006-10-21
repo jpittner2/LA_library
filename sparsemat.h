@@ -137,11 +137,48 @@ template <typename T>
 inline const NRMat<T> SparseMat<T>::operator*(const NRMat<T> &rhs) const
 {NRMat<T> result(nn,rhs.ncols()); result.gemm((T)0,*this,'n',rhs,'n',(T)1); return result;};
 
-template <typename T>
-	extern istream& operator>>(istream  &s, SparseMat<T> &x);
+template <class T>
+ostream& operator<<(ostream &s, const SparseMat<T> &x)
+                {
+                SPMatindex n,m;
+                n=x.nrows();
+                m=x.ncols();
+                s << (int)n << ' ' << (int)m << '\n';
+		matel<T> *list=x.getlist();
+		while(list)
+                        {
+                        s << (int)list->row << ' ' << (int)list->col  << ' ' << (typename LA_traits_io<T>::IOtype)list->elem << '\n';
+			list=list->next;
+                        }
+		s << "-1 -1\n";
+                return s;
+                }
 
-template <typename T>
-	extern ostream& operator<<(ostream &s, const SparseMat<T> &x);
+template <class T>
+istream& operator>>(istream  &s, SparseMat<T> &x)
+                {
+                int i,j;
+		int n,m;
+		matel<T> *l=NULL;
+                s >> n >> m;
+                x.resize(n,m);
+		s >> i >> j;
+		while(i>=0 && j>=0)
+			{
+			matel<T> *ll = l;
+			l= new matel<T>;
+			l->next= ll;
+			l->row=i;
+			l->col=j;
+			typename LA_traits_io<T>::IOtype tmp;
+			s >> tmp;
+			l->elem=tmp;	
+			s >> i >> j;
+			}
+		x.setlist(l);
+                return s;
+                }
+
 
 //destructor
 template <typename T>

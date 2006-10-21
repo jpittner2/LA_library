@@ -119,8 +119,30 @@ public:
 #include "smat.h"
 #include "sparsemat.h"
 
-template <typename T> ostream & operator<<(ostream &s, const NRVec<T> &x);
-template <typename T> istream & operator>>(istream  &s, NRVec<T> &x);
+// formatted I/O
+template <typename T>
+ostream & operator<<(ostream &s, const NRVec<T> &x)
+{
+  int i, n;
+
+  n = x.size();
+  s << n << endl;
+  for(i=0; i<n; i++) s << (typename LA_traits_io<T>::IOtype)x[i] << (i == n-1 ? '\n' : ' ');
+  return s;
+}
+
+template <typename T>
+istream & operator>>(istream &s, NRVec<T> &x)
+{
+  int i,n;
+
+  s >> n;
+  x.resize(n);
+  typename LA_traits_io<T>::IOtype tmp;
+  for(i=0; i<n; i++) {s >> tmp; x[i]=tmp;}
+  return s;
+}
+
 
 // INLINES
 

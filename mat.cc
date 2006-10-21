@@ -755,7 +755,7 @@ void NRMat<double>::diagmultr(const NRVec<double> &rhs)
 	if (mm != rhs.size()) laerror("incompatible matrix dimension in diagmultr");
 #endif
 	copyonwrite();
-	for (int i=0; i<mm; i++) cblas_dscal(nn, rhs[i], (*this)[i], mm);
+	for (int i=0; i<mm; i++) cblas_dscal(nn, rhs[i], &(*this)(0,i), mm);
 }
 
 
@@ -767,7 +767,7 @@ void NRMat< complex<double> >::diagmultr(const NRVec< complex<double> > &rhs)
 	if (mm != rhs.size()) laerror("incompatible matrix dimension in diagmultl");
 #endif
 	copyonwrite();
-	for (int i=0; i<mm; i++) cblas_zscal(nn, &rhs[i], (*this)[i], mm);
+	for (int i=0; i<mm; i++) cblas_zscal(nn, &rhs[i], &(*this)(0,i), mm);
 }
 
 
@@ -1049,59 +1049,8 @@ return divide?NULL:&r[0];
 
 
 
-//////////////////////////////////////////////////////////////////////////////
-//// forced instantization in the corespoding object file
-#define INSTANTIZE(T) \
-template ostream & operator<<(ostream &s, const NRMat< T > &x); \
-template istream & operator>>(istream  &s, NRMat< T > &x); \
-
-INSTANTIZE(double)
-INSTANTIZE(complex<double>)
-INSTANTIZE(int)
-INSTANTIZE(short)
-INSTANTIZE(char)
-INSTANTIZE(unsigned char)
-INSTANTIZE(unsigned long)
-INSTANTIZE(unsigned int)
-
-
-export template <typename T>
-ostream& operator<<(ostream &s, const NRMat<T> &x)
-                {
-                int i,j,n,m;
-                n=x.nrows();
-                m=x.ncols();
-                s << n << ' ' << m << '\n';
-                for(i=0;i<n;i++)
-                        {
-                        for(j=0; j<m;j++) s << (typename LA_traits_io<T>::IOtype) x[i][j] << (j==m-1 ? '\n' : ' '); // endl cannot be used in the conditional expression, since it is an overloaded function
-                        }
-                return s;
-                }
-
-export template <typename T>
-istream& operator>>(istream  &s, NRMat<T> &x)
-                {
-                int i,j,n,m;
-                s >> n >> m;
-                x.resize(n,m);
-		typename LA_traits_io<T>::IOtype tmp;
-                for(i=0;i<n;i++) for(j=0; j<m;j++) { s>>tmp; x[i][j]=tmp;}
-                return s;
-                }
 
 //direct sum and product (oplus, otimes) to be done
-
-
-
-
-
-
-
-
-
-
-
 
 
 

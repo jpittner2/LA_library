@@ -548,8 +548,31 @@ return r;
 
 
 // I/O
-template <typename T> extern ostream& operator<<(ostream &s, const NRMat<T> &x);
-template <typename T> extern istream& operator>>(istream  &s, NRMat<T> &x);
+template <typename T>
+ostream& operator<<(ostream &s, const NRMat<T> &x)
+                {
+                int i,j,n,m;
+                n=x.nrows();
+                m=x.ncols();
+                s << n << ' ' << m << '\n';
+                for(i=0;i<n;i++)
+                        {
+                        for(j=0; j<m;j++) s << (typename LA_traits_io<T>::IOtype) x[i][j] << (j==m-1 ? '\n' : ' '); // endl cannot be used in the conditional expression, since it is an overloaded function
+                        }
+                return s;
+                }
+
+template <typename T>
+istream& operator>>(istream  &s, NRMat<T> &x)
+                {
+                int i,j,n,m;
+                s >> n >> m;
+                x.resize(n,m);
+		typename LA_traits_io<T>::IOtype tmp;
+                for(i=0;i<n;i++) for(j=0; j<m;j++) { s>>tmp; x[i][j]=tmp;}
+                return s;
+                }
+
 
 //optional indexing from 1
 //all possible constructors have to be given explicitly, other stuff is inherited

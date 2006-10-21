@@ -514,8 +514,32 @@ return r;
 }
 
 // I/O
-template <typename T> extern ostream& operator<<(ostream &s, const NRSMat<T> &x);
-template <typename T> extern istream& operator>>(istream  &s, NRSMat<T> &x);
+template <typename T>
+ostream& operator<<(ostream &s, const NRSMat<T> &x)
+                {
+                int i,j,n;
+                n=x.nrows();
+                s << n << ' ' << n << '\n';
+                for(i=0;i<n;i++)
+                        {
+                        for(j=0; j<n;j++) s << (typename LA_traits_io<T>::IOtype)x(i,j) << (j==n-1 ? '\n' : ' ');
+                        }
+                return s;
+                }
+
+
+template <typename T>
+istream& operator>>(istream  &s, NRSMat<T> &x)
+                {
+                int i,j,n,m;
+                s >> n >> m;
+                if(n!=m) laerror("input symmetric matrix not square");
+                x.resize(n);
+		typename LA_traits_io<T>::IOtype tmp;
+                for(i=0;i<n;i++) for(j=0; j<m;j++) {s>>tmp; x(i,j)=tmp;}
+                return s;
+                }
+
 
 // generate operators: SMat + a, a + SMat, SMat * a
 NRVECMAT_OPER(SMat,+)

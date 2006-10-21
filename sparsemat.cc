@@ -19,48 +19,6 @@ static inline void SWAP(T &a, T &b)
 
 
 
-export template <class T>
-ostream& operator<<(ostream &s, const SparseMat<T> &x)
-                {
-                SPMatindex n,m;
-                n=x.nrows();
-                m=x.ncols();
-                s << (int)n << ' ' << (int)m << '\n';
-		matel<T> *list=x.getlist();
-		while(list)
-                        {
-                        s << (int)list->row << ' ' << (int)list->col  << ' ' << (typename LA_traits_io<T>::IOtype)list->elem << '\n';
-			list=list->next;
-                        }
-		s << "-1 -1\n";
-                return s;
-                }
-
-export template <class T>
-istream& operator>>(istream  &s, SparseMat<T> &x)
-                {
-                int i,j;
-		int n,m;
-		matel<T> *l=NULL;
-                s >> n >> m;
-                x.resize(n,m);
-		s >> i >> j;
-		while(i>=0 && j>=0)
-			{
-			matel<T> *ll = l;
-			l= new matel<T>;
-			l->next= ll;
-			l->row=i;
-			l->col=j;
-			typename LA_traits_io<T>::IOtype tmp;
-			s >> tmp;
-			l->elem=tmp;	
-			s >> i >> j;
-			}
-		x.setlist(l);
-                return s;
-                }
-
 extern "C" {
 extern ssize_t read(int, void *, size_t);
 extern ssize_t write(int, const void *, size_t);
@@ -1309,8 +1267,6 @@ return *this;
 template SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs);\
 template SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs);\
 template SparseMat<T> & SparseMat<T>::oplusequal(const NRSMat<T> &rhs);\
-template ostream& operator<<(ostream &s, const SparseMat<T> &x); \
-template istream& operator>>(istream &s, SparseMat<T> &x); \
 template void SparseMat<T>::get(int fd, bool dimen, bool transp); \
 template void SparseMat<T>::put(int fd, bool dimen, bool transp) const; \
 template void SparseMat<T>::copyonwrite(); \
