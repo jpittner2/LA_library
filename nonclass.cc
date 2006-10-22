@@ -782,7 +782,7 @@ double trace2(const NRMat<double> &a, const NRMat<double> &b, bool trb)
 {
 	if (trb && (a.nrows() != b.nrows() || a.ncols() != b.ncols()) ||
 				!trb && (a.nrows() != b.ncols() || a.ncols() != b.nrows()))
-			laerror("incompatible Mats in diagofproduct<complex>()");
+			laerror("incompatible Mats in trace2()");
 	if (trb) return cblas_ddot(a.nrows()*a.ncols(), a, 1, b, 1);
 
 	double sum = 0.0;
@@ -798,10 +798,11 @@ double trace2(const NRSMat<double> &a, const NRSMat<double> &b,
 {
 	if (a.nrows() != b.nrows()) laerror("incompatible SMats in trace2()");
 
+	//double r = 0; for (int i=0; i<a.nrows()*(a.nrows()+1)/2; ++i) r += a[i]*b[i]; r+=r;
 	double r = 2.0*cblas_ddot(a.nrows()*(a.nrows()+1)/2, a, 1, b, 1);
 	if (diagscaled) return r;
-	//for (int i=0; i<a.nrows(); i++) r -= a(i,i)*b(i,i);
-	r -= cblas_ddot(a.nrows(),a,a.nrows()+1,b,a.nrows()+1);
+	for (int i=0; i<a.nrows(); i++) r -= a(i,i)*b(i,i);
+	//r -= cblas_ddot(a.nrows(),a,a.nrows()+1,b,a.nrows()+1); //@@@this was errorneous in one version of ATLAS
 	return r;
 }
 
