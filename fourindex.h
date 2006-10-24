@@ -285,6 +285,35 @@ public:
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
 	fourindexsymtype getsymmetry() const {return symmetry;}
 	void rewind() const {if(0!=lseek64(fd,0L,SEEK_SET)) {perror("seek error"); laerror("cannot seek in fourindex_ext");} };
+
+	//file output
+	void put(const matel4stored<I,T> x)
+		{
+		if(!current) current=buffer;
+		*current++ = x;
+		if(current-buffer >= bufsize ) flush();
+		}
+	void put(I i, I j, I k, I l, const T &elem)
+		{
+		if(!current) current=buffer;
+		current->index.indiv.i=i;
+		current->index.indiv.j=j;
+		current->index.indiv.k=k;
+		current->index.indiv.l=l;
+		current->elem = elem;
+		++current;
+		if(current-buffer >= bufsize ) flush();
+		}
+	void flush()
+		{
+		if(current)
+			{
+			ssize_t r=write(fd,buffer,(current-buffer)*sizeof(matel4stored<I,T>));
+			if(r!=(current-buffer)*sizeof(matel4stored<I,T>)) laerror("write error in fourindex_ext");
+			}
+		current=NULL;
+		}
+
 	inline I size() const {return nn;}
 	
 
