@@ -8,13 +8,13 @@
 
 //GMRES solution of a linear system
 
-//matrix can be any class which has nrows(), ncols(), diagonalof() and NRVec::gemv() available
+//matrix can be any class which has nrows(), ncols(), diagonalof() and gemv() available
 //does not even have to be explicitly stored
 
 
 /* GMRES-Algorithmus nach Schwarz, S. 552, original impl. M. Warken */
 /* allows zeilen!= spalten*/
-/* Matrix can be any class which provides nrows(), ncols(), nrvec::gemv(), and precondition(), does not have to store elements explicitly */
+/* Matrix can be any class which provides nrows(), ncols(), gemv(), and diagonalof(), does not have to store elements explicitly */
 
 template<class T>
 void gmres_backsubstitute(const NRMat<T> &R, NRVec<T> &c, const NRVec<T> &d, const int k)
@@ -28,7 +28,7 @@ for (int i=k-1;i>=0;i--) c[i] = (d[i]-xdot(k-i,&R(i,i+1),1,&c[i+1],1)) / R(i,i);
 
 //x contains ev. initial guess and on return the solution
 template<typename T, typename Matrix>
-void gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess, const double eps, const int MAXIT, const bool verbose, bool square,const bool precondition, int neustart, const int incore)
+void gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=1e-7, const int MAXIT=50, const bool verbose=1, bool square=1,const bool precondition=1, int neustart=0, const int incore=1)
 {
 int zeilen=bigmat.nrows();
 int spalten=bigmat.ncols();
@@ -55,7 +55,7 @@ st = incore?NULL:new AuxStorage<T>;
 
 if(doguess) 
 	{
-	x.gemv(0,bigmat,'t',-1.,b);
+	bigmat.gemv(0,x,'t',-1.,b); //x.gemv(0,bigmat,'t',-1.,b);
         if(precondition) bigmat.diagonalof(x,true);
 	x.normalize();
 	}
@@ -65,15 +65,15 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	{
 	if(square) // r_0 = b + A x_0
 		{
-		r_k.gemv(0,bigmat,'n',1,x);
+		bigmat.gemv(0,r_k,'n',1,x); //r_k.gemv(0,bigmat,'n',1,x);
 		r_k -= b;
 		}
 	else //r_0 = A^t b + A^t A x_0
 		{
 		NRVec<T> dum(zeilen);
-		dum.gemv(0,bigmat,'n',1,x);
-		r_k.gemv(0,bigmat,'t',1,dum);
-		z.gemv(0,bigmat,'t',-1.,b);
+		bigmat.gemv(0,dum,'n',1,x); //dum.gemv(0,bigmat,'n',1,x);
+		bigmat.gemv(0,r_k,'t',1,dum); //r_k.gemv(0,bigmat,'t',1,dum);
+		bigmat.gemv(0,z,'t',-1.,b); //z.gemv(0,bigmat,'t',-1.,b);
 	 	r_k += z; 
 		}
 
@@ -94,13 +94,13 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 		if(!incore) st->get(v[0],k);
 	        if(square)
                 	{
-			z.gemv(0,bigmat,'n',1,v[incore?k:0]);
+			bigmat.gemv(0,z,'n',1,v[incore?k:0]); //z.gemv(0,bigmat,'n',1,v[incore?k:0]);
                 	}
 		else
 			{
 			NRVec<T> dum(zeilen);
-			dum.gemv(0,bigmat,'n',1,v[incore?k:0]);
-			z.gemv(0,bigmat,'t',1,dum);
+			bigmat.gemv(0,dum,'n',1,v[incore?k:0]); //dum.gemv(0,bigmat,'n',1,v[incore?k:0]);
+			bigmat.gemv(0,z,'t',1,dum); //z.gemv(0,bigmat,'t',1,dum);
 			}
               	if(precondition) bigmat.diagonalof(z,true);
 

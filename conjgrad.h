@@ -7,7 +7,7 @@
 
 //conjugate gradient solution of a linear system
 
-//matrix can be any class which has nrows(), ncols(), diagonalof() and NRVec::gemv() available
+//matrix can be any class which has nrows(), ncols(), diagonalof() and gemv() available
 //does not even have to be explicitly stored
 //Conjugate gradient algorithm, cf. Bulirsch-Stoer book
 
@@ -29,14 +29,14 @@ if(issquare) r=&s; else r = new NRVec<T>(m);
 
 if(doguess)
 	{
-	x.gemv(0,bigmat,'t',-1.,b);
+	bigmat.gemv(0,x,'t',-1.,b); //x.gemv(0,bigmat,'t',-1.,b);
         if(precondition) bigmat.diagonalof(x,true);
         x.normalize();
 	}
 
-s.gemv(0,bigmat,'n',-1.,x);
+bigmat.gemv(0,s,'n',-1.,x); //s.gemv(0,bigmat,'n',-1.,x);
 s+=b;
-if(!issquare) (*r).gemv(0,bigmat,'t',1,s);
+if(!issquare) bigmat.gemv(0,*r,'t',1,s); //(*r).gemv(0,bigmat,'t',1,s);
 rr= *r;
 if(precondition) bigmat.diagonalof(rr,true);
 p=rr;
@@ -49,14 +49,14 @@ for(int iter=0; iter<= itmax; iter++)
 		resetiosflags(ios::scientific)<<setprecision(12)<<"\n";
 	if(err <= tol) break;
 
-	q.gemv(0,bigmat,'n',1,p);
+	bigmat.gemv(0,q,'n',1,p); //q.gemv(0,bigmat,'n',1,p);
 	tt= (*r) * rr;
 	t=issquare?p*q:q*q;
 	if(!t) {if(!issquare) delete r; laerror("conjgrad: singular matrix 1");}
 	ascal=tt/t;
 	x.axpy(ascal,p);
 	s.axpy(-ascal,q);
-	if(!issquare) (*r).gemv(0,bigmat,'t',1,s);
+	if(!issquare) bigmat.gemv(0,*r,'t',1,s); //(*r).gemv(0,bigmat,'t',1,s);
 	rr= *r;
 	if(precondition) bigmat.diagonalof(rr,true);
 	if(!tt) {if(!issquare) delete r; laerror("conjgrad: singular matrix 2");}
