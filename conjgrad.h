@@ -13,7 +13,7 @@
 
 
 template<typename T, typename Matrix>
-extern void conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess, const double tol, const int itmax, const bool verbose, bool issquare,const bool precondition)
+extern bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess, const double tol, const int itmax, const bool verbose, bool issquare,const bool precondition)
 {
 int m=bigmat.nrows();
 int n=bigmat.ncols();
@@ -47,7 +47,11 @@ for(int iter=0; iter<= itmax; iter++)
 	if(verbose) cout << "conjgrad: iter= "<<iter<<" err= "<<
 		setiosflags(ios::scientific)<<setprecision(8) <<err<<
 		resetiosflags(ios::scientific)<<setprecision(12)<<"\n";
-	if(err <= tol) break;
+	if(err <= tol)
+		{
+		if(!issquare) delete r;
+		return true;
+		} 
 
 	bigmat.gemv(0,q,'n',1,p); //q.gemv(0,bigmat,'n',1,p);
 	tt= (*r) * rr;
@@ -66,6 +70,6 @@ for(int iter=0; iter<= itmax; iter++)
 	}
 
 if(!issquare) delete r;
-
+return false;
 }
 

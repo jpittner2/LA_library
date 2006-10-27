@@ -28,7 +28,7 @@ for (int i=k-1;i>=0;i--) c[i] = (d[i]-xdot(k-i,&R(i,i+1),1,&c[i+1],1)) / R(i,i);
 
 //x contains ev. initial guess and on return the solution
 template<typename T, typename Matrix>
-void gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=1e-7, const int MAXIT=50, const bool verbose=1, bool square=1,const bool precondition=1, int neustart=0, const int incore=1)
+bool gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=1e-7, const int MAXIT=50, const bool verbose=1, bool square=1,const bool precondition=1, int neustart=0, const int incore=1)
 {
 int zeilen=bigmat.nrows();
 int spalten=bigmat.ncols();
@@ -232,6 +232,6 @@ myreturn:
 delete[] v;
 if(!incore) delete st;
 
-if(flag) laerror("no convergence in GMRES");
+return !flag;
 }
 
