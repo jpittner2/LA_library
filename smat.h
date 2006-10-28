@@ -92,6 +92,7 @@ inline NRSMat<T>::NRSMat(const T& a, const int n) : nn(n),
 {
 	*count =1;
 	if(a != (T)0) for(int i=0; i<NN2; i++) v[i] = a;
+	else memset(v, 0, NN2*sizeof(T));
 }
 
 template <typename T>
