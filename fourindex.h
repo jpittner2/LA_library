@@ -70,11 +70,15 @@ struct matel4
 
 
 template<class I, class T>
-struct matel4stored
+struct matel4stored 
         {
         T elem;
         union packed_index<I> index;
-        };
+        }
+#ifdef __GNUC__
+__attribute__((packed))
+#endif
+;
 
 
 //later add symmetry of complex integrals
