@@ -16,7 +16,7 @@
 // actually it can be anything what has operator=(const T&), clear(), dot() , axpy(), norm() and copyonwrite(), and LA_traits<T>::normtype and elementtype
 // and get() and put() if external storage is requested
 
-template<typename T>
+template<typename T, typename U>
 class DIIS
 	{
 	int dim;
@@ -24,45 +24,48 @@ class DIIS
 	bool incore;
 	int cyclicshift; //circular buffer of last dim vectors
 	typedef typename LA_traits<T>::elementtype Te;
-	NRSMat<Te> bmat;
-	AuxStorage<Te> *st, *errst;
-	T *stor, *errstor;
+	typedef typename LA_traits<U>::elementtype Ue;
+	NRSMat<Ue> bmat;
+	AuxStorage<Te> *st;
+	AuxStorage<Ue> *errst;
+	T *stor;
+	U *errstor;
 public:
 	DIIS() {dim=0; st=NULL; stor=NULL;}; //for array of diis
 	DIIS(const int n, const bool core=1);
 	void setup(const int n, const bool core=1);
 	~DIIS();
-	typename LA_traits<T>::normtype extrapolate(T &vec, const T &errvec); //vec is input/output; returns square residual norm
+	typename LA_traits<U>::normtype extrapolate(T &vec, const U &errvec); //vec is input/output; returns square residual norm
 	};
 
-template<typename T>
-DIIS<T>::DIIS(const int n, const bool core) : dim(n), incore(core), bmat(n,n)
+template<typename T, typename U>
+DIIS<T,U>::DIIS(const int n, const bool core) : dim(n), incore(core), bmat(n,n)
 {
 st=incore?NULL: new AuxStorage<Te>;
-errst=incore?NULL: new AuxStorage<Te>;
+errst=incore?NULL: new AuxStorage<Ue>;
 stor= incore? new T[dim] : NULL;
-errstor= incore? new T[dim] : NULL;
-bmat= (Te)0; for(int i=1; i<n; ++i) bmat(0,i) = (Te)-1; 
+errstor= incore? new U[dim] : NULL;
+bmat= (Ue)0; for(int i=1; i<n; ++i) bmat(0,i) = (Ue)-1; 
 aktdim=cyclicshift=0;
 }
 
-template<typename T>
-void DIIS<T>::setup(const int n, const bool core)
+template<typename T, typename U>
+void DIIS<T,U>::setup(const int n, const bool core)
 {
 dim=n;
 incore=core;
 bmat.resize(n);
 st=incore?NULL: new AuxStorage<Te>;
-errst=incore?NULL: new AuxStorage<Te>;
+errst=incore?NULL: new AuxStorage<Ue>;
 stor= incore? new T[dim] : NULL;
-errstor= incore? new T[dim] : NULL;
-bmat= (Te)0; for(int i=1; i<n; ++i) bmat(0,i) = (Te)-1;
+errstor= incore? new U[dim] : NULL;
+bmat= (Ue)0; for(int i=1; i<n; ++i) bmat(0,i) = (Ue)-1;
 aktdim=cyclicshift=0;
 }
 
 
-template<typename T>
-DIIS<T>::~DIIS()
+template<typename T, typename U>
+DIIS<T,U>::~DIIS()
 {
 if(st) delete st;
 if(errst) delete errst;
@@ -72,8 +75,8 @@ if(errstor) delete[] errstor;
 
 
 
-template<typename T>
-typename LA_traits<T>::normtype DIIS<T>::extrapolate(T &vec, const T &errvec)
+template<typename T, typename U>
+typename LA_traits<U>::normtype DIIS<T,U>::extrapolate(T &vec, const U &errvec)
 {
 if(!dim) laerror("attempt to extrapolate from uninitialized DIIS");
 //if dim exceeded, shift 
@@ -110,18 +113,18 @@ if(incore)
 		bmat(i,aktdim-1)=errvec.dot(errstor[(i+cyclicshift)%dim]);
 else
 	{
-	T tmp = vec; tmp.copyonwrite(); //copy dimensions
+	U tmp = errvec; tmp.copyonwrite(); //copy dimensions
 	for(int i=1; i<aktdim-1; ++i) 
 		{
-		st->get(tmp,(i+cyclicshift)%dim);
+		errst->get(tmp,(i+cyclicshift)%dim);
 		bmat(i,aktdim-1)= errvec.dot(tmp);
 		}
 	}
 
 
 //prepare rhs-solution vector
-NRVec<Te> rhs(dim);
-rhs= (Te)0; rhs[0]= (Te)-1;
+NRVec<Ue> rhs(dim);
+rhs= (Ue)0; rhs[0]= (Ue)-1;
 
 //solve for coefficients
 //@@@@@@ implement checking for bad condition number and eliminating old vectors
