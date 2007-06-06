@@ -102,7 +102,7 @@ else
 	errst->put(errvec,(aktdim-1+cyclicshift)%dim);
 	}
 
-if(aktdim==1) return (typename LA_traits<T>::normtype)1000000000;
+if(aktdim==1) return (typename LA_traits<T>::normtype)1;
 
 
 //calculate overlaps of the new error with old ones
