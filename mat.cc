@@ -22,6 +22,9 @@ extern ssize_t write(int, const void *, size_t);
 template <typename T>
 const NRMat<T> NRMat<T>::oplus(const NRMat<T> &rhs) const
 {
+if(nn==0 && mm == 0) return rhs;
+if(rhs.nn==0 && rhs.mm== 0) return *this;
+
 NRMat<T> r((T)0,nn+rhs.nn,mm+rhs.mm);
 
 #ifdef oldversion
@@ -44,6 +47,9 @@ return r;
 template <typename T>
 const NRMat<T> NRMat<T>::otimes(const NRMat<T> &rhs) const
 {
+if(nn==0 && mm == 0) return *this;
+if(rhs.nn==0 && rhs.mm== 0) return rhs;
+
 NRMat<T> r((T)0,nn*rhs.nn,mm*rhs.mm);
 
 int i,j,k,l;
