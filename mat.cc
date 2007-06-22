@@ -16,6 +16,48 @@ extern ssize_t write(int, const void *, size_t);
  *  Templates first, specializations for BLAS next
 */
 
+
+
+//direct sum
+template <typename T>
+const NRMat<T> NRMat<T>::oplus(const NRMat<T> &rhs) const
+{
+NRMat<T> r((T)0,nn+rhs.nn,mm+rhs.mm);
+
+#ifdef oldversion
+int i,j;
+for(i=0;i<nn;i++) for(j=0;j<mm;j++) r(i,j)=(*this)(i,j);
+for(i=0;i<nn;i++) for(j=mm;j<mm+rhs.mm;j++) r(i,j)= (T)0;
+for(i=nn;i<nn+rhs.nn;i++) for(j=0;j<mm;j++) r(i,j)= (T)0;
+for(i=nn;i<nn+rhs.nn;i++) for(j=mm;j<mm+rhs.mm;j++) r(i,j)= rhs(i-nn,j-mm);
+#else
+r.storesubmatrix(0,0,*this);
+r.storesubmatrix(nn,mm,rhs);
+#endif
+
+return r;
+}
+
+
+//direct product
+
+template <typename T>
+const NRMat<T> NRMat<T>::otimes(const NRMat<T> &rhs) const
+{
+NRMat<T> r((T)0,nn*rhs.nn,mm*rhs.mm);
+
+int i,j,k,l;
+
+for(i=0;i<nn;i++) for(j=0;j<mm;j++)
+	{
+	T c=(*this)(i,j);
+        for(k=0;k<rhs.mm;k++) for(l=0;l<rhs.mm;l++)
+                r( i*rhs.nn+k , j*rhs.nn+l ) = c *rhs(k,l);
+	}
+
+return r;
+}
+
 //row of
 template <typename T>
 const NRVec<T> NRMat<T>::row(const int i, int l) const
@@ -251,7 +293,6 @@ int torow=fromrow+rhs.nrows()-1;
 #ifdef DEBUG
 if(fromrow <0 ||fromrow >=nn||torow >=nn ||fromcol<0||fromcol>=mm||tocol>=mm) laerror("bad indices in storesubmatrix");
 #endif
-int n=torow-fromrow+1;
 int m=tocol-fromcol+1;
 for(int i=fromrow; i<=torow; ++i)
 #ifdef MATPTR
@@ -1068,7 +1109,6 @@ return divide?NULL:&r[0];
 
 
 
-//direct sum and product (oplus, otimes) to be done
 
 
 

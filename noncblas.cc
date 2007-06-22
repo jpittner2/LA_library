@@ -109,6 +109,7 @@ FORNAME(zdotc) (dotc,&N,X,&incX,Y,&incY);
 //enum CBLAS_ORDER {CblasRowMajor=101, CblasColMajor=102 };
 //enum CBLAS_TRANSPOSE {CblasNoTrans=111, CblasTrans=112, CblasConjTrans=113, AtlasConj=114};
 
+
 extern "C" void FORNAME(dspmv) (const char *uplo, const int *n, const double *alpha, const double *ap, const double *x, const int *incx, const double *beta, double *y, const int *incy);
 void cblas_dspmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
                  const int N, const double alpha, const double *Ap,
@@ -117,8 +118,9 @@ void cblas_dspmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
 {
 if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
-FORNAME(dspmv) ("L",&N, &alpha, Ap, X, &incX, &beta, Y, &incY);
+FORNAME(dspmv) ("U",&N, &alpha, Ap, X, &incX, &beta, Y, &incY);
 }
+
 
 extern "C" void FORNAME(zhpmv) (const char *uplo, const int *n, const void *alpha, const void *ap, const void *x, const int *incx, const void *beta, void *y, const int *incy);
 void cblas_zhpmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
@@ -128,7 +130,7 @@ void cblas_zhpmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
 {
 if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
-FORNAME(zhpmv) ("L",&N, alpha, Ap, X, &incX, beta, Y, &incY);
+FORNAME(zhpmv) ("U",&N, alpha, Ap, X, &incX, beta, Y, &incY);
 }
 
 

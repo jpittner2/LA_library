@@ -137,9 +137,20 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 		//take into account some numerical instabilities in dgesv for singular matrices
 		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
 		//change sign of det by parity of ipiv permutation
-		if(*det) for (int i=0; i<n; ++i) if(i!=ipiv[i]) *det = -(*det);
+		if(*det) for (int i=0; i<n; ++i) if(
+#ifdef NONCBLAS
+			i+1
+#else
+			i
+#endif
+			!=ipiv[i]) *det = -(*det);
 	}
 	if(det && r>0) *det = 0;
+/*
+	cout <<"ipiv = ";
+	for (int i=0; i<n; ++i) cout <<ipiv[i]<<" ";
+	cout <<endl;
+*/
 	delete [] ipiv;
 	if (r>0 && B) laerror("singular matrix in lapack_gesv");
 }
