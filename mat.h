@@ -59,7 +59,7 @@ public:
 	const T dot(const NRMat &rhs) const; // scalar product of Mat.Mat//@@@for complex do conjugate
 	const NRMat operator*(const NRMat &rhs) const; // Mat * Mat
 	const NRMat oplus(const NRMat &rhs) const; //direct sum
-	const NRMat otimes(const NRMat &rhs) const; //direct product
+	const NRMat otimes(const NRMat &rhs, bool reversecolumns=false) const; //direct product
 	void diagmultl(const NRVec<T> &rhs); //multiply by a diagonal matrix from L
 	void diagmultr(const NRVec<T> &rhs); //multiply by a diagonal matrix from R
 	const NRSMat<T> transposedtimes() const; //A^T . A

@@ -45,7 +45,7 @@ return r;
 //direct product
 
 template <typename T>
-const NRMat<T> NRMat<T>::otimes(const NRMat<T> &rhs) const
+const NRMat<T> NRMat<T>::otimes(const NRMat<T> &rhs, bool reversecolumns) const
 {
 if(nn==0 && mm == 0) return *this;
 if(rhs.nn==0 && rhs.mm== 0) return rhs;
@@ -54,12 +54,24 @@ NRMat<T> r((T)0,nn*rhs.nn,mm*rhs.mm);
 
 int i,j,k,l;
 
+if(reversecolumns)
+{
+for(i=0;i<nn;i++) for(j=0;j<mm;j++)
+        {
+        T c=(*this)(i,j);
+        for(k=0;k<rhs.mm;k++) for(l=0;l<rhs.mm;l++)
+                r( i*rhs.nn+k , l*nn+j ) = c *rhs(k,l);
+        }
+}
+else
+{
 for(i=0;i<nn;i++) for(j=0;j<mm;j++)
 	{
 	T c=(*this)(i,j);
         for(k=0;k<rhs.mm;k++) for(l=0;l<rhs.mm;l++)
                 r( i*rhs.nn+k , j*rhs.nn+l ) = c *rhs(k,l);
 	}
+}
 
 return r;
 }
