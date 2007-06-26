@@ -119,6 +119,18 @@ x+= (x>>8);
 x+= (x>>16);
 return x&0x3f;
 }
+#else
+static unsigned long word_popul(unsigned long x)
+{
+unsigned long s=0;
+for(int i=0; i<64; ++i)
+        {
+        if(x&1) ++s;
+        x>>=1;
+        }
+return s;
+}
+
 #endif
 
 

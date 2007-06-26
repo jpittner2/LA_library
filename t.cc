@@ -669,7 +669,7 @@ cout <<"e=exp(c)\n"<<e;
 cout<<"error2 = "<<(e-b).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 double f;
@@ -1060,7 +1060,7 @@ NRVec<double> bb=b;
 NRMat<double>aa=a;
 linear_solve(aa,bb);
 //cout <<bb;
-gmres   (a,b,x,1,1e-10,100,1,0,1,0);
+gmres(a,b,x,1,1e-10,100,1,0,1,0);
 //conjgrad(a,b,x,1,1e-10,200,1,0,1);
 
 cout <<"\nsolution compare:\n";
@@ -1103,11 +1103,12 @@ double *p = (double *)A;
 cout <<A;
 }
 
-if(0)
+#if 0 //@@@make a more realistic test
 {
 int i;
-DIIS<NRVec<double> > diis(5,1);
-int dim=8;
+DIIS<NRVec<double> > diis(5);
+int dim;
+cin>>dim;
 NRVec<double> solution(dim), deviation(dim);
 for(i=0; i<dim; ++i) solution[i]=i&1 ? i/2.:-i-3.;
 for(i=0; i<dim; ++i) deviation[i]= (i&2 ? 1:-1) * random()/(1.+RAND_MAX);
@@ -1124,6 +1125,7 @@ for(int iter=1; iter<100 && norm>1e-8 ; ++iter)
 	deviation=trial-solution;
 	}
 }
+#endif
 
 if(0)
 {
@@ -1141,8 +1143,16 @@ NRSMat<double> a;
 NRMat<double> b;
 cin >>a>>b;
 cout <<a*b;
-
 }
+
+if(1)
+{
+NRMat<double> a,b;
+cin >>a >>b;
+cout <<a.oplus(b);
+cout <<a.otimes(b);
+}
+
 
 
 }

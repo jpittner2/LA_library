@@ -347,7 +347,7 @@ public:
         typedef class piterator {
         private:
                 fourindex_ext *base;
-		matel4stored<I,T> my;
+		matel4<I,T> my;
 		int permindex;
 		typename fourindex_ext::iterator it;
 
@@ -371,8 +371,8 @@ public:
                 bool operator!=(const piterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
                 piterator &operator++() {if(++permindex>=fourindex_permnumbers[base->symmetry]) {permindex=0; ++it;} if(it.notNULL()) setup(); else base=NULL; return *this;} 
 		piterator operator++(int) {laerror("postincrement not possible");}
-                const matel4stored<I,T> * operator->() const {return &my;}
-                const matel4stored<I,T> & operator*() const {return my;}
+                const matel4<I,T> * operator->() const {return &my;}
+                const matel4<I,T> & operator*() const {return my;}
 		bool end(void) {return !base;}
                 bool notend(void) {return base;}
 	};
