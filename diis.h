@@ -31,7 +31,7 @@ class DIIS
 	T *stor;
 	U *errstor;
 public:
-	DIIS() {dim=0; st=NULL; stor=NULL;}; //for array of diis
+	DIIS() {dim=0; st=NULL; stor=NULL; errst=NULL; errstor=NULL;}; //for array of diis
 	DIIS(const int n, const bool core=1);
 	void setup(const int n, const bool core=1);
 	~DIIS();
