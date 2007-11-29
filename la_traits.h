@@ -127,6 +127,7 @@ static void multiget(unsigned int n,int fd, complex<C> *x, bool dimensions=0){if
 static void multiput(unsigned int n, int fd, const complex<C> *x, bool dimensions=0) {if((ssize_t)(n*sizeof(complex<C>))!=write(fd,x,n*sizeof(complex<C>))) laerror("write error");}
 static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest,src,n*sizeof(complex<C>));}
 static void clear(complex<C> *dest, unsigned int n) {memset(dest,0,n*sizeof(complex<C>));}
+static void copyonwrite(complex<C> &x) {};
 };
 
 //non-complex scalars
@@ -146,6 +147,7 @@ static void multiput(unsigned int n,int fd, const C *x, bool dimensions=0){if((s
 static void multiget(unsigned int n, int fd, C *x, bool dimensions=0) {if((ssize_t)(n*sizeof(C))!=read(fd,x,n*sizeof(C))) laerror("read error");}
 static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));}
 static void clear(C *dest, unsigned int n) {memset(dest,0,n*sizeof(C));}
+static void copyonwrite(C &x) {};
 };
 
 
@@ -171,6 +173,7 @@ static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}\
+static void copyonwrite(X<C> &x) {x.copyonwrite();}\
 };
 
 
@@ -200,6 +203,7 @@ static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(
 static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];}  \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();} \
+static void copyonwrite(X<C> &x) {x.copyonwrite();} \
 };
 
 generate_traits_smat(NRSMat)
