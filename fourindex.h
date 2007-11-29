@@ -229,6 +229,7 @@ public:
 //large file sequentially is implemented:
 //the user of the class must open the file with O_DIRECT
 //NOTE!!! it will not work on linux 2.4, where O_DIRECT requires filesize to be a multiple of the block; 2.6 kernel is necessary!!!
+//it used to work on older 2.6 kernels, but now does not work again since there is restriction to 512-byte alignment
 
 template <class I, class T>
 class fourindex_ext {
@@ -660,6 +661,7 @@ public:
 
 	T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l);
 	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
+	void resize(const int n) {(*this).NRSMat<T>::resize(n*(n+1)/2);};
 
 };
 
