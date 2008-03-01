@@ -1109,9 +1109,7 @@ const complex<double> NRMat< complex<double> >::trace() const
 template<>
 const double * NRMat<double>::diagonalof(NRVec<double> &r, const bool divide, bool cache) const
 {
-#ifdef DEBUG
 	if (r.size() != nn) laerror("diagonalof() incompatible vector");
-#endif
 
 double a;
 
@@ -1142,6 +1140,23 @@ for (int i=0; i< mm; i++)
 }
 
 return divide?NULL:&r[0];
+}
+
+
+//set diagonal
+template<>
+void NRMat<double>::diagonalset(const NRVec<double> &r)
+{
+	if (r.size() != nn) laerror("diagonalset() incompatible vector");
+	if(nn!=mm) laerror("diagonalset only for square matrix");
+
+copyonwrite();
+
+#ifdef MATPTR
+for (int i=0; i< nn; i++) v[i][i] = r[i];
+#else
+{int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) v[i] = r[j];}
+#endif
 }
 
 

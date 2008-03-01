@@ -92,6 +92,7 @@ public:
 	const NRVec<T> row(const int i, int l= -1) const; //row of, efficient
 	const NRVec<T> column(const int j, int l= -1) const {if(l<0) l=nn; NRVec<T> r(l); for(int i=0; i<l; ++i) r[i]= (*this)(i,j); return r;}; //column of, general but not very efficient
 	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal 
+	void diagonalset(const NRVec<T> &); //set diagonal elements
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
 	inline T* operator[](const int i);  //subscripting: pointer to row i
 	inline const T* operator[](const int i) const;
