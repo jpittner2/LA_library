@@ -178,7 +178,7 @@ void linear_solve(NRMat<double> &A, NRMat<double> *B, double *det, int n)
 if(n<=0) n=A.nrows(); //default - whole matrix
 if (n==A.nrows() && B && A.nrows() != B->ncols() || B && n>B->ncols() ||n>A.nrows()) laerror("incompatible matrices in linear_solve()");
 if(B) B->copyonwrite();
-linear_solve_do(A,B?(double *)B:NULL,B?B->nrows() : 0,  B?B->ncols():A.nrows(), det,n);
+linear_solve_do(A,B?(*B)[0]:NULL,B?B->nrows() : 0,  B?B->ncols():A.nrows(), det,n);
 }
 
 void linear_solve(NRMat<double> &A, NRVec<double> &B, double *det, int n)
@@ -186,7 +186,7 @@ void linear_solve(NRMat<double> &A, NRVec<double> &B, double *det, int n)
 if(n<=0) n=A.nrows(); //default - whole matrix
 if(n==A.nrows() && A.nrows() != B.size() || n>B.size()||n>A.nrows() ) laerror("incompatible matrices in linear_solve()");
 B.copyonwrite();
-linear_solve_do(A,(double *)B,1,A.nrows(),det,n);
+linear_solve_do(A,&B[0],1,A.nrows(),det,n);
 }
 
 
@@ -425,7 +425,7 @@ if(gdbeta) {tmp=gdbeta[i]; gdbeta[i]=gdbeta[j]; gdbeta[j]=tmp;}
 
 void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 		NRMat<double> *vl, NRMat<double> *vr, const bool corder, int n,
-		const int sorttype, const bool biorthonormalize,
+		const int sorttype, const int biorthonormalize,
 		NRMat<double> *b, NRVec<double> *beta)
 {
 	if(n<=0) n = a.nrows();
@@ -470,7 +470,7 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
 			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
 	delete[] work;
-//@@@
+
 //cout <<"TEST dgeev\n"<<wr<<wi<<*vr<<*vl<<endl;
 
 	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
@@ -487,9 +487,8 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 				//calculate scaling paramter
 				double tmp;
 				tmp=cblas_ddot(n,(*vl)[i],1,(*vr)[i], 1);
-				tmp=1./sqrt(abs(tmp));
-				cblas_dscal(n,tmp,(*vl)[i],1);
-				cblas_dscal(n,tmp,(*vr)[i],1);
+				if(biorthonormalize==1) cblas_dscal(n,1./tmp,(*vl)[i],1);
+				if(biorthonormalize==2) cblas_dscal(n,1./tmp,(*vr)[i],1);
 				i++;
 				}
 			else //complex pair
@@ -567,7 +566,7 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 
 void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
-		const bool corder, int n, const int sorttype, const bool biorthonormalize,
+		const bool corder, int n, const int sorttype, const int biorthonormalize,
 		NRMat<double> *b, NRVec<double> *beta)
 {
 	if(!corder)  laerror("gdiagonalize() corder 0 not implemented");

@@ -105,11 +105,11 @@ declare_la(complex<double>)
 // Separate declarations
 //general nonsymmetric matrix and generalized diagonalization
 extern void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
-		NRMat<double> *vl, NRMat<double> *vr, const bool corder=1, int n=0, const int sorttype=0, const bool biorthonormalize=0,
+		NRMat<double> *vl, NRMat<double> *vr, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
 		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
 extern void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		 NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
-		 const bool corder=1, int n=0, const int sorttype=0, const bool biorthonormalize=0,
+		 const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
 		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
 extern NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double));
 extern NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double)); //a has to by in fact symmetric
@@ -143,7 +143,9 @@ const NRMat<T> inverse(NRMat<T> a, T *det=0)
 #endif
 	NRMat<T> result(a.nrows(),a.nrows());
 	result = (T)1.;
+	a.copyonwrite();
 	linear_solve(a, &result, det);
+	result.transposeme(); //tested with noncblas
 	return result;
 }
 
