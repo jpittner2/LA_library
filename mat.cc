@@ -492,6 +492,15 @@ return r;
 }
 
 
+//randomize
+template<>
+void NRMat<double>::randomize(const double &x)
+{
+for(int i=0; i<nn; ++i)
+	for(int j=0; j<mm; ++j)
+		(*this)(i,j) = x*(2.*random()/(1.+RAND_MAX) -1.);
+}
+
 
 
 // Mat *= a

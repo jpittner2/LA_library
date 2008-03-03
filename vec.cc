@@ -162,6 +162,12 @@ return nn<rhs.nn;
 }
 
 
+template<>
+void NRVec<double>::randomize(const double &x)
+{
+for(int i=0; i<nn; ++i) v[i] = x*(2.*random()/(1.+RAND_MAX) -1.);
+}
+
 
 // axpy call for T = double (not strided)
 template<>

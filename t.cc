@@ -1163,7 +1163,7 @@ cin >>a>>b;
 cout <<a*b;
 }
 
-if(1)
+if(0)
 {
 NRMat<double> a,b;
 cin >>a >>b;
@@ -1171,6 +1171,110 @@ cout <<a.oplus(b);
 cout <<a.otimes(b);
 }
 
+//test of general square matrix eigenvector derivatives
+if(1)
+{
+const bool biorthonormalize=1;
+
+NRMat<double> a;
+cin >>a;
+if(a.nrows()!=a.ncols()) laerror("must be square matrix");
+int n=a.nrows();
+
+NRMat<double>vl(n,n),vr(n,n);
+NRVec<double> wr(n),wi(n);
+NRMat<double> awork(a);
+gdiagonalize(awork,wr,wi,&vl,&vr,1,0,1,biorthonormalize);
+for(int i=0; i<n; ++i) if(wi[i]) laerror("try another matrix with real eigenvalues");
+
+NRMat<double> eival(0.,n,n);
+eival.diagonalset(wr);
+
+cout <<"test biorthonormality "<< (vl.transpose() * vr - 1.).norm()<<endl;
+
+NRMat<double> hlp;
+hlp = a *vr - vr * eival;
+cout  <<"test right eivectors "<<hlp.norm()<<endl;
+
+hlp= vl.transpose() * a - eival * vl.transpose();
+cout  <<"test left eivectors "<<hlp.norm()<<endl;
+
+hlp =  vl.transpose() * a * vr - eival;
+cout  <<"test eigenvalues "<<hlp.norm()<<endl;
+
+NRMat<double> ader(n,n);
+for(int i=0; i<n; ++i)
+	for(int j=0; j<n; ++j)
+		ader(i,j) = 2.*random()/(1.+RAND_MAX) -1.;
+
+cout <<"eigenvalues\n"<<wr<<endl;
+
+
+
+//compute numerical derivatives of eigenvectors
+double  h=1e-5;
+awork = a+ ader*h;
+NRMat<double> vlx(n,n),vrx(n,n);
+NRVec<double> wrx(n),wix(n);
+gdiagonalize(awork,wrx,wix,&vlx,&vrx,1,0,1,biorthonormalize);
+for(int i=0; i<n; ++i) if(wix[i]) laerror("try another matrix with real eigenvalues");
+
+awork = a - ader*h;
+NRMat<double> vly(n,n),vry(n,n);
+NRVec<double> wry(n),wiy(n);
+gdiagonalize(awork,wry,wiy,&vly,&vry,1,0,1,biorthonormalize);
+for(int i=0; i<n; ++i) if(wiy[i]) laerror("try another matrix with real eigenvalues");
+
+NRMat<double> vld,vrd;
+NRVec<double> wrd;
+vld = (vlx-vly) * (.5/h);
+vrd = (vrx-vry) * (.5/h);
+wrd = (wrx-wry) * (.5/h);
+
+NRMat<double> vlg,vrg;
+NRVec<double> wrg(n);
+
+//compute analytic derivative
+NRMat<double> tmp(n,n);
+tmp.gemm(0.,vl,'t', ader * vr,'n',1.);
+hlp |= tmp;
+cout <<" C~+ VH C = \n"<<tmp<<endl;
+
+tmp.diagonalof(wrg);
+for(int i=0; i<n; ++i)
+        for(int j=0; j<n; ++j)
+		if(i!=j) tmp(i,j) /= (wr[j] - wr[i]); else  tmp(i,j) = 0.;
+cout <<" old X matrix \n"<<tmp<<endl;
+
+NRMat<double> Y = tmp;
+NRMat<double> S = vr.transpose() * vr;
+NRMat<double> tmp2 = S * tmp;
+for(int i=0; i<n; ++i) Y(i,i) -= tmp2(i,i);
+
+cout <<"Y matrix \n"<< Y;
+
+NRMat<double> numX = inverse(vr) * vrd;
+cout <<" numerical X matrix \n"<< numX;
+cout <<" numerical X matrix test = "<< (vr * numX - vrd).norm()<<endl;
+
+vrg = vr * Y;
+
+//and compare
+cout <<"eigenvalue numerical derivative\n"<<wrd<<endl;
+cout <<"eigenvalue analytic derivative\n"<<wrg<<endl;
+cout <<"eigenvalue derivative error = "<<(wrd-wrg).norm()<<endl;
+
+//and for right eigenvectors
+cout <<"right eigenvector  numerical derivative\n"<<vrd<<endl;
+cout <<"right eigenvector  analytic derivative\n"<<vrg<<endl;
+cout <<"right eigenvector derivative error = "<<(vrd-vrg).norm()<<endl;
+
+
+
+
+
+
+}
 
 
 }

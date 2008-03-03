@@ -132,6 +132,12 @@ const T NRSMat<T>::trace() const
 	return tmp;
 }
 
+template<>
+void NRSMat<double>::randomize(const double &x)
+{
+for(int i=0; i<NN2; ++i) v[i] = x*(2.*random()/(1.+RAND_MAX) -1.);
+}
+
 
 
 // write matrix to the file with specific format

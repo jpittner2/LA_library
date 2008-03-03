@@ -58,6 +58,7 @@ public:
 	inline int getcount() const {return count?*count:0;}
 	NRMat & operator=(const NRMat &rhs);  //assignment
         void clear() {LA_traits<T>::clear((*this)[0],nn*mm);}; //zero out
+	void randomize(const T &x); //fill with random numbers
 	NRMat & operator=(const T &a);    //assign a to diagonal
 	NRMat & operator|=(const NRMat &rhs); //assignment to a new copy
 	NRMat & operator+=(const T &a);   //add diagonal
