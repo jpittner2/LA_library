@@ -468,9 +468,7 @@ NRSMat<T> & NRSMat<T>::operator=(const NRSMat<T> & rhs)
 template <typename T>
 void NRSMat<T>::copyonwrite()
 {
-#ifdef DEBUG
-        if (!count) laerror("probably an assignment to undefined Smat");
-#endif
+        if (!count) laerror("SMat::copyonwrite() of undefined Smat");
         if (*count > 1) {
                 (*count)--;
                 count = new int;

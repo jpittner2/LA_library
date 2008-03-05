@@ -472,9 +472,7 @@ NRMat<T> & NRMat<T>::operator|=(const NRMat<T> &rhs)
 template <typename T>
 void NRMat<T>::copyonwrite()
 {
-#ifdef DEBUG
         if (!count) laerror("Mat::copyonwrite of undefined matrix");
-#endif
         if (*count > 1) {
                 (*count)--;
                 count = new int;

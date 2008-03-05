@@ -579,9 +579,7 @@ NRVec<T>::~NRVec()
 template <typename T>
 void NRVec<T>::copyonwrite()
 {
-#ifdef DEBUG
-  if(!count) laerror("probably an assignment to undefined vector");
-#endif
+  if(!count) laerror("Vec::copyonwrite() of an undefined vector");
   if(*count > 1)
   {
     (*count)--;
