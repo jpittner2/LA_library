@@ -242,5 +242,12 @@ for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {double t=A[j*lda+i]; A[j*lda+i]=
 return INFO;
 }
 
+extern "C" int FORNAME(idamax) (const int *N, const double *DX, const int *INCX);
+
+CBLAS_INDEX cblas_idamax(const int N, const double *X, const int incX)
+{
+return FORNAME(idamax)(&N,X,&incX);
+}
+
 
 #endif
