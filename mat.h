@@ -105,7 +105,7 @@ public:
         void get(int fd, bool dimensions=1, bool transposed=false);
         void put(int fd, bool dimensions=1, bool transposed=false) const;
 	void copyonwrite();
-	void resize(const int n, const int m);
+	void resize(int n, int m);
 	inline operator T*(); //get a pointer to the data
 	inline operator const T*() const;
 	NRMat & transposeme(int n=0); // square matrices only 
@@ -492,7 +492,7 @@ void NRMat<T>::copyonwrite()
 }
 
 template <typename T>
-void NRMat<T>::resize(const int n, const int m)
+void NRMat<T>::resize(int n, int m)
 {
 #ifdef DEBUG
         if (n<0 || m<0) laerror("illegal dimensions in Mat::resize()");
