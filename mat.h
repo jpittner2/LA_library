@@ -495,8 +495,13 @@ template <typename T>
 void NRMat<T>::resize(const int n, const int m)
 {
 #ifdef DEBUG
-        if (n<0 || m<0 || n>0 && m==0 || n==0 && m>0) laerror("illegal dimensions in Mat::resize()");
+        if (n<0 || m<0) laerror("illegal dimensions in Mat::resize()");
 #endif
+
+//allow trivial dimensions
+if(n==0) m=0;
+if(m==0) n=0;
+
         if (count)
 	    {
 	        if(n==0 && m==0)
