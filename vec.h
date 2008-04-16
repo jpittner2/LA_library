@@ -103,7 +103,8 @@ public:
 	const NRVec operator*(const NRSMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const SparseMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRMat<T> operator|(const NRVec<T> &rhs) const;
-	inline const T sum() const; //sum of its elements
+	inline const T sum() const {T sum=0; for(int i=0; i<nn; i++) sum += v[i]; return sum;}; //sum of its elements
+	inline const T asum() const; //sum of its elements absolute values
 	inline const T dot(const T *a, const int stride=1) const; // ddot with a stride-vector
 	inline T & operator[](const int i);
 	inline const T & operator[](const int i) const;
@@ -447,18 +448,11 @@ inline const T NRVec<T>::operator*(const NRVec<T> &rhs) const
 
 // Sum of elements
 template<>
-inline const double NRVec<double>::sum() const
+inline const double NRVec<double>::asum() const
 {
 	return cblas_dasum(nn, v, 1);
 }
-template<>
-inline const complex<double>
-NRVec< complex<double> >::sum() const
-{
-	complex<double> sum = CZERO;
-	for (int i=0; i<nn; i++) sum += v[i];
-	return sum;
-}
+
 
 // Dot product: x * y
 template<>

@@ -913,24 +913,6 @@ NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 
 
 
-// sum of rows
-template<>
-const NRVec<double> NRMat<double>::rsum() const
-{
-	NRVec<double> result(mm);
-	for (int i=0; i<mm; i++) result[i] = cblas_dasum(nn,(*this)[0]+i,mm);
-	return result;
-}
-
-// sum of columns
-template<>
-const NRVec<double> NRMat<double>::csum() const
-{
-	NRVec<double> result(nn);
-	for (int i=0; i<nn; i++) result[i] = cblas_dasum(mm, (*this)[i], 1);
-	return result;
-}
-
 // complex conjugate of Mat
 template<>
 NRMat<double> &NRMat<double>::conjugateme() {return *this;}
@@ -1082,34 +1064,21 @@ void NRMat< complex<double> >::axpy(const complex<double> alpha,
 
 
 // trace of Mat
-template<>
-const double NRMat<double>::trace() const
+template <typename T>
+const T NRMat<T>::trace() const
 {
 #ifdef DEBUG
 	if (nn != mm) laerror("no-square matrix in Mat::trace()");
 #endif
-	return cblas_dasum(nn, (*this)[0], nn+1);
-
-
-}
-
-
-
-template<>
-const complex<double> NRMat< complex<double> >::trace() const
-{
-#ifdef DEBUG
-	if (nn != mm) laerror("no-square matrix in Mat::trace()");
-#endif
-	register complex<double> sum = CZERO;
-	for (int i=0; i<nn*nn; i+=(nn+1))
+T sum=0;
 #ifdef MATPTR
-		sum += v[0][i];
+for (int i=0; i<nn; ++i) sum += v[i][i];
 #else
-		sum += v[i];
+for (int i=0; i<nn*nn; i+=(nn+1)) sum += v[i];
 #endif
-	return sum;
+return sum;
 }
+
 
 
 
