@@ -772,6 +772,12 @@ if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 return (*this).NRMat<T>::operator() ((j-1)*noca+i-1,(b-1)*nvra+a-1);
 }
+
+	void print(ostream &out) const
+		{
+		unsigned int i,j,a,b;
+		for(i=1; i<=noca; ++i) for(j=1; j<=nocb; ++j) for(a=1; a<=nvra; ++a) for(b=1; b<=nvrb; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<endl;
+		}
 };
 
 
@@ -824,6 +830,12 @@ if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
 (*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1) += minus? -elem : elem;
 }
 
+
+        void print(ostream &out) const
+                {
+                unsigned int i,j,a,b;
+                for(i=1; i<=nocc; ++i) for(j=1; j<i; ++j) for(a=1; a<=nvrt; ++a) for(b=1; b<a; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<endl;
+                }
 
 
 };
