@@ -100,19 +100,18 @@ __attribute__((packed))
 
 
 //later add symmetry of complex integrals
-typedef enum {undefined_symmetry=-1,nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_aces=3, antisymtwoelectronrealmullikan=4,antisymtwoelectronrealdirac=5, T2IjAb_aces=6} fourindexsymtype; //only permutation-nonequivalent elements are stored
+typedef enum {undefined_symmetry=-1,nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_aces=3, antisymtwoelectronrealdirac=4, T2IjAb_aces=5} fourindexsymtype; //only permutation-nonequivalent elements are stored
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
-static const int fourindex_n_symmetrytypes=7;
-static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,16,16};
-static const int fourindex_permutations[fourindex_n_symmetrytypes][16][5]=
+static const int fourindex_n_symmetrytypes=6;
+static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,8,8};
+static const int fourindex_permutations[fourindex_n_symmetrytypes][8][5]=
 		{
 		{{0,1,2,3,1}},
 		{{0,1,2,3,1}, {1,0,2,3,1}, {0,1,3,2,1}, {1,0,3,2,1}, {2,3,0,1,1}, {3,2,0,1,1}, {2,3,1,0,1}, {3,2,1,0,1}},
 		{{0,1,2,3,1},{2,1,0,3,1},{0,3,2,1,1},{2,3,0,1,1},{1,0,3,2,1},{3,0,1,2,1},{1,2,3,0,1},{3,2,1,0,1}},
 		{{0,1,2,3,1},{1,0,2,3,-1},{0,1,3,2,-1},{1,0,3,2,1}},
-		{{0,1,2,3,1}, {1,0,2,3,1}, {0,1,3,2,1}, {1,0,3,2,1}, {2,3,0,1,1}, {3,2,0,1,1}, {2,3,1,0,1}, {3,2,1,0,1}, {0,3,2,1,-1}, {1,3,2,0,-1}, {0,2,3,1,-1}, {1,2,3,1,-1}, {2,1,0,3,-1}, {3,1,0,2,-1}, {2,0,1,3,-1}, {3,0,1,2,-1}},
-		{{0,1,2,3,1},{2,1,0,3,1},{0,3,2,1,1},{2,3,0,1,1},{1,0,3,2,1},{3,0,1,2,1},{1,2,3,0,1},{3,2,1,0,1}, {0,1,3,2,-1},{2,1,3,0,-1},{0,3,1,2,-1},{2,3,1,0,-1},{1,0,2,3,-1},{3,0,2,1,-1},{1,2,0,3,-1},{3,2,0,1,-1}},
-		{{0,1,2,3,1}}, //like nosymmetry but different index ranges
+		{{0,1,2,3,1},{1,0,2,3,-1},{0,1,3,2,-1},{1,0,3,2,1},{2,3,0,1,1},{3,2,0,1,-1},{2,3,1,0,-1},{3,2,1,0,1}},
+		{{0,1,2,3,1}}, //T2IjAb_aces is like nosymmetry but different index ranges
 		};
 
 
@@ -121,14 +120,14 @@ void symmetry_faktor(const fourindexsymtype symmetry,const union packed_index<I>
 {
 switch(symmetry)
 	{
-	case antisymtwoelectronrealmullikan: //in case of antisymmetry it will vanish anyway, first two  conditions apply the same
+	case antisymtwoelectronrealdirac: 
+		laerror("not implemented");
 	case twoelectronrealmullikan:
 		if(index.indiv.i==index.indiv.j) elem*=.5;
 		if(index.indiv.k==index.indiv.l) elem*=.5;
 		if(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l
 			|| index.indiv.i==index.indiv.l && index.indiv.j==index.indiv.k		) elem*=.5; 
 		break;	
-	case antisymtwoelectronrealdirac: //in case of antisymmetry it will vanish anyway, first two  conditions apply the same
 	case twoelectronrealdirac:
 		if(index.indiv.i==index.indiv.k) elem*=.5;
                 if(index.indiv.j==index.indiv.l) elem*=.5;
@@ -839,6 +838,118 @@ if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
 
 
 };
+
+
+
+//compact in-core storage of antisymmetrized two-electron integrals
+
+template<class T, class I> 
+class fourindex_dense<antisymtwoelectronrealdirac,T,I> : public NRSMat<T> {
+private: 
+	int nbas;
+public:
+	fourindex_dense(): NRSMat<T>() {};
+	explicit fourindex_dense(const int n): nbas(n), NRSMat<T>(n*(n-1)/2) {};
+	fourindex_dense(const T &a, const int n): nbas(n), NRSMat<T>(a,n*(n-1)/2) {};
+	fourindex_dense(const T *a, const int n): nbas(n), NRSMat<T>(a,n*(n-1)/2) {};
+	//and also construct it from sparse and externally stored fourindex classes
+	//it seems not possible to nest template<class I> just for the two constructors
+	fourindex_dense(const fourindex<I,T> &rhs);
+	fourindex_dense(const fourindex_ext<I,T> &rhs);
+
+	void set(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
+	void add(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
+	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
+	void resize(const int n) {nbas=n; (*this).NRSMat<T>::resize(n*(n-1)/2);};
+        void print(ostream &out) const
+                {
+                unsigned int i,j,k,l;
+		for(i=1; i<=nbas; ++i)
+       			 for(k=1;k<i; ++k)
+                		for(j=1; j<=i; ++j)
+                        		for(l=1; l<j && (j==i ? l<=k : 1); ++l)
+                				cout << i<<" "<<k<<" "<<j<<" "<<l<<" "<<(*this)(i,k,j,l)<<endl;
+                }
+
+
+};
+
+
+
+
+template<class T, class DUMMY>
+const T& fourindex_dense<antisymtwoelectronrealdirac,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const
+{
+int I = ASMat_index_1(i,j);
+int J = ASMat_index_1(k,l);
+if (I<0 || J<0) return 0.; 
+#ifdef DEBUG
+if (I>=(unsigned int)NRSMat<T>::nn || J>=(unsigned int)NRSMat<T>::nn) laerror("index out of range");
+if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
+#endif
+return NRSMat<T>::v[SMat_index(I,J)];
+}
+
+
+template<class T, class DUMMY>
+void fourindex_dense<antisymtwoelectronrealdirac,T,DUMMY>::set(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem)
+{
+if(i<j) elem = -elem;
+if(k<l) elem = -elem;
+int I = ASMat_index_1(i,j);
+int J = ASMat_index_1(k,l);
+if (I<0 || J<0) laerror("assignment to nonexisting element");
+#ifdef DEBUG
+if (I>=NRSMat<T>::nn || J>=NRSMat<T>::nn) laerror("index out of range");
+if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
+#endif
+NRSMat<T>::v[SMat_index(I,J)] = elem;
+}
+
+
+template<class T, class DUMMY>
+void fourindex_dense<antisymtwoelectronrealdirac,T,DUMMY>::add(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem)
+{
+if(i<j) elem = -elem;
+if(k<l) elem = -elem;
+int I = ASMat_index_1(i,j);
+int J = ASMat_index_1(k,l);
+if (I<0 || J<0) laerror("assignment to nonexisting element");
+#ifdef DEBUG
+if (I>=NRSMat<T>::nn || J>=NRSMat<T>::nn) laerror("index out of range");
+if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
+#endif
+NRSMat<T>::v[SMat_index(I,J)] += elem;
+}
+
+
+template<class T, class I> 
+fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : nbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
+{
+if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
+typename fourindex<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p) 
+    if(p->index.indiv.i!=p->index.indiv.k && p->index.indiv.j!=p->index.indiv.l)
+	{
+	add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.j,p->index.indiv.l,p->elem);
+	add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.l,p->index.indiv.j, -p->elem);
+	}
+}
+
+
+template<class T, class I>
+fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex_ext<I,T> &rhs) : nbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
+{
+if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
+typename fourindex_ext<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p) 
+    if(p->index.indiv.i!=p->index.indiv.k && p->index.indiv.j!=p->index.indiv.l)
+        {
+        add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.j,p->index.indiv.l,p->elem);
+        add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.l,p->index.indiv.j, -p->elem);
+        }
+}
+
 
 
 
