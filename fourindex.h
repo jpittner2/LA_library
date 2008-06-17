@@ -859,6 +859,7 @@ public:
 
 	void set(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
 	void add(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
+	void add_unique(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
 	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
 	void resize(const int n) {nbas=n; (*this).NRSMat<T>::resize(n*(n-1)/2);};
         void print(ostream &out) const
@@ -922,18 +923,31 @@ if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 NRSMat<T>::v[SMat_index(I,J)] += elem;
 }
 
+template<class T, class DUMMY>
+void fourindex_dense<antisymtwoelectronrealdirac,T,DUMMY>::add_unique(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem)
+{
+if(i<=j || k<=l) return;
+int I = ASMat_index_1(i,j);
+int J = ASMat_index_1(k,l);
+if (I<0 || J<0 || I<J) return;
+NRSMat<T>::v[SMat_index(I,J)] += elem;
+}
+
 
 template<class T, class I> 
 fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : nbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
-typename fourindex<I,T>::iterator p;
-for(p=rhs.begin(); p!= rhs.end(); ++p) 
-    if(p->index.indiv.i!=p->index.indiv.k && p->index.indiv.j!=p->index.indiv.l)
-	{
-	add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.j,p->index.indiv.l,p->elem);
-	add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.l,p->index.indiv.j, -p->elem);
-	}
+typename fourindex_ext<I,T>::piterator p; //we have to run over equivalents in non-canonical order to build the antisymmetrization properly; it could be done less elegantly but more efficiently moving the if's to outer parts of the piterator loop, if needed
+for(p= const_cast<fourindex_ext<I,T> *>(&rhs)->pbegin(); p.notend(); ++p)
+        {
+        I i=p->index.indiv.i;
+        I j=p->index.indiv.j;
+        I k=p->index.indiv.k;
+        I l=p->index.indiv.l;
+        add_unique(i,k,j,l,p->elem);
+        add_unique(i,k,l,j,-p->elem);
+        }
 }
 
 
@@ -941,12 +955,15 @@ template<class T, class I>
 fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex_ext<I,T> &rhs) : nbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
-typename fourindex_ext<I,T>::iterator p;
-for(p=rhs.begin(); p!= rhs.end(); ++p) 
-    if(p->index.indiv.i!=p->index.indiv.k && p->index.indiv.j!=p->index.indiv.l)
+typename fourindex_ext<I,T>::piterator p; //we have to run over equivalents in non-canonical order to build the antisymmetrization properly; it could be done less elegantly but more efficiently moving the if's to outer parts of the piterator loop, if needed
+for(p= const_cast<fourindex_ext<I,T> *>(&rhs)->pbegin(); p.notend(); ++p) 
         {
-        add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.j,p->index.indiv.l,p->elem);
-        add(p->index.indiv.i,p->index.indiv.k,p->index.indiv.l,p->index.indiv.j, -p->elem);
+	I i=p->index.indiv.i;
+	I j=p->index.indiv.j;
+	I k=p->index.indiv.k;
+	I l=p->index.indiv.l;
+        add_unique(i,k,j,l,p->elem);
+        add_unique(i,k,l,j,-p->elem);
         }
 }
 
