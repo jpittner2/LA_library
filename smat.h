@@ -336,6 +336,23 @@ inline T SMat_index_1ilej(T i, T j)
 return j*(j-1)/2+i-1;
 }
 
+//indexing for antisymmetric matrix (used by fourindex)
+
+template<typename T>
+inline T ASMat_index(T i, T j)
+{
+if(i==j) return -1;
+return (i>j) ? i*(i-1)/2+j : j*(j-1)/2+i;
+}
+
+template<typename T>
+inline T ASMat_index_1(T i, T j)
+{
+if(i==j) return -1;
+return (i>j)? (i-2)*(i-1)/2+j-1 : (j-2)*(j-1)/2+i-1;
+}
+
+
 
 // access the element, 2-dim array case
 template <typename T>

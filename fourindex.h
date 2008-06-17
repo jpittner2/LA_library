@@ -716,12 +716,12 @@ if (IJ<0 || IJ>=(unsigned int)NRSMat<T>::nn || KL<0 || KL>=(unsigned int)NRSMat<
 template<class T, class DUMMY>
 T& fourindex_dense<twoelectronrealmullikan,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l)
 {
-unsigned int I = SMat_index_1(i,j);
-unsigned int J = SMat_index_1(k,l);
+int I = SMat_index_1(i,j);
+int J = SMat_index_1(k,l);
 //I,J act as indices of a NRSmat
 #ifdef DEBUG
      	if (*NRSMat<T>::count != 1) laerror("lval (i,j,k,l) with count > 1 in fourindex_dense");
-       	if (I<0 || I>=(unsigned int)NRSMat<T>::nn || J<0 || J>=(unsigned int)NRSMat<T>::nn) laerror("fourindex_dense index out of range");
+       	if (I<0 || I>=NRSMat<T>::nn || J<0 || J>=NRSMat<T>::nn) laerror("fourindex_dense index out of range");
        	if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 return NRSMat<T>::v[SMat_index(I,J)];
@@ -731,11 +731,11 @@ return NRSMat<T>::v[SMat_index(I,J)];
 template<class T, class DUMMY>
 const T& fourindex_dense<twoelectronrealmullikan,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const
 {
-unsigned int I = SMat_index_1(i,j);
-unsigned int J = SMat_index_1(k,l);
+int I = SMat_index_1(i,j);
+int J = SMat_index_1(k,l);
 //I,J act as indices of a NRSmat
 #ifdef DEBUG
-       	if (I<0 || I>=(unsigned int)NRSMat<T>::nn || J<0 || J>=(unsigned int)NRSMat<T>::nn) laerror("fourindex_dense index out of range");
+       	if (I<0 || I>=NRSMat<T>::nn || J<0 || J>=NRSMat<T>::nn) laerror("fourindex_dense index out of range");
        	if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 return NRSMat<T>::v[SMat_index(I,J)];
