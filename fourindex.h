@@ -679,8 +679,30 @@ public:
 	T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l);
 	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
 	void resize(const int n) {(*this).NRSMat<T>::resize(n*(n+1)/2);};
+	void putext(int f, T thr=1e-15);
+	int nbas() const {return (int)sqrt(2*nn);};
 
 };
+
+template<class T, class I>
+fourindex_dense<twoelectronrealmullikan,T,I>::putext(int f, T thr)
+{
+T y;
+for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
+        for(int k=1; k<=i; ++k) for(int l=1; l<=(i==k?j:k); ++l)
+		if((y=abs((*this)(i,j,k,l))) > thr)
+			{
+			matel4stored<I,T> x;
+			x.elem= y;
+			x.index.indiv.i=i;
+			x.index.indiv.j=j;
+			x.index.indiv.k=k;
+			x.index.indiv.l=l;
+			if(sizeof(matel4stored<I,T>) != write(f,&x,sizeof(matel4stored<I,T>)) 
+				laerror("write error in putext");
+			}
+}
+
 
 template<class T, class I> 
 fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : NRSMat<T>((T)0,rhs.size()*(rhs.size()+1)/2)
@@ -747,8 +769,9 @@ return NRSMat<T>::v[SMat_index(I,J)];
 
 template<class T, class I>
 class fourindex_dense<T2IjAb_aces,T,I> : public NRMat<T> {
-private:
+protected:
 	unsigned int noca,nocb,nvra,nvrb;
+friend class explicit_t2;
 public:
         fourindex_dense(): NRMat<T>() {noca=nocb=nvra=nvrb=0;};
 	void resize(const int nocca, const int noccb, const int nvrta, const int nvrtb) {noca=nocca; nocb=noccb; nvra=nvrta; nvrb=nvrtb; (*this).NRMat<T>::resize(nocca*noccb,nvrta*nvrtb);};
@@ -782,8 +805,9 @@ return (*this).NRMat<T>::operator() ((j-1)*noca+i-1,(b-1)*nvra+a-1);
 
 template<class T, class I>
 class fourindex_dense<T2ijab_aces,T,I> : public NRMat<T> {
-private:
+protected:
 	unsigned int nocc,nvrt,ntri;
+friend class explicit_t2;
 public:
         fourindex_dense(): NRMat<T>() {nocc=nvrt=ntri=0;};
         explicit fourindex_dense(const int noc, const int nvr): NRMat<T>(noc*(noc-1)/2,nvr*(nvr-1)/2) {nocc=noc; nvrt=nvr; ntri=nvr*(nvr-1)/2;};
