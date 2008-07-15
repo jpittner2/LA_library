@@ -680,12 +680,12 @@ public:
 	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
 	void resize(const int n) {(*this).NRSMat<T>::resize(n*(n+1)/2);};
 	void putext(int f, T thr=1e-15);
-	int nbas() const {return (int)sqrt(2*nn);};
+	int nbas() const {return (int)sqrt(2*(*this).nrows());};
 
 };
 
 template<class T, class I>
-fourindex_dense<twoelectronrealmullikan,T,I>::putext(int f, T thr)
+void fourindex_dense<twoelectronrealmullikan,T,I>::putext(int f, T thr)
 {
 T y;
 for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
@@ -698,7 +698,7 @@ for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
 			x.index.indiv.j=j;
 			x.index.indiv.k=k;
 			x.index.indiv.l=l;
-			if(sizeof(matel4stored<I,T>) != write(f,&x,sizeof(matel4stored<I,T>)) 
+			if(sizeof(matel4stored<I,T>) != write(f,&x,sizeof(matel4stored<I,T>)) )
 				laerror("write error in putext");
 			}
 }
