@@ -86,8 +86,8 @@ struct LA_traits_io<unsigned char>
 //let's do some simple template metaprogramming and preprocessing
 //to keep the thing general and compact
 
-typedef class scalar_false {};
-typedef class scalar_true {};
+class scalar_false {};
+class scalar_true {};
 
 //default is non-scalar
 template<typename C>

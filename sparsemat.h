@@ -56,7 +56,7 @@ private:
 	void copylist(const matel<T> *l);
 public:
 	//iterator
-        typedef class iterator {
+        class iterator {
         private:
                 matel<T> *p;
         public:

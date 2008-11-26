@@ -154,7 +154,7 @@ private:
 	void copylist(const matel4<I,T> *l);
 public:
 	//iterator
-	typedef class iterator {
+	class iterator {
 	private:
 		matel4<I,T> *p;
 	public:
@@ -175,7 +175,7 @@ public:
         
         //permiterator ... iterates also over all permutations, with a possibly scaled matrix element or skips permutations yielding equivalent result
         //has to take into account the symmetry type of the fourindex
-        typedef class piterator {
+        class piterator {
 	private:
 		fourindexsymtype symmetry;
 		matel4<I,T> *p;
@@ -343,7 +343,7 @@ public:
 //this is possible, since one instance of this class can have only one active iterator at a time
 	
 //iterator
-        typedef class iterator {
+        class iterator {
         private:
                 const fourindex_ext *base; 
         public:
@@ -362,7 +362,7 @@ public:
 
 
 //piterator ... iterate over all allowed permutations; conveniently expressed via the basic iterator which does the block-buffering
-        typedef class piterator {
+        class piterator {
         private:
                 fourindex_ext *base;
 		matel4<I,T> my;
