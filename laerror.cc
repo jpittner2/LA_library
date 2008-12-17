@@ -30,6 +30,7 @@
 #include "traceback.h"
 #endif
 
+
 void laerror(const char *s1)
 {
   std::cerr << "LA:ERROR - ";
@@ -41,12 +42,7 @@ void laerror(const char *s1)
   }
   if(errno) perror("system error");
 
-#ifdef USE_TRACEBACK
-  traceback(1);
-  exit(1);
-#else
-  throw LAerror(s1); //traceback possible via sigtraceback, but BFD library might fail for -O3 code on some machines and source lines would not be available
-#endif
+throw LAerror(s1); 
 }
 
 //stub for f77 blas called from strassen routine

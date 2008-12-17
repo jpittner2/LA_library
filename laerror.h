@@ -18,14 +18,23 @@
 #ifndef _LAERROR_H_
 #define _LAERROR_H_
 
+#include <iostream>
+
 //exception class for laerror
 class LAerror
 	{
-	const char *msg;
 	public:
+	const char *msg;
 	LAerror(const char *s) {msg=s;};
 	};
 
 extern void laerror(const char *);
+
+inline std::ostream & operator<<(std::ostream &s, const LAerror &x)
+{
+s << x.msg;
+return s;
+}
+
 
 #endif
