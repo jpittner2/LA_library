@@ -61,9 +61,13 @@ p=rr;
 for(int iter=0; iter<= itmax; iter++)
 	{
 	double err=p.norm();
-	if(verbose) cout << "conjgrad: iter= "<<iter<<" err= "<<
+	if(verbose) 
+		{
+		cout << "conjgrad: iter= "<<iter<<" err= "<<
 		setiosflags(ios::scientific)<<setprecision(8) <<err<<
 		resetiosflags(ios::scientific)<<setprecision(12)<<"\n";
+		cout.flush();
+		}
 	if(err <= tol)
 		{
 		if(!issquare) delete r;

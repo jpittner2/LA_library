@@ -156,10 +156,11 @@ for(int iroot=0; iroot<=min(krylovsize,nroots-1); ++iroot)
         if(verbose && iroot<=max(oldnroot,nroot)) 
 		{
 		cout <<"Davidson: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" energy="<<r[iroot]<<"\n";
+		cout.flush();
 		}
 	}
 
-if(verbose && oldnroot!=nroot) cout <<"root no. "<<oldnroot<<" converged\n";
+if(verbose && oldnroot!=nroot) {cout <<"root no. "<<oldnroot<<" converged\n"; cout.flush();}
 if (nroot>=nroots) goto converged;
 if (it==maxit-1) break; //not converged
 
@@ -223,7 +224,7 @@ goto finished;
 converged:
 AuxStorage<typename LA_traits<T>::elementtype> *ev;
 if(eivecsfile) ev = new AuxStorage<typename LA_traits<T>::elementtype>(eivecsfile);
-if(verbose) cout << "Davidson converged in "<<it<<" iterations.\n";
+if(verbose) {cout << "Davidson converged in "<<it<<" iterations.\n"; cout.flush();}
 for(nroot=0; nroot<nroots; ++nroot)
 	{
         eivals[nroot]=r[nroot];

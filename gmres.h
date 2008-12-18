@@ -188,11 +188,16 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	    		}
 
 	    	//Schritt 6: Konvergenz?
-	    	if(verbose) cout << "gmres iter "<<l<<" "<<k<<" resid "
+	    	if(verbose) 
+			{
+			cout << "gmres iter "<<l<<" "<<k<<" resid "
 		<<setw(0)<<setiosflags(ios::scientific)<<setprecision(8)
 		<<abs(d[k+1])<< " thr "<<eps*beta_0<< " reduction "
 		<<setw(5)<<setprecision(2)<<resetiosflags(ios::scientific)
 		<<(d_alt - abs(d[k+1]))/d_alt*100<< "\n" <<setprecision(12);
+			cout.flush();
+			}
+		
 		d_alt = abs(d[k+1]);
             	//*err= d_alt;
 	    	if (d_alt < eps*beta_0) 
