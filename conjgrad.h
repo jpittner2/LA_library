@@ -30,7 +30,7 @@
 
 
 template<typename T, typename Matrix>
-extern bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess, const double tol, const int itmax, const bool verbose, bool issquare,const bool precondition)
+extern bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=true, const double tol=1e-8, const int itmax=1000, const bool verbose=true, bool issquare=1,const bool precondition=1)
 {
 int m=bigmat.nrows();
 int n=bigmat.ncols();
