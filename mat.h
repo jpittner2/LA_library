@@ -44,9 +44,9 @@ public:
 	inline NRMat(const NRMat &rhs);
 	explicit NRMat(const NRSMat<T> &rhs);
 #ifdef MATPTR
-	explicit NRMat(const NRVec<T> &rhs, const int n, const int m) :NRMat(&rhs[0][0],n,m) {};
+	explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset=0) :NRMat(&rhs[0][0] + offset ,n,m) {if (offset < 0 || n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");};
 #else
-	explicit NRMat(const NRVec<T> &rhs, const int n, const int m);
+	explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset=0);
 #endif
 	~NRMat();
 #ifdef MATPTR
@@ -227,15 +227,14 @@ NRMat<T>::NRMat(const NRSMat<T> &rhs)
  
 #ifndef MATPTR
 template <typename T>
-NRMat<T>::NRMat(const NRVec<T> &rhs, const int n, const int m)
+NRMat<T>::NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset)
 {
-#ifdef DEBUG
-	if (n*m != rhs.nn) laerror("matrix dimensions incompatible with vector length");
-#endif
+	if (offset < 0 || n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");
+
 	nn = n;
 	mm = m;
 	count = rhs.count;
-	v = rhs.v;
+	v = rhs.v + offset;
 	(*count)++;
 }
 #endif
