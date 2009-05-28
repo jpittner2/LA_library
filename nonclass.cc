@@ -285,6 +285,53 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 
 
 
+extern "C" void FORNAME(zheev)(const char *JOBZ, const char *UPLO, const int *N,
+		complex<double> *A, const int *LDA, double *W, double *WORK, const int *LWORK, int *INFO);
+
+extern "C" void FORNAME(zhegv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
+                complex<double> *A, const int *LDA, complex<double> *B, const int *LDB, double *W, double *WORK, const int *LWORK, int *INFO);
+
+
+// a will contain eigenvectors (columns if corder==1), w eigenvalues
+void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec, 
+		const bool corder, int n, NRMat<complex<double> > *b, const int itype)
+{
+	int m = a.nrows();
+	if (m != a.ncols()) laerror("diagonalize() call with non-square matrix");
+	if (a.nrows() != w.size()) 
+		laerror("inconsistent dimension of eigenvalue vector in diagonalize()");
+	if(n==0) n=m;
+	if(n<0||n>m) laerror("actual dimension out of range in diagonalize");
+	if(b) if(n>b->nrows() || n> b->ncols()) laerror("wrong B matrix dimension in diagonalize");
+
+	a.copyonwrite();
+	w.copyonwrite();
+	if(b) b->copyonwrite();
+
+	int r = 0;
+	char U ='U';
+	char vectors = 'V';
+	if (!eivec) vectors = 'N';
+	int LWORK = -1;
+	double WORKX;
+	int ldb=0; if(b) ldb=b->ncols();
+
+	// First call is to determine size of workspace
+	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, &r );
+	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, &WORKX, &LWORK, &r );
+	LWORK = (int)WORKX;
+	double *WORK = new double[LWORK];
+	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, &r );
+	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, &r );
+	delete[] WORK;
+	if (vectors == 'V' && corder) a.transposeme(n);
+
+	if (r < 0) laerror("illegal argument in sygv/syev in diagonalize()");
+	if (r > 0) laerror("convergence problem in sygv/syev in diagonalize()");
+}
+
+
+
 extern "C" void FORNAME(dspev)(const char *JOBZ, const char *UPLO, const int *N,
 		double *AP, double *W, double *Z, const int *LDZ, double *WORK, int *INFO);
 
@@ -322,6 +369,48 @@ void diagonalize(NRSMat<double> &a, NRVec<double> &w, NRMat<double> *v,
 	if (r < 0) laerror("illegal argument in spgv/spev in diagonalize()");
 	if (r > 0) laerror("convergence problem in spgv/spev in diagonalize()");
 }
+
+
+extern "C" void FORNAME(zhpev)(const char *JOBZ, const char *UPLO, const int *N,
+		complex<double> *AP, double *W, complex<double> *Z, const int *LDZ, complex<double> *WORK, double *RWORK, int *INFO);
+
+extern "C" void FORNAME(zhpgv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
+                complex<double> *AP, complex<double> *BP, double *W, complex<double> *Z, const int *LDZ, complex<double> *WORK,  double *RWORK, int *INFO);
+
+
+// v will contain eigenvectors, w eigenvalues
+void diagonalize(NRSMat<complex<double> > &a, NRVec<double> &w, NRMat<complex<double> > *v,
+		const bool corder, int n, NRSMat<complex<double> > *b, const int itype)
+{
+	if(n<=0) n = a.nrows();
+	if (v) if (v->nrows() != v ->ncols() || n > v->nrows() || n > a.nrows())
+		laerror("diagonalize() call with inconsistent dimensions");
+	if (n==a.nrows() && n != w.size() || n>w.size()) laerror("inconsistent dimension of eigenvalue vector");
+
+	if(b) if(n>b->nrows() || n> b->ncols()) laerror("wrong B matrix dimension in diagonalize");
+
+	a.copyonwrite();
+	w.copyonwrite();
+	if(v) v->copyonwrite();
+	if(b) b->copyonwrite();
+
+	int r = 0;
+	char U = 'U';
+	char job = v ? 'v' : 'n';
+
+	complex<double> *WORK = new complex<double>[2*n];
+	double *RWORK  = new double[3*n];
+	int ldv=v?v->ncols():n;
+	if(b) FORNAME(zhpgv)(&itype,&job, &U, &n, a, *b, w, v?(*v)[0]:(complex<double> *)0, &ldv, WORK, RWORK,  &r );
+	else FORNAME(zhpev)(&job, &U, &n, a, w, v?(*v)[0]:(complex<double> *)0, &ldv, WORK, RWORK,  &r );
+	delete[] WORK;
+	delete[] RWORK;
+	if (v && corder) v->transposeme(n);
+
+	if (r < 0) laerror("illegal argument in spgv/spev in diagonalize()");
+	if (r > 0) laerror("convergence problem in spgv/spev in diagonalize()");
+}
+
 
 
 extern "C" void FORNAME(dgesvd)(const char *JOBU,  const char *JOBVT,  const int *M,
