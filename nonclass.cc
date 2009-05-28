@@ -286,10 +286,10 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 
 
 extern "C" void FORNAME(zheev)(const char *JOBZ, const char *UPLO, const int *N,
-		complex<double> *A, const int *LDA, double *W, double *WORK, const int *LWORK, int *INFO);
+		complex<double> *A, const int *LDA, double *W, complex<double> *WORK, const int *LWORK, double *RWORK, int *INFO);
 
 extern "C" void FORNAME(zhegv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
-                complex<double> *A, const int *LDA, complex<double> *B, const int *LDB, double *W, double *WORK, const int *LWORK, int *INFO);
+                complex<double> *A, const int *LDA, complex<double> *B, const int *LDB, double *W, complex<double> *WORK, const int *LWORK, double *RWORK, int *INFO);
 
 
 // a will contain eigenvectors (columns if corder==1), w eigenvalues
@@ -313,21 +313,23 @@ void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec,
 	char vectors = 'V';
 	if (!eivec) vectors = 'N';
 	int LWORK = -1;
-	double WORKX;
+	complex<double> WORKX;
 	int ldb=0; if(b) ldb=b->ncols();
 
 	// First call is to determine size of workspace
-	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, &r );
-	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, &WORKX, &LWORK, &r );
-	LWORK = (int)WORKX;
-	double *WORK = new double[LWORK];
-	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, &r );
-	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, &r );
+	double *RWORK = new double(3*n);
+	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, RWORK, &r );
+	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, &WORKX, &LWORK, RWORK, &r );
+	LWORK = (int)WORKX.real();
+	complex<double> *WORK = new complex<double>[LWORK];
+	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, RWORK, &r );
+	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, RWORK, &r );
 	delete[] WORK;
+	delete[] RWORK;
 	if (vectors == 'V' && corder) a.transposeme(n);
 
-	if (r < 0) laerror("illegal argument in sygv/syev in diagonalize()");
-	if (r > 0) laerror("convergence problem in sygv/syev in diagonalize()");
+	if (r < 0) laerror("illegal argument in hegv/heev in diagonalize()");
+	if (r > 0) laerror("convergence problem in hegv/heev in diagonalize()");
 }
 
 
@@ -407,8 +409,8 @@ void diagonalize(NRSMat<complex<double> > &a, NRVec<double> &w, NRMat<complex<do
 	delete[] RWORK;
 	if (v && corder) v->transposeme(n);
 
-	if (r < 0) laerror("illegal argument in spgv/spev in diagonalize()");
-	if (r > 0) laerror("convergence problem in spgv/spev in diagonalize()");
+	if (r < 0) laerror("illegal argument in hpgv/hpev in diagonalize()");
+	if (r > 0) laerror("convergence problem in hpgv/hpev in diagonalize()");
 }
 
 
