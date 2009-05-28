@@ -92,8 +92,8 @@ extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0,int n=0); \
 extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0, int n=0); \
 extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
-extern void diagonalize(NRMat<T> &a, NRVec<T> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1); \
-extern void diagonalize(NRSMat<T> &a, NRVec<T> &w, NRMat<T> *v, const bool corder=1, int n=0, NRSMat<T> *b=NULL, const int itype=1);\
+extern void diagonalize(NRMat<T> &a, NRVec<LA_traits<T>::normtype> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1); \
+extern void diagonalize(NRSMat<T> &a, NRVec<LA_traits<T>::normtype> &w, NRMat<T> *v, const bool corder=1, int n=0, NRSMat<T> *b=NULL, const int itype=1);\
 extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<T> &s,\
 		NRMat<T> *v, const bool corder=1, int m=0, int n=0);
 
