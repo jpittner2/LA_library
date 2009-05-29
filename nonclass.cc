@@ -317,7 +317,7 @@ void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec,
 	int ldb=0; if(b) ldb=b->ncols();
 
 	// First call is to determine size of workspace
-	double *RWORK = new double(3*n);
+	double *RWORK = new double[3*n+2]; 
 	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, RWORK, &r );
 	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, &WORKX, &LWORK, RWORK, &r );
 	LWORK = (int)WORKX.real();
