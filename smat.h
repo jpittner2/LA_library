@@ -38,12 +38,12 @@ public:
 	inline NRSMat(const T &a, const int n);	//Initialize to constant
 	inline NRSMat(const T *a, const int n);	// Initialize to array
 	inline NRSMat(const NRSMat &rhs);		// Copy constructor
+	NRSMat(const typename LA_traits_complex<T>::NRSMat_Noncomplex_type &rhs, bool imagpart=false); //construct complex from real
 	explicit NRSMat(const NRMat<T> &rhs);		// symmetric part of general matrix
 	explicit NRSMat(const NRVec<T> &rhs, const int n); //construct matrix from vector
 	NRSMat & operator|=(const NRSMat &rhs);	//assignment to a new copy
 	NRSMat & operator=(const NRSMat &rhs);	//assignment
-	void clear() {LA_traits<T>::clear(v,NN2);}; //zero out
-        void randomize(const T&x);
+        void randomize(const typename LA_traits<T>::normtype &x);
 	NRSMat & operator=(const T &a);		//assign a to diagonal
         const bool operator!=(const NRSMat &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,NN2);} //memcmp for scalars else elementwise
         const bool operator==(const NRSMat &rhs) const {return !(*this != rhs);};
@@ -66,8 +66,10 @@ public:
 	const T dot(const NRSMat &rhs) const; // Smat.Smat//@@@for complex do conjugate
 	const T dot(const NRVec<T> &rhs) const; //Smat(as vec).vec //@@@for complex do conjugate
 	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
+	const NRVec<complex<T> > operator*(const NRVec<complex<T> > &rhs) const {NRVec<complex<T> > result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
 	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
+	void gemv(const T beta, NRVec<complex<T> > &r, const char trans, const T alpha, const NRVec<complex<T> > &x) const {r.gemv(beta,*this,trans,alpha,x);};
 	inline const T& operator[](const int ij) const;
 	inline T& operator[](const int ij);
 	inline const T& operator()(const int i, const int j) const;
@@ -76,13 +78,14 @@ public:
 	inline int ncols() const;
 	inline int size() const;
 	inline bool transp(const int i, const int j) const {return i>j;} //this can be used for compact storage of matrices, which are actually not symmetric, but one triangle of them is redundant
-	const double norm(const T scalar=(T)0) const;
+	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
 	void axpy(const T alpha, const NRSMat &x); // this+= a*x
 	inline const T amax() const;
 	const T trace() const;
 	void get(int fd, bool dimensions=1, bool transp=0);
         void put(int fd, bool dimensions=1, bool transp=0) const;
 	void copyonwrite();
+	void clear() {copyonwrite(); LA_traits<T>::clear(v,NN2);}; //zero out
 	void resize(const int n);
 	inline operator T*(); //get a pointer to the data
 	inline operator const T*() const; //get a pointer to the data
@@ -283,7 +286,7 @@ template <typename T>
 inline T & NRSMat<T>::operator[](const int ij)
 {
 #ifdef DEBUG
-	if (*count != 1) laerror("lval [] with count > 1 in Smat");
+	if (_LA_count_check && *count != 1) laerror("lval [] with count > 1 in Smat");
 	if (ij<0 || ij>=NN2) laerror("SMat [] out of range");
 	if (!v) laerror("[] for unallocated Smat");
 #endif
@@ -359,7 +362,7 @@ template <typename T>
 inline T & NRSMat<T>::operator()(const int i, const int j)
 {
 #ifdef DEBUG
-	if (*count != 1) laerror("lval (i,j) with count > 1 in Smat");
+	if (_LA_count_check && *count != 1) laerror("lval (i,j) with count > 1 in Smat");
 	if (i<0 || i>=nn || j<0 || j>=nn) laerror("SMat (i,j) out of range");
 	if (!v) laerror("(i,j) for unallocated Smat");
 #endif

@@ -63,6 +63,7 @@ public:
         inline NRVec(const T *a, const int n);
 	inline NRVec(T *a, const int n, bool skeleton);
 	inline NRVec(const NRVec &rhs);
+	NRVec(const typename LA_traits_complex<T>::NRVec_Noncomplex_type &rhs, bool imagpart=false); //construct complex from real
 	inline explicit NRVec(const NRSMat<T> & S);
 #ifdef MATPTR
 	explicit NRVec(const NRMat<T> &rhs) : NRVec(&rhs[0][0],rhs.nrows()*rhs.ncols()) {};
@@ -71,8 +72,7 @@ public:
 #endif
 	NRVec & operator=(const NRVec &rhs);
 	NRVec & operator=(const T &a);  //assign a to every element
-	void clear() {LA_traits<T>::clear(v,nn);}; //zero out
-        void randomize(const T &x);
+        void randomize(const typename LA_traits<T>::normtype &x);
 	NRVec & operator|=(const NRVec &rhs);
 	const bool operator!=(const NRVec &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,nn);} //memcmp for scalars else elementwise
 	const bool operator==(const NRVec &rhs) const {return !(*this != rhs);};
@@ -99,6 +99,8 @@ public:
 	void gemv(const T beta, const NRMat<T> &a, const char trans, const T alpha, const NRVec &x);
 	void gemv(const T beta, const NRSMat<T> &a, const char trans /*just for compatibility*/,  const T alpha, const NRVec &x);
 	void gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x,const bool treat_as_symmetric=false);
+	void gemv(const typename LA_traits_complex<T>::Component_type beta, const typename LA_traits_complex<T>::NRMat_Noncomplex_type &a, const char trans, const typename LA_traits_complex<T>::Component_type alpha, const NRVec &x);
+	void gemv(const typename LA_traits_complex<T>::Component_type beta, const typename LA_traits_complex<T>::NRSMat_Noncomplex_type &a, const char trans, const typename LA_traits_complex<T>::Component_type alpha, const NRVec &x);
 	const NRVec operator*(const NRMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const NRSMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const SparseMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
@@ -115,11 +117,12 @@ public:
 	void axpy(const T alpha, const NRVec &x); // this+= a*x
 	void axpy(const T alpha, const T *x, const int stride=1); // this+= a*x
 	void copyonwrite();
+	void clear() {copyonwrite(); LA_traits<T>::clear(v,nn);}; //zero out
 	void resize(const int n);
         void get(int fd, bool dimensions=1, bool transp=0);
         void put(int fd, bool dimensions=1, bool transp=0) const;
 	NRVec & normalize();
-	inline const double norm() const;
+	inline const typename LA_traits<T>::normtype norm() const;
 	inline const T amax() const;
 	inline const NRVec unitvector() const;
 	void fprintf(FILE *f, const char *format, const int modulo) const;
@@ -474,7 +477,7 @@ template <typename T>
 inline T & NRVec<T>::operator[](const int i)
 {
 #ifdef DEBUG
-	if(*count != 1) laerror("possible lval [] with count > 1");
+	if(_LA_count_check && *count != 1) laerror("possible lval [] with count > 1");
 	if(i < 0 || i >= nn) laerror("NRVec out of range");
 	if(!v) laerror("[] on unallocated NRVec");
 #endif

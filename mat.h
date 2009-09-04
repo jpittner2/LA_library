@@ -42,6 +42,7 @@ public:
 	inline NRMat(const T &a, const int n, const int m);
 	NRMat(const T *a, const int n, const int m);
 	inline NRMat(const NRMat &rhs);
+	NRMat(const typename LA_traits_complex<T>::NRMat_Noncomplex_type &rhs, bool imagpart=false); //construct complex from real
 	explicit NRMat(const NRSMat<T> &rhs);
 #ifdef MATPTR
 	explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset=0) :NRMat(&rhs[0][0] + offset ,n,m) {if (offset < 0 || n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");};
@@ -57,8 +58,7 @@ public:
 	const bool operator==(const NRMat &rhs) const {return !(*this != rhs);};
 	inline int getcount() const {return count?*count:0;}
 	NRMat & operator=(const NRMat &rhs);  //assignment
-        void clear() {if(nn&&mm) LA_traits<T>::clear((*this)[0],nn*mm);}; //zero out
-	void randomize(const T &x); //fill with random numbers
+	void randomize(const typename  LA_traits<T>::normtype &x); //fill with random numbers
 	NRMat & operator=(const T &a);    //assign a to diagonal
 	NRMat & operator|=(const NRMat &rhs); //assignment to a new copy
 	NRMat & operator+=(const T &a);   //add diagonal
@@ -88,6 +88,7 @@ public:
 	const NRMat operator&(const NRMat &rhs) const; // direct sum
 	const NRMat operator|(const NRMat<T> &rhs) const; // direct product
 	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
+	const NRVec<complex<T> > operator*(const NRVec<complex<T> > &rhs) const {NRVec<complex<T> > result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
 	const NRVec<T> rsum() const; //sum of rows
 	const NRVec<T> csum() const; //sum of columns
 	const NRVec<T> row(const int i, int l= -1) const; //row of, efficient
@@ -95,6 +96,7 @@ public:
 	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal 
 	void diagonalset(const NRVec<T> &); //set diagonal elements
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
+	void gemv(const T beta, NRVec<complex<T> > &r, const char trans, const T alpha, const NRVec<complex<T> > &x) const {r.gemv(beta,*this,trans,alpha,x);};
 	inline T* operator[](const int i);  //subscripting: pointer to row i
 	inline const T* operator[](const int i) const;
 	inline T& operator()(const int i, const int j); // (i,j) subscripts
@@ -105,6 +107,7 @@ public:
         void get(int fd, bool dimensions=1, bool transposed=false);
         void put(int fd, bool dimensions=1, bool transposed=false) const;
 	void copyonwrite();
+        void clear() {if(nn&&mm) {copyonwrite(); LA_traits<T>::clear((*this)[0],nn*mm);}}; //zero out
 	void resize(int n, int m);
 	inline operator T*(); //get a pointer to the data
 	inline operator const T*() const;
@@ -118,7 +121,7 @@ public:
 			const char transb, const T &alpha);//this = alpha*op( A )*op( B ) + beta*this
 	void fprintf(FILE *f, const char *format, const int modulo) const;
 	void fscanf(FILE *f, const char *format);
-	const double norm(const T scalar=(T)0) const;
+	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
 	void axpy(const T alpha, const NRMat &x); // this += a*x
 	inline const T amax() const;
 	const T trace() const;
@@ -258,7 +261,7 @@ template <typename T>
 inline T* NRMat<T>::operator[](const int i)
 {
 #ifdef DEBUG
-	if (*count != 1) laerror("Mat lval use of [] with count > 1");
+	if (_LA_count_check && *count != 1) laerror("Mat lval use of [] with count > 1");
 	if (i<0 || i>=nn) laerror("Mat [] out of range");
 	if (!v) laerror("[] for unallocated Mat");
 #endif
@@ -287,7 +290,7 @@ template <typename T>
 inline T & NRMat<T>::operator()(const int i, const int j)
 {
 #ifdef DEBUG
-	if (*count != 1) laerror("Mat lval use of (,) with count > 1");
+	if (_LA_count_check && *count != 1) laerror("Mat lval use of (,) with count > 1");
 	if (i<0 || i>=nn &&nn>0 || j<0 || j>=mm && mm>0) laerror("Mat (,) out of range");
 	if (!v) laerror("(,) for unallocated Mat");
 #endif
@@ -626,7 +629,7 @@ public:
         inline  T& operator() (const int i, const int j)
                 {
 #ifdef DEBUG
-        if (*NRMat<T>::count != 1) laerror("Mat lval use of (,) with count > 1");
+        if (_LA_count_check && *NRMat<T>::count != 1) laerror("Mat lval use of (,) with count > 1");
         if (i<1 || i>NRMat<T>::nn || j<1 || j>NRMat<T>::mm) laerror("Mat (,) out of range");
         if (!NRMat<T>::v) laerror("(,) for unallocated Mat");
 #endif

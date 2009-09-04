@@ -53,7 +53,7 @@ public:
 	void reset(const unsigned int i) {v[i/blockbits] &= ~(1<<(i%blockbits));};
 	const bool get(const unsigned int i) {return (v[i/blockbits] >>(i%blockbits))&1;};
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
-	void clear() {memset(v,0,nn*sizeof(bitvector_block));};
+	void clear() {copyonwrite(); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
 	bool operator!=(const bitvector &rhs) const;
 	bool operator==(const bitvector &rhs) const {return !(*this != rhs);};

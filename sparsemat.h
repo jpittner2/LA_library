@@ -88,7 +88,6 @@ public:
         SparseMat & operator+=(const SparseMat &rhs);
 	SparseMat & addtriangle(const SparseMat &rhs, const bool lower, const char sign);
         SparseMat & join(SparseMat &rhs); //more efficient +=, rhs will be emptied
-	void clear() {unsort();deletelist();}
         SparseMat & operator-=(const SparseMat &rhs);
 	inline const SparseMat operator+(const T &rhs) const {return SparseMat(*this) += rhs;}
         inline const SparseMat operator-(const T &rhs) const {return SparseMat(*this) -= rhs;}
@@ -133,6 +132,7 @@ public:
 	inline bool issymmetric() const {return symmetric;}
 	unsigned int length() const;
 	void copyonwrite();
+	void clear() {copyonwrite();unsort();deletelist();}
 	void simplify();
 	const T trace() const;
 	const T norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first
