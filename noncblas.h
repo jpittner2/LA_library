@@ -666,10 +666,19 @@ int cblas_errprn(int ierr, int info, char *form, ...);
 
 #endif
 
+#endif /*NONCBLAS*/
+
+#ifdef NONCLAPACK
+#ifndef NONCLAPACK_H
+#define NONCLAPACK_H
+
+#ifndef NONCBLAS
+#include <cblas.h>
+#endif
+
 /*from clapack.h*/
 int clapack_dgesv(const enum CBLAS_ORDER Order, const int N, const int NRHS,
                   double *A, const int lda, int *ipiv,
                   double *B, const int ldb); 
-
-
+#endif
 #endif
