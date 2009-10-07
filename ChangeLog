@@ -1,0 +1,23 @@
+07.10.2009 RELEASE 0.4
+06.10.2009 autoconf/automake for user convenience
+13.09.2009 RELEASE 0.3
+04.09.2009 fixed a bug with missing copyonwrite() inside clear()
+02.09.2009 fixed a numerical problem in exptimes() for large values of scale
+04.06.2009 fixed a regression due to use of normtype
+28.05.2009 removed the export keyword unsupported in g++
+28.05.2009 fixed normtype in la_traits
+28.05.2009 randomize() added for complex
+28.05.2009 Added interface for complex hermitean  matrix diagonalization
+06.02.2009 constructors of complex vec/mat/smat from real ones
+20.01.2009 optional _LA_count_check
+20.01.2009 NRMat(const NRVec...) constructor with optional offset parameter
+18.12.2008 cout.flush() for verbose iterative methods
+17.12.2008 improvements in laerror for exception handling
+26.11.2008 RELEASE 0.2
+xx.11.2008 checked compilation with gcc-4.3.2
+xx.08.2008 fixed wrong permutation symmetry in previously unused (and untested) fourindex class
+16.04.2008 replaced the dasum() wrongly used for trace
+14.03.2008 support for (formal) matrix resize(n,0)
+11.03.2008 added cblas_idamax replacement for non-cblas
+05.03.2008 fixed transposed bug in inverse() with non-cblas
+26.02.2008 INITIAL RELEASE 0.1
