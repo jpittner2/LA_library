@@ -21,6 +21,11 @@ AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB=-lcblas], [CBLASOPT=-DNONCBLAS])
 AC_SUBST([CBLASLIB])
 AC_SUBST([CBLASOPT])
 
+AC_CHECK_LIB([lapack], [clapack_dgesv], , [CLAPACKOPT=-DNONCLAPACK])
+AC_SUBST([CLAPACKOPT])
+
+
+
 #the check for traceback needs bfd to be linked into
 AC_CHECK_LIB([bfd], [bfd_fprintf_vma])
 AC_CHECK_LIB([traceback], [sigtraceback], [TRACEBACKLIB="-ltraceback -lbfd" TRACEBACKOPT=-DUSE_TRACEBACK])

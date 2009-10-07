@@ -6,13 +6,15 @@ t_SOURCES = t.cc t2.cc
 test_SOURCES = test.cc
 LDADD = libla.a
 
+EXTRA_DIST = LICENSE 
+
 #
 CXXFLAGS += -fno-omit-frame-pointer -O3 -g -fPIC -finline-limit=1000
 CXXFLAGS += -DNO_STRASSEN -DFORTRAN_
 
 CXXFLAGS += -DDEBUG
 
-LDFLAGS += $(CBLASOPT)
+LDFLAGS += $(CBLASOPT) $(CLAPACKOPT)
 LDFLAGS += $(CBLASLIB)
 LDFLAGS += $(TRACEBACKOPT)
 LDFLAGS += $(TRACEBACKLIB)

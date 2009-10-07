@@ -16,7 +16,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef NONCBLAS
 
 #include "noncblas.h"
 #include "laerror.h"
@@ -28,6 +27,7 @@
 #define FORNAME(x) x
 #endif
 
+#ifdef NONCBLAS
 //Level 1 - straightforward wrappers
 
 extern "C" double FORNAME(ddot) (const int *n, const double *x, const int *incx, const double *y, const int *incy);
@@ -225,6 +225,17 @@ if(TransA == CblasConjTrans) laerror("zgemv with CblasConjTrans not supportted")
 FORNAME(zgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, alpha, A, &lda, X, &incX, beta, Y, &incY );
 }
 
+extern "C" int FORNAME(idamax) (const int *N, const double *DX, const int *INCX);
+
+CBLAS_INDEX cblas_idamax(const int N, const double *X, const int incX)
+{
+return FORNAME(idamax)(&N,X,&incX);
+}
+
+
+#endif
+
+#ifdef  NONCLAPACK
 //clapack_dgesv
 //allocate auxiliary storage and transpose input and output quantities to fortran/C order
 extern "C" void FORNAME(dgesv) (const int *N, const int *NRHS, double *A, const int *LDA, int *IPIV, double *B, const int *LDB, int *INFO);
@@ -242,12 +253,5 @@ for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {double t=A[j*lda+i]; A[j*lda+i]=
 return INFO;
 }
 
-extern "C" int FORNAME(idamax) (const int *N, const double *DX, const int *INCX);
-
-CBLAS_INDEX cblas_idamax(const int N, const double *X, const int incX)
-{
-return FORNAME(idamax)(&N,X,&incX);
-}
-
-
 #endif
+
