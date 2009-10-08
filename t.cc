@@ -1172,7 +1172,7 @@ cout <<a.otimes(b);
 }
 
 //test of general square matrix eigenvector derivatives
-if(1)
+if(0)
 {
 const bool biorthonormalize=1;
 
@@ -1270,9 +1270,45 @@ cout <<"right eigenvector  analytic derivative\n"<<vrg<<endl;
 cout <<"right eigenvector derivative error = "<<(vrd-vrg).norm()<<endl;
 
 
+}
 
+if(0)
+{
+try { laerror("test catch exception"); }
+catch(LAerror x)
+	{
+	cout <<"caught exception: "<<x <<endl;
+	}
+laerror("test exception 2");
+}
 
+if(0)
+{
+NRVec<double> v(3);
+v[0]=1; v[1]=2; v[2]=3;
+NRVec<complex<double> > vv = v;
+NRVec<double>u(v);
+vv += u;
+cout <<vv;
+}
 
+if(1)
+{
+complex<double> scale; cin >> scale;
+
+NRMat<complex<double> > h; cin >>h; 
+NRVec<complex<double> > x(h.nrows());
+NRVec<complex<double> > y,z;
+
+x.randomize(1.);
+
+y=exptimes(h*scale,x,false,1.);
+z=exptimes(h,x,false,scale);
+
+cout <<x;
+cout <<y;
+cout <<z;
+cout <<"Error "<<(y-z).norm()<<endl;
 
 }
 

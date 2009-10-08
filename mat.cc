@@ -369,6 +369,25 @@ if(n==0) n=nn;
 	return *this;
 }
 
+
+//complex from real
+template<>
+NRMat<complex<double> >::NRMat(const NRMat<double> &rhs, bool imagpart)
+: nn(rhs.nrows()), mm(rhs.ncols()), count(new int(1))
+{
+#ifdef MATPTR
+        v = new complex<double>*[n];
+        v[0] = new complex<double>[mm*nn];
+        for (int i=1; i<n; i++) v[i] = v[i-1] + m;
+	memset(v[0], 0, nn*mm*sizeof(complex<double>));
+        cblas_dcopy(nn*mm,&rhs[0][0],1,((double *)v[0]) + (imagpart?1:0),2);
+#else
+        v = new complex<double>[mm*nn];
+        memset(v, 0, nn*mm*sizeof(complex<double>));
+	cblas_dcopy(nn*mm,&rhs[0][0],1,((double *)v) + (imagpart?1:0),2);
+#endif
+}
+
 // Output of Mat
 template <typename T>
 void NRMat<T>::fprintf(FILE *file, const char *format, const int modulo) const
@@ -499,6 +518,17 @@ void NRMat<double>::randomize(const double &x)
 for(int i=0; i<nn; ++i)
 	for(int j=0; j<mm; ++j)
 		(*this)(i,j) = x*(2.*random()/(1.+RAND_MAX) -1.);
+}
+
+template<>
+void NRMat<complex<double> >::randomize(const double &x)
+{
+for(int i=0; i<nn; ++i)
+        for(int j=0; j<mm; ++j)
+		{
+                (*this)(i,j).real() = x*(2.*random()/(1.+RAND_MAX) -1.);
+                (*this)(i,j).imag() = x*(2.*random()/(1.+RAND_MAX) -1.);
+		}
 }
 
 

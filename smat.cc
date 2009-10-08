@@ -138,6 +138,14 @@ void NRSMat<double>::randomize(const double &x)
 for(int i=0; i<NN2; ++i) v[i] = x*(2.*random()/(1.+RAND_MAX) -1.);
 }
 
+template<>
+void NRSMat<complex<double> >::randomize(const double &x)
+{
+for(int i=0; i<NN2; ++i) v[i].real() = x*(2.*random()/(1.+RAND_MAX) -1.);
+for(int i=0; i<NN2; ++i) v[i].imag() = x*(2.*random()/(1.+RAND_MAX) -1.);
+for(int i=0; i<nn; ++i) for(int j=0; j<=i; ++j) if(i==j) v[i*(i+1)/2+j].imag()=0; //hermitean 
+}
+
 
 
 // write matrix to the file with specific format
@@ -382,6 +390,16 @@ void NRSMat< complex<double> >::axpy(const complex<double> alpha,
 	copyonwrite();
 	cblas_zaxpy(nn, (void *)(&alpha), (void *)x.v, 1, (void *)v, 1);
 }
+
+//complex from real
+template<>
+NRSMat<complex<double> >::NRSMat(const NRSMat<double> &rhs, bool imagpart)
+: nn(rhs.nrows()),  v(new complex<double>[rhs.nrows()*(rhs.nrows()+1)/2]), count(new int(1))
+{
+memset(v,0,nn*(nn+1)/2*sizeof(complex<double>));
+cblas_dcopy(nn*(nn+1)/2,&rhs(0,0),1,((double *)v) + (imagpart?1:0),2);
+}
+
 
 
 

@@ -27,8 +27,11 @@ extern "C" void fmm(const char c_transa,const char c_transb,const int m,const in
                 double *d_aux,int i_naux);
 extern "C" void strassen_cutoff(int c, int c1, int c2, int c3);
 
+template<>
 void NRMat<double>::s_cutoff(const int c, const int c1, const int c2, const int c3) const
 { strassen_cutoff(c,c1,c2,c3);}
+
+template<>
 void NRMat<double>::strassen(const double beta, const NRMat<double> &a, const char transa, const NRMat<double> &b, const char transb, const double alpha)
 {
 int l(transa=='n'?a.nn:a.mm);

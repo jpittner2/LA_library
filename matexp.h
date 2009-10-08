@@ -24,14 +24,6 @@
 
 #include "la_traits.h"
 #include "laerror.h"
-#ifndef NONCBLAS
-extern "C" {
-#include "cblas.h"
-#include "clapack.h"
-}
-#else
-#include "noncblas.h"
-#endif
 
 
 template<class T,class R>
@@ -184,7 +176,7 @@ return int(ceil(log(n)/log2-log(.75)));
 
 
 template<class T, class C>
-NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1)
+NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, C prescale=1.)
 {
 //should better be computed by mathematica to have accurate last digits, chebyshev instead, see exp in glibc
 static double exptaylor[]={
@@ -210,7 +202,7 @@ static double exptaylor[]={
 8.2206352466243294955e-18,
 4.1103176233121648441e-19,
 0.};
-double mnorm= x.norm();
+double mnorm= x.norm() * abs(prescale);
 power=nextpow2(mnorm); 
 if(maxpower>=0 && power>maxpower) power=maxpower;
 double scale=exp(-log(2.)*power);
@@ -268,14 +260,14 @@ return r;
 //and probably not efficient either
 
 template<class M, class V>
-void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
+void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
 {
 if(mat_is_0) {result = rhs; LA_traits<V>::copyonwrite(result); return;} //prevent returning a shallow copy of rhs
 if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.size()) laerror("inappropriate sizes in exptimes");
 
 int power;
 //prepare the polynom of and effectively scale the matrix
-NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power,maxpower,maxtaylor);
+NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power,maxpower,maxtaylor,scale);
 
 V tmp;
 
@@ -298,7 +290,7 @@ return;
 
 
 template<class M, class V>
-const V exptimes(const M &mat, V rhs, bool transpose=false, const double scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false )
+const V exptimes(const M &mat, V rhs, bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false )
 {
 V result;
 exptimesdestructive(mat,result,rhs,transpose,scale,maxpower,maxtaylor,mat_is_0);

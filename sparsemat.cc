@@ -43,7 +43,7 @@ extern ssize_t write(int, const void *, size_t);
 }
 
 
-export template <class T>
+template <class T>
 void SparseMat<T>::get(int fd, bool dimen, bool transp)
 {
 errno=0;
@@ -75,7 +75,7 @@ list=l;
 }
 
 
-export template <class T>
+template <class T>
 void SparseMat<T>::put(int fd,bool dimen, bool transp) const
 {
 errno=0;
@@ -103,7 +103,7 @@ if(2*sizeof(SPMatindex) != write(fd,&sentinel,2*sizeof(SPMatindex))) laerror("ca
 
 
 //helpers to be used from different functions
-export template <class T>
+template <class T>
 void SparseMat<T>::unsort()
 {
 if(symmetric) colsorted=NULL;
@@ -113,7 +113,7 @@ colsorted=rowsorted=NULL;
 nonzero=0;
 }
 
-export template <class T>
+template <class T>
 void SparseMat<T>::deletelist()
 {
 if(colsorted||rowsorted) unsort();//prevent obsolete pointers
@@ -131,7 +131,7 @@ count=NULL;
 }
 
 //no checks, not to be public
-export template <class T>
+template <class T>
 void SparseMat<T>::copylist(const matel<T> *l)
 {
 list=NULL;
@@ -142,7 +142,7 @@ while(l)
 	}
 }
 
-export template <class T>
+template <class T>
 void SparseMat<T>::copyonwrite()
 {
         if(!count) laerror("probably an assignment to undefined sparse matrix");
@@ -241,7 +241,7 @@ else
 }
 
 
-export template <class T>
+template <class T>
 unsigned int SparseMat<T>::length() const
 {
 if(nonzero) return nonzero;
@@ -258,7 +258,7 @@ return n;
 }
 
  
-export template <class T>
+template <class T>
 unsigned int SparseMat<T>::sort(int type) const //must be const since used from operator* which must be const to be compatible with other stuff, dirty casts here
 {
 if(type==0&&rowsorted || type==1&&colsorted) return nonzero;
@@ -295,7 +295,7 @@ return nonzero; //number of (in principle) nonzero elements
 }
 
 
-export template <class T>
+template <class T>
 void SparseMat<T>::simplify()
 {
 unsigned int n;
@@ -359,7 +359,7 @@ unsort(); //since there were NULLs introduced, rowsorted is not dense
 }
 
 
-export template <class T>
+template <class T>
 void SparseMat<T>::resize(const SPMatindex n, const SPMatindex m)
 {
 	unsort(); 
@@ -378,7 +378,7 @@ void SparseMat<T>::resize(const SPMatindex n, const SPMatindex m)
 	colsorted=rowsorted=NULL;
 }
 
-export template <class T>
+template <class T>
 void SparseMat<T>::incsize(const SPMatindex n, const SPMatindex m)
 {
 	if(symmetric && n!=m) laerror("unsymmetric size increment of a symmetric sparsemat");
@@ -391,7 +391,7 @@ void SparseMat<T>::incsize(const SPMatindex n, const SPMatindex m)
 
 
 
-export template <class T>
+template <class T>
 void SparseMat<T>::addsafe(const SPMatindex n, const SPMatindex m, const T elem)
 {
 #ifdef debug
@@ -409,7 +409,7 @@ add(n,m,elem);
 
 
 //assignment operator
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::operator=(const SparseMat<T> &rhs)
 {
         if (this != &rhs)
@@ -427,7 +427,7 @@ SparseMat<T> & SparseMat<T>::operator=(const SparseMat<T> &rhs)
         return *this;
 }
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::join(SparseMat<T> &rhs)
 {
 if(symmetric!=rhs.symmetric||nn!=rhs.nn||mm!=rhs.mm) laerror("incompatible matrices in join()");
@@ -442,7 +442,7 @@ return *this;
 }
 
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::addtriangle(const SparseMat &rhs, const bool lower, const char sign)
 {
 if(nn!=rhs.nn||mm!=rhs.mm) laerror("incompatible dimensions for +=");
@@ -461,7 +461,7 @@ while(l)
 return *this;
 }
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::operator+=(const SparseMat<T> &rhs)
 {
 if(symmetric&&!rhs.symmetric) laerror("cannot add general to symmetric sparse");
@@ -491,7 +491,7 @@ while(l)
 return *this;
 }
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::operator-=(const SparseMat<T> &rhs)
 {
 if(symmetric&&!rhs.symmetric) laerror("cannot add general to symmetric sparse");
@@ -523,7 +523,7 @@ return *this;
 
 
 //constructor from a dense matrix
-export template <class T>
+template <class T>
 SparseMat<T>::SparseMat(const NRMat<T> &rhs)
 {
 nn=rhs.nrows();
@@ -583,7 +583,7 @@ return divide?NULL:&r[0];
 
 
 //constructor dense matrix from sparse
-export template <class T>
+template <class T>
 NRMat<T>::NRMat(const SparseMat<T> &rhs)
 {
 nn=rhs.nrows();
@@ -618,7 +618,7 @@ while(l)
 
 //constructor dense symmetric packed matrix from sparse
 #define nn2 (nn*(nn+1)/2)
-export template <class T>
+template <class T>
 NRSMat<T>::NRSMat(const SparseMat<T> &rhs)
 {
 if(!rhs.issymmetric()||rhs.nrows()!=rhs.ncols()) laerror("sparse matrix is not symmetric");
@@ -636,7 +636,7 @@ while(l)
 #undef nn2
 
 //constructor dense vector from sparse
-export template <class T>
+template <class T>
 NRVec<T>::NRVec(const SparseMat<T> &rhs)
 {
 if(rhs.nrows()>1 && rhs.ncols()>1) laerror("cannot construct a vector from a sparse matrix with more than one row/column");
@@ -659,7 +659,7 @@ else while(l)
 }
 
 //assignment of a scalar matrix
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::operator=(const T a)
 {
 if(!count ||nn<=0||mm<=0) laerror("assignment of scalar to undefined sparse matrix");
@@ -675,7 +675,7 @@ for(i=0;i<nn;++i) add(i,i,a);
 return *this;
 }
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::operator+=(const T a)
 {
 if(!count ||nn<=0||mm<=0) laerror("assignment of scalar to undefined sparse matrix");
@@ -686,7 +686,7 @@ for(i=0;i<nn;++i) add(i,i,a);
 return *this;
 }
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::operator-=(const T a)
 {
 if(!count ||nn<=0||mm<=0) laerror("assignment of scalar to undefined sparse matrix");
@@ -700,7 +700,7 @@ return *this;
 
 
 //constructor from a dense symmetric matrix
-export template <class T>
+template <class T>
 SparseMat<T>::SparseMat(const NRSMat<T> &rhs)
 {
 nn=rhs.nrows();
@@ -724,7 +724,7 @@ for(i=0;i<nn;++i)
 		}
 }
 
-export template <class T>
+template <class T>
 void SparseMat<T>::transposeme()
 {
 if(!count) laerror("transposeme on undefined lhs");
@@ -739,7 +739,7 @@ while(l)
 SWAP(nn,mm);
 }
 
-export template <class T>
+template <class T>
 void SparseMat<T>::setunsymmetric()
 {
 if(!symmetric) return;
@@ -760,7 +760,7 @@ while(l) //include the mirror picture of elements into the list
 }
 
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::operator*=(const T a)
 {
 if(!count) laerror("operator*= on undefined lhs");
@@ -1217,7 +1217,7 @@ simplify();
 
 
 //direct sum and product -- only partly implemented at the moment
-export template<typename T>
+template<typename T>
 SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs)
 {
 if(issymmetric()) laerror("oplusequal symmetric-unsymmetric");
@@ -1237,7 +1237,7 @@ return *this;
 
 
 
-export template<typename T>
+template<typename T>
 SparseMat<T> & SparseMat<T>::oplusequal(const NRSMat<T> &rhs)
 {
 if(!issymmetric()) laerror("oplusequal symmetric-unsymmetric");
@@ -1257,7 +1257,7 @@ return *this;
 
 
 
-export template <class T>
+template <class T>
 SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs)
 {
 if(symmetric != rhs.symmetric) laerror("incompatible symmetry of sparsemats in oplusequal");

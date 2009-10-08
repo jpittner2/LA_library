@@ -19,6 +19,7 @@
 #define _LA_H_
 
 //this should be the single include file for the end user
+//
 
 #include "vec.h"
 #include "smat.h"

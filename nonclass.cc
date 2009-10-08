@@ -16,15 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef NONCBLAS
-extern "C" {
-#include "cblas.h"
-#include "clapack.h"
-}
-#else
+//this can be safely included since it contains ifdefs NONCBLAS and NONCLAPACK anyway
 #include "noncblas.h"
-#endif
-
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"

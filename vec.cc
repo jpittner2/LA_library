@@ -168,6 +168,23 @@ void NRVec<double>::randomize(const double &x)
 for(int i=0; i<nn; ++i) v[i] = x*(2.*random()/(1.+RAND_MAX) -1.);
 }
 
+template<>
+void NRVec<complex<double> >::randomize(const double &x)
+{
+for(int i=0; i<nn; ++i) v[i] = complex<double> (x*(2.*random()/(1.+RAND_MAX) -1.),x*(2.*random()/(1.+RAND_MAX) -1.));
+}
+
+
+
+//complex from real constructor
+template<>
+NRVec<complex<double> >::NRVec(const NRVec<double> &rhs, bool imagpart)
+: nn(rhs.size()),  v(new complex<double>[rhs.size()]), count(new int(1))
+{
+memset(v,0,nn*sizeof(complex<double>));
+cblas_dcopy(nn,&rhs[0],1,((double *)v) + (imagpart?1:0),2);
+}
+
 
 // axpy call for T = double (not strided)
 template<>
@@ -287,158 +304,12 @@ template<>
 NRVec<unsigned int> &  NRVec<unsigned int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
 
 
-template<>
-void NRVec<int>::gemv(const int beta,
-                const NRSMat<int> &A, const char trans,
-                const int alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<short>::gemv(const short beta,
-                const NRSMat<short> &A, const char trans,
-                const short alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<unsigned long>::gemv(const unsigned long beta,
-                const NRSMat<unsigned long> &A, const char trans,
-                const unsigned long alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<unsigned int>::gemv(const unsigned int beta,
-                const NRSMat<unsigned int> &A, const char trans,
-                const unsigned int alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-
-template<>
-void NRVec<unsigned char>::gemv(const unsigned char beta,
-                const NRSMat<unsigned char> &A, const char trans,
-                const unsigned char alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-
-template<>
-void NRVec<char>::gemv(const char beta,
-                const NRSMat<char> &A, const char trans,
-                const char alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<int>::gemv(const int beta,
-                const NRMat<int> &A, const char trans,
-                const int alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<short>::gemv(const short beta,
-                const NRMat<short> &A, const char trans,
-                const short alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<unsigned long>::gemv(const unsigned long beta,
-                const NRMat<unsigned long> &A, const char trans,
-                const unsigned long alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<unsigned int>::gemv(const unsigned int beta,
-                const NRMat<unsigned int> &A, const char trans,
-                const unsigned int alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-
-template<>
-void NRVec<unsigned char>::gemv(const unsigned char beta,
-                const NRMat<unsigned char> &A, const char trans,
-                const unsigned char alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-
-
-
-template<>
-void NRVec<char>::gemv(const char beta,
-                const NRMat<char> &A, const char trans,
-                const char alpha, const NRVec &x)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<int>::gemv(const int beta,
-                const SparseMat<int> &A, const char trans,
-                const int alpha, const NRVec &x, bool s)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<short>::gemv(const short beta,
-                const SparseMat<short> &A, const char trans,
-                const short alpha, const NRVec &x, bool s)
-{
-laerror("not yet implemented");
-}
-
-
-template<>
-void NRVec<char>::gemv(const char beta,
-                const SparseMat<char> &A, const char trans,
-                const char alpha, const NRVec &x, bool s)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<unsigned long>::gemv(const unsigned long beta,
-                const SparseMat<unsigned long> &A, const char trans,
-                const unsigned long alpha, const NRVec &x, bool s)
-{
-laerror("not yet implemented");
-}
-
-template<>
-void NRVec<unsigned int>::gemv(const unsigned int beta,
-                const SparseMat<unsigned int> &A, const char trans,
-                const unsigned int alpha, const NRVec &x, bool s)
-{
-laerror("not yet implemented");
-}
-
-
-
-template<>
-void NRVec<unsigned char>::gemv(const unsigned char beta,
-                const SparseMat<unsigned char> &A, const char trans,
-                const unsigned char alpha, const NRVec &x, bool s)
-{
-laerror("not yet implemented");
-}
+#define INSTANTIZE_DUMMY(T) \
+template<> void NRVec<T>::gemv(const T beta, const NRMat<T> &a, const char trans,  const T alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
+template<> void NRVec<T>::gemv(const T beta, const NRSMat<T> &a, const char trans,  const T alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
+template<> void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans,  const T alpha, const NRVec<T> &x, bool s) { laerror("gemv on unsupported types"); } \
+template<> void NRVec<T>::gemv(const LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
+template<> void NRVec<T>::gemv(const  LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRSMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } 
 
 
 
@@ -456,6 +327,21 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 	cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans),
 			A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
 }
+
+
+template<>
+void NRVec<complex<double> >::gemv(const double beta, const NRMat<double> &A,
+                const char trans, const double alpha, const NRVec<complex<double> > &x)
+{
+#ifdef DEBUG
+        if ((trans == 'n'?A.ncols():A.nrows()) != x.size())
+                laerror("incompatible sizes in gemv A*x");
+#endif
+        copyonwrite();
+        cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans), A.nrows(), A.ncols(), alpha, A, A.ncols(), (double *)x.v, 2, beta, (double *)v, 2);
+        cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans), A.nrows(), A.ncols(), alpha, A, A.ncols(), ((double *)x.v) + 1, 2, beta, ((double *)v)+1, 2);
+}
+
 
 template<>
 void NRVec< complex<double> >::gemv(const complex<double> beta,
@@ -483,6 +369,19 @@ void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
 	copyonwrite();
 	cblas_dspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, x.v, 1, beta, v, 1);
 }
+
+template<>
+void NRVec<complex<double> >::gemv(const double beta, const NRSMat<double> &A,
+                const char trans, const double alpha, const NRVec<complex<double> > &x)
+{
+#ifdef DEBUG
+	if (A.ncols()!=x.size()) laerror("incompatible dimension in gemv A*x");
+#endif
+	copyonwrite();
+	cblas_dspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, (double *)x.v, 2, beta, (double *)v, 2);
+	cblas_dspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, ((double *)x.v)+1, 2, beta, ((double *)v)+1, 2);
+}
+
 
 
 template<>
@@ -543,3 +442,18 @@ template class NRVec<int>;
 template class NRVec<unsigned int>;
 template class NRVec<unsigned long>;
 
+
+INSTANTIZE_DUMMY(char)
+INSTANTIZE_DUMMY(unsigned char)
+INSTANTIZE_DUMMY(short)
+INSTANTIZE_DUMMY(int)
+INSTANTIZE_DUMMY(unsigned int)
+INSTANTIZE_DUMMY(unsigned long)
+INSTANTIZE_DUMMY(complex<char>)
+INSTANTIZE_DUMMY(complex<unsigned char>)
+INSTANTIZE_DUMMY(complex<short>)
+INSTANTIZE_DUMMY(complex<int>)
+INSTANTIZE_DUMMY(complex<unsigned int>)
+INSTANTIZE_DUMMY(complex<complex<double> >)
+INSTANTIZE_DUMMY(complex<complex<float> >)
+INSTANTIZE_DUMMY(complex<unsigned long>)

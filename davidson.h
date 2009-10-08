@@ -31,7 +31,7 @@
 //therefore the whole implementation must be a template in a header
 //Note that for efficiency in a direct CI case the diagonalof() should cache its result
 
-export template <typename T, typename Matrix>
+template <typename T, typename Matrix>
 extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=1e-6,
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 500);

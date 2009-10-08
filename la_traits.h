@@ -15,12 +15,19 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+//
+//for autotools
+//
+#include "config.h"
+
 ////////////////////////////////////////////////////////////////////////////
 //LA traits classes and generally needed includes
 
 #ifndef _LA_TRAITS_INCL
 #define _LA_TRAITS_INCL
 
+
+extern bool _LA_count_check;
 
 
 using namespace std;
@@ -38,6 +45,14 @@ extern "C" {
 }
 #endif
 
+#ifdef NONCLAPACK
+#include "noncblas.h"
+#else
+extern "C" {
+#include "clapack.h"
+}
+#endif
+
 
 //forward declarations
 template<typename C> class NRVec;
@@ -46,6 +61,44 @@ template<typename C> class NRMat_from1;
 template<typename C> class NRSMat;
 template<typename C> class NRSMat_from1;
 template<typename C> class SparseMat;
+
+
+typedef class {} Dummy_type;
+typedef class {} Dummy_type2;
+
+//for components of complex numbers
+//
+template<typename C>
+struct LA_traits_complex
+        {
+        typedef Dummy_type Component_type;
+	typedef Dummy_type NRVec_Noncomplex_type;
+	typedef Dummy_type NRMat_Noncomplex_type;
+	typedef Dummy_type2 NRSMat_Noncomplex_type;
+        };
+
+#define SPECIALIZE_COMPLEX(T) \
+template<> \
+struct LA_traits_complex<complex<T> > \
+        { \
+        typedef T Component_type; \
+	typedef NRVec<T> NRVec_Noncomplex_type; \
+	typedef NRMat<T> NRMat_Noncomplex_type; \
+	typedef NRSMat<T> NRSMat_Noncomplex_type; \
+        };
+
+
+SPECIALIZE_COMPLEX(double)
+SPECIALIZE_COMPLEX(complex<double>)
+SPECIALIZE_COMPLEX(float)
+SPECIALIZE_COMPLEX(complex<float>)
+SPECIALIZE_COMPLEX(char)
+SPECIALIZE_COMPLEX(unsigned char)
+SPECIALIZE_COMPLEX(short)
+SPECIALIZE_COMPLEX(int)
+SPECIALIZE_COMPLEX(unsigned int)
+SPECIALIZE_COMPLEX(unsigned long)
+
 
 //for general sortable classes
 template<typename T, typename I, int type> struct LA_sort_traits;
@@ -96,7 +149,12 @@ class isscalar { public: typedef scalar_false scalar_type;};
 //specializations
 #define SCALAR(X) \
 template<>\
-class isscalar<X> {public: typedef scalar_true scalar_type;};
+class isscalar<X> {public: typedef scalar_true scalar_type;};\
+template<>\
+class isscalar<complex<X> > {public: typedef scalar_true scalar_type;};\
+template<>\
+class isscalar<complex<complex<X> > > {public: typedef scalar_true scalar_type;};\
+
 
 //declare what is scalar
 SCALAR(char)
@@ -111,21 +169,24 @@ SCALAR(unsigned long)
 SCALAR(unsigned long long)
 SCALAR(float)
 SCALAR(double)
-SCALAR(complex<float>)
-SCALAR(complex<double>)
 SCALAR(void *)
 
 #undef SCALAR
 
 
-//now declare the traits for scalars and for composed classes
-//NOTE! methods in traits classes have to be declared static,
-//since the class itself is never instantiated.
-//for performance, it can be also inlined at the same time
-template<typename C, typename Scalar> struct LA_traits_aux {};
+//declare this generically as traits for any unknown class
+template<typename C, typename Scalar> struct LA_traits_aux
+	{
+	typedef Dummy_type normtype;
+	};
 
 
 //TRAITS SPECIALIZATIONS
+////now declare the traits for scalars and for composed classes
+////NOTE! methods in traits classes have to be declared static,
+////since the class itself is never instantiated.
+////for performance, it can be also inlined at the same time
+//
 
 //complex scalars
 template<typename C>
@@ -225,6 +286,7 @@ static void copyonwrite(X<C> &x) {x.copyonwrite();} \
 
 generate_traits_smat(NRSMat)
 generate_traits_smat(NRSMat_from1)
+
 
 //the final traits class
 template<typename C>

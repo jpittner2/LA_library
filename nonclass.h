@@ -25,7 +25,7 @@
 
 
 //MISC
-export template <class T>
+template <class T>
 const NRSMat<T> twoside_transform(const NRSMat<T> &S, const NRMat<T> &C, bool transp=0) //calculate C^dagger S C
 {
 if(transp)
@@ -44,7 +44,7 @@ return NRSMat<T>(result);
 
 
 
-export template <class T>
+template <class T>
 const NRMat<T> diagonalmatrix(const NRVec<T> &x)
 {
 int n=x.size();

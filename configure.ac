@@ -10,6 +10,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_RANLIB
+AC_LANG(C++)
 
 # Checks for libraries.
 AC_CHECK_LIB([blas], [dgemm_])

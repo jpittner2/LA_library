@@ -30,6 +30,9 @@
 #include "traceback.h"
 #endif
 
+bool _LA_count_check=true;
+
+extern "C" void _findme(void) {}; //for autoconf test we need a function with C linkage
 
 void laerror(const char *s1)
 {
