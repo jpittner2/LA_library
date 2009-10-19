@@ -1167,7 +1167,80 @@ for (int i=0; i< nn; i++) v[i][i] = r[i];
 #endif
 }
 
+template<>
+void NRMat<double>::orthonormalize(const bool rowcol, const NRSMat<double> *metric) //modified Gram-Schmidt
+{
+if(metric) //general metric
+{
+if(rowcol) //vectors are rows
+	{
+	if((*metric).nrows() != mm) laerror("incompatible metric in orthonormalize");
+	        for(int j=0; j<nn; ++j)
+                {
+                for(int i=0; i<j; ++i)
+                        {
+			NRVec<double> tmp = *metric * (*this).row(i);
+                        double fact = cblas_ddot(mm,(*this)[j],1,tmp,1);
+                        cblas_daxpy(mm,-fact,(*this)[i],1,(*this)[j],1);
+                        }
+		NRVec<double> tmp = *metric * (*this).row(j);
+                double norm = cblas_ddot(mm,(*this)[j],1,tmp,1);
+                if(norm<=0.) laerror("zero vector in orthonormalize or nonpositive metric");
+                cblas_dscal(mm,1./sqrt(norm),(*this)[j],1);
+                }
+	}
+else	//vectors are columns
+	{
+	if((*metric).nrows() != nn) laerror("incompatible metric in orthonormalize");
+        for(int j=0; j<mm; ++j)
+                {
+                for(int i=0; i<j; ++i)
+                        {
+			NRVec<double> tmp = *metric * (*this).column(i);
+                        double fact = cblas_ddot(nn,&(*this)[0][j],mm,tmp,1);
+                        cblas_daxpy(nn,-fact,&(*this)[0][i],mm,&(*this)[0][j],mm);
+                        }
+		NRVec<double> tmp = *metric * (*this).column(j);
+		double norm = cblas_ddot(nn,&(*this)[0][j],mm,tmp,1);
+                if(norm<=0.) laerror("zero vector in orthonormalize or nonpositive metric");
+                cblas_dscal(nn,1./sqrt(norm),&(*this)[0][j],mm);
+                }
+	}
+}
 
+else //unit metric
+
+{
+if(rowcol) //vectors are rows
+	{
+	for(int j=0; j<nn; ++j)
+		{
+		for(int i=0; i<j; ++i)
+			{
+			double fact = cblas_ddot(mm,(*this)[j],1,(*this)[i],1);
+			cblas_daxpy(mm,-fact,(*this)[i],1,(*this)[j],1);
+			}
+		double norm = cblas_dnrm2(mm,(*this)[j],1);
+		if(norm==0.) laerror("zero vector in orthonormalize");
+		cblas_dscal(mm,1./norm,(*this)[j],1);
+		}
+	}
+else //vectors are columns
+	{
+        for(int j=0; j<mm; ++j)
+                {
+                for(int i=0; i<j; ++i)
+                        {
+                        double fact = cblas_ddot(nn,&(*this)[0][j],mm,&(*this)[0][i],mm);
+                        cblas_daxpy(nn,-fact,&(*this)[0][i],mm,&(*this)[0][j],mm);
+                        }
+                double norm = cblas_dnrm2(nn,&(*this)[0][j],mm);
+                if(norm==0.) laerror("zero vector in orthonormalize");
+                cblas_dscal(nn,1./norm,&(*this)[0][j],mm);
+                }
+	}
+}
+}
 
 
 
@@ -1177,10 +1250,14 @@ for (int i=0; i< nn; i++) v[i][i] = r[i];
 //// forced instantization in the corresponding object file
 template class NRMat<double>;
 template class NRMat<complex<double> >;
+template class NRMat<long long>;
+template class NRMat<long>;
 template class NRMat<int>;
 template class NRMat<short>;
 template class NRMat<char>;
 template class NRMat<unsigned char>;
+template class NRMat<unsigned short>;
 template class NRMat<unsigned int>;
 template class NRMat<unsigned long>;
+template class NRMat<unsigned long long>;
 
