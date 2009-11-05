@@ -176,7 +176,7 @@ return int(ceil(log(n)/log2-log(.75)));
 
 
 template<class T, class C>
-NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, C prescale=1.)
+NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, typename LA_traits<T>::elementtype prescale=1.)
 {
 //should better be computed by mathematica to have accurate last digits, chebyshev instead, see exp in glibc
 static double exptaylor[]={
@@ -209,7 +209,7 @@ double scale=exp(-log(2.)*power);
 
 
 //find how long taylor expansion will be necessary
-const double precision=1e-14; //decreasing brings nothing
+const double precision=1e-14; //further decreasing brings nothing
 double s,t;
 s=mnorm*scale;
 int n=0;
@@ -230,6 +230,8 @@ for(i=0,t=1.;i<=n;i++)
 	taylor2[i]=exptaylor[i]*t;
 	t*=scale;
 	}
+//cout <<"TEST power, scale "<<power<<" "<<scale<<endl; 
+//cout <<"TEST taylor2 "<<taylor2<<endl;
 return taylor2;
 }
 
@@ -242,7 +244,7 @@ const T exp(const T &x, bool horner=true, int maxpower= -1, int maxtaylor= -1 )
 int power;
 
 //prepare the polynom of and effectively scale T
-NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux<T,typename LA_traits<T>::elementtype>(x,power,maxpower,maxtaylor);
+NRVec<typename LA_traits<T>::normtype> taylor2=exp_aux<T,typename LA_traits<T>::normtype>(x,power,maxpower,maxtaylor);
 
 
 T r= horner?polynom0(x,taylor2):polynom(x,taylor2); 
@@ -267,7 +269,7 @@ if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.siz
 
 int power;
 //prepare the polynom of and effectively scale the matrix
-NRVec<typename LA_traits<V>::elementtype> taylor2=exp_aux<M,typename LA_traits<V>::elementtype>(mat,power,maxpower,maxtaylor,scale);
+NRVec<typename LA_traits<V>::normtype> taylor2=exp_aux<M,typename LA_traits<V>::normtype>(mat,power,maxpower,maxtaylor,scale);
 
 V tmp;
 
