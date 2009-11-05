@@ -204,7 +204,7 @@ static const double exptaylor[]={
 
 
 template<class T, class C>
-NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, typename LA_traits<T>::elementtype prescale=1.)
+NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, C prescale=1.)
 {
 
 double mnorm= x.norm() * abs(prescale);
@@ -366,6 +366,70 @@ const V exptimes(const M &mat, V rhs, bool transpose=false, const typename LA_tr
 V result;
 exptimesdestructive(mat,result,rhs,transpose,scale,maxpower,maxtaylor,mat_is_0);
 return result;
+}
+
+
+
+template<class M, class V>
+void sincostimes_simple(const M &mat, V &si, V &co, const V &rhs, const NRVec<typename LA_traits<V>::normtype> &taylors, const NRVec<typename LA_traits<V>::normtype> &taylorc, bool transpose, const typename LA_traits<V>::elementtype scale)
+{
+si=rhs * taylors[0];
+co=rhs * taylorc[0];
+V tmp=rhs;
+for(int j=1; j<taylors.size(); ++j)
+        {
+	V tmp2(tmp.size());
+	//multiply by a square of the matrix
+        mat.gemv(0.,tmp2,transpose?'t':'n',scale,tmp);
+	mat.gemv(0.,tmp,transpose?'t':'n',scale,tmp2);
+        si.axpy(taylors[j],tmp);
+        co.axpy(taylorc[j],tmp);
+        }
+mat.gemv(0.,tmp,transpose?'t':'n',scale,si);
+si=tmp;
+}
+
+template<class M, class V>
+void sincostimes_aux(const M &mat, V &si, V &co, const V &rhs, const NRVec<typename LA_traits<V>::normtype> &taylors, const NRVec<typename LA_traits<V>::normtype> &taylorc, bool transpose, const typename LA_traits<V>::elementtype scale, int power)
+{
+if(power==0) sincostimes_simple(mat,si,co,rhs,taylors,taylorc,transpose,scale);
+else
+	{
+	V si2,co2; //no large memory allocated yet - size 0
+	sincostimes_aux(mat,si2,co2,rhs,taylors,taylorc,transpose,scale,power-1);
+	sincostimes_aux(mat,si,co,co2,taylors,taylorc,transpose,scale,power-1);
+	V ss,cs;
+	sincostimes_aux(mat,ss,cs,si2,taylors,taylorc,transpose,scale,power-1);
+	co -= ss;
+	si += cs;
+	}
+}
+
+
+
+template<class M, class V>
+void sincostimes(const M &mat, V &si, V &co, const V &rhs,  bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
+{
+if(mat_is_0) //prevent returning a shallow copy of rhs
+	{
+	co = rhs; 
+	LA_traits<V>::copyonwrite(co); 
+	LA_traits<V>::clearme(si);
+	return;
+	}
+
+if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.size()) laerror("inappropriate sizes in sincostimes");
+
+//prepare the polynom of and effectively scale the matrix
+int power;
+NRVec<typename LA_traits<V>::normtype> taylors,taylorc;
+sincos_aux<M,typename LA_traits<V>::normtype>(taylors,taylorc,mat,power,maxpower,maxtaylor,scale);
+if(taylors.size()!=taylorc.size()) laerror("internal error - same size of sin and cos expansions assumed");
+//the actual computation and resursive "squaring"
+cout <<"TEST power "<<power<<endl;
+sincostimes_aux(mat,si,co,rhs,taylors,taylorc,transpose,scale,power);
+
+return;
 }
 
 
