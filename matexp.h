@@ -394,6 +394,7 @@ mat.gemv(0.,tmp,transpose?'t':'n',scale,si);
 si=tmp;
 }
 
+//this recursion is very inefficient, it is better to use complex exptimes!
 template<class M, class V, class S>
 void sincostimes_aux(const M &mat, V &si, V &co, const V &rhs, const NRVec<typename LA_traits<V>::normtype> &taylors, const NRVec<typename LA_traits<V>::normtype> &taylorc, bool transpose, const S scale, int power)
 {
@@ -411,6 +412,7 @@ else
 }
 
 
+//inefficient, it is better to use complex exptimes!
 //again scale should actually be elementtype of M which is inaccessible
 template<class M, class V>
 void sincostimes(const M &mat, V &si, V &co, const V &rhs,  bool transpose=false, const typename LA_traits<V>::normtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
