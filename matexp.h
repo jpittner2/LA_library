@@ -49,6 +49,7 @@ return y;
 }
 
 
+
 //algorithm which minimazes number of multiplications, at the cost of storage
 template<class T,class R>
 const T polynom(const T &x, const NRVec<R> &c)
@@ -174,12 +175,9 @@ if(n<=1.) return 1;
 return int(ceil(log(n)/log2-log(.75)));
 }
 
-
-template<class T, class C>
-NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, typename LA_traits<T>::elementtype prescale=1.)
-{
-//should better be computed by mathematica to have accurate last digits, chebyshev instead, see exp in glibc
-static double exptaylor[]={
+//should better be computed by mathematica to have accurate last digits, perhaps chebyshev instead, see exp in glibc
+//is shared also for sine and cosine now
+static const double exptaylor[]={
 1.,
 1.,
 0.5,
@@ -201,7 +199,14 @@ static double exptaylor[]={
 1.5619206968586225271e-16,
 8.2206352466243294955e-18,
 4.1103176233121648441e-19,
+1.9572941063391262595e-20,
 0.};
+
+
+template<class T, class C>
+NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, typename LA_traits<T>::elementtype prescale=1.)
+{
+
 double mnorm= x.norm() * abs(prescale);
 power=nextpow2(mnorm); 
 if(maxpower>=0 && power>maxpower) power=maxpower;
@@ -237,6 +242,44 @@ return taylor2;
 
 
 
+template<class T, class C>
+void sincos_aux(NRVec<C> &si, NRVec<C> &co, const T &x, int &power,int maxpower= -1, int maxtaylor= -1, typename LA_traits<T>::elementtype prescale=1.)
+{
+double mnorm= x.norm() * abs(prescale);
+power=nextpow2(mnorm); 
+if(maxpower>=0 && power>maxpower) power=maxpower;
+double scale=exp(-log(2.)*power);
+
+//find how long taylor expansion will be necessary
+const double precision=1e-14; //further decreasing brings nothing
+double s,t;
+s=mnorm*scale;
+int n=0;
+t=1.;
+do	{
+	n++;
+	t*=s;
+	}
+while(t*exptaylor[n]>precision);//taylor 0 will terminate in any case
+
+if(maxtaylor>=0 && n>maxtaylor) n=maxtaylor; //useful e.g. if the matrix is nilpotent in order n+1 as the CC T operator for n electrons
+if((n&1)==0) ++n; //force it to be odd to have same length in sine and cosine
+si.resize((n+1)/2);
+co.resize((n+1)/2);
+
+int i; //adjust the coefficients in order to avoid scaling the argument
+for(i=0,t=1.;i<=n;i++)
+	{
+	if(i&1) si[i>>1] = exptaylor[i]* (i&2?-t:t);
+	else 	co[i>>1] = exptaylor[i]* (i&2?-t:t);
+	t*=scale;
+	}
+cout <<"TEST sin "<<si<<endl;
+cout <<"TEST cos "<<co<<endl;
+}
+
+
+
 //it seems that we do not gain anything by polynom vs polynom0, check the m-optimization!
 template<class T>
 const T exp(const T &x, bool horner=true, int maxpower= -1, int maxtaylor= -1 )
@@ -255,6 +298,32 @@ for(int i=0; i<power; i++) r=r*r;
 return r;
 }
 
+
+//make exp(iH) with real H in real arithmetics
+template<class T>
+void sincos(T &s, T &c, const T &x, bool horner=true, int maxpower= -1, int maxtaylor= -1 )
+{
+int power;
+
+NRVec<typename LA_traits<T>::normtype> taylors,taylorc;
+sincos_aux<T,typename LA_traits<T>::normtype>(taylors,taylorc,x,power,maxpower,maxtaylor);
+
+//could we save something by computing both polynoms simultaneously?
+{
+T x2 = x*x;
+s = horner?polynom0(x2,taylors):polynom(x2,taylors);
+c = horner?polynom0(x2,taylorc):polynom(x2,taylorc);
+}
+s = s * x;
+
+//power the results back
+for(int i=0; i<power; i++)
+	{
+	T tmp = c*c - s*s;
+	s = s*c; s *= 2.;
+	c=tmp;
+	}
+}
 
 
 
