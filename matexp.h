@@ -275,8 +275,8 @@ for(i=0,t=1.;i<=n;i++)
 	else 	co[i>>1] = exptaylor[i]* (i&2?-t:t);
 	t*=scale;
 	}
-cout <<"TEST sin "<<si<<endl;
-cout <<"TEST cos "<<co<<endl;
+//cout <<"TEST sin "<<si<<endl;
+//cout <<"TEST cos "<<co<<endl;
 }
 
 
@@ -413,7 +413,7 @@ else
 
 //again scale should actually be elementtype of M which is inaccessible
 template<class M, class V>
-void sincostimes(const M &mat, V &si, V &co, const V &rhs,  bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
+void sincostimes(const M &mat, V &si, V &co, const V &rhs,  bool transpose=false, const typename LA_traits<V>::normtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
 {
 if(mat_is_0) //prevent returning a shallow copy of rhs
 	{
