@@ -1292,7 +1292,7 @@ vv += u;
 cout <<vv;
 }
 
-if(1)
+if(0)
 {
 complex<double> scale; cin >> scale;
 
@@ -1309,6 +1309,94 @@ cout <<x;
 cout <<y;
 cout <<z;
 cout <<"Error "<<(y-z).norm()<<endl;
+
+}
+
+if(0)
+{
+int nocc,nvirt;
+cin >>nocc>>nvirt;
+int n=nocc+nvirt;
+NRMat<double> t(nocc,nvirt);
+t.randomize(0.5);
+NRSMat<double> A(n);
+A=1.;
+for(int i=0; i<nocc;++i) for(int a=nocc; a<n; ++a) A(i,a) = t(i,a-nocc);
+NRMat<double> B(n,n);
+NRVec<double> E(n);
+cout <<A;
+NRSMat<double> Awork=A;
+diagonalize(Awork,E,&B);
+cout <<B<<E;
+NRMat<double> U = A*B;
+for(int p=0; p<n; ++p) E[p] = 1./E[p];
+U.diagmultr(E);
+cout << "Unitary\n"<<U;
+cout <<"Error = "<<(U*U.transpose() -1.).norm()<<endl;
+}
+
+if(1)
+{
+double t;
+NRMat<complex<double> > ham;
+cin >>ham;
+NRMat<double> hamreal = realpart(ham);
+t=clock()/((double) (CLOCKS_PER_SEC));
+NRMat<complex<double> >hamexp1 = exp(ham*complex<double>(0,1));
+cout <<"dense exp time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+SparseMat<complex<double> > h(ham);
+h *= complex<double>(0,1);
+h.simplify();
+cout <<"norms of input (should be same) "<<ham.norm()<<" "<<h.norm()<<endl;
+cout <<"length of hamiltonian "<<h.length()<<endl;
+t=clock()/((double) (CLOCKS_PER_SEC));
+SparseMat<complex<double> > hexp = exp(h);
+cout <<"sparse exp time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout <<"length of exp of ihamiltonian "<<hexp.length()<<endl;
+NRMat<complex<double> >hamexp2(hexp);
+cout <<"norm of results "<<hamexp1.norm() <<" "<<hamexp2.norm()<<endl;
+cout <<"error = "<<(hamexp1-hamexp2).norm()<<endl;
+NRMat<double> s,c;
+t=clock()/((double) (CLOCKS_PER_SEC));
+sincos(s,c,hamreal);
+cout <<"dense sincos time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+NRMat<complex<double> >hamexp3 = complexmatrix(c,s);
+cout <<"sincos error = "<<(hamexp1-hamexp3).norm()<<endl;
+SparseMat<double> hreal(hamreal);
+SparseMat<double>  si,co;
+t=clock()/((double) (CLOCKS_PER_SEC));
+sincos(si,co,hreal);
+cout <<"sparse sincos time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout <<"length of sin,cos "<<si.length()<<" "<<co.length()<<endl;
+NRMat<complex<double> >hamexp4 = complexmatrix(NRMat<double>(co),NRMat<double>(si));
+cout <<"sincos error 2 = "<<(hamexp1-hamexp4).norm()<<endl;
+
+NRVec<complex<double> > rhs(ham.ncols());
+rhs.randomize(1.);
+t=clock()/((double) (CLOCKS_PER_SEC));
+NRVec<complex<double> > r1 = exptimes(ham*complex<double>(0,1),rhs);
+cout <<"dense exptimes "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+t=clock()/((double) (CLOCKS_PER_SEC));
+NRVec<complex<double> > r2 = exptimes(h,rhs);
+cout <<"sparse exptimes "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout <<"exptimes error = "<<(r1-r2).norm()<<endl;
+NRVec<complex<double> > siv,cov;
+t=clock()/((double) (CLOCKS_PER_SEC));
+//sincostimes(ham,siv,cov,rhs);
+sincostimes(hamreal,siv,cov,rhs);
+cout <<"dense sincostimes "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout <<"sincostimes errors = "<<(siv-s*rhs).norm()<<" "<<(cov-c*rhs).norm()<<endl;
+NRVec<complex<double> > r3 = cov + siv*complex<double>(0,1);
+cout <<"sincostimes error  = "<<(r1-r3).norm()<<endl;
+/*
+ * real sparse matrix times complex vector not implemented
+NRVec<complex<double> > siv2,cov2;
+t=clock()/((double) (CLOCKS_PER_SEC));
+sincostimes(hreal,siv2,cov2,rhs);
+cout <<"sparse sincostimes "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+NRVec<complex<double> > r4 = cov2 + siv2*complex<double>(0,1);
+cout <<"sincostimes error 2 = "<<(r1-r4).norm()<<endl;
+*/
 
 }
 
