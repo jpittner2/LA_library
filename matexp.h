@@ -203,8 +203,9 @@ static const double exptaylor[]={
 0.};
 
 
-template<class T, class C>
-NRVec<C> exp_aux(const T &x, int &power,int maxpower= -1, int maxtaylor= -1, C prescale=1.)
+//S is element type of T, but T may be any user-defined
+template<class T, class C, class S>
+NRVec<C> exp_aux(const T &x, int &power, int maxpower, int maxtaylor, S prescale)
 {
 
 double mnorm= x.norm() * abs(prescale);
@@ -242,8 +243,8 @@ return taylor2;
 
 
 
-template<class T, class C>
-void sincos_aux(NRVec<C> &si, NRVec<C> &co, const T &x, int &power,int maxpower= -1, int maxtaylor= -1, typename LA_traits<T>::elementtype prescale=1.)
+template<class T, class C, class S>
+void sincos_aux(NRVec<C> &si, NRVec<C> &co, const T &x, int &power,int maxpower, int maxtaylor, const S prescale)
 {
 double mnorm= x.norm() * abs(prescale);
 power=nextpow2(mnorm); 
@@ -287,7 +288,7 @@ const T exp(const T &x, bool horner=true, int maxpower= -1, int maxtaylor= -1 )
 int power;
 
 //prepare the polynom of and effectively scale T
-NRVec<typename LA_traits<T>::normtype> taylor2=exp_aux<T,typename LA_traits<T>::normtype>(x,power,maxpower,maxtaylor);
+NRVec<typename LA_traits<T>::normtype> taylor2=exp_aux<T,typename LA_traits<T>::normtype,double>(x,power,maxpower,maxtaylor,1.);
 
 
 T r= horner?polynom0(x,taylor2):polynom(x,taylor2); 
@@ -306,7 +307,7 @@ void sincos(T &s, T &c, const T &x, bool horner=true, int maxpower= -1, int maxt
 int power;
 
 NRVec<typename LA_traits<T>::normtype> taylors,taylorc;
-sincos_aux<T,typename LA_traits<T>::normtype>(taylors,taylorc,x,power,maxpower,maxtaylor);
+sincos_aux<T,typename LA_traits<T>::normtype>(taylors,taylorc,x,power,maxpower,maxtaylor,1.);
 
 //could we save something by computing both polynoms simultaneously?
 {
@@ -330,8 +331,8 @@ for(int i=0; i<power; i++)
 //this simple implementation seems not to be numerically stable enough
 //and probably not efficient either
 
-template<class M, class V>
-void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
+template<class M, class V, class MEL>
+void exptimesdestructive(const M &mat, V &result, V &rhs,  bool transpose, const MEL scale, int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
 {
 if(mat_is_0) {result = rhs; LA_traits<V>::copyonwrite(result); return;} //prevent returning a shallow copy of rhs
 if(mat.nrows()!=mat.ncols()||(unsigned int) mat.nrows() != (unsigned int)rhs.size()) laerror("inappropriate sizes in exptimes");
@@ -360,6 +361,9 @@ return;
 }
 
 
+//actually scale should be elementtype of M, but we do not have it since M can be anything user-defined
+//and template paramter for it does not work due to optional arguments
+//
 template<class M, class V>
 const V exptimes(const M &mat, V rhs, bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false )
 {
@@ -370,8 +374,9 @@ return result;
 
 
 
-template<class M, class V>
-void sincostimes_simple(const M &mat, V &si, V &co, const V &rhs, const NRVec<typename LA_traits<V>::normtype> &taylors, const NRVec<typename LA_traits<V>::normtype> &taylorc, bool transpose, const typename LA_traits<V>::elementtype scale)
+
+template<class M, class V, class S>
+void sincostimes_simple(const M &mat, V &si, V &co, const V &rhs, const NRVec<typename LA_traits<V>::normtype> &taylors, const NRVec<typename LA_traits<V>::normtype> &taylorc, bool transpose, const S scale)
 {
 si=rhs * taylors[0];
 co=rhs * taylorc[0];
@@ -389,8 +394,8 @@ mat.gemv(0.,tmp,transpose?'t':'n',scale,si);
 si=tmp;
 }
 
-template<class M, class V>
-void sincostimes_aux(const M &mat, V &si, V &co, const V &rhs, const NRVec<typename LA_traits<V>::normtype> &taylors, const NRVec<typename LA_traits<V>::normtype> &taylorc, bool transpose, const typename LA_traits<V>::elementtype scale, int power)
+template<class M, class V, class S>
+void sincostimes_aux(const M &mat, V &si, V &co, const V &rhs, const NRVec<typename LA_traits<V>::normtype> &taylors, const NRVec<typename LA_traits<V>::normtype> &taylorc, bool transpose, const S scale, int power)
 {
 if(power==0) sincostimes_simple(mat,si,co,rhs,taylors,taylorc,transpose,scale);
 else
@@ -406,7 +411,7 @@ else
 }
 
 
-
+//again scale should actually be elementtype of M which is inaccessible
 template<class M, class V>
 void sincostimes(const M &mat, V &si, V &co, const V &rhs,  bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false) //uses just matrix vector multiplication
 {
