@@ -363,6 +363,7 @@ return;
 
 //actually scale should be elementtype of M, but we do not have it since M can be anything user-defined
 //and template paramter for it does not work due to optional arguments
+//undecent solution: exptimesreal
 //
 template<class M, class V>
 const V exptimes(const M &mat, V rhs, bool transpose=false, const typename LA_traits<V>::elementtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false )
@@ -371,6 +372,18 @@ V result;
 exptimesdestructive(mat,result,rhs,transpose,scale,maxpower,maxtaylor,mat_is_0);
 return result;
 }
+
+template<class M, class V>
+const V exptimesreal(const M &mat, V rhs, bool transpose=false, const typename LA_traits<V>::normtype scale=1., int maxpower= -1, int maxtaylor= -1, bool mat_is_0=false )
+{
+V result;
+exptimesdestructive(mat,result,rhs,transpose,scale,maxpower,maxtaylor,mat_is_0);
+return result;
+}
+
+
+
+
 
 
 
