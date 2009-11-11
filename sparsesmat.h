@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "la_traits.h"
 #include "sparsemat.h"
 #include "vec.h"
 #include "mat.h"
@@ -50,28 +51,37 @@ protected:
 	int *count;
 public:
 	SparseSMat() : nn(0), v(NULL), count(NULL) {};
-	SparseSMat(const SPMatindex n);
+	explicit SparseSMat(const SPMatindex n); //prevent double -> int -> SparseSMat
 	SparseSMat(const SparseSMat &rhs);
-	SparseSMat(const SparseMat<T> &rhs);
-	SparseSMat(const NRSMat<T> &rhs);
+	explicit SparseSMat(const SparseMat<T> &rhs);
+	explicit SparseSMat(const NRSMat<T> &rhs);
 	SparseSMat & operator=(const SparseSMat &rhs);
 	void copyonwrite();
         void resize(const SPMatindex n);
         void clear() {resize(nn);}
 	void simplify();
 	~SparseSMat();
+	inline int getcount() const {return count?*count:0;}
 	//
-        SparseSMat & operator=(const T a);          //assign a to diagonal
-        SparseSMat & operator+=(const T a);         //assign a to diagonal
-        SparseSMat & operator-=(const T a);         //assign a to diagonal
-        SparseSMat & operator*=(const T a);         //multiply by a scalar
+	inline const SparseSMat operator+(const T &rhs) const {return SparseSMat(*this) += rhs;}
+        inline const SparseSMat operator-(const T &rhs) const {return SparseSMat(*this) -= rhs;}
+        inline const SparseSMat operator*(const T &rhs) const {return SparseSMat(*this) *= rhs;}
+        inline const SparseSMat operator+(const SparseSMat &rhs) const {return SparseSMat(*this) += rhs;} 
+        inline const SparseSMat operator-(const SparseSMat &rhs) const {return SparseSMat(*this) -= rhs;}
+        inline const SparseSMat operator*(const SparseSMat &rhs) const; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
+
+        SparseSMat & operator=(const T &a);          //assign a to diagonal
+        SparseSMat & operator+=(const T &a);         //assign a to diagonal
+        SparseSMat & operator-=(const T &a);         //assign a to diagonal
+        SparseSMat & operator*=(const T &a);         //multiply by a scalar
         SparseSMat & operator+=(const SparseSMat &rhs);
         SparseSMat & operator-=(const SparseSMat &rhs);
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const;
-        const SparseSMat operator*(const SparseSMat &rhs) const; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
+	void axpy(const T alpha, const SparseSMat &x, const bool transp=0); // this+= a*x
 	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
 	void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
 	unsigned int length() const;
+	void transposeme() const {};
 	int nrows() const {return nn;}
 	int ncols() const {return nn;}
 
@@ -146,6 +156,17 @@ memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
 }
 
 template <typename T>
+SparseSMat<T>::SparseSMat(const NRSMat<T> &rhs)
+:nn(rhs.nrows()),
+count(new int(1))
+{
+v= new std::map<SPMatindex,T> * [nn];
+memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
+int i,j;
+for(i=0; i<nn; ++i) for(j=0; j<=i; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),true);
+}
+
+template <typename T>
 SparseSMat<T>::SparseSMat(const SparseSMat &rhs)
 {
 v = rhs.v;
@@ -153,6 +174,20 @@ nn = rhs.nn;
 count = rhs.count;
 if(count) (*count)++;
 }
+
+//NRSMat from SparseSMat
+#define nn2 (nn*(nn+1)/2)
+template <typename T>
+NRSMat<T>::NRSMat(const SparseSMat<T> &rhs)
+: nn(rhs.nrows())
+{
+count = new int(1);
+v=new T[nn2];
+memset(v,0,nn2*sizeof(T));
+typename SparseSMat<T>::iterator p(rhs);
+for(; p.notend(); ++p) if(p->row <= p->col) (*this)(p->row,p->col)=p->elem;
+}
+#undef nn2
 
 
 template <typename T>
@@ -231,6 +266,7 @@ SparseSMat<T> & SparseSMat<T>::operator=(const SparseSMat &rhs)
 return *this;
 }
 
+
 template <typename T>
 void SparseSMat<T>::copyonwrite()
 {
@@ -240,11 +276,11 @@ void SparseSMat<T>::copyonwrite()
     (*count)--;
     count = new int;
     *count = 1;
-    std::map<SPMatindex,T> *newv= new std::map<SPMatindex,T> * [nn];
+    typename std::map<SPMatindex,T> **newv= new std::map<SPMatindex,T> * [nn];
     for(SPMatindex i=0; i<nn; ++i) if(v[i])
-		newv[i]= new std::map<SPMatindex,T>(*(v[i])); //deep copy of each map
+		newv[i]= new typename std::map<SPMatindex,T>(*(v[i])); //deep copy of each map
 	else
-		newv[i]=NULL;
+		newv[i]= NULL;
     v = newv;
   }
 }
@@ -298,11 +334,7 @@ std::ostream & operator<<(std::ostream &s, const SparseSMat<T> &x)
   s << n << " "<< n<< std::endl;
 
 typename SparseSMat<T>::iterator p(x);
-for(; 
-p.notend(); 
-++p) 
-s << (int)p->row << ' ' << (int)p->col  << ' ' << (typename LA_traits_io<T>::IOtype) p->elem << '\n';
-
+for(; p.notend(); ++p) s << (int)p->row << ' ' << (int)p->col  << ' ' << (typename LA_traits_io<T>::IOtype) p->elem << '\n';
   s << "-1 -1\n";
   return s;
 }
@@ -325,9 +357,6 @@ std::istream& operator>>(std::istream  &s, SparseSMat<T> &x)
                         }
                 return s;
                 }
-
-
-
 
 
 
