@@ -62,24 +62,25 @@ public:
 	void simplify();
 	~SparseSMat();
 	inline int getcount() const {return count?*count:0;}
-	//
+        SparseSMat & operator*=(const T &a);         //multiply by a scalar
+        inline const SparseSMat operator*(const T &rhs) const {return SparseSMat(*this) *= rhs;}
+/*@@@to be done
 	inline const SparseSMat operator+(const T &rhs) const {return SparseSMat(*this) += rhs;}
         inline const SparseSMat operator-(const T &rhs) const {return SparseSMat(*this) -= rhs;}
-        inline const SparseSMat operator*(const T &rhs) const {return SparseSMat(*this) *= rhs;}
         inline const SparseSMat operator+(const SparseSMat &rhs) const {return SparseSMat(*this) += rhs;} 
         inline const SparseSMat operator-(const SparseSMat &rhs) const {return SparseSMat(*this) -= rhs;}
-        inline const SparseSMat operator*(const SparseSMat &rhs) const; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
-
         SparseSMat & operator=(const T &a);          //assign a to diagonal
         SparseSMat & operator+=(const T &a);         //assign a to diagonal
         SparseSMat & operator-=(const T &a);         //assign a to diagonal
-        SparseSMat & operator*=(const T &a);         //multiply by a scalar
         SparseSMat & operator+=(const SparseSMat &rhs);
         SparseSMat & operator-=(const SparseSMat &rhs);
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const;
 	void axpy(const T alpha, const SparseSMat &x, const bool transp=0); // this+= a*x
 	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
-	void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
+*/
+        inline const SparseSMat operator*(const SparseSMat &rhs) const {SparseSMat<T> r(nn); r.gemm(0,*this,'n',rhs,'n',1); return r;}; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
+	void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); //this := alpha*op( A )*op( B ) + beta*this !!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
+	inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
 	unsigned int length() const;
 	void transposeme() const {};
 	int nrows() const {return nn;}
@@ -293,7 +294,6 @@ void SparseSMat<T>::add(const SPMatindex n, const SPMatindex m, const T elem, co
 if(n>=nn || m>=nn) laerror("illegal index in SparseSMat::add()");
 #endif
 if(!v[n]) v[n] = new std::map<SPMatindex,T>;
-if(!v[m]) v[m] = new std::map<SPMatindex,T>;
 
 typename std::map<SPMatindex,T>::iterator p;
 
@@ -301,6 +301,7 @@ p= v[n]->find(m);
 if(p!=v[n]->end()) p->second+=elem; else (*v[n])[m] = elem;
 if(n!=m && both) //add also transposed
 	{
+	if(!v[m]) v[m] = new std::map<SPMatindex,T>;
 	p= v[m]->find(n);
 	if(p!=v[m]->end()) p->second+=elem; else (*v[m])[n] = elem;
 	}
@@ -317,42 +318,42 @@ for(SPMatindex i=0; i<nn; ++i) if(v[i])
 	//build a list since we are not sure whether erase from within the traversal loop is safe
 	std::list<SPMatindex> l;
 	typename std::map<SPMatindex,T>::iterator p;
-	for(p=v[i]->begin(); p!=v[i]->end(); ++p) 
-		if(std::abs(p->second) < SPARSEEPSILON) l.push_front(p->first);
-	typename std::list<SPMatindex>::iterator q;	
-	for(q=l.begin(); q!=l.end(); ++q) v[i]->erase(*q);	
-	if(v[i]->size() == 0) delete v[i];
-	}
+for(p=v[i]->begin(); p!=v[i]->end(); ++p) 
+	if(std::abs(p->second) < SPARSEEPSILON) l.push_front(p->first);
+typename std::list<SPMatindex>::iterator q;	
+for(q=l.begin(); q!=l.end(); ++q) v[i]->erase(*q);	
+if(v[i]->size() == 0) delete v[i];
+}
 }
 
 template <typename T>
 std::ostream & operator<<(std::ostream &s, const SparseSMat<T> &x)
 {
-  SPMatindex n;
+SPMatindex n;
 
-  n = x.nrows();
-  s << n << " "<< n<< std::endl;
+n = x.nrows();
+s << n << " "<< n<< std::endl;
 
 typename SparseSMat<T>::iterator p(x);
 for(; p.notend(); ++p) s << (int)p->row << ' ' << (int)p->col  << ' ' << (typename LA_traits_io<T>::IOtype) p->elem << '\n';
-  s << "-1 -1\n";
-  return s;
+s << "-1 -1\n";
+return s;
 }
 
 template <class T>
 std::istream& operator>>(std::istream  &s, SparseSMat<T> &x)
-                {
-                SPMatindex n,m;
-		long i,j;
-                s >> n >> m;
-		if(n!=m) laerror("SparseSMat must be square");
-                x.resize(n);
-                s >> i >> j;
-                typename LA_traits_io<T>::IOtype tmp;
-                while(i>=0 && j>=0)
-                        {
-			s>>tmp;
-			x.add(i,j,tmp,false); 
+	{
+	SPMatindex n,m;
+	long i,j;
+	s >> n >> m;
+	if(n!=m) laerror("SparseSMat must be square");
+	x.resize(n);
+	s >> i >> j;
+	typename LA_traits_io<T>::IOtype tmp;
+	while(i>=0 && j>=0)
+		{
+		s>>tmp;
+		x.add(i,j,tmp,false); 
                         s >> i >> j;
                         }
                 return s;
