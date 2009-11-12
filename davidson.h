@@ -24,6 +24,8 @@
 #include "nonclass.h"
 #include "auxstorage.h"
 
+namespace LA {
+
 //Davidson diagonalization of real symmetric matrix (modified Lanczos)
 
 //matrix can be any class which has nrows(), ncols(), diagonalof(), issymmetric(), and gemv() available
@@ -146,21 +148,21 @@ else
 
 T eival_n=r[nroot];
 oldnroot=nroot;
-typename LA_traits<T>::normtype test=abs(smallV(krylovsize,nroot));
+typename LA_traits<T>::normtype test=std::abs(smallV(krylovsize,nroot));
 if(test<eps) nroot++;
 if(it==0) nroot = 0;
-for(int iroot=0; iroot<=min(krylovsize,nroots-1); ++iroot)
+for(int iroot=0; iroot<=std::min(krylovsize,nroots-1); ++iroot)
 	{
-        test = abs(smallV(krylovsize,iroot));
-        if(test>eps) nroot=min(nroot,iroot);
-        if(verbose && iroot<=max(oldnroot,nroot)) 
+        test = std::abs(smallV(krylovsize,iroot));
+        if(test>eps) nroot=std::min(nroot,iroot);
+        if(verbose && iroot<=std::max(oldnroot,nroot)) 
 		{
-		cout <<"Davidson: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" energy="<<r[iroot]<<"\n";
-		cout.flush();
+		std::cout <<"Davidson: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" energy="<<r[iroot]<<"\n";
+		std::cout.flush();
 		}
 	}
 
-if(verbose && oldnroot!=nroot) {cout <<"root no. "<<oldnroot<<" converged\n"; cout.flush();}
+if(verbose && oldnroot!=nroot) {std::cout <<"root no. "<<oldnroot<<" converged\n"; std::cout.flush();}
 if (nroot>=nroots) goto converged;
 if (it==maxit-1) break; //not converged
 
@@ -195,7 +197,7 @@ eival_n = r[nroot];
 for(i=0; i<n; ++i)
 	{
 	T denom = diagonal[i] - eival_n;
-        denom = denom<0?-max(0.1,abs(denom)):max(0.1,abs(denom));
+        denom = denom<0?-std::max(0.1,std::abs(denom)):std::max(0.1,std::abs(denom));
         vec1[i] /= denom;
 	}
 
@@ -224,7 +226,7 @@ goto finished;
 converged:
 AuxStorage<typename LA_traits<T>::elementtype> *ev;
 if(eivecsfile) ev = new AuxStorage<typename LA_traits<T>::elementtype>(eivecsfile);
-if(verbose) {cout << "Davidson converged in "<<it<<" iterations.\n"; cout.flush();}
+if(verbose) {std::cout << "Davidson converged in "<<it<<" iterations.\n"; std::cout.flush();}
 for(nroot=0; nroot<nroots; ++nroot)
 	{
         eivals[nroot]=r[nroot];
@@ -254,6 +256,5 @@ else  {delete s0; delete s1;}
 if(flag) laerror("no convergence in davidson");
 }
 
-
-
+}//namespace
 #endif

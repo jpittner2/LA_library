@@ -17,6 +17,9 @@
 */
 #ifndef _BISECTION_H
 #define _BISECTION_H
+
+namespace LA {
+
 //general bisection search between dm and hm
 //returns dm-1 on failure, otherwise number between dm and hm
 //cmp returns 0 on equal, >0 if first > second argument
@@ -75,5 +78,5 @@ int interpolation_find(INDEX dm0, INDEX high, const SUBJECT *x, const SUBJECT *b
 }
 
 
-
+}//namespace
 #endif

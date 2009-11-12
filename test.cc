@@ -25,6 +25,8 @@
 #include "traceback.h"
 #endif
 
+using namespace std;
+
 void test2(char *msg)
 {
 laerror(msg);

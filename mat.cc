@@ -31,6 +31,7 @@ extern ssize_t write(int, const void *, size_t);
 // TODO :
 //
 
+namespace LA {
 
 /*
  *  Templates first, specializations for BLAS next
@@ -439,9 +440,9 @@ NRSMat<complex<double> > r(mm,mm);
 int i,j;
 for(i=0; i<mm; ++i) for(j=0; j<=i; ++j)
 #ifdef MATPTR
-	cblas_zdotc_sub(nn, v[0]+i , mm,v[0]+j, mm, (void *)(&r(i,j)));
+	cblas_zdotc_sub(nn, v[0]+i , mm,v[0]+j, mm, &r(i,j));
 #else
-	cblas_zdotc_sub(nn, v+i , mm,v+j, mm, (void *)(&r(i,j)));
+	cblas_zdotc_sub(nn, v+i , mm,v+j, mm, &r(i,j));
 #endif
 return r;
 }
@@ -486,9 +487,9 @@ NRSMat<complex<double> > r(nn,nn);
 int i,j;
 for(i=0; i<nn; ++i) for(j=0; j<=i; ++j)
 #ifdef MATPTR
-	cblas_zdotc_sub(mm, v[i] , 1,v[j], 1, (void *)(&r(i,j)));
+	cblas_zdotc_sub(mm, v[i] , 1,v[j], 1, &r(i,j));
 #else
-	cblas_zdotc_sub(mm, v+i*mm , 1,v+j*mm, 1, (void *)(&r(i,j)));
+	cblas_zdotc_sub(mm, v+i*mm , 1,v+j*mm, 1, &r(i,j));
 #endif
 return r;
 }
@@ -548,7 +549,7 @@ NRMat< complex<double> > &
 NRMat< complex<double> >::operator*=(const complex<double> &a)
 {
 	copyonwrite();
-	cblas_zscal(nn*mm, &a, (void *)(*this)[0], 1);
+	cblas_zscal(nn*mm, &a, (*this)[0], 1);
 	return *this;
 }
 
@@ -591,7 +592,7 @@ NRMat< complex<double> >::operator+=(const NRMat< complex<double> >  &rhs)
 		laerror("Mat += Mat of incompatible matrices");
 #endif
 	 copyonwrite();
-	 cblas_zaxpy(nn*mm, &CONE, (void *)rhs[0], 1, (void *)(*this)[0], 1);
+	 cblas_zaxpy(nn*mm, &CONE, rhs[0], 1, (*this)[0], 1);
 	 return *this;
 }
 
@@ -639,7 +640,7 @@ NRMat< complex<double> >::operator-=(const NRMat< complex<double> >  &rhs)
 		laerror("Mat -= Mat of incompatible matrices");
 #endif
 	 copyonwrite();
-	 cblas_zaxpy(nn*mm, &CMONE, (void *)rhs[0], 1, (void *)(*this)[0], 1);
+	 cblas_zaxpy(nn*mm, &CMONE, rhs[0], 1, (*this)[0], 1);
 	 return *this;
 }
 
@@ -696,12 +697,12 @@ NRMat< complex<double> >::operator+=(const NRSMat< complex<double> > &rhs)
 	const complex<double> *p = rhs;
 	copyonwrite();
 	for (int i=0; i<nn; i++) {
-		cblas_zaxpy(i+1, (void *)&CONE, (void *)p, 1, (void *)(*this)[i], 1); 
+		cblas_zaxpy(i+1, &CONE, p, 1, (*this)[i], 1); 
 		p += i+1;
 	}
 	p = rhs; p++;
 	for (int i=1; i<nn; i++) {
-		cblas_zaxpy(i, (void *)&CONE, (void *)p, 1, (void *)((*this)[i]+i), nn);
+		cblas_zaxpy(i, &CONE, p, 1, (*this)[0]+i, nn);
 		p += i+1;
 	}
 	return *this;
@@ -725,7 +726,7 @@ NRMat<T> & NRMat<T>::operator+=(const NRSMat<T> &rhs)
         }
         p = rhs; p++;
         for (int i=1; i<nn; i++) {
-		for(int j=0; j<i; ++j) *((*this)[i]+i+nn*j) += p[j];
+		for(int j=0; j<i; ++j) *((*this)[j]+i) += p[j];
                 p += i+1;
         }
         return *this;
@@ -765,12 +766,12 @@ NRMat< complex<double> >::operator-=(const NRSMat< complex<double> > &rhs)
 	const complex<double> *p = rhs;
 	copyonwrite();
 	for (int i=0; i<nn; i++) {
-		cblas_zaxpy(i+1, (void *)&CMONE, (void *)p, 1, (void *)(*this)[i], 1); 
+		cblas_zaxpy(i+1, &CMONE, p, 1, (*this)[i], 1); 
 		p += i+1;
 	}
 	p = rhs; p++;
 	for (int i=1; i<nn; i++) {
-		cblas_zaxpy(i, (void *)&CMONE, (void *)p, 1, (void *)((*this)[i]+i), nn);
+		cblas_zaxpy(i, &CMONE, p, 1, (*this)[0]+i, nn);
 		p += i+1;
 	}
 	return *this;
@@ -792,7 +793,7 @@ NRMat<T> & NRMat<T>::operator-=(const NRSMat<T> &rhs)
         }
         p = rhs; p++;
         for (int i=1; i<nn; i++) {
-		for(int j=0; j<i; ++j) *((*this)[i]+i+nn*j) -= p[j];
+		for(int j=0; j<i; ++j) *((*this)[j]+i) -= p[j];
                 p += i+1;
         }
         return *this;
@@ -821,8 +822,8 @@ NRMat< complex<double> >::dot(const NRMat< complex<double> > &rhs) const
 	if(nn!=rhs.nn || mm!= rhs.mm) laerror("Mat.Mat incompatible matrices");
 #endif
 	complex<double> dot;
-	cblas_zdotc_sub(nn*mm, (void *)(*this)[0], 1, (void *)rhs[0], 1, 
-			(void *)(&dot));
+	cblas_zdotc_sub(nn*mm, (*this)[0], 1, rhs[0], 1, 
+			&dot);
 	return dot;
 }
 
@@ -851,8 +852,8 @@ NRMat< complex<double> >::operator*(const NRMat< complex<double> > &rhs) const
 #endif
 	NRMat< complex<double> > result(nn, rhs.mm);
 	cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nn, rhs.mm, mm,
-			(const void *)(&CONE),(const void *)(*this)[0], mm, (const void *)rhs[0],
-			rhs.mm, (const void *)(&CZERO), (void *)result[0], rhs.mm);
+			&CONE,(*this)[0], mm, rhs[0],
+			rhs.mm, &CZERO, result[0], rhs.mm);
 	return result;
 }
 
@@ -936,8 +937,8 @@ NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const
 #endif
 	NRMat< complex<double> > result(nn, rhs.ncols());
 	for (int i=0; i<nn; i++)
-		cblas_zhpmv(CblasRowMajor, CblasLower, mm, (void *)&CONE, (void *)&rhs[0],
-				(void *)(*this)[i], 1, (void *)&CZERO, (void *)result[i], 1);
+		cblas_zhpmv(CblasRowMajor, CblasLower, mm, &CONE, &rhs[0],
+				(*this)[i], 1, &CZERO, result[i], 1);
 	return result;
 }
 
@@ -969,7 +970,7 @@ NRMat< complex<double> >::transpose(bool conj) const
 {
 	NRMat< complex<double> > result(mm,nn);
 	for (int i=0; i<nn; i++) 
-		cblas_zcopy(mm, (void *)(*this)[i], 1, (void *)(result[0]+i), nn);
+		cblas_zcopy(mm, (*this)[i], 1, (result[0]+i), nn);
 	if (conj) cblas_dscal(mm*nn, -1.0, (double *)(result[0])+1, 2);
 	return result;
 }
@@ -1039,7 +1040,7 @@ const double  NRMat<double>::norm(const double scalar) const
 			if (i==j) tmp -= scalar;
 			sum += tmp*tmp;
 		}
-	return sqrt(sum);
+	return std::sqrt(sum);
 }
 
 
@@ -1060,7 +1061,7 @@ const double  NRMat< complex<double> >::norm(const complex<double> scalar) const
 			if (i==j) tmp -= scalar;
 			sum += tmp.real()*tmp.real()+tmp.imag()*tmp.imag();
 		}
-	return sqrt(sum);
+	return std::sqrt(sum);
 }
 
 
@@ -1087,7 +1088,7 @@ void NRMat< complex<double> >::axpy(const complex<double> alpha,
 	if (nn!=mat.nn || mm!=mat.mm) laerror("zaxpy of incompatible matrices");
 #endif
 	copyonwrite();
-	cblas_zaxpy(nn*mm, (void *)&alpha, mat, 1, (void *)(*this)[0], 1);
+	cblas_zaxpy(nn*mm, &alpha, mat, 1, (*this)[0], 1);
 }
 
 
@@ -1186,7 +1187,7 @@ if(rowcol) //vectors are rows
 		NRVec<double> tmp = *metric * (*this).row(j);
                 double norm = cblas_ddot(mm,(*this)[j],1,tmp,1);
                 if(norm<=0.) laerror("zero vector in orthonormalize or nonpositive metric");
-                cblas_dscal(mm,1./sqrt(norm),(*this)[j],1);
+                cblas_dscal(mm,1./std::sqrt(norm),(*this)[j],1);
                 }
 	}
 else	//vectors are columns
@@ -1203,7 +1204,7 @@ else	//vectors are columns
 		NRVec<double> tmp = *metric * (*this).column(j);
 		double norm = cblas_ddot(nn,&(*this)[0][j],mm,tmp,1);
                 if(norm<=0.) laerror("zero vector in orthonormalize or nonpositive metric");
-                cblas_dscal(nn,1./sqrt(norm),&(*this)[0][j],mm);
+                cblas_dscal(nn,1./std::sqrt(norm),&(*this)[0][j],mm);
                 }
 	}
 }
@@ -1261,3 +1262,4 @@ template class NRMat<unsigned int>;
 template class NRMat<unsigned long>;
 template class NRMat<unsigned long long>;
 
+}//namespace

@@ -26,8 +26,10 @@
 #include "la_traits.h"
 #include "auxstorage.h"
 
+namespace LA {
+
 //Pulay memorial book  remarks - for numerical stabilization small addition to diagonal
-#define DIISEPS 1e-9 
+const double DIISEPS=1e-9;
 
 // Typically, T is some solution vector in form of NRVec, NRMat, or NRSMat over double or complex<double> fields
 // actually it can be anything what has operator=(const T&), clear(), dot() , axpy(), norm() and copyonwrite(), and LA_traits<T>::normtype and elementtype
@@ -150,7 +152,7 @@ rhs= (Ue)0; rhs[0]= (Ue)-1;
 NRSMat<Te> amat=bmat;
 linear_solve(amat,rhs,NULL,aktdim+1);
 }
-if(verbose) cout <<"DIIS coefficients: "<<rhs<<endl;
+if(verbose) std::cout <<"DIIS coefficients: "<<rhs<<std::endl;
 
 //build the new linear combination
 vec.clear();
@@ -170,5 +172,6 @@ else
 return norm;
 }
 
+}//namespace
 
 #endif

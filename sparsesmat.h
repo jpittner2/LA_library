@@ -19,7 +19,6 @@
 #ifndef _SPARSESMAT_H_
 #define _SPARSESMAT_H_
 
-
 #include <string>
 #include <cmath>
 #include <stdlib.h>
@@ -36,6 +35,7 @@
 #include <map>
 #include <list>
 
+namespace LA {
 
 //symmetric sparse matrix class with a representation for efficient exponentiatiation
 //in particular we need a unitary symmetric complex matrix as exp(iH) with H real symmetric
@@ -360,5 +360,5 @@ std::istream& operator>>(std::istream  &s, SparseSMat<T> &x)
                 }
 
 
-
+}//namespace
 #endif //_SPARSESMAT_H_

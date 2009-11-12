@@ -19,9 +19,9 @@
 */
 #ifndef _LA_SMAT_H_
 #define _LA_SMAT_H_
-
 #include "la_traits.h"
 
+namespace LA {
 #define NN2 (nn*(nn+1)/2)
 template <class T>
 class NRSMat { // symmetric or complex hermitean matrix in packed form
@@ -94,15 +94,17 @@ public:
 	void fscanf(FILE *f, const char *format); 
 //members concerning sparse matrix
 	explicit NRSMat(const SparseMat<T> &rhs);               // dense from sparse
+	explicit NRSMat(const SparseSMat<T> &rhs);               // dense from sparse
 	inline void simplify() {}; //just for compatibility with sparse ones
 	bool issymmetric() const {return 1;}
 };
 
+}//namespace
 //due to mutual includes this has to be after full class declaration
 #include "vec.h"
 #include "mat.h"
-#include "sparsemat.h"
 
+namespace LA {
 
 // ctors
 template <typename T>
@@ -162,7 +164,7 @@ inline NRSMat< complex<double> > &
 NRSMat< complex<double> >::operator*=(const complex<double> & a)
 {
 	copyonwrite();
-	cblas_zscal(NN2, (void *)(&a), (void *)v, 1);
+	cblas_zscal(NN2, &a, v, 1);
 	return *this;
 }
 template <typename T>
@@ -214,7 +216,7 @@ NRSMat< complex<double> >::operator+=(const NRSMat< complex<double> > & rhs)
 	if (nn != rhs.nn) laerror("incompatible SMats in SMat::operator+=");
 #endif
 	copyonwrite();
-	cblas_zaxpy(NN2, (void *)(&CONE), (void *)(&rhs.v), 1, (void *)(&v), 1);
+	cblas_zaxpy(NN2, &CONE, rhs.v, 1, v, 1);
 	return *this;
 }
 
@@ -251,7 +253,7 @@ NRSMat< complex<double> >::operator-=(const NRSMat< complex<double> > & rhs)
 	if (nn != rhs.nn) laerror("incompatible SMats in SMat::operator-=");
 #endif
 	copyonwrite();
-	cblas_zaxpy(NN2, (void *)(&CMONE), (void *)(&rhs.v), 1, (void *)(&v), 1);
+	cblas_zaxpy(NN2, &CMONE, rhs.v, 1, v, 1);
 	return *this;
 }
 
@@ -406,7 +408,7 @@ inline const double NRSMat<double>::amax() const
 template<>
 inline const complex<double> NRSMat< complex<double> >::amax() const
 {
-	return v[cblas_izamax(NN2, (void *)v, 1)];
+	return v[cblas_izamax(NN2, v, 1)];
 }
 
 // reference pointer to Smat
@@ -554,7 +556,7 @@ return r;
 
 // I/O
 template <typename T>
-ostream& operator<<(ostream &s, const NRSMat<T> &x)
+std::ostream& operator<<(std::ostream &s, const NRSMat<T> &x)
                 {
                 int i,j,n;
                 n=x.nrows();
@@ -568,7 +570,7 @@ ostream& operator<<(ostream &s, const NRSMat<T> &x)
 
 
 template <typename T>
-istream& operator>>(istream  &s, NRSMat<T> &x)
+std::istream& operator>>(std::istream  &s, NRSMat<T> &x)
                 {
                 int i,j,n,m;
                 s >> n >> m;
@@ -618,5 +620,5 @@ public:
 		}
 };
 
-
+}//namespace
 #endif /* _LA_SMAT_H_ */

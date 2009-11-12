@@ -15,6 +15,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef _PERMUTATION_H
+#define _PERMUTATION_H
+namespace LA {
 template<typename T>
 const NRVec<T> inversepermutation(const NRVec<T> &p, const T offset=0)
 {
@@ -24,3 +27,5 @@ if(!offset) for(int i=0; i<n; ++i) q[p[i]]=i;
 else for(int i=0; i<n; ++i) q[p[i]-offset]=i+offset;
 return q;
 }
+}//namespace
+#endif

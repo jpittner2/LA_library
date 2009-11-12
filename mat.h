@@ -19,9 +19,9 @@
 */
 #ifndef _LA_MAT_H_
 #define _LA_MAT_H_
-
 #include "la_traits.h"
 
+namespace LA {
 template <typename T>
 class NRMat {
 protected:
@@ -91,6 +91,7 @@ public:
 	const NRVec<complex<T> > operator*(const NRVec<complex<T> > &rhs) const {NRVec<complex<T> > result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
 	const NRVec<T> rsum() const; //sum of rows
 	const NRVec<T> csum() const; //sum of columns
+	void orthonormalize(const bool rowcol, const NRSMat<T> *metric=NULL);//orthonormalize (true - vectors are rows)
 	const NRVec<T> row(const int i, int l= -1) const; //row of, efficient
 	const NRVec<T> column(const int j, int l= -1) const {if(l<0) l=nn; NRVec<T> r(l); for(int i=0; i<l; ++i) r[i]= (*this)(i,j); return r;}; //column of, general but not very efficient
 	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal 
@@ -140,11 +141,13 @@ public:
 #endif
 };
 
+}//namespace
 //due to mutual includes this has to be after full class declaration
 #include "vec.h"
 #include "smat.h"
 #include "sparsemat.h"
 
+namespace LA {
 // ctors
 template <typename T>
 NRMat<T>::NRMat(const int n, const int m) : nn(n), mm(m), count(new int)
@@ -374,9 +377,9 @@ template<>
 inline const complex<double>  NRMat< complex<double> >::amax() const
 {
 #ifdef MATPTR
-	return v[0][cblas_izamax(nn*mm, (void *)v[0], 1)];
+	return v[0][cblas_izamax(nn*mm, v[0], 1)];
 #else
-	return v[cblas_izamax(nn*mm, (void *)v, 1)];
+	return v[cblas_izamax(nn*mm, v, 1)];
 #endif
 }
 
@@ -576,7 +579,7 @@ return r;
 
 // I/O
 template <typename T>
-ostream& operator<<(ostream &s, const NRMat<T> &x)
+std::ostream& operator<<(std::ostream &s, const NRMat<T> &x)
                 {
                 int i,j,n,m;
                 n=x.nrows();
@@ -590,7 +593,7 @@ ostream& operator<<(ostream &s, const NRMat<T> &x)
                 }
 
 template <typename T>
-istream& operator>>(istream  &s, NRMat<T> &x)
+std::istream& operator>>(std::istream  &s, NRMat<T> &x)
                 {
                 int i,j,n,m;
                 s >> n >> m;
@@ -655,4 +658,5 @@ NRVECMAT_OPER(Mat,*)
 NRVECMAT_OPER2(Mat,+)
 NRVECMAT_OPER2(Mat,-)
 
+}//namespace
 #endif /* _LA_MAT_H_ */

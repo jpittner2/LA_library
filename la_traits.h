@@ -27,14 +27,17 @@
 #define _LA_TRAITS_INCL
 
 
-extern bool _LA_count_check;
 
 
-using namespace std;
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
 #include <complex>
+
+
+//using namespace std;
+#define complex std::complex
+
 #include "laerror.h"
 
 #ifdef NONCBLAS
@@ -53,6 +56,9 @@ extern "C" {
 }
 #endif
 
+namespace LA {
+
+extern bool _LA_count_check;
 
 //forward declarations
 template<typename C> class NRVec;
@@ -61,6 +67,7 @@ template<typename C> class NRMat_from1;
 template<typename C> class NRSMat;
 template<typename C> class NRSMat_from1;
 template<typename C> class SparseMat;
+template<typename C> class SparseSMat;
 
 
 typedef class {} Dummy_type;
@@ -95,9 +102,13 @@ SPECIALIZE_COMPLEX(complex<float>)
 SPECIALIZE_COMPLEX(char)
 SPECIALIZE_COMPLEX(unsigned char)
 SPECIALIZE_COMPLEX(short)
+SPECIALIZE_COMPLEX(unsigned short)
 SPECIALIZE_COMPLEX(int)
 SPECIALIZE_COMPLEX(unsigned int)
+SPECIALIZE_COMPLEX(long)
 SPECIALIZE_COMPLEX(unsigned long)
+SPECIALIZE_COMPLEX(long long)
+SPECIALIZE_COMPLEX(unsigned long long)
 
 
 //for general sortable classes
@@ -194,10 +205,11 @@ struct LA_traits_aux<complex<C>, scalar_true> {
 typedef complex<C> elementtype;
 typedef complex<C> producttype;
 typedef C normtype;
+static inline C sqrabs(const complex<C> x) { return x.real()*x.real()+x.imag()*x.imag();}
 static inline bool gencmp(const complex<C> *x, const complex<C> *y, int n) {return memcmp(x,y,n*sizeof(complex<C>));}
 static bool bigger(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
 static bool smaller(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
-static inline normtype norm (const  complex<C> &x) {return abs(x);}
+static inline normtype norm (const  complex<C> &x) {return std::abs(x);}
 static inline void axpy (complex<C> &s, const complex<C> &x, const complex<C> &c) {s+=x*c;}
 static inline void get(int fd, complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=read(fd,&x,sizeof(complex<C>))) laerror("read error");}
 static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=write(fd,&x,sizeof(complex<C>))) laerror("write error");}
@@ -206,6 +218,7 @@ static void multiput(unsigned int n, int fd, const complex<C> *x, bool dimension
 static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest,src,n*sizeof(complex<C>));}
 static void clear(complex<C> *dest, unsigned int n) {memset(dest,0,n*sizeof(complex<C>));}
 static void copyonwrite(complex<C> &x) {};
+static void clearme(complex<C> &x) {x=0;};
 };
 
 //non-complex scalars
@@ -214,10 +227,11 @@ struct LA_traits_aux<C, scalar_true> {
 typedef C elementtype;
 typedef C producttype;
 typedef C normtype;
+static inline C sqrabs(const C x) { return x*x;}
 static inline bool gencmp(const C *x, const C *y, int n) {return memcmp(x,y,n*sizeof(C));}
 static inline bool bigger(const  C &x, const C &y) {return x>y;}
 static inline bool smaller(const  C &x, const C &y) {return x<y;}
-static inline normtype norm (const  C &x) {return abs(x);}
+static inline normtype norm (const  C &x) {return std::abs(x);}
 static inline void axpy (C &s, const C &x, const C &c) {s+=x*c;}
 static inline void put(int fd, const C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=write(fd,&x,sizeof(C))) laerror("write error");}
 static inline void get(int fd, C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=read(fd,&x,sizeof(C))) laerror("read error");}
@@ -226,6 +240,7 @@ static void multiget(unsigned int n, int fd, C *x, bool dimensions=0) {if((ssize
 static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));}
 static void clear(C *dest, unsigned int n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
+static void clearme(complex<C> &x) {x=0;};
 };
 
 
@@ -252,6 +267,7 @@ static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsign
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
+static void clearme(X<C> &x) {x.clear();}\
 };
 
 
@@ -260,6 +276,7 @@ generate_traits(NRMat)
 generate_traits(NRMat_from1)
 generate_traits(NRVec)
 generate_traits(SparseMat)
+generate_traits(SparseSMat) //product leading to non-symmetric result not implemented
 
 #undef generate_traits
 
@@ -282,6 +299,7 @@ static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsign
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];}  \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \
+static void clearme(X<C> &x) {x.clear();} \
 };
 
 generate_traits_smat(NRSMat)
@@ -291,5 +309,7 @@ generate_traits_smat(NRSMat_from1)
 //the final traits class
 template<typename C>
 struct LA_traits : LA_traits_aux<C, typename isscalar<C>::scalar_type> {};
+
+}//namespace
 
 #endif

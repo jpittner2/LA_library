@@ -15,12 +15,16 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef _CONJGRAD_H_
+#define _CONJGRAD_H_
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"
 #include "sparsemat.h"
 #include "nonclass.h"
 #include <iomanip>
+
+namespace LA {
 
 //conjugate gradient solution of a linear system
 
@@ -63,10 +67,10 @@ for(int iter=0; iter<= itmax; iter++)
 	double err=p.norm();
 	if(verbose) 
 		{
-		cout << "conjgrad: iter= "<<iter<<" err= "<<
-		setiosflags(ios::scientific)<<setprecision(8) <<err<<
-		resetiosflags(ios::scientific)<<setprecision(12)<<"\n";
-		cout.flush();
+		std::cout << "conjgrad: iter= "<<iter<<" err= "<<
+		std::setiosflags(std::ios::scientific)<<std::setprecision(8) <<err<<
+		std::resetiosflags(std::ios::scientific)<<std::setprecision(12)<<"\n";
+		std::cout.flush();
 		}
 	if(err <= tol)
 		{
@@ -94,3 +98,5 @@ if(!issquare) delete r;
 return false;
 }
 
+}//namespace
+#endif

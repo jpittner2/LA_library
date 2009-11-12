@@ -18,14 +18,16 @@
 
 #include "bitvector.h"
 
+namespace LA {
+
 //inefficient I/O operators
-ostream & operator<<(ostream &s, const bitvector &x)
+std::ostream & operator<<(std::ostream &s, const bitvector &x)
 {
 for(unsigned int i=0; i<x.size(); ++i) s<< x[i];
 return s;
 }
 
-istream & operator>>(istream  &s, bitvector &x)
+std::istream & operator>>(std::istream  &s, bitvector &x)
 {
 bool a;
 x.copyonwrite();
@@ -168,3 +170,4 @@ if(modulo)
 return s+word_popul(a);
 }
 
+}//namespace

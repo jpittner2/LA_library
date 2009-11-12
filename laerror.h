@@ -17,8 +17,9 @@
 */
 #ifndef _LAERROR_H_
 #define _LAERROR_H_
-
 #include <iostream>
+
+namespace LA {
 
 //exception class for laerror
 class LAerror
@@ -36,5 +37,6 @@ s << x.msg;
 return s;
 }
 
+}//namespace
 
 #endif

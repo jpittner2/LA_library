@@ -17,13 +17,13 @@
 */
 #ifndef _SPARSEMAT_H_
 #define _SPARSEMAT_H_
-
 #include "la_traits.h"
 
+namespace LA {
 
 //threshold for neglecting elements, if not defined, no tests are done except exact zero test in simplify - might be even faster
 //seems to perform better with a threshold, in spite of abs() tests
-#define  SPARSEEPSILON 1e-13 
+const double SPARSEEPSILON=1e-35;
 
 typedef unsigned int SPMatindex;
 typedef int SPMatindexdiff; //more clear would be to use traits
@@ -81,10 +81,10 @@ public:
 	explicit SparseMat(const NRMat<T> &rhs); //construct from a dense one
 	explicit SparseMat(const NRSMat<T> &rhs); //construct from a dense symmetric one
 	SparseMat & operator=(const SparseMat &rhs);
-	SparseMat & operator=(const T a);          //assign a to diagonal
-    	SparseMat & operator+=(const T a);         //assign a to diagonal
-	SparseMat & operator-=(const T a);         //assign a to diagonal
-        SparseMat & operator*=(const T a);         //multiply by a scalar
+	SparseMat & operator=(const T &a);          //assign a to diagonal
+    	SparseMat & operator+=(const T &a);         //assign a to diagonal
+	SparseMat & operator-=(const T &a);         //assign a to diagonal
+        SparseMat & operator*=(const T &a);         //multiply by a scalar
         SparseMat & operator+=(const SparseMat &rhs);
 	SparseMat & addtriangle(const SparseMat &rhs, const bool lower, const char sign);
         SparseMat & join(SparseMat &rhs); //more efficient +=, rhs will be emptied
@@ -135,16 +135,20 @@ public:
 	void clear() {copyonwrite();unsort();deletelist();}
 	void simplify();
 	const T trace() const;
-	const T norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first
+	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first
 	unsigned int sort(int type) const;
 	inline void add(const SPMatindex n, const SPMatindex m, const T elem) {matel<T> *ltmp= new matel<T>; ltmp->next=list; list=ltmp; list->row=n; list->col=m; list->elem=elem;}
 	void addsafe(const SPMatindex n, const SPMatindex m, const T elem);
 };
 
+}//namespace
+
 //due to mutual includes this has to be after full class declaration
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"
+
+namespace LA {
 
 template <typename T>
 inline const NRVec<T> SparseMat<T>::operator*(const NRVec<T> &rhs) const
@@ -155,7 +159,7 @@ inline const NRMat<T> SparseMat<T>::operator*(const NRMat<T> &rhs) const
 {NRMat<T> result(nn,rhs.ncols()); result.gemm((T)0,*this,'n',rhs,'n',(T)1); return result;};
 
 template <class T>
-ostream& operator<<(ostream &s, const SparseMat<T> &x)
+std::ostream& operator<<(std::ostream &s, const SparseMat<T> &x)
                 {
                 SPMatindex n,m;
                 n=x.nrows();
@@ -172,7 +176,7 @@ ostream& operator<<(ostream &s, const SparseMat<T> &x)
                 }
 
 template <class T>
-istream& operator>>(istream  &s, SparseMat<T> &x)
+std::istream& operator>>(std::istream  &s, SparseMat<T> &x)
                 {
                 int i,j;
 		int n,m;
@@ -298,4 +302,5 @@ while(l)
 return *this;
 }
 
+}//namespace
 #endif

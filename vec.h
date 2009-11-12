@@ -21,6 +21,8 @@
 
 #include "la_traits.h"
 
+namespace LA {
+
 //////////////////////////////////////////////////////////////////////////////
 // Forward declarations
 template <typename T> void lawritemat(FILE *file,const T *a,int r,int c,
@@ -104,7 +106,8 @@ public:
 	const NRVec operator*(const NRMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const NRSMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const SparseMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
-	const NRMat<T> operator|(const NRVec<T> &rhs) const;
+	const NRMat<T> otimes(const NRVec<T> &rhs, const bool conjugate=false, const T &scale=1) const; //outer product
+	inline const NRMat<T> operator|(const NRVec<T> &rhs) const {return otimes(rhs,true);};
 	inline const T sum() const {T sum=0; for(int i=0; i<nn; i++) sum += v[i]; return sum;}; //sum of its elements
 	inline const T asum() const; //sum of its elements absolute values
 	inline const T dot(const T *a, const int stride=1) const; // ddot with a stride-vector
@@ -136,26 +139,28 @@ public:
 	int sort(int direction=0, int from=0, int to= -1, int *perm=NULL); //sort, ascending by default, returns parity of permutation
 };
 
+}//namespace
 
 //due to mutual includes this has to be after full class declaration
 #include "mat.h"
 #include "smat.h"
 #include "sparsemat.h"
 
+namespace LA {
 // formatted I/O
 template <typename T>
-ostream & operator<<(ostream &s, const NRVec<T> &x)
+std::ostream & operator<<(std::ostream &s, const NRVec<T> &x)
 {
   int i, n;
 
   n = x.size();
-  s << n << endl;
+  s << n << std::endl;
   for(i=0; i<n; i++) s << (typename LA_traits_io<T>::IOtype)x[i] << (i == n-1 ? '\n' : ' ');
   return s;
 }
 
 template <typename T>
-istream & operator>>(istream &s, NRVec<T> &x)
+std::istream & operator>>(std::istream &s, NRVec<T> &x)
 {
   int i,n;
 
@@ -238,7 +243,7 @@ inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator+=(const complex<double> &a)
 {
 	copyonwrite();
-	cblas_zaxpy(nn, (void *)(&CONE), (void *)(&a), 0, (void *)v, 1);
+	cblas_zaxpy(nn, &CONE, &a, 0, v, 1);
 	return *this;
 }
 
@@ -267,7 +272,7 @@ inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator-=(const complex<double> &a)
 {
 	copyonwrite();
-	cblas_zaxpy(nn, (void *)(&CMONE), (void *)(&a), 0, (void *)v, 1);
+	cblas_zaxpy(nn, &CMONE, &a, 0, v, 1);
 	return *this;
 }
 
@@ -302,7 +307,7 @@ NRVec< complex<double> >::operator+=(const NRVec< complex<double> > &rhs)
 	if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
 #endif
 	copyonwrite();
-	cblas_zaxpy(nn, (void *)(&CONE), rhs.v, 1, v, 1);
+	cblas_zaxpy(nn, &CONE, rhs.v, 1, v, 1);
 	return *this;
 }
 
@@ -366,7 +371,7 @@ NRVec< complex<double> >::operator-=(const NRVec< complex<double> > &rhs)
 	if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
 #endif
 	copyonwrite();
-	cblas_zaxpy(nn, (void *)(&CMONE), (void *)rhs.v, 1, (void *)v, 1);
+	cblas_zaxpy(nn, &CMONE, rhs.v, 1, v, 1);
 	return *this;
 }
 
@@ -398,7 +403,7 @@ inline NRVec< complex<double> > &
 NRVec< complex<double> >::operator*=(const complex<double> &a)
 {
 	copyonwrite();
-	cblas_zscal(nn, (void *)(&a), (void *)v, 1);
+	cblas_zscal(nn, &a, v, 1);
 	return *this;
 }
 
@@ -432,7 +437,7 @@ NRVec< complex<double> >::operator*(const NRVec< complex<double> > &rhs) const
 	if (nn != rhs.nn) laerror("dot of incompatible vectors");
 #endif
 	complex<double> dot;
-	cblas_zdotc_sub(nn, (void *)v, 1, (void *)rhs.v, 1, (void *)(&dot));
+	cblas_zdotc_sub(nn, v, 1, rhs.v, 1, &dot);
 	return dot;
 }
 
@@ -468,7 +473,7 @@ inline const complex<double>
 NRVec< complex<double> >::dot(const complex<double> *y, const int stride) const
 {
 	complex<double> dot;
-	cblas_zdotc_sub(nn, y, stride, v, 1, (void *)(&dot));
+	cblas_zdotc_sub(nn, y, stride, v, 1, &dot);
 	return dot;
 }
 
@@ -527,7 +532,7 @@ inline const double  NRVec<double>::norm() const
 template<>
 inline const double NRVec< complex<double> >::norm() const
 {
-	return cblas_dznrm2(nn, (void *)v, 1);
+	return cblas_dznrm2(nn, v, 1);
 }
 
 // Max element of the array
@@ -539,7 +544,7 @@ inline const double  NRVec<double>::amax() const
 template<>
 inline const complex<double> NRVec< complex<double> >::amax() const
 {
-	return v[cblas_izamax(nn, (void *)v, 1)];
+	return v[cblas_izamax(nn, v, 1)];
 }
 
 
@@ -687,6 +692,6 @@ for(int i=0; i<rhs.size(); ++i)  r[i]=rhs[i];
 return r;
 }
 
-
+}//namespace
 
 #endif /* _LA_VEC_H_ */

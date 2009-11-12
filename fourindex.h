@@ -26,9 +26,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include "la.h"
 #include "laerror.h"
+#include "vec.h"
+#include "smat.h"
+#include "mat.h"
+#include "nonclass.h"
 
+namespace LA {
 
 static unsigned int hcd0(unsigned int big,unsigned int small)
 {
@@ -591,7 +595,7 @@ return n;
 }
 
 template <class I, class T>
-ostream& operator<<(ostream &s, const fourindex_ext<I,T> &x)
+std::ostream& operator<<(std::ostream &s, const fourindex_ext<I,T> &x)
                 {
                 int n;
                 n=x.size();
@@ -609,7 +613,7 @@ ostream& operator<<(ostream &s, const fourindex_ext<I,T> &x)
 
 
 template <class I, class T>
-ostream& operator<<(ostream &s, const fourindex<I,T> &x)
+std::ostream& operator<<(std::ostream &s, const fourindex<I,T> &x)
                 {
                 int n;
                 n=x.size();
@@ -625,7 +629,7 @@ ostream& operator<<(ostream &s, const fourindex<I,T> &x)
                 }
 
 template <class I, class T>
-istream& operator>>(istream  &s, fourindex<I,T> &x)
+std::istream& operator>>(std::istream  &s, fourindex<I,T> &x)
                 {
                 typename LA_traits_io<I>::IOtype i,j,k,l;
 		typename LA_traits_io<T>::IOtype elem;
@@ -680,7 +684,7 @@ public:
 	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
 	void resize(const int n) {(*this).NRSMat<T>::resize(n*(n+1)/2);};
 	void putext(int f, T thr=1e-15);
-	int nbas() const {return (int)sqrt(2*(*this).nrows());};
+	int nbas() const {return (int)std::sqrt(2*(*this).nrows());};
 
 };
 
@@ -795,10 +799,10 @@ if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 return (*this).NRMat<T>::operator() ((j-1)*noca+i-1,(b-1)*nvra+a-1);
 }
 
-	void print(ostream &out) const
+	void print(std::ostream &out) const
 		{
 		unsigned int i,j,a,b;
-		for(i=1; i<=noca; ++i) for(j=1; j<=nocb; ++j) for(a=1; a<=nvra; ++a) for(b=1; b<=nvrb; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<endl;
+		for(i=1; i<=noca; ++i) for(j=1; j<=nocb; ++j) for(a=1; a<=nvra; ++a) for(b=1; b<=nvrb; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<std::endl;
 		}
 };
 
@@ -854,10 +858,10 @@ if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
 }
 
 
-        void print(ostream &out) const
+        void print(std::ostream &out) const
                 {
                 unsigned int i,j,a,b;
-                for(i=1; i<=nocc; ++i) for(j=1; j<i; ++j) for(a=1; a<=nvrt; ++a) for(b=1; b<a; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<endl;
+                for(i=1; i<=nocc; ++i) for(j=1; j<i; ++j) for(a=1; a<=nvrt; ++a) for(b=1; b<a; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<std::endl;
                 }
 
 
@@ -886,14 +890,14 @@ public:
 	void add_unique(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
 	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
 	void resize(const int n) {nbas=n; (*this).NRSMat<T>::resize(n*(n-1)/2);};
-        void print(ostream &out) const
+        void print(std::ostream &out) const
                 {
                 unsigned int i,j,k,l;
 		for(i=1; i<=nbas; ++i)
        			 for(k=1;k<i; ++k)
                 		for(j=1; j<=i; ++j)
                         		for(l=1; l<j && (j==i ? l<=k : 1); ++l)
-                				cout << i<<" "<<k<<" "<<j<<" "<<l<<" "<<(*this)(i,k,j,l)<<endl;
+                				std::cout << i<<" "<<k<<" "<<j<<" "<<l<<" "<<(*this)(i,k,j,l)<<std::endl;
                 }
 
 
@@ -992,6 +996,6 @@ for(p= const_cast<fourindex_ext<I,T> *>(&rhs)->pbegin(); p.notend(); ++p)
 }
 
 
-
+}//namespace
 
 #endif /*_fourindex_included*/

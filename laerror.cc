@@ -30,6 +30,8 @@
 #include "traceback.h"
 #endif
 
+namespace LA {
+
 bool _LA_count_check=true;
 
 extern "C" void _findme(void) {}; //for autoconf test we need a function with C linkage
@@ -86,3 +88,5 @@ int cblas_errprn(int ierr, int info, char *form, ...)
    laerror(msg0);
 return 0;
 }
+
+}//namespace

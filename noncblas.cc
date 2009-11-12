@@ -21,6 +21,8 @@
 #include "laerror.h"
 #include "mat.h"
 
+namespace LA {
+
 #ifdef FORTRAN_
 #define FORNAME(x) x##_
 #else
@@ -254,4 +256,6 @@ return INFO;
 }
 
 #endif
+
+}//namespace
 

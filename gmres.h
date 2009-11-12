@@ -16,6 +16,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef _GMRES_H
+#define _GMRES_H
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"
@@ -23,6 +25,8 @@
 #include "nonclass.h"
 #include <iomanip>
 #include "auxstorage.h"
+
+namespace LA {
 
 //GMRES solution of a linear system
 
@@ -135,7 +139,7 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	    	H(k+1,k) = tmp= z.norm();
 	    	if(tmp < 1.e-2*eps )
 			{
-	    		if(verbose) cerr <<("gmres restart performed\n");
+	    		if(verbose) std::cerr <<("gmres restart performed\n");
 	       		// Abbruchbedingung, konstruiere x_k
 	       		for (int i=0;i<k;i++) 
 				{
@@ -190,12 +194,12 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	    	//Schritt 6: Konvergenz?
 	    	if(verbose) 
 			{
-			cout << "gmres iter "<<l<<" "<<k<<" resid "
-		<<setw(0)<<setiosflags(ios::scientific)<<setprecision(8)
-		<<abs(d[k+1])<< " thr "<<eps*beta_0<< " reduction "
-		<<setw(5)<<setprecision(2)<<resetiosflags(ios::scientific)
-		<<(d_alt - abs(d[k+1]))/d_alt*100<< "\n" <<setprecision(12);
-			cout.flush();
+			std::cout << "gmres iter "<<l<<" "<<k<<" resid "
+		<<std::setw(0)<<std::setiosflags(std::ios::scientific)<<std::setprecision(8)
+		<<std::abs(d[k+1])<< " thr "<<eps*beta_0<< " reduction "
+		<<std::setw(5)<<std::setprecision(2)<<std::resetiosflags(std::ios::scientific)
+		<<(d_alt - std::abs(d[k+1]))/d_alt*100<< "\n" <<std::setprecision(12);
+			std::cout.flush();
 			}
 		
 		d_alt = abs(d[k+1]);
@@ -258,3 +262,6 @@ if(!incore) delete st;
 return !flag;
 }
 
+}//namespace
+
+#endif

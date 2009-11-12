@@ -25,10 +25,11 @@
 #include <errno.h>
 #include "sparsesmat.h"
 
+namespace LA {
+
 template <typename T>
 void SparseSMat<T>::gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha)
 {
-std::cerr << "enter gemm\n";
 (*this) *= beta;
 if(alpha==(T)0) return;
 if(a.nn!=b.nn || a.nn!=nn) laerror("incompatible sizes in SparseSMat::gemm");
@@ -64,11 +65,7 @@ for(SPMatindex k=0; k<nn; ++k) //summation loop
 		add(ai[i],bi[j],prod(i,j),false);
 
 	}
-std::cerr << "before simplify in gemm\n";
-std::cerr << " nterms = "<<
-simplify() 
-<<std::endl; //erase elements below threshold
-std::cerr << "regular exit gemm\n";
+simplify();
 }
 
 
@@ -183,7 +180,7 @@ for(SPMatindex i=0; i<nn; ++i)
 		}
 	else sum += LA_traits<T>::sqrabs(scalar); //missing diagonal element
 
-return sqrt(sum);
+return std::sqrt(sum);
 }
 
 
@@ -208,4 +205,4 @@ INSTANTIZE(complex<double>)
 template class SparseSMat<double>;
 template class SparseSMat<complex<double> >;
 
-
+}//namespace

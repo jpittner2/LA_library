@@ -18,6 +18,8 @@
 #ifndef _QSORT_H
 #define _QSORT_H
 //quicksort, returns parity of the permutation
+//
+namespace LA {
 
 template<typename INDEX, typename COMPAR>
 int genqsort(INDEX l, INDEX r,COMPAR (*cmp)(const INDEX, const INDEX), void (*swap)(const INDEX,const INDEX)) 
@@ -181,4 +183,5 @@ else
 return parity;
 }
 
+}//namespace
 #endif

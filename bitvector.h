@@ -21,6 +21,8 @@
 
 #include "vec.h"
 
+namespace LA {
+
 //compressed storage of large bit vectors
 //any reasonable compiler changes the dividions and modulos to shift/and instructions
 
@@ -75,7 +77,8 @@ public:
 	};
 
 
-extern ostream & operator<<(ostream &s, const bitvector &x);
-extern istream & operator>>(istream  &s, bitvector &x);
+extern std::ostream & operator<<(std::ostream &s, const bitvector &x);
+extern std::istream & operator>>(std::istream  &s, bitvector &x);
 
+}//namespace
 #endif

@@ -25,6 +25,8 @@
 #include <errno.h>
 #include "sparsemat.h"
 
+namespace LA {
+
 template<typename T>
 static inline const T MAX(const T &a, const T &b)
         {return b > a ? (b) : (a);}
@@ -333,11 +335,7 @@ for(i=1; i<n;i++)
 
 //check if  summed to zero
 for(i=0; i<n;i++) if(rowsorted[i] &&
-#ifdef SPARSEEPSILON
-	abs(rowsorted[i]->elem)<SPARSEEPSILON
-#else
-	! rowsorted[i]->elem 
-#endif
+	std::abs(rowsorted[i]->elem)<=SPARSEEPSILON
 	)	 {delete rowsorted[i]; rowsorted[i]=NULL;}
 
 //restore connectivity
@@ -397,11 +395,7 @@ void SparseMat<T>::addsafe(const SPMatindex n, const SPMatindex m, const T elem)
 #ifdef debug
 if(n<0||n>=nn||m<0||m>=mm) laerror("SparseMat out of range");
 #endif
-#ifdef SPARSEEPSILON
-if(abs(elem)<SPARSEEPSILON) return;
-#else
-if(!elem) return;
-#endif
+if(std::abs(elem)<=SPARSEEPSILON) return;
 if(!count) {count=new int;  *count=1; list=NULL;} //blank new matrix
 else copyonwrite(); //makes also unsort
 add(n,m,elem);
@@ -452,9 +446,7 @@ register matel<T> *l=rhs.list;
 while(l)
 	{
 	if(rhs.symmetric || lower && l->row <=l->col || !lower && l->row >=l->col)
-#ifdef SPARSEEPSILON
-	    if(abs(l->elem)>SPARSEEPSILON) 
-#endif
+	    if(std::abs(l->elem)>SPARSEEPSILON) 
 		add( l->row,l->col,sign=='+'?l->elem:- l->elem);
 	l=l->next;
 	}
@@ -473,21 +465,18 @@ register matel<T> *l=rhs.list;
 if(symmetrize)
 while(l)
         {
-#ifdef SPARSEEPSILON
-        if(abs(l->elem)>SPARSEEPSILON) 
-#endif
+        if(std::abs(l->elem)>SPARSEEPSILON) 
 		{add( l->row,l->col,l->elem); if( l->row!=l->col) add( l->col,l->row,l->elem);}
         l=l->next;
         }
 else
 while(l)
 	{
-#ifdef SPARSEEPSILON
-	if(abs(l->elem)>SPARSEEPSILON) 
-#endif
+	if(std::abs(l->elem)>SPARSEEPSILON) 
 		add( l->row,l->col,l->elem);
 	l=l->next;
 	}
+simplify(); //maybe leave up to the user
 return *this;
 }
 
@@ -503,21 +492,18 @@ register matel<T> *l=rhs.list;
 if(symmetrize)
 while(l)
         {
-#ifdef SPARSEEPSILON
-        if(abs(l->elem)>SPARSEEPSILON) 
-#endif
+        if(std::abs(l->elem)>SPARSEEPSILON) 
 		{add( l->row,l->col,- l->elem); if( l->row!=l->col) add( l->col,l->row,- l->elem);}
         l=l->next;
         }
 else
 while(l)
         {
-#ifdef SPARSEEPSILON
-        if(abs(l->elem)>SPARSEEPSILON) 
-#endif
+        if(std::abs(l->elem)>SPARSEEPSILON) 
 		add( l->row,l->col,- l->elem);
         l=l->next;
         }
+simplify(); //maybe leave up to the user
 return *this;
 }
 
@@ -537,11 +523,7 @@ SPMatindex i,j;
 for(i=0;i<nn;++i)
 	for(j=0; j<mm;++j)
 		{register T t(rhs(i,j));
-#ifdef SPARSEEPSILON
-		if( abs(t)>SPARSEEPSILON)
-#else
-		if(t)
-#endif
+		if( std::abs(t)>SPARSEEPSILON)
 		 add(i,j,t);
 		}
 }
@@ -660,40 +642,38 @@ else while(l)
 
 //assignment of a scalar matrix
 template <class T>
-SparseMat<T> & SparseMat<T>::operator=(const T a)
+SparseMat<T> & SparseMat<T>::operator=(const T &a)
 {
 if(!count ||nn<=0||mm<=0) laerror("assignment of scalar to undefined sparse matrix");
 if(nn!=mm) laerror("assignment of scalar to non-square sparse matrix");
 resize(nn,mm);//clear 
-#ifdef SPARSEEPSILON
-if(abs(a)<SPARSEEPSILON) return *this;
-#else
-if(a==(T)0) return *this;
-#endif
+if(std::abs(a)<=SPARSEEPSILON) return *this;
 SPMatindex i;
 for(i=0;i<nn;++i) add(i,i,a);
 return *this;
 }
 
 template <class T>
-SparseMat<T> & SparseMat<T>::operator+=(const T a)
+SparseMat<T> & SparseMat<T>::operator+=(const T &a)
 {
 if(!count ||nn<=0||mm<=0) laerror("assignment of scalar to undefined sparse matrix");
 if(nn!=mm) laerror("assignment of scalar to non-square sparse matrix");
 if(a==(T)0) return *this;
 SPMatindex i;
 for(i=0;i<nn;++i) add(i,i,a);
+simplify(); //maybe leave up to the user
 return *this;
 }
 
 template <class T>
-SparseMat<T> & SparseMat<T>::operator-=(const T a)
+SparseMat<T> & SparseMat<T>::operator-=(const T &a)
 {
 if(!count ||nn<=0||mm<=0) laerror("assignment of scalar to undefined sparse matrix");
 if(nn!=mm) laerror("assignment of scalar to non-square sparse matrix");
 if(a==(T)0) return *this;
 SPMatindex i;
 for(i=0;i<nn;++i) add(i,i,-a);
+simplify(); //maybe leave up to the user
 return *this;
 }
 
@@ -715,11 +695,7 @@ for(i=0;i<nn;++i)
         for(j=0; j<=i;++j)
 		{register T t;
                 if(
-#ifdef SPARSEEPSILON
-			abs(t=rhs(i,j))>SPARSEEPSILON
-#else
-			t=rhs(i,j)
-#endif
+			std::abs(t=rhs(i,j))>SPARSEEPSILON
 			) add(i,j,t);
 		}
 }
@@ -751,9 +727,7 @@ matel<T> *l=list;
 while(l) //include the mirror picture of elements into the list
 	{
 	if(
-#ifdef SPARSEEPSILON
-		abs(l->elem)>SPARSEEPSILON && 
-#endif
+		std::abs(l->elem)>SPARSEEPSILON && 
 	   l->row!=l->col) add(l->col,l->row,l->elem); //not OK for complex-hermitean
 	l=l->next;
 	}
@@ -761,12 +735,12 @@ while(l) //include the mirror picture of elements into the list
 
 
 template <class T>
-SparseMat<T> & SparseMat<T>::operator*=(const T a)
+SparseMat<T> & SparseMat<T>::operator*=(const T &a)
 {
 if(!count) laerror("operator*= on undefined lhs");
 if(!list||a==(T)1) return *this;
-if(a==(T)0) resize(nn,mm);
-else copyonwrite();
+if(a==(T)0) {clear(); return *this;}
+copyonwrite();
 
 register matel<T> *l=list;
 while(l) 
@@ -936,15 +910,14 @@ return sum;
 }
 
 
-//not OK for complex hermitean
 template<class T>
-const T SparseMat<T>::norm(const T scalar) const
+const typename LA_traits<T>::normtype SparseMat<T>::norm(const T scalar) const
 {
-if(!list) return T(0);
+if(!list) return typename LA_traits<T>::normtype(0);
 const_cast<SparseMat<T> *>(this)->simplify(); 
 
 matel<T> *l=list;
-T sum(0);
+typename LA_traits<T>::normtype sum(0);
 if(scalar!=(T)0)
 	{
 	if(symmetric) 
@@ -953,7 +926,7 @@ if(scalar!=(T)0)
 		T hlp=l->elem;
 		bool b=l->row==l->col;
 		if(b) hlp-=scalar;
-		T tmp=hlp*hlp;
+		typename LA_traits<T>::normtype tmp=LA_traits<T>::sqrabs(hlp);
        	 sum+= tmp;
 		if(!b) sum+=tmp;
        	 l=l->next;
@@ -963,7 +936,7 @@ if(scalar!=(T)0)
 	       	 {
 		T hlp=l->elem;
 		if(l->row==l->col) hlp-=scalar;
-	        sum+= hlp*hlp; 
+	        sum+= LA_traits<T>::sqrabs(hlp);
 	        l=l->next;
 	        }
 	}
@@ -972,7 +945,7 @@ else
         if(symmetric)
         while(l)
                 {
-                T tmp=l->elem*l->elem;
+                typename LA_traits<T>::normtype tmp=LA_traits<T>::sqrabs(l->elem);
          sum+= tmp;
                 if(l->row!=l->col) sum+=tmp;
          l=l->next;
@@ -980,11 +953,11 @@ else
         else
         while(l)
                  {
-                sum+= l->elem*l->elem;
+                sum+= LA_traits<T>::sqrabs(l->elem);
                 l=l->next;
                 }
 	}
-return sqrt(sum); //not OK for int, would need traits technique
+return (typename LA_traits<T>::normtype) std::sqrt(sum); //not OK for int, would need traits technique
 }
 
 
@@ -1009,9 +982,7 @@ if(transp)
 while(l)
         {
 	register T t=alpha*l->elem;
-#ifdef SPARSEEPSILON
-	if(abs(t)>SPARSEEPSILON) 
-#endif
+	if(std::abs(t)>SPARSEEPSILON) 
 				add( l->col,l->row,t);
         l=l->next;
         }
@@ -1019,9 +990,7 @@ else
 while(l)
 	{
 	register T t=alpha*l->elem;
-#ifdef SPARSEEPSILON
-	if(abs(t)>SPARSEEPSILON) 
-#endif
+	if(std::abs(t)>SPARSEEPSILON) 
 				add( l->row,l->col,t);
 	l=l->next;
 	}
@@ -1227,11 +1196,7 @@ incsize(rhs.nrows(), rhs.ncols());
 T tmp;
 for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
 	for(SPMatindex j=0; j<(SPMatindex)rhs.ncols(); ++j)
-#ifdef SPARSEEPSILON
-		if(abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
-#else
-		if((tmp=rhs(i,j))!=(T)0) add(n0+i,m0+j,tmp);
-#endif
+		if(std::abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
 return *this;
 }
 
@@ -1247,11 +1212,7 @@ T tmp;
 incsize(rhs.nrows(), rhs.ncols());
 for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
         for(SPMatindex j=0; j<(SPMatindex)rhs.ncols(); ++j)
-#ifdef SPARSEEPSILON
-                if(abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
-#else
-                if((tmp=rhs(i,j))!=(T)0) add(n0+i,m0+j,tmp);
-#endif
+                if(std::abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
 return *this;
 }
 
@@ -1270,9 +1231,7 @@ incsize(rhs.nrows(), rhs.ncols());
 register matel<T> *l=rhs.list;
 while(l)
 	{
-#ifdef SPARSEEPSILON
-	if(abs(l->elem)>SPARSEEPSILON) 
-#endif
+	if(std::abs(l->elem)>SPARSEEPSILON) 
 		add(n0+l->row,m0+l->col,l->elem);
 	l=l->next;
 	}
@@ -1303,18 +1262,18 @@ template SparseMat<T>::SparseMat(const NRMat<T> &rhs); \
 template SparseMat<T>::SparseMat(const NRSMat<T> &rhs); \
 template void SparseMat<T>::transposeme(); \
 template const T* SparseMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const; \
-template SparseMat<T> & SparseMat<T>::operator*=(const T a); \
+template SparseMat<T> & SparseMat<T>::operator*=(const T &a); \
 template void SparseMat<T>::setunsymmetric(); \
-template SparseMat<T> & SparseMat<T>::operator=(const T a); \
-template SparseMat<T> & SparseMat<T>::operator+=(const T a); \
-template SparseMat<T> & SparseMat<T>::operator-=(const T a); \
+template SparseMat<T> & SparseMat<T>::operator=(const T &a); \
+template SparseMat<T> & SparseMat<T>::operator+=(const T &a); \
+template SparseMat<T> & SparseMat<T>::operator-=(const T &a); \
 template NRMat<T>::NRMat(const SparseMat<T> &rhs); \
 template NRSMat<T>::NRSMat(const SparseMat<T> &rhs); \
 template NRVec<T>::NRVec(const SparseMat<T> &rhs); \
 template const NRVec<T> NRVec<T>::operator*(const SparseMat<T> &mat) const; \
 template SparseMat<T> & SparseMat<T>::join(SparseMat<T> &rhs); \
 template const T SparseMat<T>::trace() const; \
-template const T SparseMat<T>::norm(const T scalar) const; \
+template const LA_traits<T>::normtype SparseMat<T>::norm(const T scalar) const; \
 template void SparseMat<T>::axpy(const T alpha, const SparseMat<T> &x, const bool transp); \
 template const SparseMat<T> SparseMat<T>::operator*(const SparseMat<T> &rhs) const; \
 template const T SparseMat<T>::dot(const SparseMat<T> &rhs) const; \
@@ -1336,3 +1295,4 @@ INSTANTIZE(complex<double>) //some functions are not OK for hermitean matrices, 
 template class SparseMat<double>;
 template class SparseMat<complex<double> >;
 
+}//namespace

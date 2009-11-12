@@ -20,18 +20,9 @@
 
 #include <time.h>
 #include "la.h"
-#include "sparsemat.h"
-#include "matexp.h"
-#include "fourindex.h"
-#include "davidson.h"
-#include "gmres.h"
-#include "conjgrad.h"
-#include "diis.h"
-#include "bitvector.h"
-#ifdef USE_TRACEBACK
-#include "traceback.h"
-#endif
 
+using namespace std;
+using namespace LA;
 
 extern void test(const NRVec<double> &x);
 
@@ -1335,7 +1326,7 @@ cout << "Unitary\n"<<U;
 cout <<"Error = "<<(U*U.transpose() -1.).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 double t;
 NRMat<complex<double> > ham;
@@ -1397,7 +1388,58 @@ cout <<"sparse sincostimes "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
 NRVec<complex<double> > r4 = cov2 + siv2*complex<double>(0,1);
 cout <<"sincostimes error 2 = "<<(r1-r4).norm()<<endl;
 */
+}
 
+if(0)
+{
+double t;
+SparseMat<complex<double> > h;
+cin >> h;
+h *= complex<double>(0,1);
+h.simplify();
+cout <<"length of hamiltonian "<<h.length()<<endl;
+t=clock()/((double) (CLOCKS_PER_SEC));
+SparseMat<complex<double> > hexp = exp(h);
+cout <<"sparse exp time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout <<"length of exp hamiltonian "<<hexp.length()<<endl;
+NRMat<complex<double> > he(hexp);
+NRMat<complex<double> > hec(he);
+NRMat<complex<double> > het(he);
+hec.conjugateme();
+het.transposeme();
+//cout <<he;
+cout <<"unitarity error "<<(hec*he).norm(1)<<endl;
+cout <<"symmetry error "<<(het-he).norm()<<endl;
+}
+
+if(0)
+{
+NRSMat<double> hd(100);
+hd.randomize(1);
+SparseSMat<double> h(hd);
+NRMat<double> rd = hd*hd;
+SparseSMat<double> r = h*h;
+NRSMat<double>rx(r);
+NRMat<double> r2(rx);
+cout <<"Error = "<<(r2-rd).norm()<<endl;
+}
+
+if(1)
+{
+SparseSMat<complex<double> > h;
+cin>>h;
+h *= complex<double>(0,1);
+double t=clock()/((double) (CLOCKS_PER_SEC));
+SparseSMat<complex<double> > r = exp(h);
+cout <<"SparseSMat time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+if(h.nrows()<=1024)
+{
+NRSMat<complex<double> > h3(h);
+NRMat<complex<double> > h2(h3);
+NRMat<complex<double> >r2 = exp(h2);
+cout <<"error = "<<(r2-NRMat<complex<double> >(NRSMat<complex<double> >(r))).norm()<<endl;
+cout <<"errorx = "<<(r2-NRSMat<complex<double> >(r)).norm()<<endl;
+}
 }
 
 

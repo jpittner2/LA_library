@@ -17,6 +17,7 @@
 */
 #ifndef _AUXSTORAGE_H_
 #define _AUXSTORAGE_H_
+
 #include "vec.h"
 #include "mat.h"
 #include "smat.h"
@@ -26,6 +27,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+namespace LA {
 
 //CAUTION:
 //it will not work if T is itself a class with dynamically allocated components
@@ -136,6 +139,6 @@ if(0>write(fd,&x(0,0),recl)) {perror(""); laerror("write failed in AuxStorage");
 }
 
 
-
+}//namespace
 
 #endif

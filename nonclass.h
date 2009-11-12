@@ -17,12 +17,12 @@
 */
 #ifndef _LA_NONCLASS_H_
 #define _LA_NONCLASS_H_
-
 #include "vec.h"
 #include "smat.h"
 #include "mat.h"
 #include "la_traits.h"
 
+namespace LA {
 
 //MISC
 template <class T>
@@ -120,11 +120,11 @@ extern complex<double> sqrtinv(const complex<double> &);
 extern double sqrtinv(const double);
 
 //functions on matrices
-inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&sqrt); }
+inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&std::sqrt); }
 inline NRMat<double>  sqrtinv(const NRSMat<double> &a) { return matrixfunction(a,&sqrtinv); }
-inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfunction(a,&sqrt); }
+inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfunction(a,&std::sqrt); }
 inline NRMat<double>  realsqrtinv(const NRMat<double> &a) { return realmatrixfunction(a,&sqrtinv); }
-inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&log); }
+inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&std::log); }
 extern NRMat<double> log(const NRMat<double> &a);
 extern NRMat<double> exp0(const NRMat<double> &a);
 
@@ -133,6 +133,7 @@ extern const NRMat<double> realpart(const NRMat< complex<double> >&);
 extern const NRMat<double> imagpart(const NRMat< complex<double> >&);
 extern const NRMat< complex<double> > realmatrix (const NRMat<double>&);
 extern const NRMat< complex<double> > imagmatrix (const NRMat<double>&);
+extern const NRMat< complex<double> > complexmatrix (const NRMat<double>&, const NRMat<double>&);
 
 //inverse by means of linear solve, preserving rhs intact
 template<typename T>
@@ -186,7 +187,7 @@ if(ignoresign)
 {
 for(int i=0; i<nrows; ++i)
         for(int j=0; j<ncols; ++j)
-                r(i,j) = rows[i]*cols[j]<0?0.:a(abs(rows[i])+indexshift,abs(cols[j])+indexshift);
+                r(i,j) = rows[i]*cols[j]<0?0.:a(std::abs(rows[i])+indexshift,std::abs(cols[j])+indexshift);
 }
 else
 {
@@ -201,7 +202,7 @@ if(ignoresign)
 {
 for(int i=0; i<nrows; ++i)
         for(int j=0; j<ncols; ++j)
-                r(i,j) = a(abs(rows[i])+indexshift,abs(cols[j])+indexshift);
+                r(i,j) = a(std::abs(rows[i])+indexshift,std::abs(cols[j])+indexshift);
 }
 else
 {
@@ -218,11 +219,6 @@ return r;
 //auxiliary routine to adjust eigenvectors to guarantee real logarithm
 extern void adjustphases(NRMat<double> &v);
 
-template<class T>
-T abssqr(const complex<T> &x)
-{
-return x.real()*x.real()+x.imag()*x.imag();
-}
 
 //declaration of template interface to cblas routines with full options available
 //just to facilitate easy change between float, double, complex in a user code
@@ -272,6 +268,5 @@ return r;
 }
 
 
-
-
+}//namespace
 #endif

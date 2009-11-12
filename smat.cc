@@ -31,7 +31,7 @@ extern ssize_t write(int, const void *, size_t);
 // TODO
 // specialize unary minus
 
-
+namespace LA {
 
 
 /*
@@ -298,7 +298,7 @@ NRSMat< complex<double> >::dot(const NRSMat< complex<double> > &rhs) const
 	if (nn != rhs.nn) laerror("dot of incompatible SMat's");
 #endif
 	complex<double> dot;
-	cblas_zdotc_sub(NN2, (void *)v, 1, (void *)rhs.v, 1, (void *)(&dot));
+	cblas_zdotc_sub(NN2, v, 1, rhs.v, 1, &dot);
 	return dot;
 }
 
@@ -322,7 +322,7 @@ NRSMat< complex<double> >::dot(const NRVec< complex<double> > &rhs) const
 	if (NN2 != rhs.nn) laerror("dot of incompatible SMat's");
 #endif
 	complex<double> dot;
-	cblas_zdotc_sub(NN2, (void *)v, 1, (void *)rhs.v, 1, (void *)(&dot));
+	cblas_zdotc_sub(NN2, v, 1, rhs.v, 1, &dot);
 	return dot;
 }
 
@@ -341,7 +341,7 @@ const double  NRSMat<double>::norm(const double scalar) const
 			if (i == j) tmp -= scalar;
 			sum += tmp*tmp;
 		}
-	return sqrt(sum);
+	return std::sqrt(sum);
 }
 
 
@@ -350,7 +350,7 @@ template<>
 const double NRSMat< complex<double> >::norm(const complex<double> scalar) const
 {
 	if (!(scalar.real()) && !(scalar.imag()))
-		return cblas_dznrm2(NN2, (void *)v, 1);
+		return cblas_dznrm2(NN2, v, 1);
 	double sum = 0;
 	complex<double> tmp;
 	int k = 0;
@@ -360,7 +360,7 @@ const double NRSMat< complex<double> >::norm(const complex<double> scalar) const
 			if (i == j) tmp -= scalar;
 			sum += tmp.real()*tmp.real() + tmp.imag()*tmp.imag();
 		}
-	return sqrt(sum);
+	return std::sqrt(sum);
 }
 
 
@@ -388,7 +388,7 @@ void NRSMat< complex<double> >::axpy(const complex<double> alpha,
 	if (nn != x.nn) laerror("axpy of incompatible SMats");
 #endif
 	copyonwrite();
-	cblas_zaxpy(nn, (void *)(&alpha), (void *)x.v, 1, (void *)v, 1);
+	cblas_zaxpy(nn, &alpha, x.v, 1, v, 1);
 }
 
 //complex from real
@@ -407,9 +407,16 @@ cblas_dcopy(nn*(nn+1)/2,&rhs(0,0),1,((double *)v) + (imagpart?1:0),2);
 ////// forced instantization in the corresponding object file
 template class NRSMat<double>;
 template class NRSMat< complex<double> >;
+
+template class NRSMat<long long>;
+template class NRSMat<long>;
 template class NRSMat<int>;
 template class NRSMat<short>;
 template class NRSMat<char>;
+template class NRSMat<unsigned char>;
+template class NRSMat<unsigned short>;
 template class NRSMat<unsigned int>;
 template class NRSMat<unsigned long>;
+template class NRSMat<unsigned long long>;
 
+}//namespace

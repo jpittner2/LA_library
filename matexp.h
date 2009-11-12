@@ -21,10 +21,11 @@
 //of matrix-matrix multiplications on cost of additions and memory
 // the polynom and exp routines will work on any type, for which traits class
 // is defined containing definition of an element type, norm and axpy operation
-
 #include "la_traits.h"
 #include "laerror.h"
+#include <math.h>
 
+namespace LA {
 
 template<class T,class R>
 const T polynom0(const T &x, const NRVec<R> &c)
@@ -40,6 +41,7 @@ else
 	z=x*c[order];
 	for(i=order-1; i>=0; i--)
 		{
+		//std::cerr<<"TEST polynom0 "<<i<<'\n';
 		if(i<order-1) z=y*x;
 		y=z+c[i];
 		}
@@ -138,7 +140,7 @@ for(int i=1; i<=n; ++i)
 	{
 	factor/=i;
 	z= z*t-t*z;
-	if(verbose) cerr << "BCH contribution at order "<<i<<" : "<<z.norm()*factor<<endl;
+	if(verbose) std::cerr << "BCH contribution at order "<<i<<" : "<<z.norm()*factor<<std::endl;
 	result+= z*factor; 
 	}
 return result;
@@ -169,10 +171,10 @@ return y;
 
 inline int nextpow2(const double n)
 {
-const double log2=log(2.);
+const double log2=std::log(2.);
 if(n<=.75) return 0; //try to keep the taylor expansion short
 if(n<=1.) return 1;
-return int(ceil(log(n)/log2-log(.75)));
+return int(std::ceil(std::log(n)/log2-std::log(.75)));
 }
 
 //should better be computed by mathematica to have accurate last digits, perhaps chebyshev instead, see exp in glibc
@@ -208,10 +210,10 @@ template<class T, class C, class S>
 NRVec<C> exp_aux(const T &x, int &power, int maxpower, int maxtaylor, S prescale)
 {
 
-double mnorm= x.norm() * abs(prescale);
+double mnorm= x.norm() * std::abs(prescale);
 power=nextpow2(mnorm); 
 if(maxpower>=0 && power>maxpower) power=maxpower;
-double scale=exp(-log(2.)*power);
+double scale=std::exp(-std::log(2.)*power);
 
 
 //find how long taylor expansion will be necessary
@@ -236,8 +238,8 @@ for(i=0,t=1.;i<=n;i++)
 	taylor2[i]=exptaylor[i]*t;
 	t*=scale;
 	}
-//cout <<"TEST power, scale "<<power<<" "<<scale<<endl; 
-//cout <<"TEST taylor2 "<<taylor2<<endl;
+//std::cout <<"TEST power, scale "<<power<<" "<<scale<<std::endl; 
+//std::cout <<"TEST taylor2 "<<taylor2<<std::endl;
 return taylor2;
 }
 
@@ -246,10 +248,10 @@ return taylor2;
 template<class T, class C, class S>
 void sincos_aux(NRVec<C> &si, NRVec<C> &co, const T &x, int &power,int maxpower, int maxtaylor, const S prescale)
 {
-double mnorm= x.norm() * abs(prescale);
+double mnorm= x.norm() * std::abs(prescale);
 power=nextpow2(mnorm); 
 if(maxpower>=0 && power>maxpower) power=maxpower;
-double scale=exp(-log(2.)*power);
+double scale=std::exp(-std::log(2.)*power);
 
 //find how long taylor expansion will be necessary
 const double precision=1e-14; //further decreasing brings nothing
@@ -275,8 +277,8 @@ for(i=0,t=1.;i<=n;i++)
 	else 	co[i>>1] = exptaylor[i]* (i&2?-t:t);
 	t*=scale;
 	}
-//cout <<"TEST sin "<<si<<endl;
-//cout <<"TEST cos "<<co<<endl;
+//std::cout <<"TEST sin "<<si<<std::endl;
+//std::cout <<"TEST cos "<<co<<std::endl;
 }
 
 
@@ -290,6 +292,7 @@ int power;
 //prepare the polynom of and effectively scale T
 NRVec<typename LA_traits<T>::normtype> taylor2=exp_aux<T,typename LA_traits<T>::normtype,double>(x,power,maxpower,maxtaylor,1.);
 
+//std::cerr <<"TEST power "<<power<<std::endl;
 
 T r= horner?polynom0(x,taylor2):polynom(x,taylor2); 
 //for accuracy summing from the smallest terms up would be better, but this is more efficient for matrices
@@ -308,6 +311,7 @@ int power;
 
 NRVec<typename LA_traits<T>::normtype> taylors,taylorc;
 sincos_aux<T,typename LA_traits<T>::normtype>(taylors,taylorc,x,power,maxpower,maxtaylor,1.);
+
 
 //could we save something by computing both polynoms simultaneously?
 {
@@ -446,16 +450,14 @@ NRVec<typename LA_traits<V>::normtype> taylors,taylorc;
 sincos_aux<M,typename LA_traits<V>::normtype>(taylors,taylorc,mat,power,maxpower,maxtaylor,scale);
 if(taylors.size()!=taylorc.size()) laerror("internal error - same size of sin and cos expansions assumed");
 //the actual computation and resursive "squaring"
-cout <<"TEST power "<<power<<endl;
+//std::cout <<"TEST power "<<power<<std::endl;
 sincostimes_aux(mat,si,co,rhs,taylors,taylorc,transpose,scale,power);
 
 return;
 }
 
 
-
-
-
 //@@@ power series matrix logarithm?
 
+}//namespace
 #endif

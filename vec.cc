@@ -18,18 +18,21 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+
 #include <iostream>
-#include "vec.h"
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "vec.h"
 #include "qsort.h"
 extern "C" {
 extern ssize_t read(int, void *, size_t);
 extern ssize_t write(int, const void *, size_t);
 }
+
+namespace LA {
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -42,13 +45,16 @@ template void NRVec<T>::get(int fd, bool dim, bool transp); \
 
 INSTANTIZE(double)
 INSTANTIZE(complex<double>)
-INSTANTIZE(int)
-INSTANTIZE(short)
-INSTANTIZE(unsigned short)
 INSTANTIZE(char)
+INSTANTIZE(short)
+INSTANTIZE(int)
+INSTANTIZE(long)
+INSTANTIZE(long long)
 INSTANTIZE(unsigned char)
+INSTANTIZE(unsigned short)
 INSTANTIZE(unsigned int)
 INSTANTIZE(unsigned long)
+INSTANTIZE(unsigned long long)
 
 
 
@@ -206,7 +212,7 @@ void NRVec< complex<double> >::axpy(const complex<double> alpha,
 	if (nn != x.nn) laerror("axpy of incompatible vectors");
 #endif
 	copyonwrite();
-	cblas_zaxpy(nn, (void *)(&alpha), (void *)(x.v), 1, (void *)v, 1);
+	cblas_zaxpy(nn, &alpha, x.v, 1, v, 1);
 }
 
 // axpy call for T = double (strided)
@@ -223,7 +229,7 @@ void NRVec< complex<double> >::axpy(const complex<double> alpha,
 			const complex<double> *x, const int stride)
 {
 	copyonwrite();
-	cblas_zaxpy(nn, (void *)(&alpha), (void *)x, stride, v, 1);
+	cblas_zaxpy(nn, &alpha, x, stride, v, 1);
 }
 
 // unary minus
@@ -242,7 +248,7 @@ NRVec< complex<double> >::operator-() const
 {
 	NRVec< complex<double> > result(*this);
 	result.copyonwrite();
-	cblas_zdscal(nn, -1.0, (void *)(result.v), 1);
+	cblas_zdscal(nn, -1.0, result.v, 1);
 	return result;
 }
 
@@ -279,37 +285,26 @@ template<>
 NRVec< complex<double> > & NRVec< complex<double> >::normalize()
 {
 	complex<double> tmp;
-	tmp = cblas_dznrm2(nn, (void *)v, 1);
+	tmp = cblas_dznrm2(nn, v, 1);
 #ifdef DEBUG
 	if(!(tmp.real()) && !(tmp.imag())) laerror("normalization of zero vector");
 #endif
 	copyonwrite();
 	tmp = 1.0/tmp;
-	cblas_zscal(nn, (void *)(&tmp), (void *)v, 1);
+	cblas_zscal(nn, &tmp, v, 1);
 	return *this;
 }
 
 //stubs for linkage
-template<>
-NRVec<unsigned char> &  NRVec<unsigned char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
-template<>
-NRVec<int> &  NRVec<int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
-template<>
-NRVec<short> &  NRVec<short>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
-template<>
-NRVec<char> &  NRVec<char>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
-template<>
-NRVec<unsigned long> &  NRVec<unsigned long>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
-template<>
-NRVec<unsigned int> &  NRVec<unsigned int>::normalize() {laerror("normalize() impossible for integer types"); return *this;}
-
 
 #define INSTANTIZE_DUMMY(T) \
 template<> void NRVec<T>::gemv(const T beta, const NRMat<T> &a, const char trans,  const T alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
 template<> void NRVec<T>::gemv(const T beta, const NRSMat<T> &a, const char trans,  const T alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
 template<> void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans,  const T alpha, const NRVec<T> &x, bool s) { laerror("gemv on unsupported types"); } \
 template<> void NRVec<T>::gemv(const LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
-template<> void NRVec<T>::gemv(const  LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRSMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } 
+template<> void NRVec<T>::gemv(const  LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRSMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
+template<> NRVec<T> & NRVec<T>::normalize() {laerror("normalize() impossible for integer types"); return *this;} \
+template<> const NRMat<T> NRVec<T>::otimes(const NRVec<T> &b,const bool conj, const T &scale) const {laerror("otimes presently implemented only for double and complex double"); return NRMat<T> ();}
 
 
 
@@ -401,20 +396,22 @@ void NRVec< complex<double> >::gemv(const complex<double> beta,
 
 
 
-// Direc product Mat = Vec | Vec
+// Direct product Mat = Vec | Vec
 template<>
-const NRMat<double> NRVec<double>::operator|(const NRVec<double> &b) const
+const NRMat<double> NRVec<double>::otimes(const NRVec<double> &b,const bool conj, const double &scale) const
 {
 	NRMat<double> result(0.,nn,b.nn);
-	cblas_dger(CblasRowMajor, nn, b.nn, 1., v, 1, b.v, 1, result, b.nn);
+	cblas_dger(CblasRowMajor, nn, b.nn, scale, v, 1, b.v, 1, result, b.nn);
 	return result;
 }
+
 template<>
 const NRMat< complex<double> > 
-NRVec< complex<double> >::operator|(const NRVec< complex<double> > &b) const
+NRVec<complex<double> >::otimes(const NRVec< complex<double> > &b, const bool conj, const  complex<double> &scale) const
 {
 	NRMat< complex<double> > result(0.,nn,b.nn);
-	cblas_zgerc(CblasRowMajor, nn, b.nn, &CONE, v, 1, b.v, 1, result, b.nn);
+	if(conj) cblas_zgerc(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result, b.nn);
+	else cblas_zgeru(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result, b.nn);
 	return result;
 }
 
@@ -436,24 +433,39 @@ else return memqsort<0,NRVec<T>,int,int>(*this,perm,from,to);
 template class NRVec<double>;
 template class NRVec<complex<double> >;
 template class NRVec<char>;
-template class NRVec<unsigned char>;
 template class NRVec<short>;
 template class NRVec<int>;
+template class NRVec<long>;
+template class NRVec<long long>;
+template class NRVec<unsigned char>;
+template class NRVec<unsigned short>;
 template class NRVec<unsigned int>;
 template class NRVec<unsigned long>;
+template class NRVec<unsigned long long>;
 
 
 INSTANTIZE_DUMMY(char)
-INSTANTIZE_DUMMY(unsigned char)
 INSTANTIZE_DUMMY(short)
 INSTANTIZE_DUMMY(int)
+INSTANTIZE_DUMMY(long)
+INSTANTIZE_DUMMY(long long)
+INSTANTIZE_DUMMY(unsigned char)
+INSTANTIZE_DUMMY(unsigned short)
 INSTANTIZE_DUMMY(unsigned int)
 INSTANTIZE_DUMMY(unsigned long)
+INSTANTIZE_DUMMY(unsigned long long)
 INSTANTIZE_DUMMY(complex<char>)
-INSTANTIZE_DUMMY(complex<unsigned char>)
 INSTANTIZE_DUMMY(complex<short>)
 INSTANTIZE_DUMMY(complex<int>)
+INSTANTIZE_DUMMY(complex<long>)
+INSTANTIZE_DUMMY(complex<long long>)
+INSTANTIZE_DUMMY(complex<unsigned char>)
+INSTANTIZE_DUMMY(complex<unsigned short>)
 INSTANTIZE_DUMMY(complex<unsigned int>)
+INSTANTIZE_DUMMY(complex<unsigned long>)
+INSTANTIZE_DUMMY(complex<unsigned long long>)
+
 INSTANTIZE_DUMMY(complex<complex<double> >)
 INSTANTIZE_DUMMY(complex<complex<float> >)
-INSTANTIZE_DUMMY(complex<unsigned long>)
+
+}//namespace

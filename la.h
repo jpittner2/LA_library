@@ -20,10 +20,29 @@
 
 //this should be the single include file for the end user
 //
-
-#include "vec.h"
-#include "smat.h"
+#ifdef USE_TRACEBACK
+#include "traceback.h"
+#endif
+#include "la_traits.h"
+#include "laerror.h"
+#include "auxstorage.h"
+#include "bisection.h"
+#include "bitvector.h"
+#include "conjgrad.h"
+#include "davidson.h"
+#include "diis.h"
+#include "fourindex.h"
+#include "gmres.h"
 #include "mat.h"
+#include "matexp.h"
+#include "noncblas.h"
 #include "nonclass.h"
+#include "permutation.h"
+#include "qsort.h"
+#include "smat.h"
+#include "sparsemat.h"
+#include "sparsesmat.h"
+#include "vec.h"
+
 
 #endif /* _LA_H_ */

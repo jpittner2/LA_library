@@ -24,6 +24,7 @@
 #include "nonclass.h"
 #include "qsort.h"
 
+namespace LA {
 
 #ifdef FORTRAN_
 #define FORNAME(x) x##_
@@ -39,9 +40,13 @@ INSTANTIZE(complex<double>)
 INSTANTIZE(int)
 INSTANTIZE(short)
 INSTANTIZE(char)
+INSTANTIZE(long)
+INSTANTIZE(long long)
 INSTANTIZE(unsigned char)
-INSTANTIZE(unsigned long)
+INSTANTIZE(unsigned short)
 INSTANTIZE(unsigned int)
+INSTANTIZE(unsigned long)
+INSTANTIZE(unsigned long long)
 
 #define EPSDET 1e-300
 
@@ -146,7 +151,7 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	if (det && r==0) {
 		*det = 1.;
 		//take into account some numerical instabilities in dgesv for singular matrices
-		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
+		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
 		//change sign of det by parity of ipiv permutation
 		if(*det) for (int i=0; i<n; ++i) if(
 #ifdef NONCBLAS
@@ -158,9 +163,9 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	}
 	if(det && r>0) *det = 0;
 /*
-	cout <<"ipiv = ";
-	for (int i=0; i<n; ++i) cout <<ipiv[i]<<" ";
-	cout <<endl;
+	std::cout <<"ipiv = ";
+	for (int i=0; i<n; ++i) std::cout <<ipiv[i]<<" ";
+	std::cout <<std::endl;
 */
 	delete [] ipiv;
 	if (r>0 && B) laerror("singular matrix in lapack_gesv");
@@ -202,7 +207,7 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 	}
 	if (det && r == 0) {
 		*det = 1.;
-		for (int i=1; i<n; i++) {double t=a(i,i); if(!finite(t) || abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;}
+		for (int i=1; i<n; i++) {double t=a(i,i); if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;}
 		//do not use ipiv, since the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
 	}
         if (det && r>0)  *det = 0;
@@ -452,6 +457,9 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 	if (r > 0) laerror("convergence problem in gesvd() of ingular_decomposition()");
 }
 
+//QR decomposition
+//extern "C" void FORNAME(dgeqrf)(const int *M, const int *N, double *A, const int *LDA, double *TAU, double *WORK, int *LWORK, int *INFO);
+
 
 extern "C" void FORNAME(dgeev)(const char *JOBVL, const char *JOBVR, const int *N,
 		double *A, const int *LDA, double *WR, double *WI, double *VL, const int *LDVL,
@@ -555,7 +563,7 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
 	delete[] work;
 
-//cout <<"TEST dgeev\n"<<wr<<wi<<*vr<<*vl<<endl;
+//std::cout <<"TEST dgeev\n"<<wr<<wi<<*vr<<*vl<<std::endl;
 
 	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
 	if (r > 0) laerror("convergence problem in ggev/geev in gdiagonalize()");
@@ -589,9 +597,9 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 				x=.5*t*s11;
 				y=.5*t*s12;
 				double alp,bet;
-				t=.5*sqrt(t);
-				alp=sqrt(.5*(t+x));
-				bet=sqrt(.5*(t-x));
+				t=.5*std::sqrt(t);
+				alp=std::sqrt(.5*(t+x));
+				bet=std::sqrt(.5*(t-x));
 				if(y<0.) bet= -bet;
 
 				//rotate left ev
@@ -722,6 +730,16 @@ const NRMat< complex<double> > imagmatrix (const NRMat<double> &a)
 	return result;
 }
 
+const NRMat< complex<double> > complexmatrix (const NRMat<double> &re, const NRMat<double> &im)
+{
+	if(re.nrows()!=im.nrows() || re.ncols() != im.ncols()) laerror("incompatible sizes of real and imaginary parts");
+        NRMat< complex<double> > result(re.nrows(), re.ncols());
+        cblas_dcopy(re.nrows()*re.ncols(), re, 1, (double *)result[0], 2);
+        cblas_dcopy(re.nrows()*re.ncols(), im, 1, (double *)result[0]+1, 2);
+        return result;
+}
+
+
 
 NRMat<double> matrixfunction(NRMat<double> a, complex<double>
 		(*f)(const complex<double> &), const bool adjust)
@@ -735,13 +753,13 @@ NRMat<complex<double> > a0=complexify(a);
 	gdiagonalize(a, w, &u, &v);//a gets destroyed, eigenvectors are rows
 	NRVec< complex<double> > z = diagofproduct(u, v, 1, 1);
 /*
-cout <<"TEST matrixfunction\n"<<w<<u<<v<<z;
-cout <<"TEST matrixfunction1 "<< u*a0 - diagonalmatrix(w)*u<<endl;
-cout <<"TEST matrixfunction2 "<< a0*v.transpose(1) - v.transpose(1)*diagonalmatrix(w)<<endl;
-cout <<"TEST matrixfunction3 "<< u*v.transpose(1)<<diagonalmatrix(z)<<endl;
+std::cout <<"TEST matrixfunction\n"<<w<<u<<v<<z;
+std::cout <<"TEST matrixfunction1 "<< u*a0 - diagonalmatrix(w)*u<<std::endl;
+std::cout <<"TEST matrixfunction2 "<< a0*v.transpose(1) - v.transpose(1)*diagonalmatrix(w)<<std::endl;
+std::cout <<"TEST matrixfunction3 "<< u*v.transpose(1)<<diagonalmatrix(z)<<std::endl;
 NRVec< complex<double> > wz(n);
 for (int i=0; i<a.nrows(); i++) wz[i] = w[i]/z[i];
-cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*u<<endl;
+std::cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*u<<std::endl;
 */
 
 	for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i])/z[i];
@@ -751,7 +769,7 @@ cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*u<<en
 	r.gemm(0.0, v, 'c', u, 'n', 1.0);
 	double inorm = cblas_dnrm2(n*n, (double *)r[0]+1, 2);
 	if (inorm > 1e-10) {
-		cout << "norm = " << inorm << endl;
+		std::cout << "norm = " << inorm << std::endl;
 		laerror("nonzero norm of imaginary part of real matrixfunction");
 	}
 	return realpart(r);
@@ -817,18 +835,18 @@ complex<double> myclog (const complex<double> &x)
 
 complex<double> mycexp (const complex<double> &x)
 {
-        return exp(x);
+        return std::exp(x);
 }
 
 
 complex<double> sqrtinv (const complex<double> &x)
 {
-        return 1./sqrt(x);
+        return 1./std::sqrt(x);
 }
 
 double sqrtinv (const double x)
 {
-        return 1./sqrt(x);
+        return 1./std::sqrt(x);
 }
 
 
@@ -959,7 +977,7 @@ for(j=i; j<n; ++j)
 	if(i==j)
 		{
 		if(x<=0) laerror("not positive definite metric in gendiagonalize");
-       	 	dl[i] = sqrt(x);
+       	 	dl[i] = std::sqrt(x);
 		}
 	else    
 		b(j,i) = x / dl[i];
@@ -1023,12 +1041,13 @@ if(nchange&1)//still adjust to get determinant=1
         {
         int imin=-1; double min=1e200;
         for(int i=0; i<n;++i)
-                if(abs(v[i][i])<min)
+                if(std::abs(v[i][i])<min)
                         {
                         imin=i;
-                        min=abs(v[i][i]);
+                        min=std::abs(v[i][i]);
                         } 
         cblas_dscal(n,-1.,v[imin],1);
         }
 }
 
+}//namespace
