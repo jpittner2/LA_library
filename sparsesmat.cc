@@ -28,6 +28,7 @@
 template <typename T>
 void SparseSMat<T>::gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha)
 {
+std::cerr << "enter gemm\n";
 (*this) *= beta;
 if(alpha==(T)0) return;
 if(a.nn!=b.nn || a.nn!=nn) laerror("incompatible sizes in SparseSMat::gemm");
@@ -63,7 +64,11 @@ for(SPMatindex k=0; k<nn; ++k) //summation loop
 		add(ai[i],bi[j],prod(i,j),false);
 
 	}
-simplify(); //erase elements below threshold
+std::cerr << "before simplify in gemm\n";
+std::cerr << " nterms = "<<
+simplify() 
+<<std::endl; //erase elements below threshold
+std::cerr << "regular exit gemm\n";
 }
 
 
@@ -97,6 +102,7 @@ for(SPMatindex i=0; i<nn; ++i) if(x.v[i])
 	typename std::map<SPMatindex,T>::iterator p;
 	for(p=x.v[i]->begin(); p!=x.v[i]->end(); ++p) (*v[i])[p->first] = p->second * alpha;
 	}
+simplify();
 }
 
 
@@ -115,11 +121,83 @@ for(SPMatindex i=0; i<nn; ++i) if(v[i])
 }
 
 
+template <class T>
+SparseSMat<T> & SparseSMat<T>::operator=(const T &a)
+{
+clear();
+for(SPMatindex i=0; i<nn; ++i) 
+	{
+	if(!v[i]) v[i]  = new std::map<SPMatindex,T>;
+	(*v[i])[i] = a;
+	}
+return *this;
+}
+
+template <class T>
+SparseSMat<T> & SparseSMat<T>::operator+=(const T &a)
+{
+copyonwrite();
+for(SPMatindex i=0; i<nn; ++i)
+        {
+        if(v[i]) 
+		{
+		typename std::map<SPMatindex,T>::iterator p;
+		p= v[i]->find(i);
+		if(p!=v[i]->end()) p->second+=a; else (*v[i])[i] = a;
+		}
+	else {v[i]  = new std::map<SPMatindex,T>; (*v[i])[i] = a;}
+        }
+return *this;
+}
+
+
+template <class T>
+SparseSMat<T> & SparseSMat<T>::operator-=(const T &a)
+{
+copyonwrite();
+for(SPMatindex i=0; i<nn; ++i)
+        {
+        if(v[i]) 
+		{
+		typename std::map<SPMatindex,T>::iterator p;
+		p= v[i]->find(i);
+		if(p!=v[i]->end()) p->second-=a; else (*v[i])[i] = -a;
+		}
+	else {v[i]  = new std::map<SPMatindex,T>; (*v[i])[i] = -a;}
+        }
+return *this;
+}
+
+template <class T>
+typename LA_traits<T>::normtype SparseSMat<T>::norm(const T scalar) const
+{
+typename LA_traits<T>::normtype sum=0;
+
+for(SPMatindex i=0; i<nn; ++i)
+	if(v[i])
+		{
+		typename std::map<SPMatindex,T>::iterator p;
+                p= v[i]->find(i);
+		if(p!=v[i]->end())  sum += LA_traits<T>::sqrabs(p->second - scalar);
+		else sum += LA_traits<T>::sqrabs(scalar); 
+		}
+	else sum += LA_traits<T>::sqrabs(scalar); //missing diagonal element
+
+return sqrt(sum);
+}
+
+
+
+
 #define INSTANTIZE(T) \
 template void SparseSMat<T>::gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); \
 template SparseSMat<T> & SparseSMat<T>::operator*=(const T &a); \
 template void SparseSMat<T>::gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const; \
 template void SparseSMat<T>::axpy(const T alpha, const SparseSMat &x, const bool transp); \
+template SparseSMat<T> & SparseSMat<T>::operator=(const T &a); \
+template SparseSMat<T> & SparseSMat<T>::operator+=(const T &a); \
+template SparseSMat<T> & SparseSMat<T>::operator-=(const T &a); \
+template LA_traits<T>::normtype SparseSMat<T>::norm(const T scalar) const; \
 
 
 INSTANTIZE(double)

@@ -59,12 +59,11 @@ public:
 	void copyonwrite();
         void resize(const SPMatindex n);
         void clear() {resize(nn);}
-	void simplify();
+	unsigned long long simplify();
 	~SparseSMat();
 	inline int getcount() const {return count?*count:0;}
         SparseSMat & operator*=(const T &a);         //multiply by a scalar
         inline const SparseSMat operator*(const T &rhs) const {return SparseSMat(*this) *= rhs;}
-/*@@@to be done
 	inline const SparseSMat operator+(const T &rhs) const {return SparseSMat(*this) += rhs;}
         inline const SparseSMat operator-(const T &rhs) const {return SparseSMat(*this) -= rhs;}
         inline const SparseSMat operator+(const SparseSMat &rhs) const {return SparseSMat(*this) += rhs;} 
@@ -72,16 +71,15 @@ public:
         SparseSMat & operator=(const T &a);          //assign a to diagonal
         SparseSMat & operator+=(const T &a);         //assign a to diagonal
         SparseSMat & operator-=(const T &a);         //assign a to diagonal
-        SparseSMat & operator+=(const SparseSMat &rhs);
-        SparseSMat & operator-=(const SparseSMat &rhs);
-	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const;
 	void axpy(const T alpha, const SparseSMat &x, const bool transp=0); // this+= a*x
-	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
-*/
+        inline SparseSMat & operator+=(const SparseSMat &rhs) {axpy((T)1,rhs); return *this;};
+        inline SparseSMat & operator-=(const SparseSMat &rhs) {axpy((T)-1,rhs); return *this;};
+	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const;
+	typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
         inline const SparseSMat operator*(const SparseSMat &rhs) const {SparseSMat<T> r(nn); r.gemm(0,*this,'n',rhs,'n',1); return r;}; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
 	void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); //this := alpha*op( A )*op( B ) + beta*this !!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
 	inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
-	unsigned int length() const;
+	inline unsigned long long length() {return simplify();};
 	void transposeme() const {};
 	int nrows() const {return nn;}
 	int ncols() const {return nn;}
@@ -234,7 +232,7 @@ if(*count > 1) //it was shared
 else  //it was not shared
 	{
 	//delete all trees
-	for(SPMatindex i=0; i<nn; ++i) if(v[i]) {delete[] v[i]; v[i]=NULL;}
+	for(SPMatindex i=0; i<nn; ++i) if(v[i]) {delete v[i]; v[i]=NULL;}
 	if(n!=nn)
 		{
 		nn=n;
@@ -254,7 +252,7 @@ SparseSMat<T> & SparseSMat<T>::operator=(const SparseSMat &rhs)
       {
 	if(v) 
                         {
-                        for(SPMatindex i=0; i<nn; ++i) if(v[i]) delete[] v[i];
+                        for(SPMatindex i=0; i<nn; ++i) if(v[i]) delete v[i];
                         delete[] (v);
                         }
         delete count;
@@ -310,20 +308,22 @@ if(n!=m && both) //add also transposed
 
 
 template <typename T>
-void SparseSMat<T>::simplify()
+unsigned long long SparseSMat<T>::simplify()
 {
+unsigned long long count=0;
 for(SPMatindex i=0; i<nn; ++i) if(v[i])
 	{
 	//check for zero elements and erase them from the list
 	//build a list since we are not sure whether erase from within the traversal loop is safe
 	std::list<SPMatindex> l;
 	typename std::map<SPMatindex,T>::iterator p;
-for(p=v[i]->begin(); p!=v[i]->end(); ++p) 
-	if(std::abs(p->second) < SPARSEEPSILON) l.push_front(p->first);
-typename std::list<SPMatindex>::iterator q;	
-for(q=l.begin(); q!=l.end(); ++q) v[i]->erase(*q);	
-if(v[i]->size() == 0) delete v[i];
-}
+	for(p=v[i]->begin(); p!=v[i]->end(); ++p) 
+	if(std::abs(p->second) < SPARSEEPSILON) l.push_front(p->first); else ++count;
+	typename std::list<SPMatindex>::iterator q;	
+	for(q=l.begin(); q!=l.end(); ++q) v[i]->erase(*q);	
+	if(v[i]->size() == 0) {delete v[i]; v[i]=NULL;}
+	}
+return count;
 }
 
 template <typename T>
