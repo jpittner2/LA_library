@@ -58,7 +58,7 @@ for(SPMatindex k=0; k<nn; ++k) //summation loop
 	//make multiply via blas
 	NRMat<T> prod=av.otimes(bv,false,alpha);
 
-	//scatter the results
+	//scatter the results -- probably the computational bottleneck
 	for(i=0; i<prod.nrows(); ++i) for(j=0; j<prod.ncols(); ++j)
 		add(ai[i],bi[j],prod(i,j),false);
 
@@ -85,10 +85,42 @@ return *this;
 }
 
 
+template <class T> 
+void SparseSMat<T>::axpy(const T alpha, const SparseSMat &x, const bool transp)
+{
+if(nn!=x.nn) laerror("incompatible matrix dimensions in SparseSMat::axpy");
+if(alpha==(T)0) return;
+copyonwrite();
+for(SPMatindex i=0; i<nn; ++i) if(x.v[i])
+	{
+	if(!v[i]) v[i]  = new std::map<SPMatindex,T>;
+	typename std::map<SPMatindex,T>::iterator p;
+	for(p=x.v[i]->begin(); p!=x.v[i]->end(); ++p) (*v[i])[p->first] = p->second * alpha;
+	}
+}
+
+
+template <class T>
+void SparseSMat<T>::gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const
+{
+if(nn!=r.size() || nn!= x.size()) laerror("incompatible matrix vector dimensions in SparseSMat::gemv");
+r *= beta;
+if(alpha == (T)0) return;
+r.copyonwrite();
+for(SPMatindex i=0; i<nn; ++i) if(v[i])
+	{
+	typename std::map<SPMatindex,T>::iterator p;
+	for(p=v[i]->begin(); p!=v[i]->end(); ++p) r[i] += x[p->first] * p->second * alpha ;
+	}
+}
+
 
 #define INSTANTIZE(T) \
 template void SparseSMat<T>::gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); \
 template SparseSMat<T> & SparseSMat<T>::operator*=(const T &a); \
+template void SparseSMat<T>::gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const; \
+template void SparseSMat<T>::axpy(const T alpha, const SparseSMat &x, const bool transp); \
+
 
 INSTANTIZE(double)
 
