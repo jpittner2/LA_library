@@ -21,7 +21,6 @@
 #include "laerror.h"
 #include "mat.h"
 
-namespace LA {
 
 #ifdef FORTRAN_
 #define FORNAME(x) x##_
@@ -136,8 +135,8 @@ void cblas_dspmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
                  const double *X, const int incX,
                  const double beta, double *Y, const int incY)
 {
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
-if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+if(Order!=CblasRowMajor) LA::laerror("CblasRowMajor order asserted");
+if(Uplo!=CblasLower) LA::laerror("CblasLower uplo asserted");
 FORNAME(dspmv) ("U",&N, &alpha, Ap, X, &incX, &beta, Y, &incY);
 }
 
@@ -148,8 +147,8 @@ void cblas_zhpmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
                  const void *X, const int incX,
                  const void *beta, void *Y, const int incY)
 {
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
-if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+if(Order!=CblasRowMajor) LA::laerror("CblasRowMajor order asserted");
+if(Uplo!=CblasLower) LA::laerror("CblasLower uplo asserted");
 FORNAME(zhpmv) ("U",&N, alpha, Ap, X, &incX, beta, Y, &incY);
 }
 
@@ -161,7 +160,7 @@ void cblas_dger(const enum CBLAS_ORDER Order, const int M, const int N,
                 const double alpha, const double *X, const int incX,
                 const double *Y, const int incY, double *A, const int lda)
 {
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(Order!=CblasRowMajor) LA::laerror("CblasRowMajor order asserted");
 //swap m-n, y-x
 FORNAME(dger) (&N, &M, &alpha, Y, &incY, X, &incX, A, &lda);
 }
@@ -170,7 +169,7 @@ void cblas_zgerc(const enum CBLAS_ORDER Order, const int M, const int N,
                  const void *alpha, const void *X, const int incX,
                  const void *Y, const int incY, void *A, const int lda)
 {
-laerror("cblas_zgerc cannot be simply converted to fortran order");
+LA::laerror("cblas_zgerc cannot be simply converted to fortran order");
 }
 
 extern "C" void FORNAME(dgemm) (const char *transa, const char *transb, const int *m, const int *n, const int *k, const double *alpha, const double *a, const int *lda, const double *b, const int *ldb, const double *beta, double *c, const int *ldc);
@@ -180,7 +179,7 @@ void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
                  const int lda, const double *B, const int ldb,
                  const double beta, double *C, const int ldc)
 {
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(Order!=CblasRowMajor) LA::laerror("CblasRowMajor order asserted");
 //swap a-b, m-n
 FORNAME(dgemm) (TransB==CblasNoTrans?"N":"T", TransA==CblasNoTrans?"N":"T",
 	 &N, &M, &K, &alpha, B, &ldb, A, &lda, &beta, C, &ldc);
@@ -193,7 +192,7 @@ void cblas_zgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
                  const int lda, const void *B, const int ldb,
                  const void *beta, void *C, const int ldc)
 {
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(Order!=CblasRowMajor) LA::laerror("CblasRowMajor order asserted");
 //swap a-b, m-n
 FORNAME(zgemm) ( TransB==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
 		 TransA==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
@@ -221,8 +220,8 @@ void cblas_zgemv(const enum CBLAS_ORDER Order,
                  const void *X, const int incX, const void *beta,
                  void *Y, const int incY)
 {
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
-if(TransA == CblasConjTrans) laerror("zgemv with CblasConjTrans not supportted");
+if(Order!=CblasRowMajor) LA::laerror("CblasRowMajor order asserted");
+if(TransA == CblasConjTrans) LA::laerror("zgemv with CblasConjTrans not supportted");
 //swap n-m and toggle transposition
 FORNAME(zgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, alpha, A, &lda, X, &incX, beta, Y, &incY );
 }
@@ -247,7 +246,7 @@ int clapack_dgesv(const enum CBLAS_ORDER Order, const int N, const int NRHS,
                   double *B, const int ldb)
 {
 int INFO=0;
-if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+if(Order!=CblasRowMajor) LA::laerror("CblasRowMajor order asserted");
 //B should be in the same physical order, just transpose A in place and the LU result on output
 for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {double t=A[j*lda+i]; A[j*lda+i]=A[i*lda+j]; A[i*lda+j]=t;}
 FORNAME(dgesv) (&N,&NRHS,A,&lda,ipiv,B,&ldb,&INFO);
@@ -257,5 +256,4 @@ return INFO;
 
 #endif
 
-}//namespace
 
