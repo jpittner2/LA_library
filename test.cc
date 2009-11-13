@@ -26,6 +26,7 @@
 #endif
 
 using namespace std;
+using namespace LA;
 
 void test2(char *msg)
 {
