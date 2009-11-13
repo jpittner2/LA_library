@@ -1,3 +1,16 @@
+13.11.2009 RELEASE 0.5
+13.11.2009 libtool employed to create also shared library version
+12.11.2009 library enclosed in the namespace LA
+12.11.2009 #defines for numerical parameters changed to const doubles
+12.11.2009 added SparseSMat class for efficient exponentiation of sparse complex symmetric matrices
+12.11.2009 removed unnecessary casts in complex vec,mat,smat routines
+12.11.2009 fixed bug in complex NRSMat operator +=,-=
+10.11.2009 removing 'using namespace std' from the main include, leaving this to the user's discretion
+10.11.2009 NRVec::otimes introduced
+04.11.2009 improved efficiency of complex matrix exp
+04.11.2009 fixed return type for complex sparsemat::norm
+19.10.2009 added modified GS orthomormalization with optional metric
+15.10.2009 added support for long long
 07.10.2009 RELEASE 0.4
 06.10.2009 autoconf/automake for user convenience
 13.09.2009 RELEASE 0.3
