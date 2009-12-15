@@ -36,7 +36,8 @@ namespace LA {
 template <typename T, typename Matrix>
 extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=1e-6,
-	 	const bool incore=1, int maxit=100, const int maxkrylov = 500);
+	 	const bool incore=1, int maxit=100, const int maxkrylov = 500,
+		void (*initguess)(NRVec<T> &)=NULL);
 
 //@@@options: left eigenvectors by matrix transpose, overridesymmetric (for nrmat)
 //@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
@@ -50,7 +51,8 @@ extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, c
 template <typename T, typename Matrix>
 void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile,
                 int nroots,  const bool verbose, const double eps, 
-                const bool incore, int maxit, const int maxkrylov)
+                const bool incore, int maxit, const int maxkrylov,
+		void (*initguess)(NRVec<T> &))
 {
 bool flag=0;
 int n=bigmat.nrows();
@@ -82,12 +84,18 @@ int  nroot=0;
 int oldnroot;
 smallS=0;
 smallH=0;     
-//guess based on lowest diagonal element of the matrix
-const T *diagonal = bigmat.diagonalof(vec2,false,true);
-vec1=0;
-{T t=1e100; int i,j;  
-for(i=0, j= -1; i<n; ++i) if(diagonal[i]<t) {t=diagonal[i]; j=i;}
-vec1[j]=1;}
+
+
+//default guess based on lowest diagonal element of the matrix
+if(initguess) (*initguess)(vec1);
+else
+	{
+	const T *diagonal = bigmat.diagonalof(vec2,false,true);
+	T t=1e100; int i,j;  
+	vec1=0;
+	for(i=0, j= -1; i<n; ++i) if(diagonal[i]<t) {t=diagonal[i]; j=i;}
+	vec1[j]=1;
+	}
 
 //init Krylov matrices
 bigmat.gemv(0,vec2,'n',1,vec1); //avoid bigmat.operator*(vec), since that needs to allocate another n-sized vector
@@ -192,7 +200,9 @@ for(j=0; j<=krylovsize; ++j)
 	if(!incore) s1->get(vec2,j);
         vec1.axpy(smallV(j,nroot),incore?v1[j]:vec2);
 	}
-diagonal = bigmat.diagonalof(vec2,false,true);
+
+{
+const T *diagonal = bigmat.diagonalof(vec2,false,true);
 eival_n = r[nroot];
 for(i=0; i<n; ++i)
 	{
@@ -200,6 +210,7 @@ for(i=0; i<n; ++i)
         denom = denom<0?-std::max(0.1,std::abs(denom)):std::max(0.1,std::abs(denom));
         vec1[i] /= denom;
 	}
+}
 
 //orthogonalise to previous vectors
 vec1.normalize();
