@@ -87,7 +87,8 @@ public:
 	void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); //this := alpha*op( A )*op( B ) + beta*this !!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
 	inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
 	inline unsigned long long length() {return simplify();};
-	void transposeme() const {};
+	void transposeme() const {laerror("in-place transposition not necessary/implemented for SparseSMat");};
+	SparseSMat transpose(bool conj=false) const; //if we store a non-symmetric matrix there
 	void get(int fd, bool dimen, bool transp);
         void put(int fd, bool dimen, bool transp) const;
 	int nrows() const {return nn;}
@@ -404,11 +405,20 @@ std::istream& operator>>(std::istream  &s, SparseSMat<T> &x)
                 return s;
                 }
 
+template <typename T>
+SparseSMat<T>  SparseSMat<T>::transpose(bool conj) const
+{
+SparseSMat<T> r(nn);
+typename SparseSMat<T>::iterator p(*this);
+for(; p.notend(); ++p) r.add(p->col, p->row, (conj?LA_traits<T>::conjugate(p->elem):p->elem), false);
+return r;
+}
+
 
 //Cholesky decomposition, pivoted, positive semidefinite, not in place
 //it is NOT checked that the input matrix is symmetric/hermitean
 //result.transpose(true)*result reproduces the original matrix
-//Due to pivoting the result is upper triangular only before permutation
+//Due to pivoting the result is upper triangular only before applying final permutation
 //
 template <typename T>
 SparseSMat<T>  SparseSMat<T>::cholesky(void) const
@@ -427,6 +437,8 @@ for(int i=0; i<nn; ++i) pivot[i]=i;
 //pivot by sorting
 //!this is actually not fully correct approach, since the pivoting should be done during the Cholesky process
 //Now it can happen that some elements will vanish in the process, while there will be some remaining ones later
+//However, column swapping in the regular pivoting in an in-place algorithm would be rather clumsy with std::map , since simply renumbering the key is not allowed
+//This works reasonably well so keep it like this at the moment
 diagreal.sort(1,0,nn-1,pivot);
 
 //prepare inverse permutation
