@@ -128,7 +128,9 @@ public:
 	const T trace() const;
 
 //members concerning sparse matrix
+	SparseSMat<T> & operator*(const SparseSMat<T> &rhs) const;
 	explicit NRMat(const SparseMat<T> &rhs);                // dense from sparse
+	explicit NRMat(const SparseSMat<T> &rhs);                // dense from sparse
 	NRMat & operator+=(const SparseMat<T> &rhs);
         NRMat & operator-=(const SparseMat<T> &rhs);
 	void gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha);//this = alpha*op( A )*op( B ) + beta*this
@@ -146,6 +148,7 @@ public:
 #include "vec.h"
 #include "smat.h"
 #include "sparsemat.h"
+#include "sparsesmat.h"
 
 namespace LA {
 // ctors

@@ -1424,7 +1424,7 @@ NRMat<double> r2(rx);
 cout <<"Error = "<<(r2-rd).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 SparseSMat<complex<double> > h;
 cin>>h;
@@ -1441,6 +1441,138 @@ cout <<"error = "<<(r2-NRMat<complex<double> >(NRSMat<complex<double> >(r))).nor
 cout <<"errorx = "<<(r2-NRSMat<complex<double> >(r)).norm()<<endl;
 }
 }
+
+if(0)
+{
+int n;
+cin >>n;
+NRMat<double> a(n,n);
+a.randomize(1);
+for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=0.;}
+cout <<a;
+NRMat<double> bb=a.transpose()*a;
+NRMat<double> cc(bb);
+NRMat<double> b(bb);
+NRMat<double> c(cc);
+cholesky(b,0);
+cout <<b;
+cout << "Error = "<<(b*b.transpose()-bb).norm()<<endl;
+cholesky(c,1);
+cout <<c;
+cout << "Error = "<<(c.transpose()*c-cc).norm()<<endl;
+}
+
+
+
+if(0)
+{
+int n;
+cin >>n;
+NRMat<complex<double> > a(n,n);
+a.randomize(1);
+for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=0.;}
+for(int i=0; i<n; ++i) {a(i,i).imag()=0.; if(a(i,i).real()<0) a(i,i).real() *= -1;}
+cout <<a;
+NRMat<complex<double> > bb=a.transpose(true)*a;
+NRMat<complex<double> > cc(bb);
+NRMat<complex<double> > b(bb);
+NRMat<complex<double> > c(cc);
+cholesky(b,0);
+cout <<b;
+cout << "Error = "<<(b*b.transpose(true)-bb).norm()<<endl;
+cholesky(c,1);
+cout <<c;
+cout << "Error = "<<(c.transpose(true)*c-cc).norm()<<endl;
+
+}
+
+if(0)
+{
+int n;
+cin >>n;
+NRMat<double> bb(0.,n,n);
+int nn=0;
+for(int i=0; i<n; ++i) for(int j=i; j<n; ++j) {if((double)random()/RAND_MAX>0.995 || i==j) {++nn; bb(i,j)=bb(j,i)=(double)random()/RAND_MAX*(i==j?10.:.5/(i+j)*(random()>RAND_MAX/2?1:-1));}}
+bb=bb*bb.transpose();
+//cout <<bb;
+nn=0;
+for(int i=0; i<n; ++i) for(int j=i; j<n; ++j) if(abs(bb(i,j))>1e-16 || abs(bb(j,i))>1e-16 ) ++nn;
+cout <<"Original filling = "<<nn*2./n/(n+1)<<endl;
+NRMat<double> b(bb);
+cholesky(b,0);
+//cout <<b;
+cout << "Error = "<<(b*b.transpose()-bb).norm()<<endl;
+nn=0;
+for(int i=0; i<n; ++i) for(int j=i; j<n; ++j) if(abs(b(i,j))>1e-16 || abs(b(j,i))>1e-16 ) ++nn;
+cout <<"Cholesky factor filling = "<<nn*2./n/(n+1)<<endl;
+}
+
+
+if(0)
+{
+int n;
+cin >>n;
+NRMat<double> a(n,n);
+a.randomize(1);
+for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=0.;}
+cout <<a;
+NRMat<double> bb=a.transpose()*a;
+SparseSMat<double> cc(bb);
+NRMat<double> b(bb);
+cholesky(b,0);
+cout <<b;
+SparseSMat<double> c;
+c= cc.cholesky();
+cout <<c;
+}
+
+
+if(0)
+{
+int n;
+cin >>n;
+NRMat<complex<double> > a(n,n);
+a.randomize(1);
+for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=0.;}
+for(int i=0; i<n; ++i) {a(i,i).imag() = 0.; if(a(i,i).real()<0) a(i,i).real() *= -10; else a(i,i).real() *= 10.;}
+if(n<100)cout <<a;
+NRMat<complex<double> > bb=a.transpose(true)*a;
+SparseSMat<complex<double> > cc(bb);
+if(n<100)cout <<"Input matrix\n"<<bb;
+NRMat<complex<double> > b(bb);
+//cholesky(b,0);
+//if(n<100)cout <<"Dense Cholesky result\n"<<b;
+SparseSMat<complex<double> > c;
+c= cc.cholesky();
+NRMat<complex<double> > cx(c);
+if(n<100)cout <<"Sparse pivoted Cholesky result \n"<<cx;
+if(n<100)cout <<"result of reconstruction\n"<<cx.transpose(true)*cx<<endl;
+cout <<"Error = "<<(cx.transpose(true)*cx -bb).norm()<<endl;
+}
+
+
+if(1)
+{
+int n;
+cin >>n;
+SparseSMat<double> bh(n);
+for(int i=0; i<=n/400; ++i) for(int j=i; j<n; ++j) {if((double)random()/RAND_MAX>0.995 || i==j) 
+	{bh.add(i,j,(double)random()/RAND_MAX*(i==j?10.:(random()>RAND_MAX/2?1:-1)),false);}}
+if(n<1000) cout <<"Random matrix\n"<<bh;
+SparseSMat<double> bb(n);
+bb.gemm(0.,bh,'c',bh,'n',1.);
+if(n<1000) cout <<"Input matrix\n"<<bb;
+cout <<"Original filling = "<<bb.simplify()<<endl;
+SparseSMat<double> b = bb.cholesky();
+if(n<1000) cout <<"Cholesky result\n"<<b;
+SparseSMat<double> br(n);
+br.gemm(0.,b,'c',b,'n',1.);
+if(n<1000) cout <<"Result of reconstruction\n"<<br;
+if(n<1000) cout <<"Difference\n"<<br-bb;
+cout << "Error = "<<(br-bb).norm()<<endl;
+cout <<"Cholesky factor filling = "<<b.simplify()<<endl;
+}
+
 
 
 }

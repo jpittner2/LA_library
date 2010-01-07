@@ -949,6 +949,50 @@ return r;
 }
 
 
+//Cholesky interface
+extern "C" void FORNAME(dpotrf)(const char *UPLO, const int *N, double *A, const int *LDA, int *INFO);
+extern "C" void FORNAME(zpotrf)(const char *UPLO, const int *N, complex<double> *A, const int *LDA, int *INFO);
+
+void cholesky(NRMat<double> &a, bool upper)
+{
+if(a.nrows()!=a.ncols()) laerror("matrix must be square in Cholesky");
+int lda=a.ncols();
+int n=a.nrows();
+char uplo=upper?'U':'L';
+int info;
+a.copyonwrite();
+FORNAME(dpotrf)(&uplo, &n, a, &lda, &info);
+if(info) {std::cerr << "Lapack error "<<info<<std::endl; laerror("error in Cholesky");}
+//zero the other triangle and switch to C array order
+if(upper)
+	for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(j,i)=a(i,j); a(i,j)=0.;}
+else
+	for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=a(j,i); a(j,i)=0.;}
+
+}
+
+
+void cholesky(NRMat<complex<double> > &a, bool upper)
+{
+if(a.nrows()!=a.ncols()) laerror("matrix must be square in Cholesky");
+int lda=a.ncols();
+int n=a.nrows();
+char uplo=upper?'U':'L';
+int info;
+a.copyonwrite();
+a.transposeme();//switch to Fortran order
+FORNAME(zpotrf)(&uplo, &n, a, &lda, &info);
+if(info) {std::cerr << "Lapack error "<<info<<std::endl; laerror("error in Cholesky");}
+//zero the other triangle and switch to C array order
+if(upper)
+        for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(j,i)=a(i,j); a(i,j)=0.;}
+else
+        for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=a(j,i); a(j,i)=0.;}
+}
+
+
+
+
 
 #ifdef obsolete
 void gendiagonalize(NRMat<double> &a, NRVec<double> &w, NRMat<double> b, int n)

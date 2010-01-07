@@ -27,6 +27,45 @@
 
 namespace LA {
 
+
+//dense times sparse (not necessarily symmetric)
+template <typename T>
+SparseSMat<T> & NRMat<T>::operator*(const SparseSMat<T> &rhs) const
+{
+SparseSMat<T> r(nn,rhs.ncols());
+if(mm!=rhs.nrows())  laerror("incompatible sizes in NRMat*SparseSMat");
+for(SPMatindex k=0; k<nn; ++k) //summation loop
+    	{
+	std::map<SPMatindex,T> * kl = rhs.line(k);
+	if(kl)
+		{
+		//gather the data
+		typename std::map<SPMatindex,T>::iterator p;
+		int i,j;
+		NRVec<T> kline(kl->size());
+		NRVec<SPMatindex> klineind(kl->size());
+		for(p=kl->begin(), i=0; p!=kl->end(); ++p,++i)
+       		         {
+       		         klineind[i] = p->first;
+       		         kline[i] = p->second;
+       		         }
+		NRVec<T> kcol = column(k);
+
+		//multiply
+		NRMat<T> prod=kcol.otimes(kline,false,1.);
+
+		//scatter the results
+		for(i=0; i<prod.nrows(); ++i) for(j=0; j<prod.ncols(); ++j)
+                	add(i,klineind[j],prod(i,j),false);
+
+		}
+	}
+r.simplify();
+return r;
+}
+
+
+//matrix is assummed symmetric, no transposition, but possibly make conjugation
 template <typename T>
 void SparseSMat<T>::gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha)
 {
@@ -46,16 +85,14 @@ for(SPMatindex k=0; k<nn; ++k) //summation loop
 	//gather the data
 	typename std::map<SPMatindex,T>::iterator p;
 	int i,j;
-	for(p=a.v[k]->begin(), i=0; p!=a.v[k]->end(); ++p,++i) 
-		{
-		ai[i] = p->first;
-		av[i] = p->second;
-		}
-        for(p=b.v[k]->begin(), i=0; p!=b.v[k]->end(); ++p,++i)
-                {
-                bi[i] = p->first;
-                bv[i] = p->second;
-                }
+	if(tolower(transa)=='c')
+		for(p=a.v[k]->begin(), i=0; p!=a.v[k]->end(); ++p,++i) { ai[i] = p->first; av[i] = LA_traits<T>::conjugate(p->second); }
+	else
+		for(p=a.v[k]->begin(), i=0; p!=a.v[k]->end(); ++p,++i) { ai[i] = p->first; av[i] = p->second; }
+	if(tolower(transb)=='c')
+        	for(p=b.v[k]->begin(), i=0; p!=b.v[k]->end(); ++p,++i) { bi[i] = p->first; bv[i] = LA_traits<T>::conjugate(p->second); }
+	else
+        	for(p=b.v[k]->begin(), i=0; p!=b.v[k]->end(); ++p,++i) { bi[i] = p->first; bv[i] = p->second; }
 
 	//make multiply via blas
 	NRMat<T> prod=av.otimes(bv,false,alpha);
@@ -96,8 +133,13 @@ copyonwrite();
 for(SPMatindex i=0; i<nn; ++i) if(x.v[i])
 	{
 	if(!v[i]) v[i]  = new std::map<SPMatindex,T>;
-	typename std::map<SPMatindex,T>::iterator p;
-	for(p=x.v[i]->begin(); p!=x.v[i]->end(); ++p) (*v[i])[p->first] = p->second * alpha;
+	typename std::map<SPMatindex,T>::iterator p,q;
+	for(p=x.v[i]->begin(); p!=x.v[i]->end(); ++p) 
+		{
+		q=v[i]->find(p->first);
+		if(q!=v[i]->end()) q->second += p->second * alpha;
+		else (*v[i])[p->first] = p->second * alpha;
+		}
 	}
 simplify();
 }
@@ -165,22 +207,101 @@ for(SPMatindex i=0; i<nn; ++i)
 return *this;
 }
 
+
 template <class T>
 typename LA_traits<T>::normtype SparseSMat<T>::norm(const T scalar) const
 {
 typename LA_traits<T>::normtype sum=0;
 
 for(SPMatindex i=0; i<nn; ++i)
-	if(v[i])
+	if(v[i]) //line present
 		{
 		typename std::map<SPMatindex,T>::iterator p;
-                p= v[i]->find(i);
-		if(p!=v[i]->end())  sum += LA_traits<T>::sqrabs(p->second - scalar);
-		else sum += LA_traits<T>::sqrabs(scalar); 
+		bool diagonal_present=false;
+		for(p=v[i]->begin(); p!=v[i]->end(); ++p) //loop over all existing elements
+			{
+			if(i==p->first) {diagonal_present=true; sum += LA_traits<T>::sqrabs(p->second - scalar);}
+			else sum += LA_traits<T>::sqrabs(p->second);
+			}
+		if(!diagonal_present) sum += LA_traits<T>::sqrabs(scalar); //there was zero on the diagonal
 		}
-	else sum += LA_traits<T>::sqrabs(scalar); //missing diagonal element
+	else sum += LA_traits<T>::sqrabs(scalar); //missing whole line, subtracted diagonal element contributes
 
 return std::sqrt(sum);
+}
+
+
+
+//get diagonal, do not construct a new object, but store in existing one
+template <class T>
+const T* SparseSMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const
+{
+if(nn!=r.size()) laerror("incompatible vector size in diagonalof()");
+NRVec<T> *rr;
+
+r.copyonwrite();
+if(divide) {rr=new NRVec<T>(nn); *rr=(T)0;}
+else {r=(T)0; rr=&r;}
+for(SPMatindex i=0; i<nn; ++i)
+        if(v[i])
+                {
+		typename std::map<SPMatindex,T>::iterator p;
+                p= v[i]->find(i);
+                if(p!=v[i]->end())  (*rr)[i] += p->second;
+		}
+if(divide)
+	{
+	for(unsigned int i=0; i<nn; ++i) if((*rr)[i]!=0.) r[i]/=(*rr)[i];
+	delete rr;
+	}
+return divide?NULL:&r[0];
+}
+
+
+
+template <class T>
+void SparseSMat<T>::get(int fd, bool dimen, bool transp) {
+  errno=0;
+  SPMatindex dim[2];
+
+if(dimen) {
+    if(2*sizeof(SPMatindex)!=read(fd,&dim,2*sizeof(SPMatindex))) laerror("read() error in SparseSMat::get ");
+    if(dim[0]!=dim[1]) laerror("SparseSMat must be square (nonsquare read in ::get)");
+    resize(dim[0]);
+  }
+else  copyonwrite(); 
+
+do {
+    if(2*sizeof(SPMatindex)!=read(fd,&dim,2*sizeof(SPMatindex))) laerror("read() error 2 in SparseSMat::get");
+    if(dim[0]==(SPMatindex) -1 || dim[1]==(SPMatindex) -1) break;
+    typename LA_traits_io<T>::IOtype tmp;
+    LA_traits<T>::get(fd,tmp,dimen,transp); // general way to work when elem is some complex class again
+    if(transp) add(dim[0],dim[1],tmp,false);  else add(dim[1],dim[0],tmp,false); 
+  } 
+while(1);
+}
+
+
+
+template <class T>
+void SparseSMat<T>::put(int fd, bool dimen, bool transp) const {
+  errno=0;  
+  if(dimen) {
+    if(sizeof(SPMatindex)!=write(fd,&nn,sizeof(SPMatindex))) laerror("cannot write() 1 in SparseSMat::put");
+    if(sizeof(SPMatindex)!=write(fd,&nn,sizeof(SPMatindex))) laerror("cannot write() 2 in SparseSMat::put");
+  }
+  
+  typename SparseSMat<T>::iterator p(*this);
+  for(; p.notend(); ++p) {
+    if(sizeof(SPMatindex)!=write(fd,&(p->row),sizeof(SPMatindex))) laerror("cannot write() 3 in SparseSMat::put");
+    if(sizeof(SPMatindex)!=write(fd,&(p->col),sizeof(SPMatindex))) laerror("cannot write() 4 in SparseSMat::put");
+    typename LA_traits_io<T>::IOtype tmp = p->elem;
+    LA_traits<T>::put(fd,tmp,dimen,transp); // general way to work when elem is some non-scalar class again
+  }
+  
+  SPMatindex sentinel[2];
+  sentinel[0] = sentinel[1] = (SPMatindex) -1;
+  if(2*sizeof(SPMatindex) != write(fd,&sentinel,2*sizeof(SPMatindex))) laerror("cannot write() 5 in SparseSMat::put");
 }
 
 
@@ -195,6 +316,9 @@ template SparseSMat<T> & SparseSMat<T>::operator=(const T &a); \
 template SparseSMat<T> & SparseSMat<T>::operator+=(const T &a); \
 template SparseSMat<T> & SparseSMat<T>::operator-=(const T &a); \
 template LA_traits<T>::normtype SparseSMat<T>::norm(const T scalar) const; \
+template const T* SparseSMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const; \
+template void SparseSMat<T>::get(int fd, bool dimen, bool transp); \
+template void SparseSMat<T>::put(int fd, bool dimen, bool transp) const; \
 
 
 INSTANTIZE(double)
@@ -204,5 +328,11 @@ INSTANTIZE(complex<double>)
 //// forced instantization of functions in the header in the corresponding object file
 template class SparseSMat<double>;
 template class SparseSMat<complex<double> >;
+
+/*activate this if needed
+template void SparseSMat<NRMat<double> >::put(int fd, bool dimen, bool transp) const;
+template void SparseSMat<NRMat<double> >::get(int fd, bool dimen, bool transp);
+*/
+
 
 }//namespace

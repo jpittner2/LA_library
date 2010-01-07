@@ -135,6 +135,10 @@ extern const NRMat< complex<double> > realmatrix (const NRMat<double>&);
 extern const NRMat< complex<double> > imagmatrix (const NRMat<double>&);
 extern const NRMat< complex<double> > complexmatrix (const NRMat<double>&, const NRMat<double>&);
 
+//Cholesky decomposition
+extern void cholesky(NRMat<double> &a, bool upper=1);
+extern void cholesky(NRMat<complex<double> > &a, bool upper=1);
+
 //inverse by means of linear solve, preserving rhs intact
 template<typename T>
 const NRMat<T> inverse(NRMat<T> a, T *det=0)

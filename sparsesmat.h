@@ -31,9 +31,12 @@
 #include "vec.h"
 #include "mat.h"
 #include "smat.h"
+#include "qsort.h"
 
 #include <map>
 #include <list>
+
+#define CHOLESKYEPSILON 1e-16
 
 namespace LA {
 
@@ -55,9 +58,11 @@ public:
 	SparseSMat(const SparseSMat &rhs);
 	explicit SparseSMat(const SparseMat<T> &rhs);
 	explicit SparseSMat(const NRSMat<T> &rhs);
+	explicit SparseSMat(const NRMat<T> &rhs);
 	SparseSMat & operator=(const SparseSMat &rhs);
 	void copyonwrite();
         void resize(const SPMatindex n);
+	std::map<SPMatindex,T> *line(SPMatindex n) const {return v[n];};
         void clear() {resize(nn);}
 	unsigned long long simplify();
 	~SparseSMat();
@@ -74,15 +79,20 @@ public:
 	void axpy(const T alpha, const SparseSMat &x, const bool transp=0); // this+= a*x
         inline SparseSMat & operator+=(const SparseSMat &rhs) {axpy((T)1,rhs); return *this;};
         inline SparseSMat & operator-=(const SparseSMat &rhs) {axpy((T)-1,rhs); return *this;};
+	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const;
+	inline const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); this->gemv((T)0,result,'n',(T)1,rhs); return result;};
 	typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
         inline const SparseSMat operator*(const SparseSMat &rhs) const {SparseSMat<T> r(nn); r.gemm(0,*this,'n',rhs,'n',1); return r;}; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
 	void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); //this := alpha*op( A )*op( B ) + beta*this !!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
 	inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
 	inline unsigned long long length() {return simplify();};
 	void transposeme() const {};
+	void get(int fd, bool dimen, bool transp);
+        void put(int fd, bool dimen, bool transp) const;
 	int nrows() const {return nn;}
 	int ncols() const {return nn;}
+	SparseSMat<T>  cholesky(void) const;
 
 	class iterator {//not efficient, just for output to ostreams
         private:
@@ -145,6 +155,7 @@ public:
         iterator end() const {return iterator(NULL);}
 };
 
+
 template <typename T>
 SparseSMat<T>::SparseSMat(const SPMatindex n)
 :nn(n), 
@@ -164,6 +175,19 @@ memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
 int i,j;
 for(i=0; i<nn; ++i) for(j=0; j<=i; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),true);
 }
+
+template <typename T>
+SparseSMat<T>::SparseSMat(const NRMat<T> &rhs)
+:nn(rhs.nrows()),
+count(new int(1))
+{
+if(rhs.nrows()!=rhs.ncols()) laerror("non-square matrix in SparseSMat constructor from NRMat");
+v= new std::map<SPMatindex,T> * [nn];
+memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
+int i,j;
+for(i=0; i<nn; ++i) for(j=0; j<nn; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),false);
+}
+
 
 template <typename T>
 SparseSMat<T>::SparseSMat(const SparseSMat &rhs)
@@ -187,6 +211,27 @@ typename SparseSMat<T>::iterator p(rhs);
 for(; p.notend(); ++p) if(p->row <= p->col) (*this)(p->row,p->col)=p->elem;
 }
 #undef nn2
+
+
+//construct dense from sparse
+template <typename T>
+NRMat<T>::NRMat(const SparseSMat<T> &rhs) :
+nn(rhs.nrows()),
+mm(rhs.ncols()),
+count(new int(1))
+{
+#ifdef MATPTR
+        v = new T*[nn];
+        v[0] = new T[mm*nn];
+        for (int i=1; i<nn; i++) v[i] = v[i-1] + mm;
+#else
+        v = new T[mm*nn];
+#endif
+memset(&(*this)(0,0),0,mm*nn*sizeof(T));
+typename SparseSMat<T>::iterator p(rhs);
+for(; p.notend(); ++p) (*this)(p->row,p->col)= p->elem;
+}
+
 
 
 template <typename T>
@@ -358,6 +403,134 @@ std::istream& operator>>(std::istream  &s, SparseSMat<T> &x)
                         }
                 return s;
                 }
+
+
+//Cholesky decomposition, pivoted, positive semidefinite, not in place
+//it is NOT checked that the input matrix is symmetric/hermitean
+//result.transpose(true)*result reproduces the original matrix
+//Due to pivoting the result is upper triangular only before permutation
+//
+template <typename T>
+SparseSMat<T>  SparseSMat<T>::cholesky(void) const
+{
+
+//we need real values for sorting, if T is already real it makes just an unnecessary copy of one vector
+NRVec<typename LA_traits<T>::normtype> diagreal(nn);
+{
+NRVec<T> diag(nn); diagonalof(diag);
+for(SPMatindex i=0; i<nn; ++i) diagreal[i]=LA_traits<T>::realpart(diag[i]);
+}
+
+NRVec<int> pivot(nn);
+for(int i=0; i<nn; ++i) pivot[i]=i;
+
+//pivot by sorting
+//!this is actually not fully correct approach, since the pivoting should be done during the Cholesky process
+//Now it can happen that some elements will vanish in the process, while there will be some remaining ones later
+diagreal.sort(1,0,nn-1,pivot);
+
+//prepare inverse permutation
+NRVec<int> invpivot(nn);
+for(int i=0; i<nn; ++i) invpivot[pivot[i]]=i;
+
+//std::cout <<"sorted diagonal\n"<<diagreal;
+//std::cout <<"pivot\n"<<pivot;
+
+//copy-permute upper triangle
+SparseSMat<T> r;
+r.nn=nn;
+r.count = new int(1);
+r.v = new std::map<SPMatindex,T> * [nn];
+for(SPMatindex i=0; i<nn; ++i) 
+       if(v[pivot[i]])
+		{
+		r.v[i]= new typename std::map<SPMatindex,T>; 
+		typename std::map<SPMatindex,T>::iterator p;		
+		for(p=v[pivot[i]]->begin(); p!=v[pivot[i]]->end(); ++p)
+			{
+			if(invpivot[p->first] >= i) 
+				{
+				(*r.v[i])[invpivot[p->first]] = p->second;
+				}
+			}
+		}
+	else
+		r.v[i]= NULL;
+
+//std::cout <<"Permuted upper triangle matrix\n"<<r;
+//SparseSMat<T> r0(r);r.copyonwrite();
+
+//perform complex, positive semidefinite Cholesky with thresholding by SPARSEEPSILON
+SPMatindex i,j,k;
+int rank=0;
+for(k=0; k<nn; ++k)
+    if(r.v[k])
+	{
+	typename std::map<SPMatindex,T>::iterator p;
+	p= r.v[k]->find(k);
+	if(p==r.v[k]->end()) continue; //must not break due to the a priori  pivoting
+	if(LA_traits<T>::realpart(p->second) < CHOLESKYEPSILON) continue; //must not break due to the a priori  pivoting
+	++rank;
+	typename LA_traits<T>::normtype tmp = std::sqrt(LA_traits<T>::realpart(p->second));
+	p->second = tmp;
+	NRVec<T> linek(0.,nn);
+	for(p=r.v[k]->begin(); p!=r.v[k]->end(); ++p) 
+		{
+		if(p->first > k) p->second /= tmp;
+		linek[p->first] = p->second;
+		}
+	for(j=k+1; j<nn; ++j)
+ 	    if(r.v[j])
+		{
+		T akj = LA_traits<T>::conjugate(linek[j]);
+		NRVec<int> linek_used(0,nn);
+		if(std::abs(akj)>SPARSEEPSILON) 
+			{
+			for(p=r.v[j]->begin(); p!=r.v[j]->end(); ++p)
+				{
+					p->second -= akj * linek[p->first];
+					linek_used[p->first]=1;
+				}	
+			//subtract also elements nonzero in line k but non-existent in line j
+			for(i=j; i<nn; ++i) 
+			    if(!linek_used[i] && std::abs(linek[i]) > SPARSEEPSILON)
+				{
+				(*r.v[j])[i] = -akj * linek[i];
+				}
+			}
+		}
+	}
+
+/*
+SparseSMat<T> br(nn);
+br.gemm(0,r,'c',r,'n',1);
+//cancel low triangle from br
+for(k=0; k<nn; ++k)
+    if(br.v[k])
+	{
+	 typename std::map<SPMatindex,T>::iterator p;
+	for(p=br.v[k]->begin(); p!=br.v[k]->end(); ++p)
+		if(p->first <k) p->second=0.;
+	}
+std::cout << "Error before permute = " <<(br-r0).norm()<<std::endl;
+*/
+
+//permute the result back;
+for(k=0; k<nn; ++k)
+    if(r.v[k])
+	{
+	typename std::map<SPMatindex,T>::iterator p;
+	typename std::map<SPMatindex,T> *vnew = new typename std::map<SPMatindex,T>;
+	for(p=r.v[k]->begin(); p!=r.v[k]->end(); ++p)
+		{
+        	if(std::abs(p->second) > SPARSEEPSILON) (*vnew)[pivot[p->first]] = p->second;
+		}
+	delete r.v[k];
+	r.v[k]=vnew;
+	}
+
+return r;
+}
 
 
 }//namespace

@@ -18,7 +18,7 @@
 //
 //for autotools
 //
-#include "config.h"
+//#include "config.h" //this would force the user of the library to have config.h
 
 ////////////////////////////////////////////////////////////////////////////
 //LA traits classes and generally needed includes
@@ -219,6 +219,8 @@ static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest
 static void clear(complex<C> *dest, unsigned int n) {memset(dest,0,n*sizeof(complex<C>));}
 static void copyonwrite(complex<C> &x) {};
 static void clearme(complex<C> &x) {x=0;};
+static inline complex<C> conjugate(complex<C> &x) {return complex<C>(x.real(),-x.imag());};
+static inline C realpart(complex<C> &x) {return x.real();}
 };
 
 //non-complex scalars
@@ -241,6 +243,8 @@ static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));
 static void clear(C *dest, unsigned int n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
 static void clearme(complex<C> &x) {x=0;};
+static inline C conjugate(C&x) {return x;};
+static inline C realpart(C &x) {return x;}
 };
 
 
@@ -260,10 +264,10 @@ static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
 static inline normtype norm (const X<C> &x) {return x.norm();} \
 static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);} \
-static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions,transp);} \
-static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions,transp);} \
-static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
-static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
+static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions,transp);} \
+static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions,transp);} \
+static void multiput(unsigned int n,int fd, const X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
+static void multiget(unsigned int n,int fd, X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
@@ -292,10 +296,10 @@ static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
 static inline normtype norm (const X<C> &x) {return x.norm();}  \
 static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);}  \
-static void put(int fd, const C &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);}  \
-static void get(int fd, C &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);}  \
-static void multiput(unsigned int n,int fd, const C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);}  \
-static void multiget(unsigned int n,int fd, C *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
+static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);}  \
+static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);}  \
+static void multiput(unsigned int n,int fd, const X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);}  \
+static void multiget(unsigned int n,int fd, X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];}  \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \
