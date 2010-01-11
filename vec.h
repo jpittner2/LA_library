@@ -113,6 +113,8 @@ public:
 	inline const T dot(const T *a, const int stride=1) const; // ddot with a stride-vector
 	inline T & operator[](const int i);
 	inline const T & operator[](const int i) const;
+	typedef T ROWTYPE;
+	inline void setcoldim(int i) {}; //dummy
 	inline int size() const;
 	inline operator T*(); //get a pointer to the data
 	inline operator const T*() const; //get a pointer to the data
@@ -145,6 +147,7 @@ public:
 #include "mat.h"
 #include "smat.h"
 #include "sparsemat.h"
+#include "sparsesmat.h"
 
 namespace LA {
 // formatted I/O

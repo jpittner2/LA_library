@@ -50,20 +50,25 @@ class SparseSMat
 {
 protected:
 	SPMatindex nn;
+	SPMatindex mm;
 	std::map<SPMatindex,T> **v;
 	int *count;
 public:
-	SparseSMat() : nn(0), v(NULL), count(NULL) {};
-	explicit SparseSMat(const SPMatindex n); //prevent double -> int -> SparseSMat
+	SparseSMat() : nn(0), mm(0), v(NULL), count(NULL) {};
+	explicit SparseSMat(const SPMatindex n, const SPMatindex m); //prevent double -> int -> SparseSMat
+	explicit SparseSMat(const SPMatindex n);
 	SparseSMat(const SparseSMat &rhs);
 	explicit SparseSMat(const SparseMat<T> &rhs);
 	explicit SparseSMat(const NRSMat<T> &rhs);
 	explicit SparseSMat(const NRMat<T> &rhs);
 	SparseSMat & operator=(const SparseSMat &rhs);
 	void copyonwrite();
-        void resize(const SPMatindex n);
-	std::map<SPMatindex,T> *line(SPMatindex n) const {return v[n];};
-        void clear() {resize(nn);}
+        void resize(const SPMatindex nn, const SPMatindex mm);
+	inline void setcoldim(int i) {mm=(SPMatindex)i;};
+	//std::map<SPMatindex,T> *line(SPMatindex n) const {return v[n];};
+	typedef std::map<SPMatindex,T> *ROWTYPE;
+	inline typename SparseSMat<T>::ROWTYPE & operator[](const SPMatindex i) {return v[i];}; 
+        void clear() {resize(nn,mm);}
 	unsigned long long simplify();
 	~SparseSMat();
 	inline int getcount() const {return count?*count:0;}
@@ -83,7 +88,7 @@ public:
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const;
 	inline const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); this->gemv((T)0,result,'n',(T)1,rhs); return result;};
 	typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
-        inline const SparseSMat operator*(const SparseSMat &rhs) const {SparseSMat<T> r(nn); r.gemm(0,*this,'n',rhs,'n',1); return r;}; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
+        inline const SparseSMat operator*(const SparseSMat &rhs) const {SparseSMat<T> r(nn,mm); r.gemm(0,*this,'n',rhs,'n',1); return r;}; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
 	void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); //this := alpha*op( A )*op( B ) + beta*this !!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
 	inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
 	inline unsigned long long length() {return simplify();};
@@ -92,7 +97,7 @@ public:
 	void get(int fd, bool dimen, bool transp);
         void put(int fd, bool dimen, bool transp) const;
 	int nrows() const {return nn;}
-	int ncols() const {return nn;}
+	int ncols() const {return mm;}
 	SparseSMat<T>  cholesky(void) const;
 
 	class iterator {//not efficient, just for output to ostreams
@@ -103,14 +108,15 @@ public:
 		typename std::map<SPMatindex,T>::iterator *col;
 		typename std::map<SPMatindex,T>::iterator mycol;
 		SPMatindex mynn;
+		SPMatindex mymm;
 		std::map<SPMatindex,T> **myv;
 		
 
         public:
 		//compiler-generated iterator & operator=(const  iterator &rhs); 
 		//compiler-generated iterator(const iterator &rhs); 
-                iterator(): p(NULL),row(0),col(NULL),mynn(0),myv(NULL) {};
-                iterator(const SparseSMat &rhs) : mynn(rhs.nn), myv(rhs.v), col(NULL) {row=0; p= &my; operator++();}
+                iterator(): p(NULL),row(0),col(NULL),mynn(0),mymm(0),myv(NULL) {};
+                iterator(const SparseSMat &rhs) : mynn(rhs.nn), mymm(rhs.mm), myv(rhs.v), col(NULL) {row=0; p= &my; operator++();}
                 iterator operator++()  {
 					if(col) //finish column list
 						{
@@ -156,10 +162,19 @@ public:
         iterator end() const {return iterator(NULL);}
 };
 
-
 template <typename T>
 SparseSMat<T>::SparseSMat(const SPMatindex n)
-:nn(n), 
+:nn(n), mm(n),
+count(new int(1))
+{
+v= new std::map<SPMatindex,T> * [n];
+memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
+}
+
+
+template <typename T>
+SparseSMat<T>::SparseSMat(const SPMatindex n, const SPMatindex m)
+:nn(n), mm(m),
 count(new int(1))
 {
 v= new std::map<SPMatindex,T> * [n];
@@ -168,7 +183,7 @@ memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
 
 template <typename T>
 SparseSMat<T>::SparseSMat(const NRSMat<T> &rhs)
-:nn(rhs.nrows()),
+:nn(rhs.nrows()), mm(rhs.ncols()),
 count(new int(1))
 {
 v= new std::map<SPMatindex,T> * [nn];
@@ -179,14 +194,14 @@ for(i=0; i<nn; ++i) for(j=0; j<=i; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*t
 
 template <typename T>
 SparseSMat<T>::SparseSMat(const NRMat<T> &rhs)
-:nn(rhs.nrows()),
+:nn(rhs.nrows()), mm(rhs.ncols()),
 count(new int(1))
 {
 if(rhs.nrows()!=rhs.ncols()) laerror("non-square matrix in SparseSMat constructor from NRMat");
 v= new std::map<SPMatindex,T> * [nn];
 memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
 int i,j;
-for(i=0; i<nn; ++i) for(j=0; j<nn; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),false);
+for(i=0; i<nn; ++i) for(j=0; j<mm; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),false);
 }
 
 
@@ -195,6 +210,7 @@ SparseSMat<T>::SparseSMat(const SparseSMat &rhs)
 {
 v = rhs.v;
 nn = rhs.nn;
+mm = rhs.mm;
 count = rhs.count;
 if(count) (*count)++;
 }
@@ -205,6 +221,7 @@ template <typename T>
 NRSMat<T>::NRSMat(const SparseSMat<T> &rhs)
 : nn(rhs.nrows())
 {
+if(rhs.nrows()!=rhs.ncols()) laerror("cannot transform rectangular matrix to NRSMat");
 count = new int(1);
 v=new T[nn2];
 memset(v,0,nn2*sizeof(T));
@@ -251,13 +268,14 @@ SparseSMat<T>::~SparseSMat()
 
 
 template <typename T>
-void SparseSMat<T>::resize(const SPMatindex n)
+void SparseSMat<T>::resize(const SPMatindex n, const SPMatindex m)
 {
 if(!count) 
 	{
 	if(n==0) return;
 	count = new int(1);
 	nn=n;
+	mm=m;
 	v= new std::map<SPMatindex,T> * [nn];
         for(SPMatindex i=0; i<nn; ++i) v[i]=NULL;
 	return;
@@ -270,13 +288,15 @@ if(*count > 1) //it was shared
 	{
         count = new int(1);
 	nn=n;
+	mm=m;
 	v= new std::map<SPMatindex,T> * [nn];
         for(SPMatindex i=0; i<nn; ++i) v[i]=NULL;
 	}
-     else {v=NULL; nn=0; count=NULL;}
+     else {v=NULL; nn=0; mm=0; count=NULL;}
   }
 else  //it was not shared
 	{
+	mm=m;
 	//delete all trees
 	for(SPMatindex i=0; i<nn; ++i) if(v[i]) {delete v[i]; v[i]=NULL;}
 	if(n!=nn)
@@ -305,6 +325,7 @@ SparseSMat<T> & SparseSMat<T>::operator=(const SparseSMat &rhs)
       }
     v = rhs.v;
     nn = rhs.nn;
+    mm = rhs.mm;
     count = rhs.count;
     if(count) (*count)++;
   }
@@ -335,7 +356,7 @@ template <typename T>
 void SparseSMat<T>::add(const SPMatindex n, const SPMatindex m, const T elem, const bool both)
 {
 #ifdef DEBUG
-if(n>=nn || m>=nn) laerror("illegal index in SparseSMat::add()");
+if(n>=nn || m>=mm) laerror("illegal index in SparseSMat::add()");
 #endif
 if(!v[n]) v[n] = new std::map<SPMatindex,T>;
 
@@ -377,8 +398,7 @@ std::ostream & operator<<(std::ostream &s, const SparseSMat<T> &x)
 {
 SPMatindex n;
 
-n = x.nrows();
-s << n << " "<< n<< std::endl;
+s << x.nrows() << " "<< x.ncols()<< std::endl;
 
 typename SparseSMat<T>::iterator p(x);
 for(; p.notend(); ++p) s << (int)p->row << ' ' << (int)p->col  << ' ' << (typename LA_traits_io<T>::IOtype) p->elem << '\n';
@@ -393,26 +413,29 @@ std::istream& operator>>(std::istream  &s, SparseSMat<T> &x)
 	long i,j;
 	s >> n >> m;
 	if(n!=m) laerror("SparseSMat must be square");
-	x.resize(n);
+	x.resize(n,m);
 	s >> i >> j;
 	typename LA_traits_io<T>::IOtype tmp;
 	while(i>=0 && j>=0)
 		{
 		s>>tmp;
+		if(i>=n||j>=m) laerror("bad index in SparseSMat::operator>>");
 		x.add(i,j,tmp,false); 
                         s >> i >> j;
                         }
                 return s;
                 }
 
+
 template <typename T>
 SparseSMat<T>  SparseSMat<T>::transpose(bool conj) const
 {
-SparseSMat<T> r(nn);
+SparseSMat<T> r(mm,nn);
 typename SparseSMat<T>::iterator p(*this);
 for(; p.notend(); ++p) r.add(p->col, p->row, (conj?LA_traits<T>::conjugate(p->elem):p->elem), false);
 return r;
 }
+
 
 
 //Cholesky decomposition, pivoted, positive semidefinite, not in place
@@ -423,7 +446,7 @@ return r;
 template <typename T>
 SparseSMat<T>  SparseSMat<T>::cholesky(void) const
 {
-
+if(nn!=mm) laerror("Cholesky defined only for square matrices");
 //we need real values for sorting, if T is already real it makes just an unnecessary copy of one vector
 NRVec<typename LA_traits<T>::normtype> diagreal(nn);
 {
@@ -451,6 +474,7 @@ for(int i=0; i<nn; ++i) invpivot[pivot[i]]=i;
 //copy-permute upper triangle
 SparseSMat<T> r;
 r.nn=nn;
+r.mm=nn;
 r.count = new int(1);
 r.v = new std::map<SPMatindex,T> * [nn];
 for(SPMatindex i=0; i<nn; ++i) 
@@ -543,6 +567,28 @@ for(k=0; k<nn; ++k)
 
 return r;
 }
+
+
+
+//outer product expected to be sparse
+template<typename T>
+SparseSMat<T> otimes_sparse(const NRVec<T> &lhs, const NRVec<T> &rhs, const bool conjugate=false, const T &scale=1) 
+{
+SparseSMat<T> r(lhs.size(),rhs.size());
+for(SPMatindex i=0; i<lhs.size(); ++i)
+    if(lhs[i])
+	{
+	for(SPMatindex j=0; j<rhs.size(); ++j)
+	    if(rhs[j])
+		{
+		T x=lhs[i]*(conjugate?LA_traits<T>::conjugate(rhs[j]):rhs[j])*scale;
+		if(std::abs(x)>SPARSEEPSILON) r.add(i,j,x);
+		}
+	}
+return r;
+}
+
+
 
 
 }//namespace

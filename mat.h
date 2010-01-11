@@ -128,7 +128,7 @@ public:
 	const T trace() const;
 
 //members concerning sparse matrix
-	SparseSMat<T> & operator*(const SparseSMat<T> &rhs) const;
+	SparseSMat<T> operator*(const SparseSMat<T> &rhs) const;
 	explicit NRMat(const SparseMat<T> &rhs);                // dense from sparse
 	explicit NRMat(const SparseSMat<T> &rhs);                // dense from sparse
 	NRMat & operator+=(const SparseMat<T> &rhs);

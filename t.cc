@@ -1555,17 +1555,17 @@ if(1)
 {
 int n;
 cin >>n;
-SparseSMat<double> bh(n);
+SparseSMat<double> bh(n,n);
 for(int i=0; i<=n/400; ++i) for(int j=i; j<n; ++j) {if((double)random()/RAND_MAX>0.995 || i==j) 
 	{bh.add(i,j,(double)random()/RAND_MAX*(i==j?10.:(random()>RAND_MAX/2?1:-1)),false);}}
 if(n<1000) cout <<"Random matrix\n"<<bh;
-SparseSMat<double> bb(n);
+SparseSMat<double> bb(n,n);
 bb.gemm(0.,bh,'c',bh,'n',1.);
 if(n<1000) cout <<"Input matrix\n"<<bb;
 cout <<"Original filling = "<<bb.simplify()<<endl;
 SparseSMat<double> b = bb.cholesky();
 if(n<1000) cout <<"Cholesky result\n"<<b;
-SparseSMat<double> br(n);
+SparseSMat<double> br(n,n);
 br.gemm(0.,b,'c',b,'n',1.);
 if(n<1000) cout <<"Result of reconstruction\n"<<br;
 if(n<1000) cout <<"Difference\n"<<br-bb;

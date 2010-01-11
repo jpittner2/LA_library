@@ -219,8 +219,9 @@ static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest
 static void clear(complex<C> *dest, unsigned int n) {memset(dest,0,n*sizeof(complex<C>));}
 static void copyonwrite(complex<C> &x) {};
 static void clearme(complex<C> &x) {x=0;};
-static inline complex<C> conjugate(complex<C> &x) {return complex<C>(x.real(),-x.imag());};
-static inline C realpart(complex<C> &x) {return x.real();}
+static inline complex<C> conjugate(const complex<C> &x) {return complex<C>(x.real(),-x.imag());};
+static inline C realpart(const complex<C> &x) {return x.real();}
+static inline C imagpart(const complex<C> &x) {return x.imag();}
 };
 
 //non-complex scalars
@@ -243,8 +244,9 @@ static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));
 static void clear(C *dest, unsigned int n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
 static void clearme(complex<C> &x) {x=0;};
-static inline C conjugate(C&x) {return x;};
-static inline C realpart(C &x) {return x;}
+static inline C conjugate(const C &x) {return x;};
+static inline C realpart(const C &x) {return x;}
+static inline C imagpart(const C &x) {return 0;}
 };
 
 
