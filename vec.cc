@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -124,10 +125,10 @@ void NRVec<T>::fscanf(FILE *f, const char *format)
 {
 	int n;
 
-	if(std::fscanf(f, "%d", &n) != 1) laerror("cannot read vector dimension");
+	if(::fscanf(f, "%d", &n) != 1) laerror("cannot read vector dimension");
 	resize(n);
 	for (int i=0; i<n; i++)
-		if (std::fscanf(f, format, v+i) != 1)
+		if (::fscanf(f, format, v+i) != 1)
 			laerror("cannot read the vector eleemnt");
 }
 

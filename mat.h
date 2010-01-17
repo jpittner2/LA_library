@@ -66,6 +66,7 @@ public:
 	NRMat & operator*=(const T &a);   //multiply by a scalar
 	NRMat & operator+=(const NRMat &rhs);
 	NRMat & operator-=(const NRMat &rhs);
+	NRMat & operator^=(const NRMat<T>  &rhs); //Hadamard (element-wise) product
 	NRMat & operator+=(const NRSMat<T> &rhs);
 	NRMat & operator-=(const NRSMat<T> &rhs);
 	const NRMat operator-() const; //unary minus
@@ -648,6 +649,23 @@ public:
 };
 
 
+
+//Hadamard product
+template<typename T>
+NRMat<T> & NRMat<T>::operator^=(const NRMat<T>  &rhs){
+#ifdef DEBUG
+        if (nn != rhs.nn || mm!= rhs.mm)
+                laerror("Mat ^= Mat of incompatible matrices");
+#endif
+        copyonwrite();
+#ifdef MATPTR
+         for (register int i=0; i< nn*mm; i++) v[0][i] *= rhs.v[0][i];
+#else
+	const int Dim = nn*mm;
+	for(register int i=0;i<Dim;i++) v[i] *= rhs.v[i];
+#endif
+        return *this;
+}
 
 
 

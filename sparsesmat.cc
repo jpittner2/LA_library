@@ -147,7 +147,7 @@ template <class T>
 void SparseSMat<T>::gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const
 {
 if(nn!=r.size() || mm!= x.size()) laerror("incompatible matrix vector dimensions in SparseSMat::gemv");
-if(trans) laerror("transposition not implemented yet in SparseSMat::gemv");
+if(tolower(trans)!='n') laerror("transposition not implemented yet in SparseSMat::gemv");
 r *= beta;
 if(alpha == (T)0) return;
 r.copyonwrite();

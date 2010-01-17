@@ -236,6 +236,76 @@ linear_solve_do(a,&B[0],1,a.nrows(),det,n);
 }
 
 
+//other version of linear solver based on gesvx
+
+
+extern "C" void FORNAME(zgesvx)(const char *fact, const char *trans, const int *n, const int *nrhs, complex<double> *A,  const int *lda, complex<double> *AF, const int *ldaf, const int *ipiv, char *equed, double *R,double *C, complex<double> *B, const int *ldb, complex<double> *X, const int *ldx, double *rcond, double *ferr, double *berr, complex<double> *work, double *rwork, int *info);
+extern "C" void FORNAME(dgesvx)(const char *fact, const char *trans, const int *n, const int *nrhs, double *A,  const int *lda, double *AF, const int *ldaf, const int *ipiv, char *equed, double *R,double *C, double *B, const int *ldb, double *X, const int *ldx, double *rcond, double *ferr, double *berr, double *work, double *rwork, int *info);
+
+int linear_solve_x_(NRMat<complex<double> > &A, complex<double> *B, const bool eq, const int nrhs, const int ldb, const char trans)
+{
+        const int n_rows = A.nrows();
+        const int n_cols = A.ncols();
+
+        if(n_rows != n_cols)laerror("non-squre matrix in linear_solve_x");
+        const int n = n_rows;
+        const char fact  = eq?'E':'N';
+        char equed = 'B';//fact = 'N' => equed is an output argument
+
+        int info, lwork;
+        double rcond, ferr[nrhs], berr[nrhs], rwork[2*n];
+        double R[n], C[n];
+        complex<double> *AF = new complex<double>[n*n];
+        complex<double> *work = new complex<double>[2*n];
+        NRMat<complex<double> > X(n, nrhs);
+        int ipiv[n];
+
+	A.copyonwrite();
+
+        FORNAME(zgesvx)(&fact, &trans, &n_rows, &nrhs, \
+                A[0], &n_rows, &AF[0], &n_rows, &ipiv[0], &equed, &R[0], &C[0], \
+                &B[0], &ldb, X[0], &n_rows, &rcond, &ferr[0], &berr[0], &work[0], &rwork[0], &info);
+
+        delete[] work;
+        delete[] AF;
+        memcpy(B, X[0], sizeof(complex<double>)*n*nrhs);
+        return info;
+}
+
+
+int linear_solve_x_(NRMat<double> &A, double *B, const bool eq, const int nrhs, const int ldb, const char trans)
+{
+        const int n_rows = A.nrows();
+        const int n_cols = A.ncols();
+
+        if(n_rows != n_cols)laerror("non-squre matrix in linear_solve_x");
+        const int n = n_rows;
+        const char fact  = eq?'E':'N';
+        char equed = 'B';//fact = 'N' => equed is an output argument
+
+        int info, lwork;
+        double rcond, ferr[nrhs], berr[nrhs], rwork[2*n];
+        double R[n], C[n];
+        double *AF = new double[n*n];
+        double *work = new double[2*n];
+        NRMat<double> X(n, nrhs);
+        int ipiv[n];
+
+	A.copyonwrite();
+
+        FORNAME(dgesvx)(&fact, &trans, &n_rows, &nrhs, \
+                A[0], &n_rows, &AF[0], &n_rows, &ipiv[0], &equed, &R[0], &C[0], \
+                &B[0], &ldb, X[0], &n_rows, &rcond, &ferr[0], &berr[0], &work[0], &rwork[0], &info);
+
+        delete[] work;
+        delete[] AF;
+        memcpy(B, X[0], sizeof(double)*n*nrhs);
+        return info;
+}
+
+
+
+
 extern "C" void FORNAME(dsyev)(const char *JOBZ, const char *UPLO, const int *N,
 		double *A, const int *LDA, double *W, double *WORK, const int *LWORK, int *INFO);
 
@@ -991,7 +1061,81 @@ else
 }
 
 
+//various norms
+extern "C" double FORNAME(zlange)( const char *NORM, const int *M, const int *N, complex<double> *A, const int *LDA, double *WORK); 
+extern "C" double FORNAME(dlange)( const char *NORM, const int *M, const int *N, double *A, const int *LDA, double *WORK); 
 
+double MatrixNorm(NRMat<complex<double> > &A, const char norm)
+{
+        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
+        const int M = A.nrows();
+        const int N = A.ncols();
+        double work[M];
+        const double ret = FORNAME(zlange)(&TypNorm, &M, &N, A[0], &M, &work[0]);
+        return ret;
+}
+
+double MatrixNorm(NRMat<double > &A, const char norm)
+{
+        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
+        const int M = A.nrows();
+        const int N = A.ncols();
+        double work[M];
+        const double ret = FORNAME(dlange)(&TypNorm, &M, &N, A[0], &M, &work[0]);
+        return ret;
+}
+
+
+
+//condition number
+extern "C" void FORNAME(zgecon)( const char *norm, const int *n, complex<double> *A, const int *LDA, const double *anorm, double *rcond, complex<double> *work, double *rwork, int *info);
+extern "C" void FORNAME(dgecon)( const char *norm, const int *n, double *A, const int *LDA, const double *anorm, double *rcond, double *work, double *rwork, int *info);
+
+double CondNumber(NRMat<complex<double> > &A, const char norm)
+{
+        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
+        const int N = A.nrows();
+        double Norma(0.0), ret(0.0);
+        int info;
+        complex<double> *work;
+        double *rwork;
+
+        if(N != A.ncols()){
+                laerror("nonsquare matrix in zgecon");
+                return 0.0;
+        }
+        work  = new complex<double>[2*N];
+        rwork = new double[2*N];
+
+        Norma = MatrixNorm(A, norm);
+        FORNAME(zgecon)(&TypNorm, &N, A[0], &N, &Norma, &ret, &work[0], &rwork[0], &info);
+        delete[] work;
+        delete[] rwork;
+        return ret;
+}
+
+double CondNumber(NRMat<double> &A, const char norm)
+{
+        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
+        const int N = A.nrows();
+        double Norma(0.0), ret(0.0);
+        int info;
+        double *work;
+        double *rwork;
+
+        if(N != A.ncols()){
+                laerror("nonsquare matrix in zgecon");
+                return 0.0;
+        }
+        work  = new double[2*N];
+        rwork = new double[2*N];
+
+        Norma = MatrixNorm(A, norm);
+        FORNAME(dgecon)(&TypNorm, &N, A[0], &N, &Norma, &ret, &work[0], &rwork[0], &info);
+        delete[] work;
+        delete[] rwork;
+        return ret;
+}
 
 
 #ifdef obsolete

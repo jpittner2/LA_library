@@ -20,6 +20,7 @@
 
 #include "smat.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -160,13 +161,13 @@ template <typename T>
 void NRSMat<T>::fscanf(FILE *f, const char *format)
 {
 	int n, m;
-	if (std::fscanf(f,"%d %d",&n,&m) != 2)
+	if (::fscanf(f,"%d %d",&n,&m) != 2)
 		laerror("cannot read matrix dimensions in SMat::fscanf");
 	if (n != m) laerror("different dimensions of SMat");
 	resize(n);
 	for (int i=0; i<n; i++) 
 		for (int j=0; j<n; j++)
-			if (std::fscanf(f,format,&((*this)(i,j))) != 1)
+			if (::fscanf(f,format,&((*this)(i,j))) != 1)
 				laerror("Smat - cannot read matrix element");
 }
 

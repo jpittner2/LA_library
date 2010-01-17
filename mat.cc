@@ -20,6 +20,7 @@
 
 #include "mat.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -401,13 +402,13 @@ template <typename T>
 void NRMat<T>::fscanf(FILE *f, const char *format)
 {
 	int n, m;
-	if (std::fscanf(f, "%d %d", &n, &m) != 2)
+	if (::fscanf(f, "%d %d", &n, &m) != 2)
 		laerror("cannot read matrix dimensions in Mat::fscanf()");
 	resize(n,m);
 	T *p = *this;
 	for(int i=0; i<n; i++)
 		for(int j=0; j<n; j++)
-			if(std::fscanf(f,format,p++) != 1)
+			if(::fscanf(f,format,p++) != 1)
 				laerror("cannot read matrix element in Mat::fscanf()");
 }
 
@@ -560,9 +561,9 @@ NRMat<T> & NRMat<T>::operator*=(const T &a)
 {
         copyonwrite();
 #ifdef MATPTR
-         for (int i=0; i< nn*nn; i++) v[0][i] *= a;
+         for (int i=0; i< nn*mm; i++) v[0][i] *= a;
 #else
-         for (int i=0; i< nn*nn; i++) v[i] *= a;
+         for (int i=0; i< nn*mm; i++) v[i] *= a;
 #endif
         return *this;
 }
@@ -608,9 +609,9 @@ NRMat<T> & NRMat<T>::operator+=(const NRMat<T>  &rhs)
 #endif
         copyonwrite();
 #ifdef MATPTR
-         for (int i=0; i< nn*nn; i++) v[0][i] += rhs.v[0][i] ;
+         for (int i=0; i< nn*mm; i++) v[0][i] += rhs.v[0][i] ;
 #else
-         for (int i=0; i< nn*nn; i++) v[i] += rhs.v[i] ;
+         for (int i=0; i< nn*mm; i++) v[i] += rhs.v[i] ;
 #endif
         return *this;
 }
@@ -656,9 +657,9 @@ NRMat<T> & NRMat<T>::operator-=(const NRMat<T>  &rhs)
 #endif
         copyonwrite();
 #ifdef MATPTR
-         for (int i=0; i< nn*nn; i++) v[0][i] -= rhs.v[0][i] ;
+         for (int i=0; i< nn*mm; i++) v[0][i] -= rhs.v[0][i] ;
 #else
-         for (int i=0; i< nn*nn; i++) v[i] -= rhs.v[i] ;
+         for (int i=0; i< nn*mm; i++) v[i] -= rhs.v[i] ;
 #endif
         return *this;
 }

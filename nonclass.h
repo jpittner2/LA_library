@@ -154,6 +154,15 @@ const NRMat<T> inverse(NRMat<T> a, T *det=0)
 	return result;
 }
 
+//several matrix norms
+template<class MAT>
+typename LA_traits<MAT>::normtype MatrixNorm(const MAT  &A, const char norm);
+
+//condition number
+template<class MAT>
+typename LA_traits<MAT>::normtype CondNumber(const MAT  &A, const char norm);
+
+
 //general determinant
 template<class MAT>
 const typename LA_traits<MAT>::elementtype determinant(MAT a)//passed by value
@@ -173,6 +182,53 @@ if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
 linear_solve(a,NULL,&det);
 return det;
 }
+
+
+//extended linear solve routines
+template<class T> 
+extern int linear_solve_x_(NRMat<T> &A, T *B, const bool eq, const int nrhs, const int ldb, const char trans);
+
+
+//solve Ax = b using zgesvx
+template<class T>
+inline int linear_solve_x(NRMat<complex<double> > &A, NRVec<complex<double> > &B, const bool eq)
+{
+B.copyonwrite();
+return linear_solve_x_(A, &B[0], eq, 1, B.size(), 'T');
+}
+
+
+//solve AX = B using zgesvx
+template<class T>
+inline int linear_solve_x(NRMat<complex<double> > &A, NRMat<complex<double> > &B, const bool eq, const bool transpose=true)
+{
+B.copyonwrite();
+if(transpose) B.transposeme();//because of corder
+int info(0);
+info = linear_solve_x_(A, B[0], eq, B.ncols(), B.nrows(), transpose?'T':'N');
+if(transpose) B.transposeme();
+return info;
+}
+
+
+#define multiply_by_inverse(P,Q,eq)  linear_solve_x(P,Q,eq,false)
+/*
+ * input:
+ * 	P,Q	-	general complex square matrices
+ * 	eq	-	use equilibration (man cgesvx)
+ * description:
+ * 	evaluates matrix expression QP^{-1} as
+ * 		Z = QP^{-1}
+ * 		ZP = Q
+ * 		P^TZ^T = Q^T
+ * 	Z is computed by solving this linear system instead of computing inverse
+ * 	of P followed by multiplication by Q
+ * returns:
+ * 	returns the info parameter of cgesvx
+ * 	result is stored in Q
+ */
+
+
 
 
 //general submatrix, INDEX will typically be NRVec<int> or even int*
