@@ -94,6 +94,7 @@ public:
 	inline unsigned long long length() {return simplify();};
 	void transposeme() const {laerror("in-place transposition not necessary/implemented for SparseSMat");};
 	SparseSMat transpose(bool conj=false) const; //if we store a non-symmetric matrix there
+        inline bool issymmetric() const {return true;} // LV: for davidson
 	void get(int fd, bool dimen, bool transp);
         void put(int fd, bool dimen, bool transp) const;
 	int nrows() const {return nn;}
@@ -576,10 +577,10 @@ SparseSMat<T> otimes_sparse(const NRVec<T> &lhs, const NRVec<T> &rhs, const bool
 {
 SparseSMat<T> r(lhs.size(),rhs.size());
 for(SPMatindex i=0; i<lhs.size(); ++i)
-    if(lhs[i])
+    if(lhs[i]!=(T)0)
 	{
 	for(SPMatindex j=0; j<rhs.size(); ++j)
-	    if(rhs[j])
+	    if(rhs[j]!=(T)0)
 		{
 		T x=lhs[i]*(conjugate?LA_traits<T>::conjugate(rhs[j]):rhs[j])*scale;
 		if(std::abs(x)>SPARSEEPSILON) r.add(i,j,x);
