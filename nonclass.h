@@ -88,8 +88,8 @@ extern const  NRVec<T> diagofproduct(const NRMat<T> &a, const NRMat<T> &b,\
 extern T trace2(const NRMat<T> &a, const NRMat<T> &b, bool trb=0); \
 extern T trace2(const NRSMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern T trace2(const NRSMat<T> &a, const NRMat<T> &b, const bool diagscaled=0);\
-extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0,int n=0); \
-extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0, int n=0); \
+extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0,int n=0); /*solve Ax^T=b^T (b is nrhs x n) */ \
+extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0, int n=0); /*solve Ax^T=b^T (b is nrhs x n) */\
 extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void diagonalize(NRMat<T> &a, NRVec<LA_traits<T>::normtype> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1); \
@@ -184,51 +184,38 @@ return det;
 }
 
 
-//extended linear solve routines
-template<class T> 
-extern int linear_solve_x_(NRMat<T> &A, T *B, const bool eq, const int nrhs, const int ldb, const char trans);
-
-
-//solve Ax = b using zgesvx
+//------------------------------------------------------------------------------
+// solves set of linear equations using gesvx
+// input:
+//	A		double precision matrix of dimension nn x mm, where min(nn, mm) >= n
+//	B		double prec. array dimensioned as nrhs x n
+//	rhsCount	nrhs - count of right hand sides
+//	eqCount	n - count of equations
+//	eq		use equilibration of matrix A before solving
+//	saveA		if set, do no overwrite A if equilibration in effect
+//	rcond		if not NULL, store the returned rcond value from dgesvx
+// output:
+//	solution is stored in B
+//	the info parameter of gesvx is returned (see man dgesvx)
+//------------------------------------------------------------------------------
 template<class T>
-inline int linear_solve_x(NRMat<complex<double> > &A, NRVec<complex<double> > &B, const bool eq)
-{
-B.copyonwrite();
-return linear_solve_x_(A, &B[0], eq, 1, B.size(), 'T');
-}
+int linear_solve_x(NRMat<T> &A, T *B, const int rhsCount, const int eqCount, const bool eq, const bool saveA, double *rcond);
 
 
-//solve AX = B using zgesvx
+//------------------------------------------------------------------------------
+// for given square matrices A, B computes X = AB^{-1} as follows
+// 	XB = A => B^TX^T = A^T
+// input:
+//	_A		double precision matrix of dimension nn x nn
+//	_B		double prec. matrix of dimension nn x nn
+//	_useEq		use equilibration suitable for badly conditioned matrices
+//	_rcond		if not NULL, store the returned value of rcond fromd dgesvx
+// output:
+//	solution is stored in _B
+//	the info parameter of dgesvx is returned (see man dgesvx)
+//------------------------------------------------------------------------------
 template<class T>
-inline int linear_solve_x(NRMat<complex<double> > &A, NRMat<complex<double> > &B, const bool eq, const bool transpose=true)
-{
-B.copyonwrite();
-if(transpose) B.transposeme();//because of corder
-int info(0);
-info = linear_solve_x_(A, B[0], eq, B.ncols(), B.nrows(), transpose?'T':'N');
-if(transpose) B.transposeme();
-return info;
-}
-
-
-#define multiply_by_inverse(P,Q,eq)  linear_solve_x(P,Q,eq,false)
-/*
- * input:
- * 	P,Q	-	general complex square matrices
- * 	eq	-	use equilibration (man cgesvx)
- * description:
- * 	evaluates matrix expression QP^{-1} as
- * 		Z = QP^{-1}
- * 		ZP = Q
- * 		P^TZ^T = Q^T
- * 	Z is computed by solving this linear system instead of computing inverse
- * 	of P followed by multiplication by Q
- * returns:
- * 	returns the info parameter of cgesvx
- * 	result is stored in Q
- */
-
-
+int multiply_by_inverse(NRMat<T> &A, NRMat<T> &B, bool useEq, double *rcond);
 
 
 //general submatrix, INDEX will typically be NRVec<int> or even int*

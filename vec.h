@@ -139,6 +139,7 @@ public:
 	bool smaller(int i, int j) const {return LA_traits<T>::smaller(v[i],v[j]);};
 	void swap(int i, int j) {T tmp; tmp=v[i]; v[i]=v[j]; v[j]=tmp;};
 	int sort(int direction=0, int from=0, int to= -1, int *perm=NULL); //sort, ascending by default, returns parity of permutation
+	NRVec & CallOnMe(T (*_F)(const T &) ) {copyonwrite(); for(int i=0; i<nn; ++i) v[i] = _F(v[i]); return *this;};
 };
 
 }//namespace

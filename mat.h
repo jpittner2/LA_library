@@ -127,6 +127,9 @@ public:
 	void axpy(const T alpha, const NRMat &x); // this += a*x
 	inline const T amax() const;
 	const T trace() const;
+	NRMat & SwapRows();
+	NRMat & SwapCols();
+	NRMat & SwapRowsCols();
 
 //members concerning sparse matrix
 	SparseSMat<T> operator*(const SparseSMat<T> &rhs) const;
