@@ -1,3 +1,20 @@
+25.02.2010 linear_solve_x and multiply_by_inverse contributed by M. Sulc
+17.01.2010 miscellaneous extensions contributed by M. Sulc
+17.01.2010 bugfix in NRMat::operator *= +=  -= for non-square matrix
+15.01.2010 added check for cblas.h and clapack.h 
+13.01.2010 fixed ::fscanf to be compilable by gcc 4.4
+10.01.2010 outer product with sparse result otimes_sparse added
+09.01.2010 typedef ROWTYPE for NRVec and SparseSMat for assignable elements/rows via operator[]
+09.01.2010 SparseSMat adapted to rectangular matrices (except gemm)
+07.01.2010 Fixed a bug in SparseSMat::axpy
+07.01.2010 Pivoted Cholesky decomposition for positive semidefinite SparseSMat-rices
+05.01.2010 Cholesky decomposition lapack interface  implemented
+04.01.2010 NRMat * SparseSMat
+28.12.2009 added put and get for sparsesmat, fixed put/get bug in traits (contrib. L. Veis)
+15.12.2009 added possibility for a user-defined initial guess in davidson
+20.11.2009 removed #include config.h from LA_traits.h
+19.11.2009 fixed a bug in SparseMat::norm() and SparseSMat::norm()
+19.11.2009 added SparseSMat::operator* for NRVec and SparseSMat::diagonalof
 13.11.2009 RELEASE 0.5
 13.11.2009 libtool employed to create also shared library version
 12.11.2009 library enclosed in the namespace LA
@@ -5,6 +22,7 @@
 12.11.2009 added SparseSMat class for efficient exponentiation of sparse complex symmetric matrices
 12.11.2009 removed unnecessary casts in complex vec,mat,smat routines
 12.11.2009 fixed bug in complex NRSMat operator +=,-=
+11.11.2009 changed default SPARSEEPSILON threshold value
 10.11.2009 removing 'using namespace std' from the main include, leaving this to the user's discretion
 10.11.2009 NRVec::otimes introduced
 04.11.2009 improved efficiency of complex matrix exp
