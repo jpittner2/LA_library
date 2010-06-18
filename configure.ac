@@ -34,12 +34,23 @@ AC_CHECK_LIB([lapack], [dgeev_],, [
 
 
 #check for optional libraries
+
+#cblas and clapack available?
 AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB=-lcblas], [CBLASOPT=-DNONCBLAS])
+AC_CHECK_HEADER([cblas.h],,[CBLASOPT=-DNONCBLAS CBLASLIB=""], AC_INCLUDES_DEFAULT)
 AC_SUBST([CBLASLIB])
 AC_SUBST([CBLASOPT])
 
 AC_CHECK_LIB([lapack], [clapack_dgesv], , [CLAPACKOPT=-DNONCLAPACK])
+AC_CHECK_HEADER([clapack.h],,[CLAPACKOPT=-DNONCLAPACK], AC_INCLUDES_DEFAULT)
 AC_SUBST([CLAPACKOPT])
+
+#CUDA available? link with cublas and avoid cblas and clapack then...
+AC_CHECK_LIB([cublas], [cublasInit], [CUDALIBS=-lcublas CUDAOPT=-DCUDALA CBLASOPT=-DNONCBLAS CLAPACKOPT=-DNONCLAPACK CBLASLIB=""], [CUDALIB="" CUDAOPT=""])
+AC_CHECK_HEADER([cublas.h],,[CUDAOPT="" CUDALIBS=""], AC_INCLUDES_DEFAULT)
+AC_SUBST([CUDALIBS])
+AC_SUBST([CUDAOPT])
+
 
 #the check for traceback needs bfd to be linked into
 AC_CHECK_LIB([bfd], [bfd_fprintf_vma])
@@ -48,6 +59,21 @@ AC_SUBST([TRACEBACKOPT])
 AC_SUBST([TRACEBACKLIB])
 
 #process options
+FORINTOPT=""
+AC_ARG_ENABLE([fotran64int],[  --enable-fotran64int to link with 64-bit-integer-BLAS+LAPACK ],
+    [case "${enableval}" in
+     yes) FORINTOPT="-DLONG_FORTRAN_INT" 
+	CBLASLIB=""
+	CBLASOPT=-DNONCBLAS
+	CLAPACKOPT=-DNONCLAPACK
+	;;
+     no) FORINTOPT="" ;;
+     *) FORINTOPT=${enableval}
+     esac],
+ ,)
+AC_SUBST([FORINTOPT])
+
+
 OPTIMIZEOPT="-O3 -finline-limit=1000"
 AC_ARG_ENABLE([optimize],[  --enable-optimize   to compile with optimization [[default= -O3 -finline-limit=1000]]],
     [case "${enableval}" in
@@ -101,7 +127,9 @@ echo "**************************************************************************
 echo "The LA library has now been configured. You may run make; make check; make install"
 echo "Please make sure that the generated Makefile employs a proper version of optimized"
 echo "BLAS/LAPACK library. If not, re-run configure with CXXFLAGS and LDFLAGS options   "
-echo "set to '-I path' and '-L path' for your preferred BLAS/LAPACK library version     "
+echo "set to '-I path' and '-L path' for your preferred BLAS/LAPACK library version.    "
+echo "In addition, similarly you might set include and link paths for Nvidia CUBLAS.    "
 echo "For usage examples see file t.cc. Do not forget using copyonwrite() before        "
 echo "changing individual matrix/vector elements via l.h.s. operator[] or operator()    "
 echo "**********************************************************************************"
+
