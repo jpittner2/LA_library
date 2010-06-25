@@ -122,6 +122,15 @@ return r;
 template <typename T>
 void NRMat<T>::put(int fd, bool dim, bool transp) const
 {
+#ifdef CUDALA
+if(location!=cpu)
+	{
+	NRMat<T> tmp= *this;
+	tmp.moveto(cpu);
+	tmp.put(fd,dim,transp);
+	return;
+	}
+#endif
 errno=0;
 if(dim)
 {
@@ -153,6 +162,17 @@ else LA_traits<T>::multiput(nn*mm,fd,
 template <typename T>
 void NRMat<T>::get(int fd, bool dim, bool transp)
 {
+#ifdef CUDALA
+if(location!=cpu)
+        {
+        NRMat<T> tmp;
+	tmp.moveto(cpu);
+        tmp.get(fd,dim,transp);
+        tmp.moveto(location);
+	*this = tmp;
+        return;
+        }
+#endif
 int nn0,mm0;
 errno=0;
 if(dim)
@@ -188,6 +208,43 @@ else LA_traits<T>::multiget(nn*mm,fd,
 
 
 // Assign diagonal
+template <>
+NRMat<double> & NRMat<double>::operator=(const double &a)
+{
+        copyonwrite();
+#ifdef DEBUG
+        if (nn != mm) laerror("RMat.operator=scalar on non-square matrix");
+#endif
+#ifdef CUDALA
+        if(location==cpu)
+	{
+#endif
+#ifdef MATPTR
+         memset(v[0],0,nn*nn*sizeof(double));
+         for (int i=0; i< nn; i++) v[i][i] = a;
+#else
+	 double n=0.;
+	 cblas_dcopy(nn*nn, &n, 0, v, 1);
+	 cblas_dcopy(nn, &a, 0, v, nn+1);
+#endif
+#ifdef CUDALA
+	}
+	else
+	{
+	double *d=gpuputdouble(0.);
+        cublasDcopy(nn*nn, d, 0, v, 1);
+	gpufree(d);
+	d=gpuputdouble(a);
+        cublasDcopy(nn, d, 0, v, nn+1);
+	gpufree(d);
+	}
+#endif
+         return *this;
+}
+
+
+
+
 template <typename T>
 NRMat<T> & NRMat<T>::operator=(const T &a)
 {
@@ -203,6 +260,64 @@ NRMat<T> & NRMat<T>::operator=(const T &a)
 	 for (int i=0; i< nn*nn; i+=nn+1) v[i] = a;
 #endif
 	 return *this;
+}
+
+
+template <>
+NRMat<double> & NRMat<double>::operator+=(const double&a)
+{
+        copyonwrite();
+#ifdef DEBUG
+        if (nn != mm) laerror("Mat.operator+=scalar on non-square matrix");
+#endif
+#ifdef CUDALA
+	if(location==cpu)
+	{
+#endif
+#ifdef MATPTR
+        for (int i=0; i< nn; i++) v[i][i] += a;
+#else
+	cblas_daxpy(nn, 1.0, &a, 0, *this, nn+1);
+#endif
+#ifdef CUDALA
+	}
+	else
+	{
+	double *d=gpuputdouble(a);
+	cublasDaxpy(nn, 1.0, d, 0, *this, nn+1);
+	gpufree(d);
+	}
+#endif
+        return *this;
+}
+
+
+template <>
+NRMat<double> & NRMat<double>::operator-=(const double&a)
+{
+        copyonwrite();
+#ifdef DEBUG
+        if (nn != mm) laerror("Mat.operator+=scalar on non-square matrix");
+#endif
+#ifdef CUDALA
+	if(location==cpu)
+	{
+#endif
+#ifdef MATPTR
+        for (int i=0; i< nn; i++) v[i][i] -= a;
+#else
+	cblas_daxpy(nn, -1.0, &a, 0, *this, nn+1);
+#endif
+#ifdef CUDALA
+	}
+	else
+	{
+        double *d=gpuputdouble(a);
+        cublasDaxpy(nn, -1.0, d, 0, *this, nn+1);
+        gpufree(d);
+	}
+#endif
+        return *this;
 }
 
 
@@ -240,6 +355,31 @@ NRMat<T> & NRMat<T>::operator-=(const T &a)
 	return *this;
 }
 
+template <>
+const NRMat<double> NRMat<double>::operator-() const
+{
+        NRMat<double> result(nn, mm);
+#ifdef CUDALA
+        if(location==cpu)
+	{
+#endif
+#ifdef MATPTR
+        for (int i=0; i<nn*mm; i++) result.v[0][i]= -v[0][i];
+#else
+	cblas_dscal(nn*mm, -1., v, 1);
+#endif
+#ifdef CUDALA
+        }
+	else
+	{
+	cublasDscal(nn*mm, -1., v, 1);
+	}
+#endif
+        return result;
+}
+
+
+
 // unary minus
 template <typename T>
 const NRMat<T> NRMat<T>::operator-() const
@@ -252,6 +392,7 @@ const NRMat<T> NRMat<T>::operator-() const
 #endif
 	return result;
 }
+
 
 // direct sum
 template <typename T>
@@ -540,7 +681,13 @@ template<>
 NRMat<double> & NRMat<double>::operator*=(const double &a)
 {
 	copyonwrite();
-	cblas_dscal(nn*mm, a, *this, 1);
+#ifdef CUDALA
+	if(location==cpu)
+#endif
+		cblas_dscal(nn*mm, a, *this, 1);
+#ifdef CUDALA
+	else 	cublasDscal(nn*mm, a, v, 1);
+#endif
 	return *this;
 }
 
@@ -559,6 +706,7 @@ NRMat< complex<double> >::operator*=(const complex<double> &a)
 template <typename T>
 NRMat<T> & NRMat<T>::operator*=(const T &a)
 {
+NOT_GPU(*this);
         copyonwrite();
 #ifdef MATPTR
          for (int i=0; i< nn*mm; i++) v[0][i] *= a;
@@ -578,8 +726,16 @@ NRMat<double> & NRMat<double>::operator+=(const NRMat<double>  &rhs)
 	if (nn != rhs.nn || mm!= rhs.mm) 
 		laerror("Mat += Mat of incompatible matrices");
 #endif
+SAME_LOC(*this,rhs);
 	copyonwrite();
+#ifdef CUDALA
+	if(location==cpu)
+#endif
 	cblas_daxpy(nn*mm, 1.0, rhs, 1, *this, 1);
+#ifdef CUDALA
+	else 
+	cublasDaxpy(nn*mm, 1.0, rhs, 1, v, 1);
+#endif
 	return *this;
 }
 
@@ -625,8 +781,16 @@ NRMat<double> & NRMat<double>::operator-=(const NRMat<double>  &rhs)
 	if (nn != rhs.nn || mm!= rhs.mm) 
 		laerror("Mat -= Mat of incompatible matrices");
 #endif
+	SAME_LOC(*this,rhs);
 	copyonwrite();
+#ifdef CUDALA
+	if(location==cpu)
+#endif
 	cblas_daxpy(nn*mm, -1.0, rhs, 1, *this, 1);
+#ifdef CUDALA
+	else
+	cublasDaxpy(nn*mm, -1.0, rhs, 1, v, 1);
+#endif
 	return *this;
 }
 
@@ -836,9 +1000,18 @@ const NRMat<double> NRMat<double>::operator*(const NRMat<double> &rhs) const
 	if (mm != rhs.nn) laerror("product of incompatible matrices");
 	if (rhs.mm <=0) laerror("illegal matrix dimension in gemm");
 #endif
-	NRMat<double> result(nn, rhs.mm);
+SAME_LOC(*this,rhs);
+
+	NRMat<double> result(nn, rhs.mm,rhs.getlocation());
+#ifdef CUDALA
+        if(location==cpu)
+#endif
 	cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nn, rhs.mm, mm, 1.0,
 			*this, mm, rhs, rhs.mm, 0.0, result, rhs.mm);
+#ifdef CUDALA
+        else
+	cublasDgemm('N','N',rhs.mm,nn,mm,1.0,rhs, rhs.mm,*this, mm, 0.0, result, rhs.mm);
+#endif
 	return result;
 }
 
@@ -991,12 +1164,21 @@ void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in Mat:gemm()");
 	if(b.mm <=0 || mm<=0) laerror("illegal matrix dimension in gemm");
 #endif
+SAME_LOC3(*this,a,b);
+
 	if (alpha==0.0 && beta==1.0) return;
 
 	copyonwrite();
+#ifdef CUDALA
+	if(location==cpu)
+#endif
 	cblas_dgemm(CblasRowMajor, (transa=='n' ? CblasNoTrans : CblasTrans),
 			(transb=='n' ? CblasNoTrans : CblasTrans), nn, mm, k, alpha, a,
 			a.mm, b , b.mm, beta, *this , mm);
+#ifdef CUDALA
+        else
+	cublasDgemm(transb,transa,mm,nn,k,alpha, b , b.mm, a,a.mm, beta, *this , mm);
+#endif
 }
 
 
@@ -1028,7 +1210,20 @@ void NRMat< complex<double> >::gemm(const complex<double> & beta,
 template<>
 const double  NRMat<double>::norm(const double scalar) const
 {
-	if (!scalar) return cblas_dnrm2(nn*mm, (*this)[0], 1);
+	if (!scalar)  
+		{
+#ifdef CUDALA
+		if(location==cpu)
+#endif
+		return cblas_dnrm2(nn*mm, (*this)[0], 1);
+#ifdef CUDALA
+		else
+		return cublasDnrm2(nn*mm, v, 1);
+#endif
+		}
+
+NOT_GPU(*this);
+
 	double sum = 0;
 	for (int i=0; i<nn; i++)
 		for (int j=0; j<mm; j++) {
@@ -1246,6 +1441,127 @@ else //vectors are columns
 
 
 
+//------------------------------------------------------------------------------
+//	for a matrix A(1:nn,1:mm) performs Fortran-like 
+//	operation A(nn:-1:1,:) 
+//------------------------------------------------------------------------------
+template<>
+NRMat<double>& NRMat<double>::SwapRows(){
+        copyonwrite();
+        const int n_pul = this->nn / 2;
+        double * const dataIn  = this->v;
+
+        for(register int i=0; i<n_pul; i++){
+                cblas_dswap(mm, dataIn + i*mm, 1, dataIn + (nn-i-1)*mm, 1);
+        }
+
+        return *this;
+}
+//------------------------------------------------------------------------------
+template<>
+NRMat<complex<double> >& NRMat<complex<double> >::SwapRows(){
+        copyonwrite();
+	const int n = this->nn;
+	const int m = this->mm;
+        const int n_pul = this->nn / 2;
+        complex<double> * const dataIn  = this->v;
+
+        for(register int i=0; i<n_pul; i++){
+                cblas_zswap(m, dataIn + i*m, 1, dataIn + (n-i-1)*m, 1);
+        }
+
+        return *this;
+}
+//------------------------------------------------------------------------------
+template<typename T>
+NRMat<T>& NRMat<T>::SwapRows(){
+        copyonwrite();
+	const int n = this->nn;
+	const int m = this->mm;
+        const int n_pul = this->nn / 2;
+        T * const dataIn  = this->v;
+
+        for(register int i=0; i<n_pul; i++){
+		const int offset1 = i*m;
+		const int offset2 = (n-i-1)*m;
+
+		for(register int j=0;j<m;j++){
+			dataIn[offset1 + j] = dataIn[offset2 + j];
+		}
+        }
+        return *this;
+}
+//------------------------------------------------------------------------------
+//	for a matrix A(1:nn,1:mm) performs Fortran-like 
+//	operation A(:,mm:-1:1) 
+//------------------------------------------------------------------------------
+template<>
+NRMat<double>& NRMat<double>::SwapCols(){
+        copyonwrite();
+	const int n = this->nn;
+	const int m = this->mm;
+        const int m_pul = m / 2;
+        double * const dataIn  = this->v;
+
+        for(register int i=0; i<m_pul; i++){
+                cblas_dswap(n, dataIn + i, m, dataIn + (m-i-1), m);
+        }
+
+        return *this;
+}
+//------------------------------------------------------------------------------
+template<>
+NRMat<complex<double> >& NRMat<complex<double> >::SwapCols(){
+        copyonwrite();
+        const int n_pul = this->nn / 2;
+        const int m_pul = this->mm / 2;
+        complex<double> * const dataIn  = this->v;
+
+        for(register int i=0; i<m_pul; i++){
+                cblas_zswap(nn, dataIn + i, mm, dataIn + (mm-i-1), mm);
+        }
+        return *this;
+}
+//------------------------------------------------------------------------------
+template<typename T>
+NRMat<T>& NRMat<T>::SwapCols(){
+        copyonwrite();
+        const int n_pul = nn / 2;
+        const int m_pul = mm / 2;
+        T * const dataIn  = this->v;
+
+        for(register int i=0; i<m_pul; i++){
+		for(register int j=0;j<nn;j++){
+			const int jm = j*mm;
+			dataIn[i + jm] = dataIn[(mm-i-1) + jm];
+		}
+        }
+        return *this;
+}
+//------------------------------------------------------------------------------
+//	for a matrix A(1:nn,1:mm) performs Fortran-like 
+//	operation A(nn:-1:1,mm:-1:1)
+//------------------------------------------------------------------------------
+template<typename T>
+NRMat<T>& NRMat<T>::SwapRowsCols(){
+        this->copyonwrite();
+        const int n = this->nn;
+        const int m = this->mm;
+        T * const dataIn  = this->v;
+        T * const dataOut = this->v;
+        
+	const int Dim = n*m;
+        for(register int i=0;i<n;i++){
+                const int off = i*n;
+                for(register int j=0;j<m;j++){
+                        const int offset = off + j;
+                        dataOut[Dim - (offset + 1)] = dataIn[offset];
+                }
+        }
+
+        return *this;
+}
+//------------------------------------------------------------------------------
 
 
 //////////////////////////////////////////////////////////////////////////////

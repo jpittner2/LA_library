@@ -84,6 +84,16 @@ NRVec<T>::NRVec(const NRMat<T> &rhs)
 template <typename T>
 void NRVec<T>::put(int fd, bool dim, bool transp) const
 {
+#ifdef CUDALA
+if(location!=cpu)
+        {
+        NRVec<T> tmp= *this;
+        tmp.moveto(cpu);
+        tmp.put(fd,dim,transp);
+        return;
+        }
+#endif
+
 errno=0;
 int pad=1; //align at least 8-byte
 if(dim)
@@ -94,9 +104,21 @@ if(sizeof(int) != write(fd,&pad,sizeof(int))) laerror("cannot write");
 LA_traits<T>::multiput(nn,fd,v,dim);
 }
 
+
 template <typename T>
 void NRVec<T>::get(int fd, bool dim, bool transp)
 {
+#ifdef CUDALA
+if(location!=cpu)
+        {
+        NRVec<T> tmp;
+        tmp.moveto(cpu);
+        tmp.get(fd,dim,transp);
+        tmp.moveto(location);
+        *this = tmp;
+        return;
+        }
+#endif
 int nn0[2]; //align at least 8-byte
 errno=0;
 if(dim)
@@ -319,9 +341,16 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 	if ((trans == 'n'?A.ncols():A.nrows()) != x.size())
 		laerror("incompatible sizes in gemv A*x");
 #endif
+	SAME_LOC3(*this,x,A);
 	copyonwrite();
-	cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans),
-			A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
+#ifdef CUDALA
+	if(location==cpu)
+#endif
+		cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans), A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
+#ifdef CUDALA
+        else
+		cublasDgemv((trans=='n' ?'T':'N'),A.ncols(), A.nrows(),alpha, A, A.ncols(), x.v, 1, beta, v, 1);
+#endif
 }
 
 
@@ -362,8 +391,16 @@ void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
 #ifdef DEBUG
 	if (A.ncols()!=x.size()) laerror("incompatible dimension in gemv A*x");
 #endif
+SAME_LOC3(*this,A,x);
 	copyonwrite();
+#ifdef CUDALA
+if(location==cpu)
+#endif
 	cblas_dspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, x.v, 1, beta, v, 1);
+#ifdef CUDALA
+else
+	cublasDspmv('U',A.ncols(), alpha, A, x.v, 1, beta, v, 1);
+#endif
 }
 
 template<>
@@ -420,11 +457,16 @@ NRVec<complex<double> >::otimes(const NRVec< complex<double> > &b, const bool co
 template<typename T>
 int NRVec<T>::sort(int direction, int from, int to, int *perm)
 {
+NOT_GPU(*this);
 copyonwrite();
 if(to == -1) to=nn-1;
 if(direction) return memqsort<1,NRVec<T>,int,int>(*this,perm,from,to);
 else return memqsort<0,NRVec<T>,int,int>(*this,perm,from,to);
 }
+
+
+
+
 
 
 //////////////////////////////////////////////////////////////////////////////

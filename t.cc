@@ -24,6 +24,7 @@
 using namespace std;
 using namespace LA;
 
+
 extern void test(const NRVec<double> &x);
 
 
@@ -1551,7 +1552,7 @@ cout <<"Error = "<<(cx.transpose(true)*cx -bb).norm()<<endl;
 }
 
 
-if(1)
+if(0)
 {
 int n;
 cin >>n;
@@ -1572,6 +1573,60 @@ if(n<1000) cout <<"Difference\n"<<br-bb;
 cout << "Error = "<<(br-bb).norm()<<endl;
 cout <<"Cholesky factor filling = "<<b.simplify()<<endl;
 }
+
+
+if(0)
+{
+int n;
+cin >>n;
+NRMat<double> a(n,n),b(n,n);
+a.randomize(1.);
+b.randomize(1.);
+NRMat<double>c;
+double t=clock()/((double) (CLOCKS_PER_SEC));
+int rep=1+10000000000LL/n/n/n;
+cout <<"Repetitions " <<rep<<endl;
+for(int i=0; i<rep; ++i) c=a*b;
+cout <<"CPU time (ms) "<<(clock()/((double) (CLOCKS_PER_SEC))-t)*1000./rep <<"\n";
+NRMat<double>cgpu;
+a.moveto(gpu1);
+b.moveto(gpu1);
+ t=clock()/((double) (CLOCKS_PER_SEC));
+for(int i=0; i<rep; ++i) cgpu=a*b;
+cout <<"GPU time (ms) "<<(clock()/((double) (CLOCKS_PER_SEC))-t)*1000./rep <<"\n";
+cgpu.moveto(cpu);
+cout << "Error = "<<(c-cgpu).norm()<<endl;
+}
+
+if(1)
+{
+int n;
+cin >>n;
+NRMat<double> a(n,n);
+a.randomize(1.);
+NRVec<double> v(n);
+v.randomize(1.);
+NRSMat<double> as(n);
+as.randomize(1.);
+NRVec<double>w = a*v;
+NRVec<double>ws = as*v;
+NRMat<double>c(n,n);
+c=exp(a);
+a.moveto(gpu1);
+v.moveto(gpu1);
+as.moveto(gpu1);
+NRVec<double>wgpu = a*v;
+NRVec<double>wsgpu = as*v;
+w.moveto(gpu1);
+ws.moveto(gpu1);
+cout << "Error gemv = "<<(w-wgpu).norm()<<endl;
+cout << "Error symv = "<<(ws-wsgpu).norm()<<endl;
+NRMat<double>cgpu;
+cgpu=exp(a);
+c.moveto(gpu1);
+cout << "Error = "<<(c-cgpu).norm()<<endl;
+}
+
 
 
 

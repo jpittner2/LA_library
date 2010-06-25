@@ -23,14 +23,11 @@
 #include "mat.h"
 #include "nonclass.h"
 #include "qsort.h"
+#include "fortran.h"
+
 
 namespace LA {
 
-#ifdef FORTRAN_
-#define FORNAME(x) x##_
-#else
-#define FORNAME(x) x
-#endif
 
 #define INSTANTIZE(T) \
 template void lawritemat(FILE *file,const T *a,int r,int c,const char *form0, \
@@ -191,16 +188,23 @@ linear_solve_do(A,&B[0],1,A.nrows(),det,n);
 // Next routines are not available in clapack, fotran ones will be used with an
 // additional swap/transpose of outputs when needed
 
-extern "C" void FORNAME(dspsv)(const char *UPLO, const int *N, const int *NRHS,
-		double *AP, int *IPIV, double *B, const int *LDB, int *INFO);
+extern "C" void FORNAME(dspsv)(const char *UPLO, const FINT *N, const FINT *NRHS,
+		double *AP, FINT *IPIV, double *B, const FINT *LDB, FINT *INFO);
 
 static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const int ldb, double *det, int n)
 {
-	int r, *ipiv;
+	FINT r, *ipiv;
 	a.copyonwrite();
-	ipiv = new int[n];
+	ipiv = new FINT[n];
 	char U = 'U';
+#ifdef FORINT
+        const FINT ntmp=n;
+        const FINT nrhstmp=nrhs;
+	const FINT ldbtmp=ldb;
+	FORNAME(dspsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp,&r);
+#else	
 	FORNAME(dspsv)(&U, &n, &nrhs, a, ipiv, b, &ldb,&r);
+#endif	
 	if (r < 0) {
 		delete[] ipiv;
 		laerror("illegal argument in spsv() call of linear_solve()");
@@ -239,8 +243,8 @@ linear_solve_do(a,&B[0],1,a.nrows(),det,n);
 //other version of linear solver based on gesvx
 
 //------------------------------------------------------------------------------
-extern "C" void FORNAME(zgesvx)(const char *fact, const char *trans, const int *n, const int *nrhs, complex<double> *A,  const int *lda, complex<double> *AF, const int *ldaf, const int *ipiv, char *equed, double *R,double *C, complex<double> *B, const int *ldb, complex<double> *X, const int *ldx, double *rcond, double *ferr, double *berr, complex<double> *work, double *rwork, int *info);
-extern "C" void FORNAME(dgesvx)(const char *fact, const char *trans, const int *n, const int *nrhs, double *A,  const int *lda, double *AF, const int *ldaf, const int *ipiv, char *equed, double *R,double *C, double *B, const int *ldb, double *X, const int *ldx, double *rcond, double *ferr, double *berr, double *work, int *iwork, int *info);
+extern "C" void FORNAME(zgesvx)(const char *fact, const char *trans, const FINT *n, const FINT *nrhs, complex<double> *A,  const FINT *lda, complex<double> *AF, const FINT *ldaf, const FINT *ipiv, char *equed, double *R,double *C, complex<double> *B, const FINT *ldb, complex<double> *X, const FINT *ldx, double *rcond, double *ferr, double *berr, complex<double> *work, double *rwork, FINT *info);
+extern "C" void FORNAME(dgesvx)(const char *fact, const char *trans, const FINT *n, const FINT *nrhs, double *A,  const FINT *lda, double *AF, const FINT *ldaf, const FINT *ipiv, char *equed, double *R,double *C, double *B, const FINT *ldb, double *X, const FINT *ldx, double *rcond, double *ferr, double *berr, double *work, FINT *iwork, FINT *info);
 //------------------------------------------------------------------------------
 // solves set of linear equations using dgesvx
 // input:
@@ -270,18 +274,18 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 	double *A;
 	double * const _A_data = (double*)_A;
 
-	int info;
-	const int nrhs	= _rhsCount;
-	const int n	= _eqCount;
-	int lda		= A_cols;
-	const int ldaf	= lda;
+	FINT info;
+	const FINT nrhs	= _rhsCount;
+	const FINT n	= _eqCount;
+	FINT lda	= A_cols;
+	const FINT ldaf	= lda;
 
 	double rcond;
 	double ferr[nrhs], berr[nrhs], work[4*n];
 	double R[n], C[n];
 
-	int *const iwork = new int[n];
-	int *const ipiv  = new int[n];
+	FINT *const iwork = new FINT[n];
+	FINT *const ipiv  = new FINT[n];
 
 	double *X  = new double[n*nrhs];
 	double *AF = new double[ldaf*n];
@@ -303,7 +307,7 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 	}
 
 	FORNAME(dgesvx)(&fact, &trans, &n, &nrhs, A, &lda, AF, &ldaf, &ipiv[0], &equed, &R[0], &C[0], _B, &n, X, &n, &rcond, ferr, berr, work, iwork, &info);
-
+	
 	if(_rcond)*_rcond = rcond;
 	cblas_dcopy(n*nrhs, X, 1, _B, 1);//store the solution
 
@@ -312,7 +316,7 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 	if(_saveA){
 		delete[] A;
 	}
-	return info;
+	return (int)info;
 }
 //------------------------------------------------------------------------------
 // solves set of linear equations using zgesvx
@@ -343,18 +347,18 @@ int linear_solve_x(NRMat<complex<double> > &_A, complex<double> *_B, const int _
 	complex<double> *A;
 	complex<double> * const _A_data = (complex<double>*)_A;
 
-	int info;
-	const int nrhs	= _rhsCount;
-	const int n	= _eqCount;
-	int lda		= A_cols;
-	const int ldaf	= lda;
+	FINT info;
+	const FINT nrhs	= _rhsCount;
+	const FINT n	= _eqCount;
+	FINT lda	= A_cols;
+	const FINT ldaf	= lda;
 
 	double rcond;
 	double ferr[nrhs], berr[nrhs];
 	double R[n], C[n], rwork[2*n];
 	complex<double> work[2*n];
 
-	int *const ipiv = new int[n];
+	FINT *const ipiv = new FINT[n];
 
 	complex<double> *X  = new complex<double>[n*nrhs];
 	complex<double> *AF = new complex<double>[ldaf*n];
@@ -386,7 +390,7 @@ int linear_solve_x(NRMat<complex<double> > &_A, complex<double> *_B, const int _
 	if(_saveA){
 		delete[] A;
 	}
-	return info;
+	return (int)info;
 }
 //------------------------------------------------------------------------------
 // for given square matrices A, B computes X = AB^{-1} as follows
@@ -402,8 +406,8 @@ int linear_solve_x(NRMat<complex<double> > &_A, complex<double> *_B, const int _
 //------------------------------------------------------------------------------
 int multiply_by_inverse(NRMat<double> &_A, NRMat<double> &_B, bool _useEq, double *_rcond){
 	
-	const int n = _A.nrows();
-	const int m = _A.ncols();
+	const FINT n = _A.nrows();
+	const FINT m = _A.ncols();
 	if(n != m || n != _B.nrows() || n != _B.ncols()){
 		laerror("multiply_by_inverse: incompatible matrices");
 	}
@@ -417,13 +421,13 @@ int multiply_by_inverse(NRMat<double> &_A, NRMat<double> &_B, bool _useEq, doubl
 	double * const B = (double*)_B;
 	_B.copyonwrite();//even if fact='N', call copyonwrite because the solution is going to be stored in _B
 
-	int info;
+	FINT info;
 	double rcond;
 	double ferr[n], berr[n], work[4*n];
 	double R[n], C[n];
 
-	int *const iwork = new int[n];
-	int *const ipiv  = new int[n];
+	FINT *const iwork = new FINT[n];
+	FINT *const ipiv  = new FINT[n];
 
 	double *X  = new double[n2];
 	double *AF = new double[n2];
@@ -437,7 +441,7 @@ int multiply_by_inverse(NRMat<double> &_A, NRMat<double> &_B, bool _useEq, doubl
 	delete[] iwork;delete[] ipiv;
 	delete[] AF;delete[] X;
 	
-	return info;
+	return (int)info;
 }
 //------------------------------------------------------------------------------
 // for given square matrices A, B computes X = AB^{-1} as follows
@@ -453,8 +457,8 @@ int multiply_by_inverse(NRMat<double> &_A, NRMat<double> &_B, bool _useEq, doubl
 //------------------------------------------------------------------------------
 int multiply_by_inverse(NRMat<complex<double> > &_A, NRMat<complex<double> > &_B, bool _useEq, double *_rcond){
 	
-	const int n = _A.nrows();
-	const int m = _A.ncols();
+	const FINT n = _A.nrows();
+	const FINT m = _A.ncols();
 	if(n != m || n != _B.nrows() || n != _B.ncols()){
 		laerror("multiply_by_inverse: incompatible matrices");
 	}
@@ -468,13 +472,13 @@ int multiply_by_inverse(NRMat<complex<double> > &_A, NRMat<complex<double> > &_B
 	complex<double> * const B = (complex<double>*)_B;
 	_B.copyonwrite();//even if fact='N', call copyonwrite because the solution is going to be stored in _B
 
-	int info;
+	FINT info;
 	double rcond;
 	double ferr[n], berr[n];
 	double R[n], C[n], rwork[2*n];
 	complex<double> work[2*n];
 
-	int *const ipiv = new int[n];
+	FINT *const ipiv = new FINT[n];
 
 	complex<double> *X  = new complex<double>[n2];
 	complex<double> *AF = new complex<double>[n2];
@@ -488,24 +492,24 @@ int multiply_by_inverse(NRMat<complex<double> > &_A, NRMat<complex<double> > &_B
 	delete[] ipiv;
 	delete[] AF;delete[] X;
 	
-	return info;
+	return (int)info;
 }
 //------------------------------------------------------------------------------
 
 
 
-extern "C" void FORNAME(dsyev)(const char *JOBZ, const char *UPLO, const int *N,
-		double *A, const int *LDA, double *W, double *WORK, const int *LWORK, int *INFO);
+extern "C" void FORNAME(dsyev)(const char *JOBZ, const char *UPLO, const FINT *N,
+		double *A, const FINT *LDA, double *W, double *WORK, const FINT *LWORK, FINT *INFO);
 
-extern "C" void FORNAME(dsygv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
-                double *A, const int *LDA, double *B, const int *LDB, double *W, double *WORK, const int *LWORK, int *INFO);
+extern "C" void FORNAME(dsygv)(const FINT *ITYPE, const char *JOBZ, const char *UPLO, const FINT *N,
+                double *A, const FINT *LDA, double *B, const FINT *LDB, double *W, double *WORK, const FINT *LWORK, FINT *INFO);
 
 
 // a will contain eigenvectors (columns if corder==1), w eigenvalues
 void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec, 
 		const bool corder, int n, NRMat<double> *b, const int itype)
 {
-	int m = a.nrows();
+	FINT m = a.nrows();
 	if (m != a.ncols()) laerror("diagonalize() call with non-square matrix");
 	if (a.nrows() != w.size()) 
 		laerror("inconsistent dimension of eigenvalue vector in diagonalize()");
@@ -517,22 +521,38 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 	w.copyonwrite();
 	if(b) b->copyonwrite();
 
-	int r = 0;
+	FINT r = 0;
 	char U ='U';
 	char vectors = 'V';
 	if (!eivec) vectors = 'N';
-	int LWORK = -1;
+	FINT LWORK = -1;
 	double WORKX;
-	int ldb=0; if(b) ldb=b->ncols();
+	FINT ldb=0; if(b) ldb=b->ncols();
 
+#ifdef FORINT
+        const FINT itypetmp = itype;
+	FINT ntmp = n;
+	// First call is to determine size of workspace
+	if(b) FORNAME(dsygv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, &WORKX, &LWORK, &r );
+	else FORNAME(dsyev)(&vectors, &U, &ntmp, a, &m, w, &WORKX, &LWORK, &r );
+#else
 	// First call is to determine size of workspace
 	if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, &r );
 	else FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, &WORKX, &LWORK, &r );
-	LWORK = (int)WORKX;
+#endif
+
+        LWORK = (FINT)WORKX;
 	double *WORK = new double[LWORK];
-	if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, &r );
+
+#ifdef FORINT
+	if(b) FORNAME(dsygv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, &WORKX, &LWORK, &r );
+        else FORNAME(dsyev)(&vectors, &U, &ntmp, a, &m, w, &WORKX, &LWORK, &r );
+#else
+        if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, &r );
 	else FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, &r );
-	delete[] WORK;
+#endif
+
+        delete[] WORK;
 	if (vectors == 'V' && corder) a.transposeme(n);
 
 	if (r < 0) laerror("illegal argument in sygv/syev in diagonalize()");
@@ -541,18 +561,18 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 
 
 
-extern "C" void FORNAME(zheev)(const char *JOBZ, const char *UPLO, const int *N,
-		complex<double> *A, const int *LDA, double *W, complex<double> *WORK, const int *LWORK, double *RWORK, int *INFO);
+extern "C" void FORNAME(zheev)(const char *JOBZ, const char *UPLO, const FINT *N,
+		complex<double> *A, const FINT *LDA, double *W, complex<double> *WORK, const FINT *LWORK, double *RWORK, FINT *INFO);
 
-extern "C" void FORNAME(zhegv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
-                complex<double> *A, const int *LDA, complex<double> *B, const int *LDB, double *W, complex<double> *WORK, const int *LWORK, double *RWORK, int *INFO);
+extern "C" void FORNAME(zhegv)(const FINT *ITYPE, const char *JOBZ, const char *UPLO, const FINT *N,
+                complex<double> *A, const FINT *LDA, complex<double> *B, const FINT *LDB, double *W, complex<double> *WORK, const FINT *LWORK, double *RWORK, FINT *INFO);
 
 
 // a will contain eigenvectors (columns if corder==1), w eigenvalues
 void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec, 
 		const bool corder, int n, NRMat<complex<double> > *b, const int itype)
 {
-	int m = a.nrows();
+	FINT m = a.nrows();
 	if (m != a.ncols()) laerror("diagonalize() call with non-square matrix");
 	if (a.nrows() != w.size()) 
 		laerror("inconsistent dimension of eigenvalue vector in diagonalize()");
@@ -564,23 +584,38 @@ void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec,
 	w.copyonwrite();
 	if(b) b->copyonwrite();
 
-	int r = 0;
+	FINT r = 0;
 	char U ='U';
 	char vectors = 'V';
 	if (!eivec) vectors = 'N';
-	int LWORK = -1;
+	FINT LWORK = -1;
 	complex<double> WORKX;
-	int ldb=0; if(b) ldb=b->ncols();
+	FINT ldb=0; if(b) ldb=b->ncols();
 
 	// First call is to determine size of workspace
 	double *RWORK = new double[3*n+2]; 
-	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, RWORK, &r );
+#ifdef FORINT
+        const FINT itypetmp = itype;
+	FINT ntmp = n;
+        if(b) FORNAME(zhegv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, &WORKX, &LWORK, RWORK, &r );
+	else FORNAME(zheev)(&vectors, &U, &ntmp, a, &m, w, &WORKX, &LWORK, RWORK, &r );
+#else
+        if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b, &ldb, w, &WORKX, &LWORK, RWORK, &r );
 	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, &WORKX, &LWORK, RWORK, &r );
-	LWORK = (int)WORKX.real();
+#endif	
+
+        LWORK = (FINT)WORKX.real();
 	complex<double> *WORK = new complex<double>[LWORK];
-	if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, RWORK, &r );
+
+#ifdef FORINT
+        if(b) FORNAME(zhegv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, &WORKX, &LWORK, RWORK, &r );
+        else FORNAME(zheev)(&vectors, &U, &ntmp, a, &m, w, &WORKX, &LWORK, RWORK, &r );
+#else	
+        if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, RWORK, &r );
 	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, RWORK, &r );
-	delete[] WORK;
+#endif	
+
+        delete[] WORK;
 	delete[] RWORK;
 	if (vectors == 'V' && corder) a.transposeme(n);
 
@@ -590,11 +625,11 @@ void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec,
 
 
 
-extern "C" void FORNAME(dspev)(const char *JOBZ, const char *UPLO, const int *N,
-		double *AP, double *W, double *Z, const int *LDZ, double *WORK, int *INFO);
+extern "C" void FORNAME(dspev)(const char *JOBZ, const char *UPLO, const FINT *N,
+		double *AP, double *W, double *Z, const FINT *LDZ, double *WORK, FINT *INFO);
 
-extern "C" void FORNAME(dspgv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
-                double *AP, double *BP, double *W, double *Z, const int *LDZ, double *WORK, int *INFO);
+extern "C" void FORNAME(dspgv)(const FINT *ITYPE, const char *JOBZ, const char *UPLO, const FINT *N,
+                double *AP, double *BP, double *W, double *Z, const FINT *LDZ, double *WORK, FINT *INFO);
 
 
 // v will contain eigenvectors, w eigenvalues
@@ -613,14 +648,21 @@ void diagonalize(NRSMat<double> &a, NRVec<double> &w, NRMat<double> *v,
 	if(v) v->copyonwrite();
 	if(b) b->copyonwrite();
 
-	int r = 0;
+	FINT r = 0;
 	char U = 'U';
 	char job = v ? 'v' : 'n';
 
 	double *WORK = new double[3*n];
-	int ldv=v?v->ncols():n;
-	if(b) FORNAME(dspgv)(&itype,&job, &U, &n, a, *b, w, v?(*v)[0]:(double *)0, &ldv, WORK,  &r );
+	FINT ldv=v?v->ncols():n;
+#ifdef FORINT
+        const FINT itypetmp = itype;
+	FINT ntmp = n;
+        if(b) FORNAME(dspgv)(&itypetmp,&job, &U, &ntmp, a, *b, w, v?(*v)[0]:(double *)0, &ldv, WORK,  &r );
+	else FORNAME(dspev)(&job, &U, &ntmp, a, w, v?(*v)[0]:(double *)0, &ldv, WORK,  &r );
+#else
+        if(b) FORNAME(dspgv)(&itype,&job, &U, &n, a, *b, w, v?(*v)[0]:(double *)0, &ldv, WORK,  &r );
 	else FORNAME(dspev)(&job, &U, &n, a, w, v?(*v)[0]:(double *)0, &ldv, WORK,  &r );
+#endif
 	delete[] WORK;
 	if (v && corder) v->transposeme(n);
 
@@ -629,11 +671,11 @@ void diagonalize(NRSMat<double> &a, NRVec<double> &w, NRMat<double> *v,
 }
 
 
-extern "C" void FORNAME(zhpev)(const char *JOBZ, const char *UPLO, const int *N,
-		complex<double> *AP, double *W, complex<double> *Z, const int *LDZ, complex<double> *WORK, double *RWORK, int *INFO);
+extern "C" void FORNAME(zhpev)(const char *JOBZ, const char *UPLO, const FINT *N,
+		complex<double> *AP, double *W, complex<double> *Z, const FINT *LDZ, complex<double> *WORK, double *RWORK, FINT *INFO);
 
-extern "C" void FORNAME(zhpgv)(const int *ITYPE, const char *JOBZ, const char *UPLO, const int *N,
-                complex<double> *AP, complex<double> *BP, double *W, complex<double> *Z, const int *LDZ, complex<double> *WORK,  double *RWORK, int *INFO);
+extern "C" void FORNAME(zhpgv)(const FINT *ITYPE, const char *JOBZ, const char *UPLO, const FINT *N,
+                complex<double> *AP, complex<double> *BP, double *W, complex<double> *Z, const FINT *LDZ, complex<double> *WORK,  double *RWORK, FINT *INFO);
 
 
 // v will contain eigenvectors, w eigenvalues
@@ -652,15 +694,22 @@ void diagonalize(NRSMat<complex<double> > &a, NRVec<double> &w, NRMat<complex<do
 	if(v) v->copyonwrite();
 	if(b) b->copyonwrite();
 
-	int r = 0;
+	FINT r = 0;
 	char U = 'U';
 	char job = v ? 'v' : 'n';
 
 	complex<double> *WORK = new complex<double>[2*n];
 	double *RWORK  = new double[3*n];
-	int ldv=v?v->ncols():n;
+	FINT ldv=v?v->ncols():n;
+#ifdef FORINT	
+        const FINT itypetmp = itype;
+        FINT ntmp = n;
+	if(b) FORNAME(zhpgv)(&itypetmp,&job, &U, &ntmp, a, *b, w, v?(*v)[0]:(complex<double> *)0, &ldv, WORK, RWORK,  &r );
+	else FORNAME(zhpev)(&job, &U, &ntmp, a, w, v?(*v)[0]:(complex<double> *)0, &ldv, WORK, RWORK,  &r );
+#else
 	if(b) FORNAME(zhpgv)(&itype,&job, &U, &n, a, *b, w, v?(*v)[0]:(complex<double> *)0, &ldv, WORK, RWORK,  &r );
 	else FORNAME(zhpev)(&job, &U, &n, a, w, v?(*v)[0]:(complex<double> *)0, &ldv, WORK, RWORK,  &r );
+#endif
 	delete[] WORK;
 	delete[] RWORK;
 	if (v && corder) v->transposeme(n);
@@ -671,17 +720,17 @@ void diagonalize(NRSMat<complex<double> > &a, NRVec<double> &w, NRMat<complex<do
 
 
 
-extern "C" void FORNAME(dgesvd)(const char *JOBU,  const char *JOBVT,  const int *M,
-		const int *N,  double *A, const int *LDA, double *S, double *U, const int *LDU,
-		double *VT, const int *LDVT, double *WORK, const int *LWORK, int *INFO );
+extern "C" void FORNAME(dgesvd)(const char *JOBU,  const char *JOBVT,  const FINT *M,
+		const FINT *N,  double *A, const FINT *LDA, double *S, double *U, const FINT *LDU,
+		double *VT, const FINT *LDVT, double *WORK, const FINT *LWORK, FINT *INFO );
 
 void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s,
 		NRMat<double> *v, const bool corder, int m, int n)
 {
-	int m0 = a.nrows();
-	int n0 = a.ncols();
-	if(m<=0) m=m0;
-	if(n<=0) n=n0;
+	FINT m0 = a.nrows();
+	FINT n0 = a.ncols();
+	if(m<=0) m=(int)m0;
+	if(n<=0) n=(int)n0;
 	if(n>n0 || m>m0) laerror("bad dimension in singular_decomposition");
 	if (u) if (m > u->nrows() || m> u->ncols())
 		laerror("inconsistent dimension of U Mat in singular_decomposition()");
@@ -700,14 +749,30 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 	char jobu = u ? 'A' : 'N';
 	char jobv = v ? 'A' : 'N';
 	double work0;
-	int lwork = -1;
-	int r;
+	FINT lwork = -1;
+	FINT r;
+
+#ifdef FORINT
+        FINT ntmp = n;
+	FINT mtmp = m;
+	FORNAME(dgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, &work0, &lwork, &r);
+#else
 	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
 			u?(*u)[0]:0, &m0, &work0, &lwork, &r);
-	lwork = (int) work0;
+#endif
+
+	lwork = (FINT) work0;
 	double *work = new double[lwork];
+
+#ifdef FORINT
+	FORNAME(dgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, work, &lwork, &r);
+#else
 	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
 			u?(*u)[0]:0, &m0, work, &lwork, &r);
+#endif
+
 	delete[] work;
 	if (v && corder) v->transposeme(n);
 
@@ -719,14 +784,14 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 //extern "C" void FORNAME(dgeqrf)(const int *M, const int *N, double *A, const int *LDA, double *TAU, double *WORK, int *LWORK, int *INFO);
 
 
-extern "C" void FORNAME(dgeev)(const char *JOBVL, const char *JOBVR, const int *N,
-		double *A, const int *LDA, double *WR, double *WI, double *VL, const int *LDVL,
-		double *VR, const int *LDVR, double *WORK, const int *LWORK, int *INFO );
+extern "C" void FORNAME(dgeev)(const char *JOBVL, const char *JOBVR, const FINT *N,
+		double *A, const FINT *LDA, double *WR, double *WI, double *VL, const FINT *LDVL,
+		double *VR, const FINT *LDVR, double *WORK, const FINT *LWORK, FINT *INFO );
 
-extern "C" void FORNAME(dggev)(const char *JOBVL, const char *JOBVR, const int *N,
-		double *A, const int *LDA, double *B, const int *LDB, double *WR, double *WI,  double *WBETA, 
-		 double *VL, const int *LDVL,  double *VR, const int *LDVR,  
-		double *WORK, const int *LWORK, int *INFO );
+extern "C" void FORNAME(dggev)(const char *JOBVL, const char *JOBVR, const FINT *N,
+		double *A, const FINT *LDA, double *B, const FINT *LDB, double *WR, double *WI,  double *WBETA, 
+		 double *VL, const FINT *LDVL,  double *VR, const FINT *LDVR,  
+		double *WORK, const FINT *LWORK, FINT *INFO );
 
 
 //statics for sorting
@@ -802,23 +867,41 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 	char jobvl = vl ? 'V' : 'N';
 	char jobvr = vr ? 'V' : 'N';
 	double work0;
-	int lwork = -1;
-	int r;
-	int lda=a.ncols();
-	int ldb=0;
+	FINT lwork = -1;
+	FINT r;
+	FINT lda=a.ncols();
+	FINT ldb=0;
 	if(b) ldb=b->ncols();
-	int ldvl= vl?vl->ncols():lda;
-	int ldvr= vr?vr->ncols():lda;
-	if(b)  FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
+	FINT ldvl= vl?vl->ncols():lda;
+	FINT ldvr= vr?vr->ncols():lda;
+
+#ifdef FORINT
+        FINT ntmp = n; 
+        if(b)  FORNAME(dggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
+                        &ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &ntmp, a, &lda, wr, wi, vr?vr[0]:(double *)0,
+			&ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+#else
+        if(b)  FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
                         &ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
 	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
 			&ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
-	lwork = (int) work0;
+#endif
+
+        lwork = (FINT) work0;
 	double *work = new double[lwork];
+
+#ifdef FORINT	
+	if(b) FORNAME(dggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
+                        &ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &ntmp, a, &lda, wr, wi, vr?vr[0]:(double *)0,
+			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
+#else
 	if(b) FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
                         &ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
 	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
 			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
+#endif
 	delete[] work;
 
 //std::cout <<"TEST dgeev\n"<<wr<<wi<<*vr<<*vl<<std::endl;
@@ -1208,16 +1291,16 @@ return r;
 
 
 //Cholesky interface
-extern "C" void FORNAME(dpotrf)(const char *UPLO, const int *N, double *A, const int *LDA, int *INFO);
-extern "C" void FORNAME(zpotrf)(const char *UPLO, const int *N, complex<double> *A, const int *LDA, int *INFO);
+extern "C" void FORNAME(dpotrf)(const char *UPLO, const FINT *N, double *A, const FINT *LDA, FINT *INFO);
+extern "C" void FORNAME(zpotrf)(const char *UPLO, const FINT *N, complex<double> *A, const FINT *LDA, FINT *INFO);
 
 void cholesky(NRMat<double> &a, bool upper)
 {
 if(a.nrows()!=a.ncols()) laerror("matrix must be square in Cholesky");
-int lda=a.ncols();
-int n=a.nrows();
+FINT lda=a.ncols();
+FINT n=a.nrows();
 char uplo=upper?'U':'L';
-int info;
+FINT info;
 a.copyonwrite();
 FORNAME(dpotrf)(&uplo, &n, a, &lda, &info);
 if(info) {std::cerr << "Lapack error "<<info<<std::endl; laerror("error in Cholesky");}
@@ -1233,10 +1316,10 @@ else
 void cholesky(NRMat<complex<double> > &a, bool upper)
 {
 if(a.nrows()!=a.ncols()) laerror("matrix must be square in Cholesky");
-int lda=a.ncols();
-int n=a.nrows();
+FINT lda=a.ncols();
+FINT n=a.nrows();
 char uplo=upper?'U':'L';
-int info;
+FINT info;
 a.copyonwrite();
 a.transposeme();//switch to Fortran order
 FORNAME(zpotrf)(&uplo, &n, a, &lda, &info);
@@ -1250,14 +1333,14 @@ else
 
 
 //various norms
-extern "C" double FORNAME(zlange)( const char *NORM, const int *M, const int *N, complex<double> *A, const int *LDA, double *WORK); 
-extern "C" double FORNAME(dlange)( const char *NORM, const int *M, const int *N, double *A, const int *LDA, double *WORK); 
+extern "C" double FORNAME(zlange)( const char *NORM, const FINT *M, const FINT *N, complex<double> *A, const FINT *LDA, double *WORK); 
+extern "C" double FORNAME(dlange)( const char *NORM, const FINT *M, const FINT *N, double *A, const FINT *LDA, double *WORK); 
 
 double MatrixNorm(NRMat<complex<double> > &A, const char norm)
 {
         const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
-        const int M = A.nrows();
-        const int N = A.ncols();
+        const FINT M = A.nrows();
+        const FINT N = A.ncols();
         double work[M];
         const double ret = FORNAME(zlange)(&TypNorm, &M, &N, A[0], &M, &work[0]);
         return ret;
@@ -1266,8 +1349,8 @@ double MatrixNorm(NRMat<complex<double> > &A, const char norm)
 double MatrixNorm(NRMat<double > &A, const char norm)
 {
         const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
-        const int M = A.nrows();
-        const int N = A.ncols();
+        const FINT M = A.nrows();
+        const FINT N = A.ncols();
         double work[M];
         const double ret = FORNAME(dlange)(&TypNorm, &M, &N, A[0], &M, &work[0]);
         return ret;
@@ -1276,15 +1359,15 @@ double MatrixNorm(NRMat<double > &A, const char norm)
 
 
 //condition number
-extern "C" void FORNAME(zgecon)( const char *norm, const int *n, complex<double> *A, const int *LDA, const double *anorm, double *rcond, complex<double> *work, double *rwork, int *info);
-extern "C" void FORNAME(dgecon)( const char *norm, const int *n, double *A, const int *LDA, const double *anorm, double *rcond, double *work, double *rwork, int *info);
+extern "C" void FORNAME(zgecon)( const char *norm, const FINT *n, complex<double> *A, const FINT *LDA, const double *anorm, double *rcond, complex<double> *work, double *rwork, FINT *info);
+extern "C" void FORNAME(dgecon)( const char *norm, const FINT *n, double *A, const FINT *LDA, const double *anorm, double *rcond, double *work, double *rwork, FINT *info);
 
 double CondNumber(NRMat<complex<double> > &A, const char norm)
 {
         const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
-        const int N = A.nrows();
+        const FINT N = A.nrows();
         double Norma(0.0), ret(0.0);
-        int info;
+        FINT info;
         complex<double> *work;
         double *rwork;
 
@@ -1305,9 +1388,9 @@ double CondNumber(NRMat<complex<double> > &A, const char norm)
 double CondNumber(NRMat<double> &A, const char norm)
 {
         const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
-        const int N = A.nrows();
+        const FINT N = A.nrows();
         double Norma(0.0), ret(0.0);
-        int info;
+        FINT info;
         double *work;
         double *rwork;
 

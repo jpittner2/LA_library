@@ -25,12 +25,18 @@
 #include <errno.h>
 #include <stdarg.h>
 
+#include "cuda_la.h"
 
 #ifdef USE_TRACEBACK
 #include "traceback.h"
 #endif
 
 namespace LA {
+
+//enforce GPU initialization by a global class instantization constructor
+#ifdef CUDALA
+GPU_START gpu_start_instant;
+#endif
 
 bool _LA_count_check=true;
 
@@ -45,6 +51,13 @@ void laerror(const char *s1)
     std::cerr << s1  << "\n";
     std::cout << s1  << "\n";
   }
+#ifdef CUDALA
+{
+cublasStatus s=cublasGetError();
+std::cerr << "CUBLAS status = "<<s<<std::endl;
+std::cout << "CUBLAS status = "<<s<<std::endl;
+}
+#endif
   if(errno) perror("system error");
 
 throw LAerror(s1); 

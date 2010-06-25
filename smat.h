@@ -29,12 +29,20 @@ protected:
 	int nn;
 	T *v;
 	int *count;
+#ifdef CUDALA
+       GPUID location;
+#endif
 public:
 	friend class NRVec<T>;
 	friend class NRMat<T>;
 	
-	inline NRSMat() : nn(0),v(0),count(0) {};
-	inline explicit NRSMat(const int n);			// Zero-based array
+	inline NRSMat() : nn(0),v(0),count(0) 
+                        {
+#ifdef CUDALA
+                        location = DEFAULT_LOC;
+#endif
+                        };
+	inline explicit NRSMat(const int n, const GPUID loc= undefined);// Zero-based array
 	inline NRSMat(const T &a, const int n);	//Initialize to constant
 	inline NRSMat(const T *a, const int n);	// Initialize to array
 	inline NRSMat(const NRSMat &rhs);		// Copy constructor
@@ -45,6 +53,13 @@ public:
 	NRSMat & operator=(const NRSMat &rhs);	//assignment
         void randomize(const typename LA_traits<T>::normtype &x);
 	NRSMat & operator=(const T &a);		//assign a to diagonal
+#ifdef CUDALA
+        inline GPUID getlocation() const {return location;}
+        void moveto(const GPUID dest);
+#else
+        inline GPUID getlocation() const {return cpu;}
+        void moveto(const GPUID dest) {};
+#endif
         const bool operator!=(const NRSMat &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,NN2);} //memcmp for scalars else elementwise
         const bool operator==(const NRSMat &rhs) const {return !(*this != rhs);};
 	inline NRSMat & operator*=(const T &a);
@@ -65,8 +80,8 @@ public:
 	const NRMat<T> operator*(const NRMat<T> &rhs) const; // SMat*Mat 
 	const T dot(const NRSMat &rhs) const; // Smat.Smat//@@@for complex do conjugate
 	const T dot(const NRVec<T> &rhs) const; //Smat(as vec).vec //@@@for complex do conjugate
-	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
-	const NRVec<complex<T> > operator*(const NRVec<complex<T> > &rhs) const {NRVec<complex<T> > result(nn); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
+	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn,rhs.getlocation()); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
+	const NRVec<complex<T> > operator*(const NRVec<complex<T> > &rhs) const {NRVec<complex<T> > result(nn,rhs.getlocation()); result.gemv((T)0,*this,'n',(T)1,rhs); return result;}; // Mat * Vec
 	const T* diagonalof(NRVec<T> &, const bool divide=0, bool cache=false) const; //get diagonal
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
 	void gemv(const T beta, NRVec<complex<T> > &r, const char trans, const T alpha, const NRVec<complex<T> > &x) const {r.gemv(beta,*this,trans,alpha,x);};
@@ -108,29 +123,63 @@ namespace LA {
 
 // ctors
 template <typename T>
-inline NRSMat<T>::NRSMat(const int n) : nn(n), v(new T[NN2]),
-				count(new int) {*count = 1;}
-
-template <typename T>
-inline NRSMat<T>::NRSMat(const T& a, const int n) : nn(n),
-	        v(new T[NN2]), count(new int)
+inline NRSMat<T>::NRSMat(const int n, const GPUID loc) : nn(n), count(new int(1)) 
 {
-	*count =1;
-	if(a != (T)0) for(int i=0; i<NN2; i++) v[i] = a;
-	else memset(v, 0, NN2*sizeof(T));
+#ifdef CUDALA
+        location= (loc==undefined?DEFAULT_LOC:loc);
+        if(location==cpu)
+#endif
+	v=new T[NN2];
+#ifdef CUDALA
+	else v= (T*) gpualloc(NN2*sizeof(T));
+#endif
 }
 
 template <typename T>
-inline NRSMat<T>::NRSMat(const T *a, const int n) : nn(n),
-	        v(new T[NN2]), count(new int)
+inline NRSMat<T>::NRSMat(const T& a, const int n) : nn(n), count(new int(1))
 {
-	*count = 1;
-	memcpy(v, a, NN2*sizeof(T));
+#ifdef CUDALA
+        location=DEFAULT_LOC;
+	if(location==cpu)
+#endif
+        {
+	v=new T[NN2];
+	if(a != (T)0) for(int i=0; i<NN2; i++) v[i] = a;
+	else memset(v, 0, NN2*sizeof(T));
+	}
+#ifdef CUDALA
+	else
+	{
+	v= (T*) gpualloc(NN2*sizeof(T));
+	cublasSetVector(NN2,sizeof(T),&a,0,v,1);
+	}
+#endif
+}
+
+template <typename T>
+inline NRSMat<T>::NRSMat(const T *a, const int n) : nn(n), count(new int(1))
+{
+#ifdef CUDALA
+        location=DEFAULT_LOC;
+        if(location==cpu)
+#endif
+		memcpy(v, a, NN2*sizeof(T));
+#ifdef CUDALA
+        else
+        {
+        v= (T*) gpualloc(NN2*sizeof(T));
+        cublasSetVector(NN2,sizeof(T),a,1,v,1);
+        }
+#endif
+
 }
 
 template <typename T>
 inline NRSMat<T>::NRSMat(const NRSMat<T> &rhs) //copy constructor
 {
+#ifdef CUDALA
+        location=rhs.location;
+#endif
 	v = rhs.v;
 	nn = rhs.nn;
 	count = rhs.count;
@@ -140,6 +189,9 @@ inline NRSMat<T>::NRSMat(const NRSMat<T> &rhs) //copy constructor
 template <typename T>
 NRSMat<T>::NRSMat(const NRVec<T> &rhs, const int n) // type conversion
 {
+#ifdef CUDALA
+        location=rhs.location;
+#endif
 	nn = n;
 #ifdef DEBUG
 	if (NN2 != rhs.size())
@@ -149,6 +201,7 @@ NRSMat<T>::NRSMat(const NRVec<T> &rhs, const int n) // type conversion
 	v = rhs.v;
 	(*count)++;
 }
+
 
 // S *= a
 template<>
@@ -437,33 +490,31 @@ NRSMat<T>::~NRSMat()
 {
         if (!count) return;
         if (--(*count) <= 0) {
-                if (v) delete[] (v);
+                if (v) 
+		    {
+#ifdef CUDALA
+                    if(location==cpu)
+#endif
+			delete[] v;
+#ifdef CUDALA
+                        else gpufree(v);
+#endif
+                    }
                 delete count;
         }
 }
+
 
 // assignment with a physical copy
 template <typename T>
 NRSMat<T> & NRSMat<T>::operator|=(const NRSMat<T> &rhs)
 {
-        if (this != &rhs) {
-                if(!rhs.v) laerror("unallocated rhs in NRSMat operator |=");
-                if(count)
-                        if(*count > 1) {        // detach from the other
-                                --(*count);
-                                nn = 0;
-                                count = 0;
-                                v = 0;
-                        }
-                if (nn != rhs.nn) {
-                        if(v) delete [] (v);
-                        nn = rhs.nn;
-                }
-                if (!v) v = new T[NN2];
-                if (!count) count = new int;
-                *count = 1;
-                memcpy(v, rhs.v, NN2*sizeof(T));
-        }
+#ifdef DEBUG
+                if (!rhs.v) laerror("unallocated rhs in NRSMat operator |=");
+#endif
+        if (this == &rhs) return *this;
+        *this = rhs;
+        this->copyonwrite();
         return *this;
 }
 
@@ -474,13 +525,24 @@ NRSMat<T> & NRSMat<T>::operator=(const NRSMat<T> & rhs)
 {
         if (this == & rhs) return *this;
         if (count)
-                if(--(*count) == 0) {
-                        delete [] v;
+                if(--(*count) == 0) 
+			{
+#ifdef CUDALA
+        		if(location==cpu)
+#endif
+                        	delete [] v;
+#ifdef CUDALA
+		        else
+               			 gpufree(v);
+#endif
                         delete count;
-                }
+                	}
         v = rhs.v;
         nn = rhs.nn;
         count = rhs.count;
+#ifdef CUDALA
+        location=rhs.location;
+#endif
         if (count) (*count)++;
         return *this;
 }
@@ -495,9 +557,24 @@ void NRSMat<T>::copyonwrite()
                 (*count)--;
                 count = new int;
                 *count = 1;
-                T *newv = new T[NN2];
-                memcpy(newv, v, NN2*sizeof(T));
-                v = newv;
+		T *newv;
+#ifdef CUDALA
+	    if(location==cpu)
+       		 {
+#endif
+                 newv = new T[NN2];
+                 memcpy(newv, v, NN2*sizeof(T));
+#ifdef CUDALA
+	        }
+     	else
+        	{
+        	 newv = (T *) gpualloc(NN2*sizeof(T));
+         	if(sizeof(T)%sizeof(float)!=0) laerror("cpu memcpy alignment problem");
+         	cublasScopy(NN2*sizeof(T)/sizeof(float),(const float *) v,1,(float *)newv,1);
+        	}
+#endif
+
+                 v = newv;
         }
 }
 
@@ -514,7 +591,16 @@ void NRSMat<T>::resize(const int n)
 	    	if(n==0)
 	        {
 	        if(--(*count) <= 0) {
-	                if(v) delete[] (v);
+			if(v) {
+#ifdef CUDALA
+                        if(location==cpu)
+#endif
+		                 delete[] (v);
+#ifdef CUDALA
+                        else
+                                gpufree(v);
+#endif
+			}
 	                delete count;
 	                }
 	        count=0;
@@ -534,15 +620,70 @@ void NRSMat<T>::resize(const int n)
                 count = new int;
                 *count = 1;
                 nn = n;
+#ifdef CUDALA
+     if(location==cpu)
+#endif
                 v = new T[NN2];
+#ifdef CUDALA
+      else
+        v = (T*) gpualloc(NN2*sizeof(T));
+#endif
+
                 return;
         }
         if (n != nn) {
-                nn = n;
-                delete[] v;
-                v = new T[NN2];
+              nn = n;
+#ifdef CUDALA
+	     if(location==cpu)
+#endif
+			{
+                	delete[] v;
+                	v = new T[NN2];
+			}
+#ifdef CUDALA
+	      else
+       			 {
+			 gpufree(v);
+			 v = (T*) gpualloc(NN2*sizeof(T));
+		         }
+#endif
+
         }
 }
+
+#ifdef CUDALA
+template<typename T>
+void NRSMat<T>::moveto(const GPUID dest)
+{
+if(location==dest) return;
+location=dest;
+
+if(v && !count) laerror("internal inconsistency of reference counting 1");
+if (!count) return;
+
+if(v && *count==0) laerror("internal inconsistency of reference counting 2");
+if(!v) return;
+
+T *vold = v;
+
+if(dest == cpu) //moving from GPU to CPU
+        {
+        v = new T[NN2];
+        gpuget(NN2,sizeof(T),vold,v);
+        if(*count == 1) gpufree(vold);
+        else {--(*count); count = new int(1);}
+        }
+else    //moving from CPU to GPU
+        {
+        v=(T *) gpualloc(NN2*sizeof(T));
+        gpuput(NN2,sizeof(T),vold,v);
+        if(*count == 1) delete[] vold;
+        else {--(*count); count = new int(1);}
+        }
+}
+#endif
+
+
 
 
 template<typename T>
@@ -554,10 +695,15 @@ for(int i=0; i<rhs.nrows(); ++i)
 return r;
 }
 
+
 // I/O
 template <typename T>
 std::ostream& operator<<(std::ostream &s, const NRSMat<T> &x)
                 {
+#ifdef CUDALA
+if(x.getlocation()==cpu)
+   {
+#endif
                 int i,j,n;
                 n=x.nrows();
                 s << n << ' ' << n << '\n';
@@ -566,12 +712,25 @@ std::ostream& operator<<(std::ostream &s, const NRSMat<T> &x)
                         for(j=0; j<n;j++) s << (typename LA_traits_io<T>::IOtype)x(i,j) << (j==n-1 ? '\n' : ' ');
                         }
                 return s;
+#ifdef CUDALA
+   }
+else
+    {
+    NRSMat<T> tmp=x;
+    tmp.moveto(cpu);
+    return s<<tmp;
+    }
+#endif
                 }
 
 
 template <typename T>
 std::istream& operator>>(std::istream  &s, NRSMat<T> &x)
                 {
+#ifdef CUDALA
+if(x.getlocation()==cpu)
+  {
+#endif
                 int i,j,n,m;
                 s >> n >> m;
                 if(n!=m) laerror("input symmetric matrix not square");
@@ -579,6 +738,18 @@ std::istream& operator>>(std::istream  &s, NRSMat<T> &x)
 		typename LA_traits_io<T>::IOtype tmp;
                 for(i=0;i<n;i++) for(j=0; j<m;j++) {s>>tmp; x(i,j)=tmp;}
                 return s;
+#ifdef CUDALA
+  }
+else
+                {
+                NRSMat<T> tmp;
+                tmp.moveto(cpu);
+                s >> tmp;
+                tmp.moveto(x.getlocation());
+                x=tmp;
+                return s;
+                }
+#endif
                 }
 
 

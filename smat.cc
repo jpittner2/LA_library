@@ -44,6 +44,16 @@ namespace LA {
 template <typename T>
 void NRSMat<T>::put(int fd, bool dim, bool transp) const
 {
+#ifdef CUDALA
+if(location!=cpu)
+        {
+        NRSMat<T> tmp= *this;
+        tmp.moveto(cpu);
+        tmp.put(fd,dim,transp);
+        return;
+        }
+#endif
+
 errno=0;
 if(dim)
 {
@@ -56,6 +66,18 @@ LA_traits<T>::multiput(NN2,fd,v,dim);
 template <typename T>
 void NRSMat<T>::get(int fd, bool dim, bool transp)
 {
+#ifdef CUDALA
+if(location!=cpu)
+        {
+        NRSMat<T> tmp;
+        tmp.moveto(cpu);
+        tmp.get(fd,dim,transp);
+        tmp.moveto(location);
+        *this = tmp;
+        return;
+        }
+#endif
+
 int nn0[2]; //align at least 8-byte
 errno=0;
 if(dim)
@@ -400,6 +422,9 @@ NRSMat<complex<double> >::NRSMat(const NRSMat<double> &rhs, bool imagpart)
 memset(v,0,nn*(nn+1)/2*sizeof(complex<double>));
 cblas_dcopy(nn*(nn+1)/2,&rhs(0,0),1,((double *)v) + (imagpart?1:0),2);
 }
+
+
+//some template specializations leading to BLAS/CUBLAS calls
 
 
 

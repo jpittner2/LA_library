@@ -30,6 +30,9 @@ template <typename T> void lawritemat(FILE *file,const T *a,int r,int c,
 
 // Memory allocated constants for cblas routines
 const static complex<double> CONE = 1.0, CMONE = -1.0, CZERO = 0.0;
+#ifdef CUDALA
+const static cuDoubleComplex CUONE = {1.,0.}, CUMONE = {-1.,0.}, CUZERO = {0.,0.};
+#endif
 
 // Macros to construct binary operators +,-,*, from +=, -=, *=
 // for 3 cases: X + a, a + X, X + Y
@@ -44,7 +47,7 @@ template<class T> \
 
 #define NRVECMAT_OPER2(E,X) \
 template<class T> \
-	inline const NR##E<T> NR##E<T>::operator X(const NR##E<T> &a) const \
+inline const NR##E<T> NR##E<T>::operator X(const NR##E<T> &a) const \
 { return NR##E(*this) X##= a; }
 
 
@@ -55,12 +58,32 @@ protected:
 	int nn;
 	T *v;
 	int *count;
+#ifdef CUDALA
+	GPUID location;
+#endif
 public:
 	friend class NRSMat<T>;
 	friend class NRMat<T>;
 
-	inline NRVec(): nn(0),v(0),count(0){};
-	explicit inline NRVec(const int n) : nn(n), v(new T[n]), count(new int(1)) {};
+	inline NRVec(): nn(0),v(0),count(0)
+                        {
+#ifdef CUDALA
+                        location = DEFAULT_LOC;
+#endif
+                        };
+	explicit inline NRVec(const int n, const GPUID loc= undefined) : nn(n), count(new int(1)) 
+                        {
+#ifdef CUDALA
+                        if(loc==undefined) location = DEFAULT_LOC; else location = loc;
+			if(location==cpu)
+#endif
+				v= new T[n];
+#ifdef CUDALA
+			else
+				v= (T*) gpualloc(n*sizeof(T));
+#endif
+                        };
+
 	inline NRVec(const T &a, const int n);
         inline NRVec(const T *a, const int n);
 	inline NRVec(T *a, const int n, bool skeleton);
@@ -71,6 +94,13 @@ public:
 	explicit NRVec(const NRMat<T> &rhs) : NRVec(&rhs[0][0],rhs.nrows()*rhs.ncols()) {};
 #else
 	explicit NRVec(const NRMat<T> &rhs);
+#endif
+#ifdef CUDALA
+        inline GPUID getlocation() const {return location;}
+        void moveto(const GPUID dest);
+#else
+        inline GPUID getlocation() const {return cpu;}
+        void moveto(const GPUID dest) {};
 #endif
 	NRVec & operator=(const NRVec &rhs);
 	NRVec & operator=(const T &a);  //assign a to every element
@@ -103,8 +133,8 @@ public:
 	void gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x,const bool treat_as_symmetric=false);
 	void gemv(const typename LA_traits_complex<T>::Component_type beta, const typename LA_traits_complex<T>::NRMat_Noncomplex_type &a, const char trans, const typename LA_traits_complex<T>::Component_type alpha, const NRVec &x);
 	void gemv(const typename LA_traits_complex<T>::Component_type beta, const typename LA_traits_complex<T>::NRSMat_Noncomplex_type &a, const char trans, const typename LA_traits_complex<T>::Component_type alpha, const NRVec &x);
-	const NRVec operator*(const NRMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
-	const NRVec operator*(const NRSMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
+	const NRVec operator*(const NRMat<T> &mat) const {NRVec<T> result(mat.ncols(),mat.getlocation()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
+	const NRVec operator*(const NRSMat<T> &mat) const {NRVec<T> result(mat.ncols(),mat.getlocation()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRVec operator*(const SparseMat<T> &mat) const {NRVec<T> result(mat.ncols()); result.gemv((T)0,mat,'t',(T)1,*this); return result;};
 	const NRMat<T> otimes(const NRVec<T> &rhs, const bool conjugate=false, const T &scale=1) const; //outer product
 	inline const NRMat<T> operator|(const NRVec<T> &rhs) const {return otimes(rhs,true);};
@@ -150,29 +180,58 @@ public:
 #include "sparsemat.h"
 #include "sparsesmat.h"
 
+
+
 namespace LA {
 // formatted I/O
 template <typename T>
 std::ostream & operator<<(std::ostream &s, const NRVec<T> &x)
 {
+#ifdef CUDALA
+if(x.getlocation()==cpu)
+   {
+#endif
   int i, n;
-
   n = x.size();
   s << n << std::endl;
   for(i=0; i<n; i++) s << (typename LA_traits_io<T>::IOtype)x[i] << (i == n-1 ? '\n' : ' ');
   return s;
+#ifdef CUDALA
+   }
+else
+    {
+    NRVec<T> tmp=x;
+    tmp.moveto(cpu);
+    return s<<tmp;
+    }
+#endif
 }
 
 template <typename T>
 std::istream & operator>>(std::istream &s, NRVec<T> &x)
 {
+#ifdef CUDALA
+if(x.getlocation()==cpu)
+  {
+#endif
   int i,n;
-
   s >> n;
   x.resize(n);
   typename LA_traits_io<T>::IOtype tmp;
   for(i=0; i<n; i++) {s >> tmp; x[i]=tmp;}
   return s;
+#ifdef CUDALA
+  }
+else
+                {
+                NRVec<T> tmp;
+                tmp.moveto(cpu);
+                s >> tmp;
+                tmp.moveto(x.getlocation());
+                x=tmp;
+                return s;
+                }
+#endif
 }
 
 
@@ -180,22 +239,51 @@ std::istream & operator>>(std::istream &s, NRVec<T> &x)
 
 // ctors
 template <typename T>
-inline NRVec<T>::NRVec(const T& a, const int n) : nn(n), v(new T[n]), count(new int)
+inline NRVec<T>::NRVec(const T& a, const int n) : nn(n), count(new int)
 {
 	*count = 1;
+#ifdef CUDALA
+	location=DEFAULT_LOC;
+    if(location==cpu)
+	{
+#endif
+	v = new T[n];
 	if(a != (T)0)
 		for(int i=0; i<n; i++)
 			v[i] = a;
 	else
 		memset(v, 0, nn*sizeof(T));
+#ifdef CUDALA
+	}
+    else
+	{
+	v= (T*) gpualloc(n*sizeof(T));	
+	cublasSetVector(n,sizeof(T),&a,0,v,1);
+	}
+#endif
 }
+
 
 template <typename T>
 inline NRVec<T>::NRVec(const T *a, const int n) : nn(n), count(new int)
 {
-		v=new T[n];
-		*count = 1;
-		memcpy(v, a, n*sizeof(T));
+#ifdef CUDALA
+location=DEFAULT_LOC;
+    if(location==cpu)
+        {
+#endif
+	v=new T[n];
+	*count = 1;
+	memcpy(v, a, n*sizeof(T));
+#ifdef CUDALA
+        }
+    else
+        {
+        v= (T*) gpualloc(n*sizeof(T));
+        cublasSetVector(n,sizeof(T),a,1,v,1);
+        }
+#endif
+
 }
 
 template <typename T>
@@ -203,12 +291,28 @@ inline NRVec<T>::NRVec(T *a, const int n, bool skeleton) : nn(n), count(new int)
 {
 	if(!skeleton)
 		{
+#ifdef CUDALA
+location=DEFAULT_LOC;
+    if(location==cpu)
+        {
+#endif
 		v=new T[n];
 		*count = 1;
 		memcpy(v, a, n*sizeof(T));
+#ifdef CUDALA
+        }
+    else
+        {
+        v= (T*) gpualloc(n*sizeof(T));
+        cublasSetVector(n,sizeof(T),a,1,v,1);
+        }
+#endif
 		}
 	else
 		{
+#ifdef CUDALA
+		if(location!=cpu) laerror("NRVec() with skeleton option cannot be on GPU");
+#endif
 		*count = 2;
 		v=a;
 		}
@@ -217,6 +321,9 @@ inline NRVec<T>::NRVec(T *a, const int n, bool skeleton) : nn(n), count(new int)
 template <typename T>
 inline NRVec<T>::NRVec(const NRVec<T> &rhs)
 {
+#ifdef CUDALA
+	location=rhs.location;
+#endif
 	v = rhs.v;
 	nn = rhs.nn;
 	count = rhs.count;
@@ -226,6 +333,9 @@ inline NRVec<T>::NRVec(const NRVec<T> &rhs)
 template <typename T>
 inline NRVec<T>::NRVec(const NRSMat<T> &rhs)
 {
+#ifdef CUDALA
+        location=rhs.location;
+#endif
 	nn = rhs.nn;
 	nn = NN2;
 	v = rhs.v;
@@ -233,28 +343,11 @@ inline NRVec<T>::NRVec(const NRSMat<T> &rhs)
 	(*count)++;
 }
 
-// x += a
-template<>
-inline NRVec<double> & NRVec<double>::operator+=(const double &a)
-{
-	copyonwrite();
-	cblas_daxpy(nn, 1.0, &a, 0, v, 1);
-	return *this;
-}
-
-template<>
-inline NRVec< complex<double> > &
-NRVec< complex<double> >::operator+=(const complex<double> &a)
-{
-	copyonwrite();
-	cblas_zaxpy(nn, &CONE, &a, 0, v, 1);
-	return *this;
-}
-
-//and for general type
+// x +/-= a
 template <typename T>
 inline NRVec<T> & NRVec<T>::operator+=(const T &a)
 {
+	NOT_GPU(*this);
         copyonwrite();
 	int i;
 	for(i=0; i<nn; ++i) v[i]+=a;
@@ -262,65 +355,26 @@ inline NRVec<T> & NRVec<T>::operator+=(const T &a)
 }
 
 
-// x -= a
-template<>
-inline NRVec<double> & NRVec<double>::operator-=(const double &a)
-{
-	copyonwrite();
-	cblas_daxpy(nn, -1.0, &a, 0, v, 1);
-	return *this;
-}
-
-template<>
-inline NRVec< complex<double> > &
-NRVec< complex<double> >::operator-=(const complex<double> &a)
-{
-	copyonwrite();
-	cblas_zaxpy(nn, &CMONE, &a, 0, v, 1);
-	return *this;
-}
-
-//and for general type
 template <typename T>
 inline NRVec<T> & NRVec<T>::operator-=(const T &a)
 {
+	NOT_GPU(*this);
         copyonwrite();
-        int i;
-        for(i=0; i<nn; ++i) v[i]-=a;
+	int i;
+	for(i=0; i<nn; ++i) v[i]-=a;
         return *this;
 }
 
 
+
 // x += x
-template<>
-inline NRVec<double> & NRVec<double>::operator+=(const NRVec<double> &rhs)
-{
-#ifdef DEBUG
-	if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
-#endif
-	copyonwrite();
-	cblas_daxpy(nn, 1.0, rhs.v, 1, v, 1);
-	return *this;
-}
-
-template<>
-inline NRVec< complex<double> > &
-NRVec< complex<double> >::operator+=(const NRVec< complex<double> > &rhs)
-{
-#ifdef DEBUG
-	if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
-#endif
-	copyonwrite();
-	cblas_zaxpy(nn, &CONE, rhs.v, 1, v, 1);
-	return *this;
-}
-
-//and for general type
 template <typename T>
 inline NRVec<T> & NRVec<T>::operator+=(const NRVec<T> &rhs)
 {
 #ifdef DEBUG
         if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+NOT_GPU(*this);
+NOT_GPU(rhs);
 #endif
         copyonwrite();
 	int i;
@@ -346,6 +400,8 @@ inline NRVec<T> & NRVec<T>::operator/=(const NRVec<T> &rhs)
 {
 #ifdef DEBUG
         if (nn != rhs.nn) laerror("/= of incompatible vectors");
+NOT_GPU(*this);
+NOT_GPU(rhs);
 #endif
         copyonwrite();
         int i;
@@ -356,35 +412,13 @@ inline NRVec<T> & NRVec<T>::operator/=(const NRVec<T> &rhs)
 
 
 // x -= x
-template<>
-inline NRVec<double> & NRVec<double>::operator-=(const NRVec<double> &rhs)
-{
-#ifdef DEBUG
-	if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
-#endif
-	copyonwrite();
-	cblas_daxpy(nn, -1.0, rhs.v, 1, v, 1);
-	return *this;
-}
-
-template<>
-inline NRVec< complex<double> > &
-NRVec< complex<double> >::operator-=(const NRVec< complex<double> > &rhs)
-{
-#ifdef DEBUG
-	if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
-#endif
-	copyonwrite();
-	cblas_zaxpy(nn, &CMONE, rhs.v, 1, v, 1);
-	return *this;
-}
-
-//and for general type
 template <typename T>
 inline NRVec<T> & NRVec<T>::operator-=(const NRVec<T> &rhs)
 {
 #ifdef DEBUG
         if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+NOT_GPU(*this);
+NOT_GPU(rhs);
 #endif
         copyonwrite();
         int i;
@@ -394,27 +428,10 @@ inline NRVec<T> & NRVec<T>::operator-=(const NRVec<T> &rhs)
 
 
 // x *= a
-template<>
-inline NRVec<double> & NRVec<double>::operator*=(const double &a)
-{
-	copyonwrite();
-	cblas_dscal(nn, a, v, 1);
-	return *this;
-}
-
-template<>
-inline NRVec< complex<double> > &
-NRVec< complex<double> >::operator*=(const complex<double> &a)
-{
-	copyonwrite();
-	cblas_zscal(nn, &a, v, 1);
-	return *this;
-}
-
-//and for general type
 template <typename T>
 inline NRVec<T> & NRVec<T>::operator*=(const T &a)
 {
+NOT_GPU(*this);
         copyonwrite();
         int i;
         for(i=0; i<nn; ++i) v[i]*=a;
@@ -423,33 +440,13 @@ inline NRVec<T> & NRVec<T>::operator*=(const T &a)
 
 
 // scalar product x.y
-template<>
-inline const double NRVec<double>::operator*(const NRVec<double> &rhs) const
-{
-#ifdef DEBUG
-        if (nn != rhs.nn) laerror("dot of incompatible vectors");
-#endif
-        return cblas_ddot(nn, v, 1, rhs.v, 1);
-}
-
-
-template<>
-inline const complex<double>
-NRVec< complex<double> >::operator*(const NRVec< complex<double> > &rhs) const
-{
-#ifdef DEBUG
-	if (nn != rhs.nn) laerror("dot of incompatible vectors");
-#endif
-	complex<double> dot;
-	cblas_zdotc_sub(nn, v, 1, rhs.v, 1, &dot);
-	return dot;
-}
-
 template<typename T>
 inline const T NRVec<T>::operator*(const NRVec<T> &rhs) const
 {
 #ifdef DEBUG
         if (nn != rhs.nn) laerror("dot of incompatible vectors");
+NOT_GPU(*this);
+NOT_GPU(rhs);
 #endif
 	T dot = 0;
 	for(int i=0; i<nn; ++i) dot+= v[i]*rhs.v[i];
@@ -458,28 +455,6 @@ inline const T NRVec<T>::operator*(const NRVec<T> &rhs) const
 
 
 
-// Sum of elements
-template<>
-inline const double NRVec<double>::asum() const
-{
-	return cblas_dasum(nn, v, 1);
-}
-
-
-// Dot product: x * y
-template<>
-inline const double NRVec<double>::dot(const double *y, const int stride) const
-{
-	return cblas_ddot(nn, y, stride, v, 1);
-}
-template<>
-inline const complex<double>
-NRVec< complex<double> >::dot(const complex<double> *y, const int stride) const
-{
-	complex<double> dot;
-	cblas_zdotc_sub(nn, y, stride, v, 1, &dot);
-	return dot;
-}
 
 // x[i] returns i-th element
 template <typename T>
@@ -489,6 +464,7 @@ inline T & NRVec<T>::operator[](const int i)
 	if(_LA_count_check && *count != 1) laerror("possible lval [] with count > 1");
 	if(i < 0 || i >= nn) laerror("NRVec out of range");
 	if(!v) laerror("[] on unallocated NRVec");
+NOT_GPU(*this);
 #endif
 	return v[i];
 }
@@ -498,6 +474,7 @@ inline const T & NRVec<T>::operator[](const int i) const
 #ifdef DEBUG
 	if(i < 0 || i >= nn) laerror("NRVec out of range");
 	if(!v) laerror("[] on unallocated NRVec");
+NOT_GPU(*this);
 #endif
 	return v[i];
 }
@@ -527,29 +504,6 @@ inline NRVec<T>::operator const T*() const
 	return v;
 }
 
-// return norm of the Vec
-template<>
-inline const double  NRVec<double>::norm() const
-{
-	return cblas_dnrm2(nn, v, 1);
-}
-template<>
-inline const double NRVec< complex<double> >::norm() const
-{
-	return cblas_dznrm2(nn, v, 1);
-}
-
-// Max element of the array
-template<>
-inline const double  NRVec<double>::amax() const
-{
-	return v[cblas_idamax(nn, v, 1)];
-}
-template<>
-inline const complex<double> NRVec< complex<double> >::amax() const
-{
-	return v[cblas_izamax(nn, v, 1)];
-}
 
 
 // Make Vec unitvector
@@ -576,7 +530,16 @@ NRVec<T>::~NRVec()
 {
         if(!count) return;
         if(--(*count) <= 0) {
-                if(v) delete[] (v);
+                if(v) 
+			{
+#ifdef CUDALA
+                    if(location==cpu)
+#endif
+			delete[] (v);
+#ifdef CUDALA
+			else gpufree(v);
+#endif
+			}
                 delete count;
         }
 }
@@ -591,11 +554,28 @@ void NRVec<T>::copyonwrite()
     (*count)--;
     count = new int;
     *count = 1;
-    T *newv = new T[nn];
-    memcpy(newv, v, nn*sizeof(T));
+    T *newv;
+#ifdef CUDALA
+    if(location==cpu) 
+	{
+#endif
+	newv = new T[nn];
+    	memcpy(newv, v, nn*sizeof(T));
+#ifdef CUDALA
+        }
+     else 
+        {
+         newv = (T *) gpualloc(nn*sizeof(T));
+         if(sizeof(T)%sizeof(float)!=0) laerror("cpu memcpy alignment problem");
+         cublasScopy(nn*sizeof(T)/sizeof(float),(const float *) v,1,(float *)newv,1);
+        }
+#endif
+
+
     v = newv;
   }
 }
+
 
 // Asignment
 template <typename T>
@@ -606,16 +586,28 @@ NRVec<T> & NRVec<T>::operator=(const NRVec<T> &rhs)
     if(count)
       if(--(*count) == 0)
       {
-        delete[] v;
+#ifdef CUDALA
+        if(location==cpu)
+#endif
+        	delete[] v;
+#ifdef CUDALA
+	else 
+		gpufree(v);
+#endif
         delete count;
       }
     v = rhs.v;
     nn = rhs.nn;
     count = rhs.count;
+#ifdef CUDALA
+    location=rhs.location;
+#endif
     if(count) (*count)++;
   }
   return *this;
 }
+
+
 
 // Resize
 template <typename T>
@@ -629,7 +621,17 @@ void NRVec<T>::resize(const int n)
     if(n==0)
 	{
 	if(--(*count) <= 0) {
-                if(v) delete[] (v);
+                if(v) 
+			{
+#ifdef CUDALA
+			if(location==cpu)
+#endif
+				delete[] (v);
+#ifdef CUDALA
+			else
+				gpufree(v);
+#endif
+			}
                 delete count;
         	}
 	count=0;
@@ -648,14 +650,33 @@ void NRVec<T>::resize(const int n)
     count = new int;
     *count = 1;
     nn = n;
-    v = new T[nn];
+#ifdef CUDALA
+     if(location==cpu)
+#endif
+    	v = new T[nn];
+#ifdef CUDALA
+      else
+        v = (T*) gpualloc(nn*sizeof(T));
+#endif
     return;
   }
   // *count = 1 in this branch
   if (n != nn) {
     nn = n;
-    delete[] v;
-    v = new T[nn];
+#ifdef CUDALA
+     if(location==cpu)
+#endif
+  	{
+    	delete[] v;
+    	v = new T[nn];
+	}
+#ifdef CUDALA
+      else
+	{
+	gpufree(v);
+	v = (T*) gpualloc(nn*sizeof(T));
+	}
+#endif
   }
 }
 
@@ -664,28 +685,16 @@ void NRVec<T>::resize(const int n)
 template <typename T>
 NRVec<T> & NRVec<T>::operator|=(const NRVec<T> &rhs)
 {
-	if (this != &rhs) {
 #ifdef DEBUG
 		if (!rhs.v) laerror("unallocated rhs in NRVec operator |=");
 #endif
-		if (count)
-			if (*count > 1) {
-				--(*count);
-				nn = 0;
-				count = 0;
-				v = 0;
-			}
-		if (nn != rhs.nn) {
-			if (v) delete[] (v);
-			nn = rhs.nn;
-		}
-		if(!v) v = new T[nn];
-		if(!count) count = new int;
-		*count = 1;
-		memcpy(v, rhs.v, nn*sizeof(T));
-	}
-	return *this;
+        if (this == &rhs) return *this;
+        *this = rhs;
+        this->copyonwrite();
+        return *this;
 }
+
+
 
 
 template<typename T>
@@ -695,6 +704,291 @@ NRVec<complex<T> > r(rhs.size());
 for(int i=0; i<rhs.size(); ++i)  r[i]=rhs[i];
 return r;
 }
+
+
+#ifdef CUDALA
+template<typename T>
+void NRVec<T>::moveto(const GPUID dest)
+{
+if(location==dest) return;
+location=dest;
+
+if(v && !count) laerror("internal inconsistency of reference counting 1");
+if (!count) return;
+
+if(v && *count==0) laerror("internal inconsistency of reference counting 2");
+if(!v) return;
+
+T *vold = v;
+
+if(dest == cpu) //moving from GPU to CPU
+        {
+        v = new T[nn];
+        gpuget(nn,sizeof(T),vold,v);
+        if(*count == 1) gpufree(vold);
+        else {--(*count); count = new int(1);}
+        }
+else    //moving from CPU to GPU
+        {
+        v=(T *) gpualloc(nn*sizeof(T));
+        gpuput(nn,sizeof(T),vold,v);
+        if(*count == 1) delete[] vold;
+        else {--(*count); count = new int(1);}
+        }
+}
+#endif
+
+
+//some template specializations leading to BLAS/CUBLAS calls
+template<>
+inline
+NRVec<double> & NRVec<double>::operator+=(const double &a)
+{
+	copyonwrite();
+#ifdef CUDALA
+	if(location==cpu)
+#endif
+		cblas_daxpy(nn, 1.0, &a, 0, v, 1);
+#ifdef CUDALA
+	else
+		{
+		double *d=gpuputdouble(a);
+		cublasDaxpy(nn, 1.0, d, 0, v, 1);
+		gpufree(d);
+		}
+#endif
+	return *this;
+}
+
+template<>
+inline
+NRVec< complex<double> > &
+NRVec< complex<double> >::operator+=(const complex<double> &a)
+{
+	copyonwrite();
+#ifdef CUDALA
+        if(location==cpu)
+#endif
+		cblas_zaxpy(nn, &CONE, &a, 0, v, 1);
+#ifdef CUDALA
+        else
+                {
+                complex<double> *d=gpuputcomplex(a);
+                cublasZaxpy(nn, CUONE, (cuDoubleComplex *)d, 0, (cuDoubleComplex *)v, 1);
+                gpufree(d);
+                }
+#endif
+	return *this;
+}
+
+template<>
+inline
+NRVec<double> & NRVec<double>::operator-=(const double &a)
+{
+	copyonwrite();
+#ifdef CUDALA
+	if(location==cpu)
+#endif
+		cblas_daxpy(nn, -1.0, &a, 0, v, 1);
+#ifdef CUDALA
+	else
+		{
+		double *d=gpuputdouble(a);
+		cublasDaxpy(nn, -1.0, d, 0, v, 1);
+		gpufree(d);
+		}
+#endif
+	return *this;
+}
+
+template<>
+inline
+NRVec< complex<double> > &
+NRVec< complex<double> >::operator-=(const complex<double> &a)
+{
+	copyonwrite();
+#ifdef CUDALA
+        if(location==cpu)
+#endif
+		cblas_zaxpy(nn, &CMONE, &a, 0, v, 1);
+#ifdef CUDALA
+        else
+                {
+                complex<double> *d=gpuputcomplex(a);
+                cublasZaxpy(nn, CUMONE, (cuDoubleComplex *)d, 0, (cuDoubleComplex *)v, 1);
+                gpufree(d);
+                }
+#endif
+	return *this;
+}
+
+
+template<>
+inline
+NRVec<double> & NRVec<double>::operator+=(const NRVec<double> &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+#endif
+        copyonwrite();
+        cblas_daxpy(nn, 1.0, rhs.v, 1, v, 1);
+        return *this;
+}
+template<>
+inline
+NRVec< complex<double> > &
+NRVec< complex<double> >::operator+=(const NRVec< complex<double> > &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+#endif
+        copyonwrite();
+        cblas_zaxpy(nn, &CONE, rhs.v, 1, v, 1);
+        return *this;
+}
+
+
+template<>
+inline
+NRVec<double> & NRVec<double>::operator-=(const NRVec<double> &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+#endif
+SAME_LOC(*this,rhs);
+        copyonwrite();
+#ifdef CUDALA
+	if(location==cpu)
+#endif
+        	cblas_daxpy(nn, -1.0, rhs.v, 1, v, 1);
+#ifdef CUDALA
+	else
+		cublasDaxpy(nn, -1.0, rhs.v, 1, v, 1);
+#endif
+        return *this;
+}
+
+template<>
+inline
+NRVec< complex<double> > &
+NRVec< complex<double> >::operator-=(const NRVec< complex<double> > &rhs)
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("daxpy of incompatible vectors");
+#endif
+        copyonwrite();
+        cblas_zaxpy(nn, &CMONE, rhs.v, 1, v, 1);
+        return *this;
+}
+
+template<>
+inline
+NRVec<double> & NRVec<double>::operator*=(const double &a)
+{
+        copyonwrite();
+        cblas_dscal(nn, a, v, 1);
+        return *this;
+}
+
+template<>
+inline
+NRVec< complex<double> > &
+NRVec< complex<double> >::operator*=(const complex<double> &a)
+{
+        copyonwrite();
+        cblas_zscal(nn, &a, v, 1);
+        return *this;
+}
+
+
+template<>
+inline
+const double NRVec<double>::operator*(const NRVec<double> &rhs) const
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("dot of incompatible vectors");
+#endif
+        return cblas_ddot(nn, v, 1, rhs.v, 1);
+}
+
+
+template<>
+inline
+const complex<double>
+NRVec< complex<double> >::operator*(const NRVec< complex<double> > &rhs) const
+{
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("dot of incompatible vectors");
+#endif
+        complex<double> dot;
+        cblas_zdotc_sub(nn, v, 1, rhs.v, 1, &dot);
+        return dot;
+}
+
+// Sum of elements
+template<>
+inline
+const double NRVec<double>::asum() const
+{
+        return cblas_dasum(nn, v, 1);
+}
+
+
+// Dot product: x * y
+template<>
+inline
+const double NRVec<double>::dot(const double *y, const int stride) const
+{
+        return cblas_ddot(nn, y, stride, v, 1);
+}
+
+template<>
+inline
+const complex<double>
+NRVec< complex<double> >::dot(const complex<double> *y, const int stride) const
+{
+        complex<double> dot;
+        cblas_zdotc_sub(nn, y, stride, v, 1, &dot);
+        return dot;
+}
+
+// return norm of the Vec
+template<>
+inline
+const double  NRVec<double>::norm() const
+{
+#ifdef CUDALA
+	if(location!=cpu) return cublasDnrm2(nn, v, 1);
+#endif
+        return cblas_dnrm2(nn, v, 1);
+}
+
+template<>
+inline
+const double NRVec< complex<double> >::norm() const
+{
+        return cblas_dznrm2(nn, v, 1);
+}
+
+// Max element of the array
+template<>
+inline
+const double  NRVec<double>::amax() const
+{
+        return v[cblas_idamax(nn, v, 1)];
+}
+
+/*
+cblas_izamax seems to be missing at least in some cblas versions
+template<>
+inline
+const complex<double> NRVec< complex<double> >::amax() const
+{
+        return v[cblas_izamax(nn, v, 1)];
+}
+*/
+
+
 
 }//namespace
 

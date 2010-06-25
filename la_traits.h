@@ -40,6 +40,8 @@
 
 #include "laerror.h"
 
+#include "cuda_la.h"
+
 #ifdef NONCBLAS
 #include "noncblas.h"
 #else
@@ -205,6 +207,8 @@ struct LA_traits_aux<complex<C>, scalar_true> {
 typedef complex<C> elementtype;
 typedef complex<C> producttype;
 typedef C normtype;
+typedef C realtype;
+typedef complex<C> complextype;
 static inline C sqrabs(const complex<C> x) { return x.real()*x.real()+x.imag()*x.imag();}
 static inline bool gencmp(const complex<C> *x, const complex<C> *y, int n) {return memcmp(x,y,n*sizeof(complex<C>));}
 static bool bigger(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
@@ -230,6 +234,8 @@ struct LA_traits_aux<C, scalar_true> {
 typedef C elementtype;
 typedef C producttype;
 typedef C normtype;
+typedef C realtype;
+typedef complex<C> complextype;
 static inline C sqrabs(const C x) { return x*x;}
 static inline bool gencmp(const C *x, const C *y, int n) {return memcmp(x,y,n*sizeof(C));}
 static inline bool bigger(const  C &x, const C &y) {return x>y;}
@@ -261,6 +267,8 @@ struct LA_traits_aux<X<C>, scalar_false> { \
 typedef C elementtype; \
 typedef X<C> producttype; \
 typedef typename LA_traits<C>::normtype normtype; \
+typedef X<typename LA_traits<C>::realtype> realtype; \
+typedef X<typename LA_traits<C>::complextype> complextype; \
 static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
 static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
@@ -293,6 +301,8 @@ struct LA_traits_aux<X<C>, scalar_false> {  \
 typedef C elementtype;  \
 typedef NRMat<C> producttype;  \
 typedef typename LA_traits<C>::normtype normtype;  \
+typedef X<typename LA_traits<C>::realtype> realtype; \
+typedef X<typename LA_traits<C>::complextype> complextype; \
 static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
 static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
