@@ -1,3 +1,7 @@
+25.06.2010 Added basic CUBLAS support for NRVec, NRMat, NRSMat
+24.06.2010 Fixed a memory leak existing when MATPTR  was defined
+18.06.2010 added autoconf support for BLAS+LAPACK compiled with 64-bit integers and for CUBLAS
+11.06.2010 interface to fortran BLAS+LAPACK compiled with 64-bit integers contributed by L. Veis
 25.02.2010 linear_solve_x and multiply_by_inverse contributed by M. Sulc
 17.01.2010 miscellaneous extensions contributed by M. Sulc
 17.01.2010 bugfix in NRMat::operator *= +=  -= for non-square matrix

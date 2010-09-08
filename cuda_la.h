@@ -11,10 +11,12 @@
 namespace LA {
 
 #ifdef CUDALA
+#define CPU_GPU(x,y) {if((x)!=cpu && (y)!=cpu) laerror("one operand must be in CPU memory");}
 #define NOT_GPU(x) {if((x).getlocation()!=cpu) laerror("Operation not implemented on GPU (yet). Use .moveto(0) first.");}
 #define SAME_LOC(x,y) {if((x).getlocation()!=(y).getlocation()) laerror("Operands have different location. Use .moveto() first.");}
 #define SAME_LOC3(x,y,z) {if((x).getlocation()!=(y).getlocation() || (x).getlocation()!=(z).getlocation()) laerror("Operands have different location. Use .moveto() first.");}
 #else
+#define CPU_GPU(x,y) {}
 #define NOT_GPU(x) {}
 #define SAME_LOC(x,y) {}
 #define SAME_LOC3(x,y,z) {}

@@ -6,8 +6,10 @@ t_SOURCES = t.cc t2.cc
 test_SOURCES = test.cc
 LDADD = .libs/libla.a
 ACLOCAL_AMFLAGS = -I m4
-
 EXTRA_DIST = LICENSE 
+
+.cu.o:
+	$(NVCC) -o $@ -c $< $(NVCCFLAGS)
 
 #todo: achieve portability of the fortran calls via autoconf?
 

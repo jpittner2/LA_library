@@ -355,24 +355,29 @@ NRMat<T> & NRMat<T>::operator-=(const T &a)
 	return *this;
 }
 
+
 template <>
 const NRMat<double> NRMat<double>::operator-() const
 {
-        NRMat<double> result(nn, mm);
 #ifdef CUDALA
+        NRMat<double> result(nn, mm, location);
         if(location==cpu)
 	{
+#else
+	 NRMat<double> result(nn, mm);
 #endif
 #ifdef MATPTR
         for (int i=0; i<nn*mm; i++) result.v[0][i]= -v[0][i];
 #else
-	cblas_dscal(nn*mm, -1., v, 1);
+	memcpy(result.v,v,nn*mm*sizeof(double));
+	cblas_dscal(nn*mm, -1., result.v, 1);
 #endif
 #ifdef CUDALA
         }
 	else
 	{
-	cublasDscal(nn*mm, -1., v, 1);
+	cublasDcopy(nn*mm, v, 1, result.v, 1);
+	cublasDscal(nn*mm, -1., result.v, 1);
 	}
 #endif
         return result;

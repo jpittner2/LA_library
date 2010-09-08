@@ -33,6 +33,15 @@ AC_CHECK_LIB([lapack], [dgeev_],, [
         ])
 
 
+MATPTROPT=""
+AC_ARG_ENABLE([matptr],[  --enable-matptr   switch to double** matrix representation (CUDA incompatible)  [[default=no]]],
+    [case "${enableval}" in
+     yes) MATPTROPT="-DMATPTR" ;;
+     no)  ;;
+     *) AC_MSG_ERROR([bad value ${enableval} for --enable-matptr]) ;;
+     esac],
+ ,)
+
 #check for optional libraries
 
 #cblas and clapack available?
@@ -46,10 +55,13 @@ AC_CHECK_HEADER([clapack.h],,[CLAPACKOPT=-DNONCLAPACK], AC_INCLUDES_DEFAULT)
 AC_SUBST([CLAPACKOPT])
 
 #CUDA available? link with cublas and avoid cblas and clapack then...
-AC_CHECK_LIB([cublas], [cublasInit], [CUDALIBS=-lcublas CUDAOPT=-DCUDALA CBLASOPT=-DNONCBLAS CLAPACKOPT=-DNONCLAPACK CBLASLIB=""], [CUDALIB="" CUDAOPT=""])
+AC_CHECK_LIB([cublas], [cublasInit], [MATPTROPT="" NVCC=nvcc NVCCFLAGS="-O -arch sm_20" CUDALIBS=-lcublas CUDAOPT=-DCUDALA CBLASOPT=-DNONCBLAS CLAPACKOPT=-DNONCLAPACK CBLASLIB=""], [CUDALIB="" CUDAOPT=""])
 AC_CHECK_HEADER([cublas.h],,[CUDAOPT="" CUDALIBS=""], AC_INCLUDES_DEFAULT)
 AC_SUBST([CUDALIBS])
 AC_SUBST([CUDAOPT])
+AC_SUBST([NVCC])
+AC_SUBST([NVCCFLAGS])
+AC_SUBST([MATPTROPT])
 
 
 #the check for traceback needs bfd to be linked into
@@ -94,16 +106,6 @@ AC_ARG_ENABLE([debug],[  --disable-debug   not to perform some range-checking [[
  ,)
 AC_SUBST([DEBUGOPT])
 
-MATPTROPT=""
-AC_ARG_ENABLE([matptr],[  --enable-matptr   switch to double** matrix representation  [[default=no]]],
-    [case "${enableval}" in
-     yes) MATPTROPT="-DMATPTR" ;;
-     no)  ;;
-     *) AC_MSG_ERROR([bad value ${enableval} for --enable-matptr]) ;;
-     esac],
- ,)
-AC_SUBST([MATPTROPT])
-
 
 
 
@@ -132,4 +134,5 @@ echo "In addition, similarly you might set include and link paths for Nvidia CUB
 echo "For usage examples see file t.cc. Do not forget using copyonwrite() before        "
 echo "changing individual matrix/vector elements via l.h.s. operator[] or operator()    "
 echo "**********************************************************************************"
+#echo "Use  ./configure --disable-optimize CXXFLAGS="" LDFLAGS="" for a fast compile     "
 

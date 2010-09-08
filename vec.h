@@ -711,6 +711,7 @@ template<typename T>
 void NRVec<T>::moveto(const GPUID dest)
 {
 if(location==dest) return;
+CPU_GPU(location,dest);
 location=dest;
 
 if(v && !count) laerror("internal inconsistency of reference counting 1");

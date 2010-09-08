@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "bitvector.h"
 #include "sparsemat.h"
 
 namespace LA {
@@ -918,14 +919,17 @@ const_cast<SparseMat<T> *>(this)->simplify();
 
 matel<T> *l=list;
 typename LA_traits<T>::normtype sum(0);
+
 if(scalar!=(T)0)
 	{
+	if(nn!=mm) laerror("subtraction of scalar from non-square sparse matrix in norm()");
+	bitvector has_diagonal_element(nn); has_diagonal_element.clear();
 	if(symmetric) 
 	while(l)
 	        {
 		T hlp=l->elem;
-		bool b=l->row==l->col;
-		if(b) hlp-=scalar;
+		bool b= l->row==l->col;
+		if(b) {hlp-=scalar; has_diagonal_element.set(l->row);}
 		typename LA_traits<T>::normtype tmp=LA_traits<T>::sqrabs(hlp);
        	 sum+= tmp;
 		if(!b) sum+=tmp;
@@ -935,10 +939,11 @@ if(scalar!=(T)0)
 	while(l)
 	       	 {
 		T hlp=l->elem;
-		if(l->row==l->col) hlp-=scalar;
+		if(l->row==l->col) {hlp-=scalar; has_diagonal_element.set(l->row);}
 	        sum+= LA_traits<T>::sqrabs(hlp);
 	        l=l->next;
 	        }
+	sum += (nn-has_diagonal_element.population()) * LA_traits<T>::sqrabs(scalar); //add contribution of the subtracted scalar from zero non-stored diagonal elements
 	}
 else
 	{
