@@ -86,6 +86,11 @@ CBLAS_INDEX cblas_icamax(const int N, const void   *X, const int incX);
 CBLAS_INDEX cblas_izamax(const int N, const void   *X, const int incX);
 
 /*
+CBLAS_INDEX cblas_idamin(const int N, const double *X, const int incX);
+CBLAS_INDEX cblas_izamin(const int N, const void   *X, const int incX);
+*/
+
+/*
  * ===========================================================================
  * Prototypes for level 1 BLAS routines
  * ===========================================================================

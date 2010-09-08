@@ -42,20 +42,20 @@ bool _LA_count_check=true;
 
 extern "C" void _findme(void) {}; //for autoconf test we need a function with C linkage
 
-void laerror(const char *s1)
+void laerror2(const char *s1, const char *s2)
 {
   std::cerr << "LA:ERROR - ";
   std::cout << "LA:ERROR - ";
   if(s1)
   {
-    std::cerr << s1  << "\n";
-    std::cout << s1  << "\n";
+    std::cerr << s2 << ": " << s1 << "\n";
+    std::cout << s2 << ": " << s1 << "\n";
   }
 #ifdef CUDALA
 {
-cublasStatus s=cublasGetError();
-std::cerr << "CUBLAS status = "<<s<<std::endl;
-std::cout << "CUBLAS status = "<<s<<std::endl;
+cublasStatus s = cublasGetError();
+std::cerr << "CUBLAS status = " << s << std::endl;
+std::cout << "CUBLAS status = " << s << std::endl;
 }
 #endif
   if(errno) perror("system error");
@@ -63,43 +63,40 @@ std::cout << "CUBLAS status = "<<s<<std::endl;
 throw LAerror(s1); 
 }
 
+
 //stub for f77 blas called from strassen routine
-extern "C" void xerbla_(const char name[6], int *n)
-{
-char msg[1024];
-strcpy(msg,"LAPACK or BLAS error in routine ");
-strncat(msg,name,6);
-sprintf(msg+strlen(msg),": illegal value of parameter #%d",*n);
-laerror(msg);
+extern "C" void xerbla_(const char name[6], int *n){
+	char msg[1024];
+	strcpy(msg,"LAPACK or BLAS error in routine ");
+	strncat(msg,name,6);
+	sprintf(msg+strlen(msg),": illegal value of parameter #%d",*n);
+	laerror(msg);
 }
 
 
 //with atlas-cblas another error routine is necessary
-
-extern "C" void ATL_xerbla(int p, char *rout, char *form, ...)
-{
-  char msg0[1024], *msg;
-   va_list argptr;
-   va_start(argptr, form);
-   strcpy(msg0,"ATLAS error\n");
-   msg=msg0+strlen(msg0);
-   if (p) {sprintf(msg, "Parameter %d to routine %s was incorrect\n", p, rout); msg+=strlen(msg);}
-   vsprintf(msg, form, argptr);
-   va_end(argptr);
-   laerror(msg0);
+extern "C" void ATL_xerbla(int p, char *rout, char *form, ...){
+	char msg0[1024], *msg;
+	va_list argptr;
+	va_start(argptr, form);
+	strcpy(msg0,"ATLAS error\n");
+	msg=msg0+strlen(msg0);
+	if (p) {sprintf(msg, "Parameter %d to routine %s was incorrect\n", p, rout); msg+=strlen(msg);}
+	vsprintf(msg, form, argptr);
+	va_end(argptr);
+	laerror(msg0);
 }
 
-int cblas_errprn(int ierr, int info, char *form, ...)
-{
-  char msg0[1024], *msg;
-   va_list argptr;
-   va_start(argptr, form);
-   sprintf(msg0,"CBLAS error %d %d\n",ierr,info);
-   msg=msg0+strlen(msg0);
-   vsprintf(msg, form, argptr);
-   va_end(argptr);
-   laerror(msg0);
-return 0;
+int cblas_errprn(int ierr, int info, char *form, ...) {
+	char msg0[1024], *msg;
+	va_list argptr;
+	va_start(argptr, form);
+	sprintf(msg0,"CBLAS error %d %d\n",ierr,info);
+	msg=msg0+strlen(msg0);
+	vsprintf(msg, form, argptr);
+	va_end(argptr);
+	laerror(msg0);
+	return 0;
 }
 
 }//namespace

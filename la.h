@@ -44,5 +44,12 @@
 #include "sparsesmat.h"
 #include "vec.h"
 
-
+using namespace LA;
+typedef NRMat<int> NRIMat;
+typedef NRMat<double> NRDMat;
+typedef NRMat<complex<double> > NRCMat;
+typedef NRVec<int> NRIVec;
+typedef NRVec<double> NRDVec;
+typedef NRVec<complex<double> > NRCVec;
 #endif /* _LA_H_ */
+

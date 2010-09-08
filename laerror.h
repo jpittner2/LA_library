@@ -29,10 +29,15 @@ class LAerror
 	LAerror(const char *s) {msg=s;};
 	};
 
-extern void laerror(const char *);
+#ifdef __GNUG__
+	#define laerror(X) { LA::laerror2(X, __PRETTY_FUNCTION__); }
+#else
+	#define laerror(X) { LA::laerror2(X, __func__); }
+#endif
 
-inline std::ostream & operator<<(std::ostream &s, const LAerror &x)
-{
+extern void laerror2(const char *, const char *);
+
+inline std::ostream & operator<<(std::ostream &s, const LAerror &x) {
 s << x.msg;
 return s;
 }
