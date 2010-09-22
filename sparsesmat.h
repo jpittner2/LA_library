@@ -223,6 +223,9 @@ NRSMat<T>::NRSMat(const SparseSMat<T> &rhs)
 : nn(rhs.nrows())
 {
 if(rhs.nrows()!=rhs.ncols()) laerror("cannot transform rectangular matrix to NRSMat");
+#ifdef CUDALA
+        location = cpu;
+#endif
 count = new int(1);
 v=new T[nn2];
 memset(v,0,nn2*sizeof(T));
@@ -239,6 +242,9 @@ nn(rhs.nrows()),
 mm(rhs.ncols()),
 count(new int(1))
 {
+#ifdef CUDALA
+        location = cpu;
+#endif
 #ifdef MATPTR
         v = new T*[nn];
         v[0] = new T[mm*nn];

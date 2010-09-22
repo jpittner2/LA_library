@@ -246,19 +246,48 @@ void cblas_dger(const enum CBLAS_ORDER Order, const int M, const int N,
 #endif
 }
 
+extern "C" void FORNAME(zgerc)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
 void cblas_zgerc(const enum CBLAS_ORDER Order, const int M, const int N,
 		const void *alpha, const void *X, const int incX,
 		const void *Y, const int incY, void *A, const int lda)
 {
-	laerror("cblas_zgerc cannot be simply converted to fortran order");
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+//conjugate y
+complex<double> *p;
+p= (complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag() = -p->imag(); p+= incY;}
+#ifdef FORINT
+	const FINT mtmp=M;
+        const FINT ntmp=N;
+	const FINT incxtmp=incX;
+	const FINT incytmp=incY;
+	const FINT ldatmp=lda;
+	FORNAME(zgerc) (&ntmp, &mtmp, alpha, Y, &incytmp, X, &incxtmp, A, &ldatmp);
+#else
+	FORNAME(zgerc)(&N, &M, alpha, Y, &incY, X, &incX, A, &lda);
+#endif
+//conjugate y back
+p= (complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag() = -p->imag(); p+= incY;}
 }
 
+
+extern "C" void FORNAME(zgeru)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
 void cblas_zgeru(const enum CBLAS_ORDER Order, const int M, const int N,
 		const void *alpha, const void *X, const int incX,
 		const void *Y, const int incY, void *A, const int lda)
 {
-	laerror("cblas_zgeru cannot be simply converted to fortran order");
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+#ifdef FORINT
+	const FINT mtmp=M;
+        const FINT ntmp=N;
+	const FINT incxtmp=incX;
+	const FINT incytmp=incY;
+	const FINT ldatmp=lda;
+	FORNAME(zgeru) (&ntmp, &mtmp, alpha, Y, &incytmp, X, &incxtmp, A, &ldatmp);
+#else
+	FORNAME(zgeru)(&N, &M, alpha, Y, &incY, X, &incX, A, &lda);
+#endif
 }
+
 
 extern "C" void FORNAME(dgemm) (const char *transa, const char *transb, const FINT *m, const FINT *n, const FINT *k, const double *alpha, const double *a, const FINT *lda, const double *b, const FINT *ldb, const double *beta, double *c, const FINT *ldc);
 void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA,
