@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([libla], [0.5], [jiri@pittnerovi.com])
+AC_INIT([libla], [0.6], [jiri@pittnerovi.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
@@ -18,19 +18,17 @@ AC_LANG(C++)
 
 
 # Checks for mandatory libraries.
-AC_CHECK_LIB([blas], [dgemm_],, [
-        echo ERROR: BLAS not found! You have to install the BLAS library.
-        exit
-        ])
-
-AC_CHECK_LIB([atlas], [ATL_zgemv],, [
+ATLASLIB=""	
+AC_CHECK_LIB([atlas], [ATL_zgemv],ATLASLIB=-latlas, [
         echo "ATLAS not found, I hope you are using some other (more) efficient BLAS!"
         ])
+AC_SUBST([ATLASLIB])
 
-AC_CHECK_LIB([lapack], [dgeev_],, [
-        echo ERROR: LAPACK not found! You have to install the LAPACK library
+AC_CHECK_LIB([blas], [dgemm_],BLASLIB=-lblas, [
+        echo ERROR: BLAS not found! You have to install the BLAS library.
         exit
-        ])
+        ],[$ATLASLIB])
+AC_SUBST([BLASLIB])
 
 
 MATPTROPT=""
@@ -42,17 +40,24 @@ AC_ARG_ENABLE([matptr],[  --enable-matptr   switch to double** matrix representa
      esac],
  ,)
 
-#check for optional libraries
 
 #cblas and clapack available?
-AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB=-lcblas], [CBLASOPT=-DNONCBLAS])
+AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB=-lcblas], [CBLASOPT=-DNONCBLAS],[$ATLASLIB])
 AC_CHECK_HEADER([cblas.h],,[CBLASOPT=-DNONCBLAS CBLASLIB=""], AC_INCLUDES_DEFAULT)
 AC_SUBST([CBLASLIB])
 AC_SUBST([CBLASOPT])
 
-AC_CHECK_LIB([lapack], [clapack_dgesv], , [CLAPACKOPT=-DNONCLAPACK])
+
+AC_CHECK_LIB([lapack], [dgeev_],, [
+        echo ERROR: LAPACK not found! You have to install the LAPACK library
+        exit
+        ],[$CBLASLIB $BLASLIB $ATLASLIB])
+
+
+AC_CHECK_LIB([lapack], [clapack_dgesv], , [CLAPACKOPT=-DNONCLAPACK],[$CBLASLIB $BLASLIB $ATLASLIB])
 AC_CHECK_HEADER([clapack.h],,[CLAPACKOPT=-DNONCLAPACK], AC_INCLUDES_DEFAULT)
 AC_SUBST([CLAPACKOPT])
+
 
 #CUDA available? link with cublas and avoid cblas and clapack then...
 AC_CHECK_LIB([cublas], [cublasInit], [MATPTROPT="" NVCC=nvcc NVCCFLAGS="-O -arch sm_20" CUDALIBS=-lcublas CUDAOPT=-DCUDALA CBLASOPT=-DNONCBLAS CLAPACKOPT=-DNONCLAPACK CBLASLIB=""], [CUDALIB="" CUDAOPT=""])
@@ -122,6 +127,9 @@ AC_CHECK_MEMBERS([struct stat.st_blksize])
 # Checks for library functions.
 AC_CHECK_FUNCS([getpagesize memset sqrt])
 
+#Doxygen support
+DX_INIT_DOXYGEN($PACKAGE_NAME, doxygen.cfg)
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 echo
@@ -131,8 +139,11 @@ echo "Please make sure that the generated Makefile employs a proper version of o
 echo "BLAS/LAPACK library. If not, re-run configure with CXXFLAGS and LDFLAGS options   "
 echo "set to '-I path' and '-L path' for your preferred BLAS/LAPACK library version.    "
 echo "In addition, similarly you might set include and link paths for Nvidia CUBLAS.    "
+echo "Use  ./configure --disable-optimize CXXFLAGS='' LDFLAGS='' for a fast compile.    "
+echo "Use --enable-fotran64int to link with BLAS and LAPACK using 64-bit integers.      "
+echo "For documentation, 'make doxygen-doc' and see doxygen-doc/html/index.html         "
 echo "For usage examples see file t.cc. Do not forget using copyonwrite() before        "
-echo "changing individual matrix/vector elements via l.h.s. operator[] or operator()    "
+echo "changing individual matrix/vector elements via l.h.s. operator()                  "
 echo "**********************************************************************************"
-#echo "Use  ./configure --disable-optimize CXXFLAGS="" LDFLAGS="" for a fast compile     "
+echo
 
