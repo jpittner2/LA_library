@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
+#include <fstream>
 #include <limits>
 #include <complex>
 
@@ -71,6 +72,7 @@ template<typename C> class NRSMat;
 template<typename C> class NRSMat_from1;
 template<typename C> class SparseMat;
 template<typename C> class SparseSMat;
+template<typename C> class CSRMat;
 
 
 typedef class {} Dummy_type;
@@ -218,12 +220,13 @@ static inline normtype norm (const  complex<C> &x) {return std::abs(x);}
 static inline void axpy (complex<C> &s, const complex<C> &x, const complex<C> &c) {s+=x*c;}
 static inline void get(int fd, complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=read(fd,&x,sizeof(complex<C>))) laerror("read error");}
 static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=write(fd,&x,sizeof(complex<C>))) laerror("write error");}
-static void multiget(unsigned int n,int fd, complex<C> *x, bool dimensions=0){if((ssize_t)(n*sizeof(complex<C>))!=read(fd,x,n*sizeof(complex<C>))) laerror("read error");}
-static void multiput(unsigned int n, int fd, const complex<C> *x, bool dimensions=0) {if((ssize_t)(n*sizeof(complex<C>))!=write(fd,x,n*sizeof(complex<C>))) laerror("write error");}
+static void multiget(size_t n,int fd, complex<C> *x, bool dimensions=0){ssize_t r=read(fd,x,n*sizeof(complex<C>)); if((ssize_t)(n*sizeof(complex<C>))!=r) {std::cout<<"read returned "<<r<<std::endl; laerror("read error");}}
+static void multiput(size_t n, int fd, const complex<C> *x, bool dimensions=0) {ssize_t r=write(fd,x,n*sizeof(complex<C>)); if((ssize_t)(n*sizeof(complex<C>))!=r) {std::cout<<"write returned "<<r<<std::endl; laerror("write error");}}
 static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest,src,n*sizeof(complex<C>));}
 static void clear(complex<C> *dest, unsigned int n) {memset(dest,0,n*sizeof(complex<C>));}
 static void copyonwrite(complex<C> &x) {};
 static void clearme(complex<C> &x) {x=0;};
+static void deallocate(complex<C> &x) {};
 static inline complex<C> conjugate(const complex<C> &x) {return complex<C>(x.real(),-x.imag());};
 static inline C realpart(const complex<C> &x) {return x.real();}
 static inline C imagpart(const complex<C> &x) {return x.imag();}
@@ -245,12 +248,13 @@ static inline normtype norm (const  C &x) {return std::abs(x);}
 static inline void axpy (C &s, const C &x, const C &c) {s+=x*c;}
 static inline void put(int fd, const C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=write(fd,&x,sizeof(C))) laerror("write error");}
 static inline void get(int fd, C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=read(fd,&x,sizeof(C))) laerror("read error");}
-static void multiput(unsigned int n,int fd, const C *x, bool dimensions=0){if((ssize_t)(n*sizeof(C))!=write(fd,x,n*sizeof(C))) laerror("write error");}
-static void multiget(unsigned int n, int fd, C *x, bool dimensions=0) {if((ssize_t)(n*sizeof(C))!=read(fd,x,n*sizeof(C))) laerror("read error");}
+static void multiget(size_t n,int fd, C *x, bool dimensions=0){ssize_t r=read(fd,x,n*sizeof(C)); if((ssize_t)(n*sizeof(C))!=r) {std::cout<<"read returned "<<r<<std::endl; laerror("read error");}}
+static void multiput(size_t n, int fd, const C *x, bool dimensions=0) {ssize_t r=write(fd,x,n*sizeof(C)); if((ssize_t)(n*sizeof(C))!=r) {std::cout<<"write returned "<<r<<std::endl; laerror("write error");}}
 static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));}
 static void clear(C *dest, unsigned int n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
-static void clearme(complex<C> &x) {x=0;};
+static void clearme(C &x) {x=0;};
+static void deallocate(C &x) {};
 static inline C conjugate(const C &x) {return x;};
 static inline C realpart(const C &x) {return x;}
 static inline C imagpart(const C &x) {return 0;}
@@ -277,12 +281,13 @@ static inline normtype norm (const X<C> &x) {return x.norm();} \
 static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);} \
 static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions,transp);} \
 static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions,transp);} \
-static void multiput(unsigned int n,int fd, const X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);} \
-static void multiget(unsigned int n,int fd, X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);} \
+static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions);} \
+static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions);} \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
 static void clearme(X<C> &x) {x.clear();}\
+static void deallocate(X<C> &x) {x.dealloc();}\
 };
 
 
@@ -292,6 +297,7 @@ generate_traits(NRMat_from1)
 generate_traits(NRVec)
 generate_traits(SparseMat)
 generate_traits(SparseSMat) //product leading to non-symmetric result not implemented
+generate_traits(CSRMat) 
 
 #undef generate_traits
 
@@ -311,12 +317,13 @@ static inline normtype norm (const X<C> &x) {return x.norm();}  \
 static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);}  \
 static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);}  \
 static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);}  \
-static void multiput(unsigned int n,int fd, const X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].put(fd,dimensions);}  \
-static void multiget(unsigned int n,int fd, X<C> *x, bool dimensions=1) {for(unsigned int i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
+static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions);}  \
+static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
 static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];}  \
 static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \
 static void clearme(X<C> &x) {x.clear();} \
+static void deallocate(X<C> &x) {x.dealloc();} \
 };
 
 generate_traits_smat(NRSMat)
