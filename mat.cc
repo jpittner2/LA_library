@@ -150,7 +150,7 @@ void NRMat<T>::put(int fd, bool dim, bool transp) const {
 			}
 		}
         }else{
-		LA_traits<T>::multiput(nn*mm,fd,
+		LA_traits<T>::multiput((size_t)nn*(size_t)mm,fd,
 		#ifdef MATPTR
 		        v[0]
 		#else
@@ -202,7 +202,7 @@ void NRMat<T>::get(int fd, bool dim, bool transp){
 			}
 		}
 	}else{
-		LA_traits<T>::multiget(nn*mm,fd,
+		LA_traits<T>::multiget((size_t)nn*(size_t)mm,fd,
 		#ifdef MATPTR
 		        v[0]
 		#else
@@ -838,8 +838,9 @@ NRMat<T>& NRMat<T>::transposeme(const int _n) {
 	return *this;
 }
 
+
 /***************************************************************************//**
- * icreate complex double-precision matrix from real double-precision matrix \f$A\f$
+ * create complex double-precision matrix from real double-precision matrix \f$A\f$
  * @param[in] rhs real double-precision matrix \f$A\f$
  * @param[in] imagpart flag indicating whether the matrix \f$A\f$ should be considered as a real
  *  or imaginary part of the complex matrix being created
@@ -876,6 +877,43 @@ NRMat<complex<double> >::NRMat(const NRMat<double> &rhs, bool imagpart): nn(rhs.
 	}
 #endif
 }
+
+
+
+/***************************************************************************//**
+ * create double-precision matrix from complex double-precision matrix \f$A\f$
+ * @param[in] rhs complex double-precision matrix \f$A\f$
+ * @param[in] imagpart flag indicating whether the matrix \f$A\f$ should be taken as the real
+ *  or imaginary part of the input complex matrix 
+ ******************************************************************************/
+template<>
+NRMat<double>::NRMat(const NRMat<complex<double> > &rhs, bool imagpart): nn(rhs.nrows()), mm(rhs.ncols()), count(new int(1)) {
+	const int nn_mm = nn*mm;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+	#ifdef MATPTR
+	        v = new double*[n];
+	        v[0] = new double[nn_mm];
+	        for(register int i=1; i<n; i++) v[i] = v[i-1] + m;
+	
+	        cblas_dcopy(nn_mm, ((double *)&rhs[0][0]) + (imagpart?1:0), 2, v[0], 1);
+	#else
+	        v = new double[nn_mm];
+		cblas_dcopy(nn_mm, ((double *) &rhs[0][0]) + (imagpart?1:0), 2, v , 1);
+	#endif
+#ifdef CUDALA
+	}else{
+		v = (double *)gpualloc(sizeof(double)*nn_mm);
+		cublasDcopy(nn_mm, ((double*)&rhs[0][0])+ (imagpart?1:0), 2, v , 1);
+		TEST_CUBLAS("cublasDcopy");
+	}
+#endif
+}
+
+
+
+
 
 /***************************************************************************//**
  * output of a matrix of general type via lawritemat
@@ -1156,8 +1194,9 @@ void NRMat<complex<double> >::randomize(const double &x) {
 #endif
 		for(register int i=0; i<nn; ++i){
 			for(register int j=0; j<mm; ++j){
-				(*this)(i,j).real() = x*(2.*random()/(1. + RAND_MAX) - 1.);
-				(*this)(i,j).imag() = x*(2.*random()/(1. + RAND_MAX) - 1.);
+				const double re = x*(2.*random()/(1. + RAND_MAX) - 1.);
+				const double im = x*(2.*random()/(1. + RAND_MAX) - 1.);
+				(*this)(i,j) = complex<double>(re, im);
 			}
 		}
 #ifdef CUDALA

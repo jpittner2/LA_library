@@ -71,6 +71,7 @@ public:
 	CSRMat & operator=(const CSRMat &rhs);
 	void copyonwrite();
         void resize(const SPMatindex nn, const SPMatindex mm);
+	void dealloc(void) {resize(0,0);}
 	void moveto(GPUID destination);
         void clear();
 	~CSRMat();
@@ -127,6 +128,13 @@ public:
         iterator end() const {return iterator(NULL);}
 	*/
 };
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const CSRMat<T> &x);
+
+template <class T>
+std::istream& operator>>(std::istream  &s, CSRMat<T> &x);
+
 
 }//namespace
 #endif //_CSRMAT_H_

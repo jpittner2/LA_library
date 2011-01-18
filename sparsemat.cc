@@ -1245,6 +1245,9 @@ return *this;
 
 
 
+/*
+ Commented out by Roman for ICC
+
 #define INSTANTIZE(T) \
 template SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs);\
 template SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs);\
@@ -1291,9 +1294,8 @@ template void SparseMat<T>::permuteindices(const NRVec<SPMatindex> &p);\
 
 
 INSTANTIZE(double)
-
 INSTANTIZE(complex<double>) //some functions are not OK for hermitean matrices, needs a revision!!!
-
+*/
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corresponding object file

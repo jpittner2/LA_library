@@ -62,9 +62,10 @@ NRVec<double> x(1.,10);
 NRVec<double> y(2.,10);
 NRVec<double> z(-2.,10);
 
-cout.setf(ios::scientific);
-//cc:cout.setf(ios::fixed);
-cout.precision(12);
+//cout.setf(ios::scientific);
+cc:cout.setf(ios::fixed);
+cout.precision(10);
+cin.exceptions ( ifstream::eofbit | ifstream::failbit | ifstream::badbit );
 
 
 if(0) test(x);
@@ -409,6 +410,50 @@ NRVec<complex<double> >z=diagofproduct(u,v,1,1);
 cout <<z;
 //cout <<zz;
 for(int i=0;i<a.nrows();++i) w[i]/=z[i];//account for normalization of eigenvectors
+u.diagmultl(w);
+cout <<v.transpose(1)*u;
+
+}
+
+
+if(0)
+{
+NRMat<double> a;
+cin >>a;
+int n=a.nrows();
+NRMat<complex<double> > u(n,n),v(n,n);
+NRVec<complex<double> >w(n);
+gdiagonalize(a,w,&u,&v,0,n,0,1);
+cout <<u;
+cout <<w;
+cout <<v;
+
+NRVec<complex<double> >z=diagofproduct(u,v,1,1);
+cout <<z;
+for(int i=0;i<a.nrows();++i) w[i]/=z[i];//account for normalization of eigenvectors
+cout <<u*v.transpose(1); //check biorthonormality
+u.diagmultl(w);
+cout <<v.transpose(1)*u;
+
+}
+
+
+if(1)
+{
+NRMat<complex<double> > a;
+cin >>a;
+int n=a.nrows();
+NRMat<complex<double> > u(n,n),v(n,n);
+NRVec<complex<double> >w(n);
+gdiagonalize(a,w,&u,&v,0,n,0,1);
+cout <<u;
+cout <<w;
+cout <<v;
+
+NRVec<complex<double> >z=diagofproduct(u,v,1,1);
+cout <<z;
+for(int i=0;i<a.nrows();++i) w[i]/=z[i];//account for normalization of eigenvectors
+cout <<u*v.transpose(1); //check biorthonormality
 u.diagmultl(w);
 cout <<v.transpose(1)*u;
 
@@ -773,8 +818,42 @@ for(int i=1; i<4;i++) b=b*b;
 
 if(0)
 {
-NRMat<double> a;
+NRMat<double> aa,bb,cc;
+cin >>aa;
+cc=copytest(aa);
+cout <<cc;
+
+NRMat<complex<double> > a,b,c;
+a=complexify(aa);
+c=copytest(a);
+cout <<c;
+b=log(a);
+cout <<b;
+cout <<exp(b);
+}
+
+if(0)
+{
+NRMat<complex<double> > a,b,c;
+cin>>a;
+c=copytest(a);
+cout <<c;
+b=log(a);
+cout <<b;
+cout <<exp(b);
+}
+
+if(0)
+{
+NRMat<double> a,b,c;
 cin >>a;
+c=copytest(a);
+cout <<c;
+}
+
+if(0)
+{
+NRMat<double> a;
 NRMat<double> b=exp(a);
 NRMat<double> c=log(b);
 cout <<a;
@@ -1163,6 +1242,7 @@ cout <<a.oplus(b);
 cout <<a.otimes(b);
 }
 
+
 //test of general square matrix eigenvector derivatives
 if(0)
 {
@@ -1236,20 +1316,27 @@ tmp.diagonalof(wrg);
 for(int i=0; i<n; ++i)
         for(int j=0; j<n; ++j)
 		if(i!=j) tmp(i,j) /= (wr[j] - wr[i]); else  tmp(i,j) = 0.;
-cout <<" old X matrix \n"<<tmp<<endl;
+cout <<" old X matrix (tmp) \n"<<tmp<<endl;
 
 NRMat<double> Y = tmp;
 NRMat<double> S = vr.transpose() * vr;
+cout <<"test S\n"<<S;
 NRMat<double> tmp2 = S * tmp;
+cout <<"test tmp2\n"<<tmp2;
+Y.copyonwrite();
 for(int i=0; i<n; ++i) Y(i,i) -= tmp2(i,i);
 
 cout <<"Y matrix \n"<< Y;
 
-NRMat<double> numX = inverse(vr) * vrd;
+NRMat<double> vri = inverse(vr);
+
+NRMat<double> numX = vri * vrd;
 cout <<" numerical X matrix \n"<< numX;
 cout <<" numerical X matrix test = "<< (vr * numX - vrd).norm()<<endl;
 
 vrg = vr * Y;
+
+vlg = - (Y*vri).transpose();
 
 //and compare
 cout <<"eigenvalue numerical derivative\n"<<wrd<<endl;
@@ -1261,8 +1348,16 @@ cout <<"right eigenvector  numerical derivative\n"<<vrd<<endl;
 cout <<"right eigenvector  analytic derivative\n"<<vrg<<endl;
 cout <<"right eigenvector derivative error = "<<(vrd-vrg).norm()<<endl;
 
+//and for left eigenvectors
+cout <<"left eigenvector  numerical derivative\n"<<vld<<endl;
+cout <<"left eigenvector  analytic derivative\n"<<vlg<<endl;
+cout <<"left eigenvector derivative error = "<<(vld-vlg).norm()<<endl;
+
 
 }
+
+//@@@@@@@make this derivative check in complex version
+
 
 if(0)
 {
@@ -1415,7 +1510,9 @@ cout <<"symmetry error "<<(het-he).norm()<<endl;
 
 if(0)
 {
-NRSMat<double> hd(100);
+int n;
+cin >>n;
+NRSMat<double> hd(n);
 hd.randomize(1);
 SparseSMat<double> h(hd);
 NRMat<double> rd = hd*hd;
@@ -1425,14 +1522,22 @@ NRMat<double> r2(rx);
 cout <<"Error = "<<(r2-rd).norm()<<endl;
 }
 
+
 if(0)
 {
-SparseSMat<complex<double> > h;
-cin>>h;
-h *= complex<double>(0,1);
+SparseSMat<double> h0;
+cin>>h0;
+cout <<"matrix read\n"; cout.flush();
+SparseSMat<double> h1 = h0; //.submatrix(0,2047,0,2047);
+SparseSMat<complex<double> > h = imagmatrix(h1);
 double t=clock()/((double) (CLOCKS_PER_SEC));
-SparseSMat<complex<double> > r = exp(h);
-cout <<"SparseSMat time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+SparseSMat<complex<double> > r = h*h;
+cout <<"SparseSMat mult time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout.flush();
+t=clock()/((double) (CLOCKS_PER_SEC));
+r = exp(h);
+cout <<"SparseSMat exp time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout.flush();
 if(h.nrows()<=1024)
 {
 NRSMat<complex<double> > h3(h);
@@ -1442,6 +1547,7 @@ cout <<"error = "<<(r2-NRMat<complex<double> >(NRSMat<complex<double> >(r))).nor
 cout <<"errorx = "<<(r2-NRSMat<complex<double> >(r)).norm()<<endl;
 }
 }
+
 
 if(0)
 {
@@ -1598,7 +1704,7 @@ cgpu.moveto(cpu);
 cout << "Error = "<<(c-cgpu).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n;
@@ -1626,6 +1732,31 @@ cgpu=exp(a);
 c.moveto(gpu1);
 cout << "Error = "<<(c-cgpu).norm()<<endl;
 }
+
+/*
+if(0)
+{
+CSRMat<double> h0;
+cin>>h0;
+cout <<"matrix read\n"; cout.flush();
+CSRMat<double> h1 = h0; 
+CSRMat<complex<double> > h = imagmatrix(h1);
+double t=clock()/((double) (CLOCKS_PER_SEC));
+CSRMat<complex<double> > r = h*h;
+cout <<"CSRMat mult time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout.flush();
+t=clock()/((double) (CLOCKS_PER_SEC));
+r = exp(h);
+cout <<"CSRMat exp time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
+cout.flush();
+if(h.nrows()<=1024)
+{
+NRMat<complex<double> > h2(h);
+NRMat<complex<double> >r2 = exp(h2);
+cout <<"error = "<<(r2-NRMat<complex<double> >(r)).norm()<<endl;
+}
+}
+*/
 
 
 

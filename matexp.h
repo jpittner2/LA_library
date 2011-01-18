@@ -42,8 +42,8 @@ else
 	for(i=order-1; i>=0; i--)
 		{
 		//std::cerr<<"TEST polynom0 "<<i<<'\n';
-		if(i<order-1) z=y*x;
-		y=z+c[i];
+		if(i<order-1) {LA_traits<T>::deallocate(z); z=y*x;} //for large matrices avoid storing 4 ones simultaneously
+		LA_traits<T>::deallocate(y); y=z+c[i];
 		}
 	}
 
@@ -346,9 +346,11 @@ int power;
 NRVec<typename LA_traits<V>::normtype> taylor2=exp_aux<M,typename LA_traits<V>::normtype>(mat,power,maxpower,maxtaylor,scale);
 
 V tmp;
+bool washere=0;
 
 for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it many times, unlike if the matrix is stored explicitly
 	{
+	washere=1;
 	if(i>1) rhs=result; //apply again to the result of previous application
 	else result=rhs;
 	tmp=rhs; //now rhs can be used as scratch	
@@ -360,6 +362,8 @@ for(int i=1; i<=(1<<power); ++i) //unfortunatelly, here we have to repeat it man
 		result.axpy(taylor2[j],tmp);
 		}
 	}
+
+if(!washere) laerror("integer overflow due to unrealistically big power - use maxpower argument in exptimes()");
 
 return;
 }

@@ -80,6 +80,8 @@ public:
 
 	//! complexifying constructor 
 	NRMat(const typename LA_traits_complex<T>::NRMat_Noncomplex_type &rhs, bool imagpart = false);
+	//! explicit decomplexifying constructor
+	explicit NRMat(const NRMat<complex<T> > &rhs, bool imagpart = false);
 
 	//! explicit constructor converting symmetric matrix stored in packed form into a <code>NRMat<T></code> object
 	explicit NRMat(const NRSMat<T> &rhs);
@@ -280,6 +282,9 @@ public:
 	//! resize the matrix
 	void resize(int n, int m);
 
+	//! deallocate the matrix
+	void dealloc(void) {resize(0,0);}
+
 	//! get the pointer to the data
 	inline operator T*();
 	//! get the const pointer to the data
@@ -332,6 +337,8 @@ public:
 	explicit NRMat(const SparseMat<T> &rhs);                // dense from sparse
 	//! explicit constructor converting sparse symmetric matrix into \c NRMat<T> object
 	explicit NRMat(const SparseSMat<T> &rhs);
+	//! explicit constructor converting sparse CSR matrix into \c NRMat<T> object
+        explicit NRMat(const CSRMat<T> &rhs);
 
 	//! add up given sparse matrix
 	NRMat & operator+=(const SparseMat<T> &rhs);
@@ -618,7 +625,6 @@ inline T* NRMat<T>::operator[](const int i) {
 	if (i < 0 || i >= nn) laerror("Mat [] out of range");
 	if (!v) laerror("unallocated matrix");
 #endif
-	NOT_GPU(*this);
 	#ifdef MATPTR
 		return v[i];
 	#else

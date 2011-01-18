@@ -257,6 +257,36 @@ if(divide)
 return divide?NULL:&r[0];
 }
 
+template <class T>
+SparseSMat<T> SparseSMat<T>::submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const
+{
+#ifdef DEBUG
+        if(fromrow<0 || fromrow>=nn|| torow<0 || torow>=nn || fromcol<0 || fromcol>=mm || tocol<0 || tocol>=mm || fromrow>torow || fromcol>tocol){
+                laerror("invalid submatrix specification");
+        }
+#endif
+        const int m = tocol - fromcol + 1;
+	const int n = torow - fromrow + 1;
+        SparseSMat<T> result(n, m);
+	typename SparseSMat<T>::iterator p(*this);
+	for(; p.notend(); ++p) 
+	    if(p->row>=fromrow && p->row<= torow && p->col >= fromcol && p->col <= tocol)
+		result.add(p->row-fromrow, p->col-fromcol, p->elem, false);
+
+return result;
+}
+
+template <class T>
+void SparseSMat<T>::storesubmatrix(const int fromrow, const int fromcol, const SparseSMat<T> &rhs)
+{
+        const int tocol = fromcol + rhs.ncols() - 1;
+        const int torow = fromrow + rhs.nrows() - 1;
+#ifdef DEBUG
+        if(fromrow<0 || fromrow>=nn || torow>=nn || fromcol<0 || fromcol>=mm || tocol>=mm) laerror("bad indices in storesubmatrix");
+#endif
+	typename SparseSMat<T>::iterator p(rhs);
+	for(; p.notend(); ++p) add(p->row+fromrow, p->col+fromcol, p->elem, false);
+}
 
 
 template <class T>
@@ -305,6 +335,7 @@ void SparseSMat<T>::put(int fd, bool dimen, bool transp) const {
 
 
 
+/* Commented out by Roman for ICC
 
 #define INSTANTIZE(T) \
 template void SparseSMat<T>::gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); \
@@ -321,8 +352,8 @@ template void SparseSMat<T>::put(int fd, bool dimen, bool transp) const; \
 
 
 INSTANTIZE(double)
-
 INSTANTIZE(complex<double>) 
+*/
 
 //// forced instantization of functions in the header in the corresponding object file
 template class SparseSMat<double>;

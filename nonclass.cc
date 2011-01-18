@@ -240,6 +240,41 @@ linear_solve_do(a,&B[0],1,a.nrows(),det,n);
 }
 
 
+// Roman, complex version of linear_solve()
+extern "C" void FORNAME(zgesv)(const int *N, const int *NRHS, double *A, const int *LDA,
+           int *IPIV, double *B, const int *LDB, int *INFO);
+
+void linear_solve(NRMat< complex<double> > &A, NRMat< complex<double> > *B, complex<double> *det, int n)
+{
+        int r, *ipiv;
+
+        if (A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
+        if (B && A.nrows() != B->ncols()) laerror("incompatible matrices in linear_solve()");
+        A.copyonwrite();
+        if (B) B->copyonwrite();
+        ipiv = new int[A.nrows()];
+  n = A.nrows();
+  int nrhs = B ? B->nrows() : 0;
+  int lda = A.ncols();
+  int ldb = B ? B->ncols() : A.nrows();
+        FORNAME(zgesv)(&n, &nrhs, (double *)A[0], &lda, ipiv,
+                 B ? (double *)(*B)[0] : (double *)0, &ldb, &r);
+        if (r < 0) {
+                delete[] ipiv;
+                laerror("illegal argument in lapack_gesv");
+        }
+        if (det && r>=0) {
+                *det = A[0][0];
+                for (int i=1; i<A.nrows(); ++i) *det *= A[i][i];
+                //change sign of det by parity of ipiv permutation
+                for (int i=0; i<A.nrows(); ++i) *det = -(*det);
+        }
+        delete [] ipiv;
+        if (r>0 && B) laerror("singular matrix in zgesv");
+}
+
+
+
 //other version of linear solver based on gesvx
 
 //------------------------------------------------------------------------------
@@ -793,6 +828,18 @@ extern "C" void FORNAME(dggev)(const char *JOBVL, const char *JOBVR, const FINT 
 		 double *VL, const FINT *LDVL,  double *VR, const FINT *LDVR,  
 		double *WORK, const FINT *LWORK, FINT *INFO );
 
+extern "C" void FORNAME(zgeev)(const char *JOBVL, const char *JOBVR, const FINT *N,
+                complex<double> *A, const FINT *LDA, complex<double> *W, complex<double> *VL, const FINT *LDVL,
+                complex<double> *VR, const FINT *LDVR, complex<double> *WORK, const FINT *LWORK,
+		 double *RWORK, FINT *INFO );
+
+extern "C" void FORNAME(zggev)(const char *JOBVL, const char *JOBVR, const FINT *N,
+                complex<double> *A, const FINT *LDA, complex<double> *B, const FINT *LDB, complex<double> *W, complex<double> *WBETA,
+                complex<double> *VL, const FINT *LDVL,  complex<double> *VR, const FINT *LDVR,
+                complex<double> *WORK, const FINT *LWORK, double *RWORK, FINT *INFO );
+
+
+
 
 //statics for sorting
 static int *gdperm;
@@ -904,10 +951,11 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 #endif
 	delete[] work;
 
-//std::cout <<"TEST dgeev\n"<<wr<<wi<<*vr<<*vl<<std::endl;
 
 	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
 	if (r > 0) laerror("convergence problem in ggev/geev in gdiagonalize()");
+
+//std::cout <<"TEST dgeev\n"<<wr<<wi<<*vr<<*vl<<std::endl;
 
 	if(biorthonormalize && vl && vr)
 		{
@@ -968,6 +1016,7 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 			}
 		}
 
+
 	if(sorttype>0)
 		{
 		NRVec<int> perm(n);
@@ -997,12 +1046,119 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 }
 
 
+
+//most general complex routine
+template<>
+void gdiagonalize(NRMat<complex<double> > &a, NRVec< complex<double> > &w,
+		NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
+		const bool corder, int n, const int sorttype, const int biorthonormalize,
+		NRMat<complex<double> > *b, NRVec<complex<double> > *beta)
+{
+
+	if(n<=0) n = a.nrows();
+	if (n > a.ncols() || n>a.nrows() ) laerror("gdiagonalize() call for a non-square matrix");
+	if (n > w.size()) 
+		laerror("inconsistent dimension of eigen vector in gdiagonalize()");
+	if (vl) if (n > vl->nrows() || n > vl->ncols())
+		laerror("inconsistent dimension of vl in gdiagonalize()");
+	if (vr) if (n > vr->nrows() || n > vr->ncols())
+		laerror("inconsistent dimension of vr in gdiagonalize()");
+	if (beta) if(n > beta ->size()) laerror("inconsistent dimension of beta in gdiagonalize()");
+	if(b) if(n > b->nrows() || n > b->ncols())
+		 laerror("inconsistent dimension of b in gdiagonalize()");
+	if(b && !beta || beta && !b) laerror("missing array for generalized diagonalization");
+
+	a.copyonwrite();
+	w.copyonwrite();
+	if (vl) vl->copyonwrite();
+	if (vr) vr->copyonwrite();
+	if (beta) beta->copyonwrite();
+	if (b) b->copyonwrite();
+	
+	char jobvl = vl ? 'V' : 'N';
+	char jobvr = vr ? 'V' : 'N';
+	complex<double> work0;
+	FINT lwork = -1;
+	FINT r;
+	FINT lda=a.ncols();
+	FINT ldb=0;
+	if(b) ldb=b->ncols();
+	FINT ldvl= vl?vl->ncols():lda;
+	FINT ldvr= vr?vr->ncols():lda;
+
+	double *rwork = new double[n*(b?8:2)];
+
+#ifdef FORINT
+        FINT ntmp = n; 
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(complex<double> *)0,
+                        &ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &ntmp, a, &lda, w, vr?vr[0]:(complex<double> *)0,
+			&ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+#else
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(complex<double> *)0,
+                        &ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &n, a, &lda, w, vr?vr[0]:(complex<double> *)0,
+			&ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+#endif
+
+        lwork = (FINT) work0.real();
+	complex<double> *work = new complex<double>[lwork];
+
+#ifdef FORINT
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(complex<double> *)0,
+                        &ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &ntmp, a, &lda, w, vr?vr[0]:(complex<double> *)0,
+			&ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+#else
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(complex<double> *)0,
+                        &ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &n, a, &lda, w, vr?vr[0]:(complex<double> *)0,
+			&ldvr, vl?vl[0]:(complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+#endif
+
+	delete[] work;
+	delete[] rwork;
+
+//std::cout <<"TEST zg(g|e)ev\n"<<w<<*vr<<*vl<<std::endl;
+
+	if (r < 0) laerror("illegal argument in ggev/geev in gdiagonalize()");
+	if (r > 0) laerror("convergence problem in ggev/geev in gdiagonalize()");
+
+	if(biorthonormalize && vl && vr)
+		{
+		if(b || beta) laerror("@@@ biorthonormalize not implemented yet for generalized non-hermitian eigenproblem");//metric b would be needed
+		for(int i=0; i<n; ++i)
+			{
+			//calculate scaling paramter
+			complex<double> tmp;
+			cblas_zdotc_sub(n,(*vr)[i],1,(*vl)[i], 1, &tmp);
+			tmp = 1./tmp;
+			std::cout <<"scaling by "<<tmp<<"\n";
+			if(biorthonormalize==1) cblas_zscal(n,&tmp,(*vl)[i],1);
+			if(biorthonormalize==2) cblas_zscal(n,&tmp,(*vr)[i],1);
+			}
+		}
+
+	if(sorttype>0)
+		{
+		laerror("sorting not implemented in complex gdiagonalize");
+		}
+
+
+	if (corder) {
+		if (vl) vl->transposeme(n);
+		if (vr) vr->transposeme(n);
+	}
+
+}
+
+
+template<>
 void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
 		const bool corder, int n, const int sorttype, const int biorthonormalize,
 		NRMat<double> *b, NRVec<double> *beta)
 {
-	if(!corder)  laerror("gdiagonalize() corder 0 not implemented");
 	if(n<=0)  n = a.nrows();
 	if(n> a.nrows() || n ==  a.nrows() && n != a.ncols()) laerror("gdiagonalize() call for a non-square matrix");
 
@@ -1020,19 +1176,43 @@ void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		i = 0;
 		while (i < n) {
 			if (wi[i] == 0) {
+			    if(corder)
+				{
+                                if (vl) for (int j=0; j<n; j++) (*vl)[j][i] = (*rvl)[i][j];
+                                if (vr) for (int j=0; j<n; j++) (*vr)[j][i] = (*rvr)[i][j];
+				}
+			    else
+				{
 				if (vl) for (int j=0; j<n; j++) (*vl)[i][j] = (*rvl)[i][j];
 				if (vr) for (int j=0; j<n; j++) (*vr)[i][j] = (*rvr)[i][j];
+				}
 				i++;
 			} else {
 				if (vl)
 					for (int j=0; j<n; j++) {
+					    if(corder)
+						{
+                                                (*vl)[j][i] = complex<double>((*rvl)[i][j], (*rvl)[i+1][j]);
+                                                (*vl)[j][i+1] = complex<double>((*rvl)[i][j], -(*rvl)[i+1][j]);
+						}
+						else
+						{
 						(*vl)[i][j] = complex<double>((*rvl)[i][j], (*rvl)[i+1][j]);
 						(*vl)[i+1][j] = complex<double>((*rvl)[i][j], -(*rvl)[i+1][j]);
+						}
 					} 
 				if (vr)
 					for (int j=0; j<n; j++) {
+					    if(corder)
+                                                {
+                                                (*vr)[j][i] = complex<double>((*rvr)[i][j], (*rvr)[i+1][j]);
+                                                (*vr)[j][i+1] = complex<double>((*rvr)[i][j], -(*rvr)[i+1][j]);
+                                                }
+                                                else
+                                                {
 						(*vr)[i][j] = complex<double>((*rvr)[i][j], (*rvr)[i+1][j]);
 						(*vr)[i+1][j] = complex<double>((*rvr)[i][j], -(*rvr)[i+1][j]);
+						}
 					}
 				i += 2;
 			}
@@ -1043,35 +1223,78 @@ void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 }
 
 
-const NRMat<double> realpart(const NRMat< complex<double> > &a)
+template<>
+const NRMat<double> realpart<NRMat< complex<double> > >(const NRMat< complex<double> > &a)
 {
+#ifdef CUDALA
+        if(location == cpu){
+#endif
 	NRMat<double> result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), (const double *)a[0], 2, result, 1);
+#ifdef CUDALA
+        }else{
+	laerror("not implemented for cuda yet");
+	}
+#endif
 	return result;
 }
 
-const NRMat<double> imagpart(const NRMat< complex<double> > &a)
+template<>
+const NRMat<double> imagpart<NRMat< complex<double> > >(const NRMat< complex<double> > &a)
 {
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+
 	NRMat<double> result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), (const double *)a[0]+1, 2, result, 1);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented for cuda yet");
+        }
+#endif
 	return result;
 }
 
-const NRMat< complex<double> > realmatrix (const NRMat<double> &a)
+template<>
+const NRMat< complex<double> > realmatrix<NRMat<double> > (const NRMat<double> &a)
 {
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+
+
 	NRMat <complex<double> > result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), a, 1, (double *)result[0], 2);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented for cuda yet");
+        }
+#endif
+
 	return result;
 }
 
-const NRMat< complex<double> > imagmatrix (const NRMat<double> &a)
+template<>
+const NRMat< complex<double> > imagmatrix<NRMat<double> > (const NRMat<double> &a)
 {
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+
 	NRMat< complex<double> > result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), a, 1, (double *)result[0]+1, 2);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented for cuda yet");
+        }
+#endif
+
 	return result;
 }
 
-const NRMat< complex<double> > complexmatrix (const NRMat<double> &re, const NRMat<double> &im)
+template<>
+const NRMat< complex<double> > complexmatrix<NRMat<double> > (const NRMat<double> &re, const NRMat<double> &im)
 {
 	if(re.nrows()!=im.nrows() || re.ncols() != im.ncols()) laerror("incompatible sizes of real and imaginary parts");
         NRMat< complex<double> > result(re.nrows(), re.ncols());
@@ -1080,56 +1303,59 @@ const NRMat< complex<double> > complexmatrix (const NRMat<double> &re, const NRM
         return result;
 }
 
+template<>
+const SparseSMat< complex<double> > complexmatrix<SparseSMat<double> >(const SparseSMat<double> &re, const SparseSMat<double> &im) {
+  if(re.nrows()!=im.nrows() || re.ncols() != im.ncols()) laerror("incompatible sizes of real and imaginary parts");
+  SparseSMat< complex<double> > result(re.nrows(),re.ncols());
+  complex<double> tmp;
 
+  SparseSMat<double>::iterator pre(re);
+  for(; pre.notend(); ++pre) {
+    tmp = pre->elem;
+    result.add(pre->row,pre->col,tmp,false);
+  }
 
-NRMat<double> matrixfunction(NRMat<double> a, complex<double>
-		(*f)(const complex<double> &), const bool adjust)
-{
-	int n = a.nrows();
-	NRMat< complex<double> > u(n, n), v(n, n);
-	NRVec< complex<double> > w(n);
-/*
-NRMat<complex<double> > a0=complexify(a);
-*/
-	gdiagonalize(a, w, &u, &v);//a gets destroyed, eigenvectors are rows
-	NRVec< complex<double> > z = diagofproduct(u, v, 1, 1);
-/*
-std::cout <<"TEST matrixfunction\n"<<w<<u<<v<<z;
-std::cout <<"TEST matrixfunction1 "<< u*a0 - diagonalmatrix(w)*u<<std::endl;
-std::cout <<"TEST matrixfunction2 "<< a0*v.transpose(1) - v.transpose(1)*diagonalmatrix(w)<<std::endl;
-std::cout <<"TEST matrixfunction3 "<< u*v.transpose(1)<<diagonalmatrix(z)<<std::endl;
-NRVec< complex<double> > wz(n);
-for (int i=0; i<a.nrows(); i++) wz[i] = w[i]/z[i];
-std::cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*u<<std::endl;
-*/
+  SparseSMat<double>::iterator pim(im);
+  for(; pim.notend(); ++pim) {
+    tmp = complex<double>(0,1)*(pim->elem);
+    result.add(pim->row,pim->col,tmp,false);
+  }
 
-	for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i])/z[i];
-	u.diagmultl(w);
-
-	NRMat< complex<double> > r(n, n);
-	r.gemm(0.0, v, 'c', u, 'n', 1.0);
-	double inorm = cblas_dnrm2(n*n, (double *)r[0]+1, 2);
-	if (inorm > 1e-10) {
-		std::cout << "norm = " << inorm << std::endl;
-		laerror("nonzero norm of imaginary part of real matrixfunction");
-	}
-	return realpart(r);
+  return result;
 }
 
-NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double))
-{
-	int n = a.nrows();
-	NRVec<double> w(n);
-	NRMat<double> v(n, n);
-	diagonalize(a, w, &v, 0);
+template<>
+const SparseSMat< complex<double> > realmatrix<SparseSMat<double> >(const SparseSMat<double> &re) {
+  SparseSMat< complex<double> > result(re.nrows(),re.ncols());
+  complex<double> tmp;
 
-	for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i]);
-	NRMat<double> u = v;
-	v.diagmultl(w);
-	NRMat<double> r(n, n);
-	r.gemm(0.0, u, 't', v, 'n', 1.0);
-	return r;
+  SparseSMat<double>::iterator pre(re);
+  for(; pre.notend(); ++pre) {
+    tmp = pre->elem;
+    result.add(pre->row,pre->col,tmp,false);
+  }
+
+  return result;
 }
+
+template<>
+const SparseSMat< complex<double> > imagmatrix<SparseSMat<double> >(const SparseSMat<double> &im) {
+  SparseSMat< complex<double> > result(im.nrows(),im.ncols());
+  complex<double> tmp;
+
+
+  SparseSMat<double>::iterator pim(im);
+  for(; pim.notend(); ++pim) {
+    tmp = complex<double>(0,1)*(pim->elem);
+    result.add(pim->row,pim->col,tmp,false);
+  }
+
+  return result;
+}
+
+
+
+
 
 NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (const double))
 {
@@ -1144,6 +1370,7 @@ NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (const double))
         r.gemm(0.0, u, 't', a, 'n', 1.0);
         return r;
 }
+
 
 NRMat<complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (const double), double (*fim) (const double))
 {
@@ -1169,6 +1396,16 @@ NRMat<complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (co
 
 
 // instantize template to an addresable function
+complex<double> myccopy (const complex<double> &x) 
+{
+	return x;
+}
+
+double mycopy (const double x) 
+{
+	return x;
+}
+
 complex<double> myclog (const complex<double> &x) 
 {
 	return log(x);
@@ -1193,13 +1430,36 @@ double sqrtinv (const double x)
 
 NRMat<double>  log(const NRMat<double> &a)
 {
-	return matrixfunction(a, &myclog, 1);
+	return matrixfunction(a, &myclog);
 }
+
+NRMat<complex<double> >  log(const NRMat<complex<double> > &a)
+{
+        return matrixfunction(a, &myclog);
+}
+
 
 NRMat<double>  exp0(const NRMat<double> &a)
 {
-        return matrixfunction(a, &mycexp, 1);
+        return matrixfunction(a, &mycexp);
 }
+
+NRMat<complex<double> >  exp0(const NRMat<complex<double> > &a)
+{
+        return matrixfunction(a, &mycexp);
+}
+
+NRMat<complex<double> >  copytest(const NRMat<complex<double> > &a)
+{
+        return matrixfunction(a, &myccopy);
+}
+
+NRMat<double>  copytest(const NRMat<double> &a)
+{
+        return matrixfunction(a, &myccopy);
+}
+
+
 
 
 

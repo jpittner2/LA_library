@@ -61,9 +61,11 @@ public:
 	explicit SparseSMat(const SparseMat<T> &rhs);
 	explicit SparseSMat(const NRSMat<T> &rhs);
 	explicit SparseSMat(const NRMat<T> &rhs);
+	explicit SparseSMat(const CSRMat<T> &rhs);
 	SparseSMat & operator=(const SparseSMat &rhs);
 	void copyonwrite();
         void resize(const SPMatindex nn, const SPMatindex mm);
+   	void dealloc(void) {resize(0,0);}
 	inline void setcoldim(int i) {mm=(SPMatindex)i;};
 	//std::map<SPMatindex,T> *line(SPMatindex n) const {return v[n];};
 	typedef std::map<SPMatindex,T> *ROWTYPE;
@@ -100,6 +102,8 @@ public:
 	int nrows() const {return nn;}
 	int ncols() const {return mm;}
 	SparseSMat<T>  cholesky(void) const;
+	SparseSMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const;
+	void storesubmatrix(const int fromrow, const int fromcol, const SparseSMat &rhs);
 
 	class iterator {//not efficient, just for output to ostreams
         private:

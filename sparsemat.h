@@ -120,6 +120,7 @@ public:
 	void get(int fd, bool dimensions=1, bool transposed=false);
 	void put(int fd, bool dimensions=1, bool transposed=false) const;
 	void resize(const SPMatindex n, const SPMatindex m); //destructive
+        void dealloc(void) {resize(0,0);}
 	void incsize(const SPMatindex n, const SPMatindex m); //increase size without destroying the data
 	void transposeme();
 	const SparseMat transpose() const;

@@ -30,6 +30,9 @@ namespace LA {
 
 
 
+/*
+ Commented out by Roman for ICC
+
 #define INSTANTIZE(T) \
 template void CSRMat<T>::gemm(const T beta, const CSRMat &a, const char transa, const CSRMat &b, const char transb, const T alpha); \
 template CSRMat<T> & CSRMat<T>::operator*=(const T &a); \
@@ -45,8 +48,8 @@ template void CSRMat<T>::put(int fd, bool dimen, bool transp) const; \
 
 
 INSTANTIZE(double)
-
 INSTANTIZE(complex<double>) 
+*/
 
 //// forced instantization of functions in the header in the corresponding object file
 template class CSRMat<double>;

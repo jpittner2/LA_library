@@ -287,6 +287,9 @@ public:
 	//! resize the current vector
 	void resize(const int n);
 
+	//!deallocate the current vector
+	void dealloc(void) {resize(0);}
+
 	//! determine the norm of this vector 
 	inline const typename LA_traits<T>::normtype norm() const;
 

@@ -88,8 +88,8 @@ extern const  NRVec<T> diagofproduct(const NRMat<T> &a, const NRMat<T> &b,\
 extern T trace2(const NRMat<T> &a, const NRMat<T> &b, bool trb=0); \
 extern T trace2(const NRSMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern T trace2(const NRSMat<T> &a, const NRMat<T> &b, const bool diagscaled=0);\
-extern void linear_solve(NRMat<T> &a, NRMat<T> *b, double *det=0,int n=0); /*solve Ax^T=b^T (b is nrhs x n) */ \
-extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, double *det=0, int n=0); /*solve Ax^T=b^T (b is nrhs x n) */\
+extern void linear_solve(NRMat<T> &a, NRMat<T> *b, T *det=0,int n=0); /*solve Ax^T=b^T (b is nrhs x n) */ \
+extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, T *det=0, int n=0); /*solve Ax^T=b^T (b is nrhs x n) */\
 extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void diagonalize(NRMat<T> &a, NRVec<LA_traits<T>::normtype> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1); \
@@ -104,36 +104,28 @@ declare_la(complex<double>)
 
 // Separate declarations
 //general nonsymmetric matrix and generalized diagonalization
+//corder =0 ... C rows are eigenvectors, =1 ... C columns are eigenvectors
 extern void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 		NRMat<double> *vl, NRMat<double> *vr, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
-		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
-extern void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
+		NRMat<double> *b=NULL, NRVec<double> *beta=NULL); //this used real storage of eigenvectors like dgeev
+
+template<typename T>
+extern void gdiagonalize(NRMat<T> &a, NRVec< complex<double> > &w,
 		 NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
 		 const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
-		NRMat<double> *b=NULL, NRVec<double> *beta=NULL);
-extern NRMat<double> matrixfunction(NRSMat<double> a, double (*f) (double));
-extern NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double)); //a has to by in fact symmetric
-extern NRMat<complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (double), double (*fim) (double)); //a has to by in fact symmetric
-extern NRMat<double> matrixfunction(NRMat<double> a, complex<double> (*f)(const complex<double> &),const bool adjust=0);
+		NRMat<T> *b=NULL, NRVec<T> *beta=NULL); //eigenvectors are stored in complex matrices for T both double and complex
 
-extern complex<double> sqrtinv(const complex<double> &);
-extern double sqrtinv(const double);
-
-//functions on matrices
-inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&std::sqrt); }
-inline NRMat<double>  sqrtinv(const NRSMat<double> &a) { return matrixfunction(a,&sqrtinv); }
-inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfunction(a,&std::sqrt); }
-inline NRMat<double>  realsqrtinv(const NRMat<double> &a) { return realmatrixfunction(a,&sqrtinv); }
-inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&std::log); }
-extern NRMat<double> log(const NRMat<double> &a);
-extern NRMat<double> exp0(const NRMat<double> &a);
-
-
-extern const NRMat<double> realpart(const NRMat< complex<double> >&);
-extern const NRMat<double> imagpart(const NRMat< complex<double> >&);
-extern const NRMat< complex<double> > realmatrix (const NRMat<double>&);
-extern const NRMat< complex<double> > imagmatrix (const NRMat<double>&);
-extern const NRMat< complex<double> > complexmatrix (const NRMat<double>&, const NRMat<double>&);
+//complex,real,imaginary parts of various entities
+template<typename T>
+extern const typename LA_traits<T>::realtype realpart(const T&);
+template<typename T>
+extern const typename LA_traits<T>::realtype imagpart(const T&);
+template<typename T>
+extern const typename LA_traits<T>::complextype realmatrix (const T&);
+template<typename T>
+extern const typename LA_traits<T>::complextype imagmatrix (const T&);
+template<typename T>
+extern const typename LA_traits<T>::complextype complexmatrix (const T&, const T&);
 
 //Cholesky decomposition
 extern void cholesky(NRMat<double> &a, bool upper=1);
@@ -313,6 +305,85 @@ for(int i=0; i<implicitmat.ncols(); ++i)
 	}
 return r;
 }
+
+
+//matrix functions via diagonalization
+
+extern NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double)); //a has to by in fact symmetric
+extern NRMat<complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (double), double (*fim) (double)); //a has to by in fact symmetric
+
+template<typename T> 
+NRMat<T> matrixfunction(NRSMat<T> a, double (*f) (double)) //of symmetric/hermitian matrix
+{
+	int n = a.nrows();
+	NRVec<double> w(n);
+	NRMat<T> v(n, n);
+	diagonalize(a, w, &v, 0);
+
+	for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i]);
+	NRMat<T> u = v;
+	NRVec<T> ww=w; //diagmultl needs same type
+	v.diagmultl(ww);
+	NRMat<T> r(n, n);
+	r.gemm(0.0, u, 't', v, 'n', 1.0); //gemm will use 'c' for complex ones 
+	return r;
+}
+
+
+template<typename T>
+extern NRMat<T> matrixfunction(NRMat<T> a, complex<double> (*f)(const complex<double> &)) //of a general real/complex matrix
+{
+	int n = a.nrows();
+	NRVec<complex<double> > w(n);
+	NRMat<complex<double> > u(n,n),v(n,n);
+
+#ifdef debugmf
+NRMat<complex<double> > a0=a;
+#endif
+
+        gdiagonalize<T>(a, w, &u, &v, false,n,0,false,NULL,NULL);//a gets destroyed, eigenvectors are rows
+        NRVec< complex<double> > z = diagofproduct(u, v, 1, 1);
+
+#ifdef debugmf
+std::cout <<"TEST matrixfunction\n"<<w<<u<<v<<z;
+std::cout <<"TEST matrixfunction1 "<< u*a0 - diagonalmatrix(w)*u<<std::endl;
+std::cout <<"TEST matrixfunction2 "<< a0*v.transpose(1) - v.transpose(1)*diagonalmatrix(w)<<std::endl;
+std::cout <<"TEST matrixfunction3 "<< u*v.transpose(1)<<diagonalmatrix(z)<<std::endl;
+#endif
+
+NRVec< complex<double> > wz(n);
+for (int i=0; i<a.nrows(); i++) wz[i] = w[i]/z[i];
+
+#ifdef debugmf
+std::cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*u<<std::endl;
+#endif
+
+        for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i])/z[i];
+        u.diagmultl(w);
+
+        NRMat< complex<double> > r(n, n);
+        r.gemm(0.0, v, 'c', u, 'n', 1.0);
+	return (NRMat<T>) r; //convert back to real if applicable by the explicit decomplexifying constructor; it is NOT checked to which accuracy the imaginary part is actually zero
+}
+
+
+
+
+extern complex<double> sqrtinv(const complex<double> &);
+extern double sqrtinv(const double);
+
+//functions on matrices
+inline NRMat<double>  sqrt(const NRSMat<double> &a) { return matrixfunction(a,&std::sqrt); }
+inline NRMat<double>  sqrtinv(const NRSMat<double> &a) { return matrixfunction(a,&sqrtinv); }
+inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfunction(a,&std::sqrt); }
+inline NRMat<double>  realsqrtinv(const NRMat<double> &a) { return realmatrixfunction(a,&sqrtinv); }
+inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&std::log); }
+extern NRMat<double> log(const NRMat<double> &a);
+extern NRMat<complex<double> > log(const NRMat<complex<double> > &a);
+extern NRMat<complex<double> > exp0(const NRMat<complex<double> > &a);
+extern NRMat<complex<double> > copytest(const NRMat<complex<double> > &a);
+extern NRMat<double> copytest(const NRMat<double> &a);
+extern NRMat<double> exp0(const NRMat<double> &a);
 
 
 }//namespace

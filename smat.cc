@@ -58,7 +58,7 @@ void NRSMat<T>::put(int fd, bool dim, bool transp) const {
 		if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
 		if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
 	}
-	LA_traits<T>::multiput(NN2,fd,v,dim);
+	LA_traits<T>::multiput((size_t)nn*(nn+1)/2,fd,v,dim);
 }
 
 /***************************************************************************//**
@@ -89,7 +89,7 @@ void NRSMat<T>::get(int fd, bool dim, bool transp) {
 	}else{
 		copyonwrite();
 	}
-	LA_traits<T>::multiget(NN2,fd,v,dim);
+	LA_traits<T>::multiget((size_t)nn*(nn+1)/2,fd,v,dim);
 }
 
 

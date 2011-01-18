@@ -226,6 +226,7 @@ public:
 	inline matel4<I,T> *getlist() const {return list;}
 	inline I size() const {return nn;}
 	void resize(const I n);
+	void dealloc(void) {resize(0);}
 	void copyonwrite();
 	unsigned long length() const;
 	inline void add(const I i, const I j, const I k, const I l, const T elem) 

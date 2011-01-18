@@ -30,9 +30,9 @@ class LAerror
 	};
 
 #ifdef __GNUG__
-	#define laerror(X) { LA::laerror2(X, __PRETTY_FUNCTION__); }
+	#define laerror(X) LA::laerror2(X, __PRETTY_FUNCTION__)
 #else
-	#define laerror(X) { LA::laerror2(X, __func__); }
+	#define laerror(X) LA::laerror2(X, __func__)
 #endif
 
 extern void laerror2(const char *, const char *);

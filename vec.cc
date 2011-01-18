@@ -793,14 +793,14 @@ NRVec<complex<double> >::otimes(const NRVec<complex<double> > &b, const bool con
 		if(conj){
 			const cuDoubleComplex alpha = make_cuDoubleComplex(scale.real(), -scale.imag());
 
-			cublasZgerc(b.nn, nn, alpha, (cuDoubleComplex*)(b.v), 1, (cuDoubleComplex*)(v), 1, (cuDoubleComplex*)(result[0]), 1);
+			cublasZgerc(b.nn, nn, alpha, (cuDoubleComplex*)(b.v), 1, (cuDoubleComplex*)(v), 1, (cuDoubleComplex*)(result[0]), b.nn);
 			TEST_CUBLAS("cublasZgerc");
 
 			result.conjugateme();
 		}else{
 			const cuDoubleComplex alpha = make_cuDoubleComplex(scale.real(), +scale.imag());
 
-			cublasZgeru(b.nn, nn, alpha, (cuDoubleComplex*)(b.v), 1, (cuDoubleComplex*)(v), 1, (cuDoubleComplex*)(result[0]), 1);
+			cublasZgeru(b.nn, nn, alpha, (cuDoubleComplex*)(b.v), 1, (cuDoubleComplex*)(v), 1, (cuDoubleComplex*)(result[0]), b.nn);
 			TEST_CUBLAS("cublasZgeru");
 		}
 	}
@@ -839,6 +839,9 @@ NRVec<complex<double> > complexify(const NRVec<double> &rhs) {
 /***************************************************************************//**
  * forced instantization in the corespoding object file
  ******************************************************************************/
+/*
+ Commented out by Roman for ICC
+
 #define INSTANTIZE(T) \
 template void NRVec<T>::put(int fd, bool dim, bool transp) const; \
 template void NRVec<T>::get(int fd, bool dim, bool transp); \
@@ -855,19 +858,7 @@ INSTANTIZE(unsigned short)
 INSTANTIZE(unsigned int)
 INSTANTIZE(unsigned long)
 INSTANTIZE(unsigned long long)
-
-template class NRVec<double>;
-template class NRVec<complex<double> >;
-template class NRVec<char>;
-template class NRVec<short>;
-template class NRVec<int>;
-template class NRVec<long>;
-template class NRVec<long long>;
-template class NRVec<unsigned char>;
-template class NRVec<unsigned short>;
-template class NRVec<unsigned int>;
-template class NRVec<unsigned long>;
-template class NRVec<unsigned long long>;
+*/
 
 #define INSTANTIZE_DUMMY(T) \
 template<> void NRVec<T>::gemv(const T beta, const NRMat<T> &a, const char trans,  const T alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
@@ -877,6 +868,11 @@ template<> void NRVec<T>::gemv(const LA_traits_complex<T>::Component_type beta, 
 template<> void NRVec<T>::gemv(const  LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRSMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
 template<> NRVec<T> & NRVec<T>::normalize(LA_traits<T>::normtype *) {laerror("normalize() impossible for integer types"); return *this;} \
 template<> const NRMat<T> NRVec<T>::otimes(const NRVec<T> &b,const bool conj, const T &scale) const {laerror("otimes presently implemented only for double and complex double"); return NRMat<T> ();}
+
+// Roman
+// following gemv are not implemented
+template<> void NRVec<double>::gemv(const double beta, const SparseMat<double> &a, const char trans,  const double alpha, const NRVec<double> &x, bool s) { laerror("gemv on unsupported types"); } 
+template<> void NRVec< complex<double> >::gemv(const complex<double> beta, const SparseMat< complex<double> > &a, const char trans,  const complex<double> alpha, const NRVec< complex<double> > &x, bool s) { laerror("gemv on unsupported types"); } 
 
 
 INSTANTIZE_DUMMY(char)
@@ -901,5 +897,18 @@ INSTANTIZE_DUMMY(complex<unsigned long>)
 INSTANTIZE_DUMMY(complex<unsigned long long>)
 INSTANTIZE_DUMMY(complex<complex<double> >)
 INSTANTIZE_DUMMY(complex<complex<float> >)
+
+template class NRVec<double>;
+template class NRVec<complex<double> >;
+template class NRVec<char>;
+template class NRVec<short>;
+template class NRVec<int>;
+template class NRVec<long>;
+template class NRVec<long long>;
+template class NRVec<unsigned char>;
+template class NRVec<unsigned short>;
+template class NRVec<unsigned int>;
+template class NRVec<unsigned long>;
+template class NRVec<unsigned long long>;
 
 }//namespace

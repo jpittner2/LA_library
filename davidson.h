@@ -33,26 +33,21 @@ namespace LA {
 //therefore the whole implementation must be a template in a header
 //Note that for efficiency in a direct CI case the diagonalof() should cache its result
 
-template <typename T, typename Matrix>
-extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
-		int nroots=1,  const bool verbose=0, const double eps=1e-6,
-	 	const bool incore=1, int maxit=100, const int maxkrylov = 500,
-		void (*initguess)(NRVec<T> &)=NULL);
 
 //@@@options: left eigenvectors by matrix transpose, overridesymmetric (for nrmat)
 //@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
 //@@@test gdiagonalize whether it sorts the roots and what for complex ones
+//@@@implement left eigenvectors for nonsymmetric case
 
 
 //Davidson algorithm: J. Comp. Phys. 17:817 (1975) 
 
-//@@@implement left eigenvectors for nonsymmetric case
 
 template <typename T, typename Matrix>
-void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile,
-                int nroots,  const bool verbose, const double eps, 
-                const bool incore, int maxit, const int maxkrylov,
-		void (*initguess)(NRVec<T> &))
+extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
+		int nroots=1,  const bool verbose=0, const double eps=1e-6,
+	 	const bool incore=1, int maxit=100, const int maxkrylov = 500,
+		void (*initguess)(NRVec<T> &)=NULL)
 {
 bool flag=0;
 int n=bigmat.nrows();
@@ -87,7 +82,7 @@ smallH=0;
 
 
 //default guess based on lowest diagonal element of the matrix
-if(initguess) (*initguess)(vec1);
+if(initguess) initguess(vec1);
 else
 	{
 	const T *diagonal = bigmat.diagonalof(vec2,false,true);

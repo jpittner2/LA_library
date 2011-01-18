@@ -42,6 +42,7 @@
 #include "smat.h"
 #include "sparsemat.h"
 #include "sparsesmat.h"
+#include "csrmat.h"
 #include "vec.h"
 
 using namespace LA;

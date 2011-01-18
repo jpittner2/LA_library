@@ -159,6 +159,7 @@ public:
 
 	void clear() {copyonwrite(); LA_traits<T>::clear(v,NN2);}; //zero out
 	void resize(const int n);
+	void dealloc(void) {resize(0);}
 
 	inline operator T*();
 	inline operator const T*() const;
