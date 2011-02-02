@@ -1523,6 +1523,24 @@ double trace2(const NRMat<double> &a, const NRMat<double> &b, bool trb)
 	return sum;
 }
 
+// LV
+complex<double> trace2(const NRMat<complex<double> > &a, const NRMat<complex<double> > &b, bool adjb)
+{
+        if (adjb && (a.nrows() != b.nrows() || a.ncols() != b.ncols()) ||
+                                !adjb && (a.nrows() != b.ncols() || a.ncols() != b.nrows()))
+                        laerror("incompatible Mats in trace2()");
+
+        complex<double> dot;
+        if (adjb) { cblas_zdotc_sub(a.nrows()*a.ncols(), b, 1, a, 1, &dot); return dot; }
+
+        complex<double> sum = complex<double>(0.,0.);
+        for (int i=0; i<a.nrows(); i++) {
+                cblas_zdotu_sub(a.ncols(), a[i], 1, b[0]+i, b.ncols(), &dot);
+                sum += dot;
+        }
+
+        return sum;
+}
 
 double trace2(const NRSMat<double> &a, const NRSMat<double> &b,
 		const bool diagscaled)
