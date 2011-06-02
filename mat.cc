@@ -50,7 +50,7 @@ const NRMat<T> NRMat<T>::oplus(const NRMat<T> &rhs) const {
 	SAME_LOC(*this, rhs);
 	NRMat<T> ret(nn + rhs.nn, mm + rhs.mm, getlocation());
 
-	ret = 0;
+	ret.clear();
 	ret.storesubmatrix(0, 0, *this);
 	ret.storesubmatrix(nn, mm, rhs);
 	return ret;
