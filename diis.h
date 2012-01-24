@@ -28,8 +28,7 @@
 
 namespace LA {
 
-//Pulay memorial book  remarks - for numerical stabilization small addition to diagonal
-const double DIISEPS=1e-9;
+//Pulay memorial book  remarks - for numerical stabilization small addition to diagonal (but our experience was opposite)
 
 // Typically, T is some solution vector in form of NRVec, NRMat, or NRSMat over double or complex<double> fields
 // actually it can be anything what has operator=(const T&), clear(), dot() , axpy(), norm() and copyonwrite(), and LA_traits<T>::normtype and elementtype
@@ -44,6 +43,7 @@ class DIIS
 	int cyclicshift; //circular buffer of last dim vectors
 	typedef typename LA_traits<T>::elementtype Te;
 	typedef typename LA_traits<U>::elementtype Ue;
+	typedef typename LA_traits<U>::normtype Un;
 	NRSMat<Ue> bmat;
 	AuxStorage<Te> *st;
 	AuxStorage<Ue> *errst;
@@ -54,7 +54,7 @@ public:
 	DIIS(const int n, const bool core=1);
 	void setup(const int n, const bool core=1);
 	~DIIS();
-	typename LA_traits<U>::normtype extrapolate(T &vec, const U &errvec, bool verbose=false); //vec is input/output; returns square residual norm
+	typename LA_traits<U>::normtype extrapolate(T &vec, const U &errvec, bool verbose=false, const Un diiseps=0); //vec is input/output; returns square residual norm
 	};
 
 template<typename T, typename U>
@@ -93,9 +93,8 @@ if(errstor) delete[] errstor;
 }
 
 
-
 template<typename T, typename U>
-typename LA_traits<U>::normtype DIIS<T,U>::extrapolate(T &vec, const U &errvec, bool verbose)
+typename LA_traits<U>::normtype DIIS<T,U>::extrapolate(T &vec, const U &errvec, bool verbose, const Un diiseps)
 {
 if(!dim) laerror("attempt to extrapolate from uninitialized DIIS");
 //if dim exceeded, shift 
@@ -123,10 +122,12 @@ else
 
 if(aktdim==1) return (typename LA_traits<T>::normtype)1;
 
-
 //calculate overlaps of the new error with old ones
 typename LA_traits<T>::normtype norm=errvec.norm();
-bmat(aktdim,aktdim)= norm*norm + DIISEPS;
+bmat(aktdim,aktdim) = norm*norm;
+// LV
+bmat(aktdim,aktdim) += diiseps;
+
 if(incore)
 	for(int i=1; i<aktdim; ++i) 
 		bmat(i,aktdim)=errvec.dot(errstor[(i+cyclicshift-1)%dim]);
@@ -139,7 +140,6 @@ else
 		bmat(i,aktdim)= errvec.dot(tmp);
 		}
 	}
-
 
 //prepare rhs-solution vector
 NRVec<Ue> rhs(dim+1);
