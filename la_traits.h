@@ -223,7 +223,7 @@ static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool tran
 static void multiget(size_t n,int fd, complex<C> *x, bool dimensions=0)
 	{
 	size_t total=0;
-	size_t system_limit = (1L<<30)/sizeof(complex<C>); //read at most 1GB at once
+	size_t system_limit = (1L<<30)/sizeof(complex<C>); //do not expect too much from the system and read at most 1GB at once
 	ssize_t r;
 	do{
 		r=read(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
@@ -236,7 +236,7 @@ static void multiget(size_t n,int fd, complex<C> *x, bool dimensions=0)
 static void multiput(size_t n, int fd, const complex<C> *x, bool dimensions=0) 
 	{
 	size_t total=0;
-	size_t system_limit = (1L<<30)/sizeof(complex<C>); //read at most 1GB at once
+	size_t system_limit = (1L<<30)/sizeof(complex<C>); //do not expect too much from the system and write at most 1GB at once
 	ssize_t r;
 	do{
 		r=write(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
