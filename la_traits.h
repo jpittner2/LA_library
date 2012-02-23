@@ -223,10 +223,11 @@ static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool tran
 static void multiget(size_t n,int fd, complex<C> *x, bool dimensions=0)
 	{
 	size_t total=0;
+	size_t system_limit = (1L<<30)/sizeof(complex<C>); //read at most 1GB at once
 	ssize_t r;
 	do{
-		r=read(fd,x+total,(n-total)*sizeof(complex<C>)); 
-		if(r<0 || r==0 && n!=0 ) {std::cout<<"read returned "<<r<<std::endl; laerror("read error");}
+		r=read(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
+		if(r<0 || r==0 && n!=0 ) {std::cout<<"read returned "<<r<<" perror "<<strerror(errno) <<std::endl; laerror("read error");}
 		else total += r/sizeof(complex<C>);
 		if(r%sizeof(complex<C>)) laerror("read error 2");
 	  }
@@ -235,10 +236,11 @@ static void multiget(size_t n,int fd, complex<C> *x, bool dimensions=0)
 static void multiput(size_t n, int fd, const complex<C> *x, bool dimensions=0) 
 	{
 	size_t total=0;
+	size_t system_limit = (1L<<30)/sizeof(complex<C>); //read at most 1GB at once
 	ssize_t r;
 	do{
-		r=write(fd,x+total,(n-total)*sizeof(complex<C>)); 
-		if(r<0 || r==0 && n!=0 ) {std::cout<<"write returned "<<r<<std::endl; laerror("write error");}
+		r=write(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
+		if(r<0 || r==0 && n!=0 ) {std::cout<<"write returned "<<r<<"  perror "<<strerror(errno) <<std::endl; laerror("write error");}
 		else total += r/sizeof(complex<C>);
 		if(r%sizeof(complex<C>)) laerror("write error 2");
 	  }
