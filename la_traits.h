@@ -276,9 +276,10 @@ static inline void get(int fd, C &x, bool dimensions=0, bool transp=0) {if(sizeo
 static void multiget(size_t n,int fd, C *x, bool dimensions=0)
 	{
 	size_t total=0;
+	size_t system_limit = (1L<<30)/sizeof(C); //do not expect too much from the system and read at most 1GB at once
 	ssize_t r;
 	do{
-		r=read(fd,x+total,(n-total)*sizeof(C)); 
+		r=read(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(C)); 
 		if(r<0 || r==0 && n!=0 ) {std::cout<<"read returned "<<r<<std::endl; laerror("read error");}
 		else total += r/sizeof(C);
 		if(r%sizeof(C)) laerror("read error 2");
@@ -288,9 +289,10 @@ static void multiget(size_t n,int fd, C *x, bool dimensions=0)
 static void multiput(size_t n, int fd, const C *x, bool dimensions=0) 
 	{
 	size_t total=0;
+	size_t system_limit = (1L<<30)/sizeof(C); //do not expect too much from the system and write at most 1GB at once
 	ssize_t r;
 	do{
-		r=write(fd,x+total,(n-total)*sizeof(C)); 
+		r=write(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(C)); 
 		if(r<0 || r==0 && n!=0 ) {std::cout<<"write returned "<<r<<std::endl; laerror("write error");}
 		else total += r/sizeof(C);
 		if(r%sizeof(C)) laerror("write error 2");
