@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
 #include "bitvector.h"
 #include "sparsemat.h"
 
@@ -40,10 +41,6 @@ static inline void SWAP(T &a, T &b)
 
 
 
-extern "C" {
-extern ssize_t read(int, void *, size_t);
-extern ssize_t write(int, const void *, size_t);
-}
 
 
 template <class T>
@@ -146,7 +143,7 @@ while(l)
 }
 
 template <class T>
-void SparseMat<T>::copyonwrite()
+void SparseMat<T>::copyonwrite(bool detachonly)
 {
         if(!count) laerror("probably an assignment to undefined sparse matrix");
         if(*count > 1)
@@ -155,7 +152,7 @@ void SparseMat<T>::copyonwrite()
                 count = new int; *count=1;
 		if(!list) laerror("empty list with count>1");
 		unsort();
-		copylist(list);
+		if(!detachonly) copylist(list);
                 }
 }
 
@@ -1301,5 +1298,14 @@ INSTANTIZE(complex<double>) //some functions are not OK for hermitean matrices, 
 //// forced instantization in the corresponding object file
 template class SparseMat<double>;
 template class SparseMat<complex<double> >;
+
+#define INSTANTIZE(T) \
+template NRMat<T>::NRMat(const SparseMat<T> &rhs); \
+template NRSMat<T>::NRSMat(const SparseMat<T> &rhs); \
+template NRVec<T>::NRVec(const SparseMat<T> &rhs);
+
+INSTANTIZE(double)
+INSTANTIZE(complex<double>)
+
 
 }//namespace
