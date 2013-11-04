@@ -104,10 +104,10 @@ __attribute__((packed))
 
 
 //later add symmetry of complex integrals
-typedef enum {undefined_symmetry=-1,nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_aces=3, antisymtwoelectronrealdirac=4, T2IjAb_aces=5} fourindexsymtype; //only permutation-nonequivalent elements are stored
+typedef enum {undefined_symmetry=-1,nosymmetry=0, twoelectronrealmullikan=1, twoelectronrealdirac=2, T2ijab_aces=3, antisymtwoelectronrealdirac=4, T2IjAb_aces=5, twoelectronrealmullikanAB=6 } fourindexsymtype; //only permutation-nonequivalent elements are stored
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
-static const int fourindex_n_symmetrytypes=6;
-static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,8,8};
+static const int fourindex_n_symmetrytypes=7;
+static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,8,8,4};
 static const int fourindex_permutations[fourindex_n_symmetrytypes][8][5]=
 		{
 		{{0,1,2,3,1}},
@@ -116,6 +116,7 @@ static const int fourindex_permutations[fourindex_n_symmetrytypes][8][5]=
 		{{0,1,2,3,1},{1,0,2,3,-1},{0,1,3,2,-1},{1,0,3,2,1}},
 		{{0,1,2,3,1},{1,0,2,3,-1},{0,1,3,2,-1},{1,0,3,2,1},{2,3,0,1,1},{3,2,0,1,-1},{2,3,1,0,-1},{3,2,1,0,1}},
 		{{0,1,2,3,1}}, //T2IjAb_aces is like nosymmetry but different index ranges
+		{{0,1,2,3,1},{1,0,2,3,1},{0,1,3,2,1},{1,0,3,2,1}},
 		};
 
 
@@ -668,6 +669,108 @@ typedef typename LA_traits<T>::normtype normtype;
 
 
 //make it as a derived class in order to be able to use it in a base class context - "supermatrix" operations
+template<class T, class I> 
+class fourindex_dense<twoelectronrealmullikanAB,T,I> : public NRMat<T> {
+public:
+	fourindex_dense(): NRMat<T>() {};
+	explicit fourindex_dense(const int n): NRMat<T>(n*(n+1)/2,n*(n+1)/2) {};
+	fourindex_dense(const NRMat<T> &rhs): NRMat<T>(rhs) {}; //be able to convert the parent class  transparently to this
+	fourindex_dense(const T &a, const int n): NRMat<T>(a,n*(n+1)/2,n*(n+1)/2) {};
+	fourindex_dense(const T *a, const int n): NRMat<T>(a,n*(n+1)/2,n*(n+1)/2) {};
+	//and also construct it from sparse and externally stored fourindex classes
+	//it seems not possible to nest template<class I> just for the two constructors
+	fourindex_dense(const fourindex<I,T> &rhs);
+	fourindex_dense(const fourindex_ext<I,T> &rhs);
+
+	T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l);
+	const T& operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
+	void resize(const int n) {(*this).NRMat<T>::resize(n*(n+1)/2,n*(n+1)/2);};
+	void putext(int f, T thr=1e-15);
+	int nbas() const {return (int)std::sqrt(2*(*this).nrows());};
+
+};
+
+template<class T, class I>
+void fourindex_dense<twoelectronrealmullikanAB,T,I>::putext(int f, T thr)
+{
+T y;
+for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
+        for(int k=1; k<=nbas(); ++k) for(int l=1; l<=k; ++l)
+		if((y=abs((*this)(i,j,k,l))) > thr)
+			{
+			matel4stored<I,T> x;
+			x.elem= y;
+			x.index.indiv.i=i;
+			x.index.indiv.j=j;
+			x.index.indiv.k=k;
+			x.index.indiv.l=l;
+			if(sizeof(matel4stored<I,T>) != write(f,&x,sizeof(matel4stored<I,T>)) )
+				laerror("write error in putext");
+			}
+}
+
+
+template<class T, class I> 
+fourindex_dense<twoelectronrealmullikanAB,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : NRMat<T>((T)0,rhs.size()*(rhs.size()+1)/2,rhs.size()*(rhs.size()+1)/2)
+{
+if(rhs.getsymmetry() != twoelectronrealmullikanAB ) laerror("fourindex_dense symmetry mismatch");
+typename fourindex<I,T>::iterator p;
+#ifdef DEBUG
+unsigned int IJ = SMat_index_1(p->index.indiv.i,p->index.indiv.j);
+unsigned int KL = SMat_index_1(p->index.indiv.k,p->index.indiv.l);
+if (IJ<0 || IJ>=(unsigned int)NRMat<T>::nn || KL<0 || KL>=(unsigned int)NRMat<T>::mm) laerror("fourindex_dense index out of range in constructor");
+#endif
+for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
+}
+
+template<class T, class I>
+fourindex_dense<twoelectronrealmullikanAB,T,I>::fourindex_dense(const fourindex_ext<I,T> &rhs) : NRMat<T>((T)0,rhs.size()*(rhs.size()+1)/2,rhs.size()*(rhs.size()+1)/2)
+{
+if(rhs.getsymmetry() != twoelectronrealmullikanAB ) laerror("fourindex_dense symmetry mismatch");
+typename fourindex_ext<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p) 
+	{
+#ifdef DEBUG
+unsigned int IJ = SMat_index_1(p->index.indiv.i,p->index.indiv.j);
+unsigned int KL = SMat_index_1(p->index.indiv.k,p->index.indiv.l);
+if (IJ<0 || IJ>=(unsigned int)NRMat<T>::nn || KL<0 || KL>=(unsigned int)NRMat<T>::mm) laerror("fourindex_dense index out of range in constructor");
+#endif
+	(*this)(p->index.indiv.i,p->index.indiv.j ,p->index.indiv.k,p->index.indiv.l) = p->elem;
+	}
+}
+
+
+
+template<class T, class DUMMY>
+T& fourindex_dense<twoelectronrealmullikanAB,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l)
+{
+int I = SMat_index_1(i,j);
+int J = SMat_index_1(k,l);
+//I,J act as indices of a NRmat
+#ifdef DEBUG
+     	if (*NRMat<T>::count != 1) laerror("lval (i,j,k,l) with count > 1 in fourindex_dense");
+       	if (I<0 || I>=NRMat<T>::nn || J<0 || J>=NRMat<T>::mm) laerror("fourindex_dense index out of range");
+       	if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
+#endif
+return NRMat<T>::operator()(I,J);
+}
+
+
+template<class T, class DUMMY>
+const T& fourindex_dense<twoelectronrealmullikanAB,T,DUMMY>::operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const
+{
+int I = SMat_index_1(i,j);
+int J = SMat_index_1(k,l);
+//I,J act as indices of a NRSmat
+#ifdef DEBUG
+       	if (I<0 || I>=NRMat<T>::nn || J<0 || J>=NRMat<T>::mm) laerror("fourindex_dense index out of range");
+       	if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
+#endif
+return NRMat<T>::operator()(I,J);
+}
+
+
+////////////////////
 template<class T, class I> 
 class fourindex_dense<twoelectronrealmullikan,T,I> : public NRSMat<T> {
 public:

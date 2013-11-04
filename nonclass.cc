@@ -17,6 +17,7 @@
 */
 
 //this can be safely included since it contains ifdefs NONCBLAS and NONCLAPACK anyway
+#include "la_traits.h"
 #include "noncblas.h"
 #include "vec.h"
 #include "smat.h"
@@ -196,7 +197,7 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 	FINT r, *ipiv;
 	a.copyonwrite();
 	ipiv = new FINT[n];
-	char U = 'U';
+	char U = LAPACK_FORTRANCASE('u');
 #ifdef FORINT
         const FINT ntmp=n;
         const FINT nrhstmp=nrhs;
@@ -298,9 +299,9 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 	const int A_rows = _A.nrows();
 	const int A_cols = _A.ncols();
 
-	const char fact  = _eq?'E':'N';
-	const char trans = 'T';//because of c-order
-	char equed = 'B';//if fact=='N' then equed is an output argument, therefore not declared as const
+	const char fact  = LAPACK_FORTRANCASE(_eq?'E':'N');
+	const char trans = LAPACK_FORTRANCASE('T');//because of c-order
+	char equed = LAPACK_FORTRANCASE('B');//if fact=='N' then equed is an output argument, therefore not declared as const
 
 	if(_eqCount < 0 || _eqCount > A_rows || _eqCount > A_cols || _rhsCount < 0){
 		laerror("linear_solve_x: invalid input matrices");
@@ -371,9 +372,9 @@ int linear_solve_x(NRMat<complex<double> > &_A, complex<double> *_B, const int _
 	const int A_rows = _A.nrows();
 	const int A_cols = _A.ncols();
 
-	const char fact  = _eq?'E':'N';
-	const char trans = 'T';//because of c-order
-	char equed = 'B';//if fact=='N' then equed is an output argument, therefore not declared as const
+	const char fact  = LAPACK_FORTRANCASE(_eq?'E':'N');
+	const char trans = LAPACK_FORTRANCASE('T');//because of c-order
+	char equed = LAPACK_FORTRANCASE('B');//if fact=='N' then equed is an output argument, therefore not declared as const
 
 	if(_eqCount < 0 || _eqCount > A_rows || _eqCount > A_cols || _rhsCount < 0){
 		laerror("linear_solve_x: invalid input matrices");
@@ -557,9 +558,9 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 	if(b) b->copyonwrite();
 
 	FINT r = 0;
-	char U ='U';
-	char vectors = 'V';
-	if (!eivec) vectors = 'N';
+	char U =LAPACK_FORTRANCASE('u');
+	char vectors = LAPACK_FORTRANCASE('v');
+	if (!eivec) vectors = LAPACK_FORTRANCASE('n');
 	FINT LWORK = -1;
 	double WORKX;
 	FINT ldb=0; if(b) ldb=b->ncols();
@@ -588,7 +589,7 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 #endif
 
         delete[] WORK;
-	if (vectors == 'V' && corder) a.transposeme(n);
+	if (LAPACK_FORTRANCASE(vectors) == LAPACK_FORTRANCASE('v') && corder) a.transposeme(n);
 
 	if (r < 0) laerror("illegal argument in sygv/syev in diagonalize()");
 	if (r > 0) laerror("convergence problem in sygv/syev in diagonalize()");
@@ -620,12 +621,13 @@ void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec,
 	if(b) b->copyonwrite();
 
 	FINT r = 0;
-	char U ='U';
-	char vectors = 'V';
-	if (!eivec) vectors = 'N';
+	char U =LAPACK_FORTRANCASE('U');
+	char vectors = LAPACK_FORTRANCASE('V');
+	if (!eivec) vectors = LAPACK_FORTRANCASE('n');
 	FINT LWORK = -1;
 	complex<double> WORKX;
 	FINT ldb=0; if(b) ldb=b->ncols();
+std::cout << "test vectors "<<vectors<<std::endl;
 
 	// First call is to determine size of workspace
 	double *RWORK = new double[3*n+2]; 
@@ -652,7 +654,7 @@ void diagonalize(NRMat<complex<double> > &a, NRVec<double> &w, const bool eivec,
 
         delete[] WORK;
 	delete[] RWORK;
-	if (vectors == 'V' && corder) a.transposeme(n);
+	if (LAPACK_FORTRANCASE(vectors) == LAPACK_FORTRANCASE('v') && corder) {a.transposeme(n); a.conjugateme();}
 
 	if (r < 0) laerror("illegal argument in hegv/heev in diagonalize()");
 	if (r > 0) laerror("convergence problem in hegv/heev in diagonalize()");
@@ -684,8 +686,8 @@ void diagonalize(NRSMat<double> &a, NRVec<double> &w, NRMat<double> *v,
 	if(b) b->copyonwrite();
 
 	FINT r = 0;
-	char U = 'U';
-	char job = v ? 'v' : 'n';
+	char U = LAPACK_FORTRANCASE('u');
+	char job = LAPACK_FORTRANCASE(v ? 'v' : 'n');
 
 	double *WORK = new double[3*n];
 	FINT ldv=v?v->ncols():n;
@@ -730,8 +732,8 @@ void diagonalize(NRSMat<complex<double> > &a, NRVec<double> &w, NRMat<complex<do
 	if(b) b->copyonwrite();
 
 	FINT r = 0;
-	char U = 'U';
-	char job = v ? 'v' : 'n';
+	char U = LAPACK_FORTRANCASE('u');
+	char job = LAPACK_FORTRANCASE(v ? 'v' : 'n');
 
 	complex<double> *WORK = new complex<double>[2*n];
 	double *RWORK  = new double[3*n];
@@ -890,8 +892,8 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 		const int sorttype, const int biorthonormalize,
 		NRMat<double> *b, NRVec<double> *beta)
 {
-	if(n<=0) n = a.nrows();
-	if (n > a.ncols() || n>a.nrows() ) laerror("gdiagonalize() call for a non-square matrix");
+	if(n<=0) {n = a.nrows(); if(a.ncols()!=a.nrows() ) laerror("gdiagonalize() call for a non-square matrix");}
+	if (n > a.ncols() || n>a.nrows() ) laerror("gdiagonalize() of too big submatrix");
 	if (n > wr.size()) 
 		laerror("inconsistent dimension of eigen vector in gdiagonalize()");
 	if (vl) if (n > vl->nrows() || n > vl->ncols())
@@ -911,8 +913,8 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 	if (beta) beta->copyonwrite();
 	if (b) b->copyonwrite();
 	
-	char jobvl = vl ? 'V' : 'N';
-	char jobvr = vr ? 'V' : 'N';
+	char jobvl = LAPACK_FORTRANCASE(vl ? 'v' : 'n');
+	char jobvr = LAPACK_FORTRANCASE(vr ? 'v' : 'n');
 	double work0;
 	FINT lwork = -1;
 	FINT r;
@@ -1055,8 +1057,8 @@ void gdiagonalize(NRMat<complex<double> > &a, NRVec< complex<double> > &w,
 		NRMat<complex<double> > *b, NRVec<complex<double> > *beta)
 {
 
-	if(n<=0) n = a.nrows();
-	if (n > a.ncols() || n>a.nrows() ) laerror("gdiagonalize() call for a non-square matrix");
+	if(n<=0) {n = a.nrows(); if(a.ncols()!=a.nrows() ) laerror("gdiagonalize() call for a non-square matrix");}
+	if (n > a.ncols() || n>a.nrows() ) laerror("gdiagonalize() of too big submatrix");
 	if (n > w.size()) 
 		laerror("inconsistent dimension of eigen vector in gdiagonalize()");
 	if (vl) if (n > vl->nrows() || n > vl->ncols())
@@ -1075,8 +1077,8 @@ void gdiagonalize(NRMat<complex<double> > &a, NRVec< complex<double> > &w,
 	if (beta) beta->copyonwrite();
 	if (b) b->copyonwrite();
 	
-	char jobvl = vl ? 'V' : 'N';
-	char jobvr = vr ? 'V' : 'N';
+	char jobvl = LAPACK_FORTRANCASE(vl ? 'v' : 'n');
+	char jobvr = LAPACK_FORTRANCASE(vr ? 'v' : 'n');
 	complex<double> work0;
 	FINT lwork = -1;
 	FINT r;
@@ -1146,8 +1148,8 @@ void gdiagonalize(NRMat<complex<double> > &a, NRVec< complex<double> > &w,
 
 
 	if (corder) {
-		if (vl) vl->transposeme(n);
-		if (vr) vr->transposeme(n);
+		if (vl) {vl->transposeme(n); vl->conjugateme();}
+		if (vr) {vr->transposeme(n); vr->conjugateme();}
 	}
 
 }
@@ -1159,8 +1161,8 @@ void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 		const bool corder, int n, const int sorttype, const int biorthonormalize,
 		NRMat<double> *b, NRVec<double> *beta)
 {
-	if(n<=0)  n = a.nrows();
-	if(n> a.nrows() || n ==  a.nrows() && n != a.ncols()) laerror("gdiagonalize() call for a non-square matrix");
+	if(n<=0) {n = a.nrows(); if(a.ncols()!=a.nrows() ) laerror("gdiagonalize() call for a non-square matrix");}
+	if(n> a.nrows() || n ==  a.nrows() && n != a.ncols()) laerror("gdiagonalize() of too big submatrix");
 
 	NRVec<double> wr(n), wi(n);
 	NRMat<double> *rvl = 0;
@@ -1226,10 +1228,12 @@ void gdiagonalize(NRMat<double> &a, NRVec< complex<double> > &w,
 template<>
 const NRMat<double> realpart<NRMat< complex<double> > >(const NRMat< complex<double> > &a)
 {
+        NRMat<double> result(a.nrows(), a.ncols());
+
 #ifdef CUDALA
-        if(location == cpu){
+        if(a.location == cpu){
 #endif
-	NRMat<double> result(a.nrows(), a.ncols());
+//	NRMat<double> result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), (const double *)a[0], 2, result, 1);
 #ifdef CUDALA
         }else{
@@ -1242,11 +1246,13 @@ const NRMat<double> realpart<NRMat< complex<double> > >(const NRMat< complex<dou
 template<>
 const NRMat<double> imagpart<NRMat< complex<double> > >(const NRMat< complex<double> > &a)
 {
+        NRMat<double> result(a.nrows(), a.ncols());
+
 #ifdef CUDALA
-        if(location == cpu){
+        if(a.location == cpu){
 #endif
 
-	NRMat<double> result(a.nrows(), a.ncols());
+//	NRMat<double> result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), (const double *)a[0]+1, 2, result, 1);
 #ifdef CUDALA
         }else{
@@ -1259,12 +1265,15 @@ const NRMat<double> imagpart<NRMat< complex<double> > >(const NRMat< complex<dou
 template<>
 const NRMat< complex<double> > realmatrix<NRMat<double> > (const NRMat<double> &a)
 {
+
+        NRMat <complex<double> > result(a.nrows(), a.ncols());
+
 #ifdef CUDALA
-        if(location == cpu){
+        if(a.location == cpu){
 #endif
 
 
-	NRMat <complex<double> > result(a.nrows(), a.ncols());
+//	NRMat <complex<double> > result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), a, 1, (double *)result[0], 2);
 #ifdef CUDALA
         }else{
@@ -1278,11 +1287,13 @@ const NRMat< complex<double> > realmatrix<NRMat<double> > (const NRMat<double> &
 template<>
 const NRMat< complex<double> > imagmatrix<NRMat<double> > (const NRMat<double> &a)
 {
+        NRMat< complex<double> > result(a.nrows(), a.ncols());
+
 #ifdef CUDALA
-        if(location == cpu){
+        if(a.location == cpu){
 #endif
 
-	NRMat< complex<double> > result(a.nrows(), a.ncols());
+//	NRMat< complex<double> > result(a.nrows(), a.ncols());
 	cblas_dcopy(a.nrows()*a.ncols(), a, 1, (double *)result[0]+1, 2);
 #ifdef CUDALA
         }else{
@@ -1577,7 +1588,7 @@ void cholesky(NRMat<double> &a, bool upper)
 if(a.nrows()!=a.ncols()) laerror("matrix must be square in Cholesky");
 FINT lda=a.ncols();
 FINT n=a.nrows();
-char uplo=upper?'U':'L';
+char uplo= LAPACK_FORTRANCASE(upper?'u':'l');
 FINT info;
 a.copyonwrite();
 FORNAME(dpotrf)(&uplo, &n, a, &lda, &info);
@@ -1596,7 +1607,7 @@ void cholesky(NRMat<complex<double> > &a, bool upper)
 if(a.nrows()!=a.ncols()) laerror("matrix must be square in Cholesky");
 FINT lda=a.ncols();
 FINT n=a.nrows();
-char uplo=upper?'U':'L';
+char uplo= LAPACK_FORTRANCASE(upper?'u':'l');
 FINT info;
 a.copyonwrite();
 a.transposeme();//switch to Fortran order
@@ -1788,3 +1799,4 @@ if(nchange&1)//still adjust to get determinant=1
 }
 
 }//namespace
+

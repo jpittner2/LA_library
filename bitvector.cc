@@ -130,7 +130,7 @@ return *this;
 
 /*number of ones in a binary number, from "Hacker's delight" book*/
 #ifdef LONG_IS_32 
-static unsigned long word_popul(unsigned long x) 
+static unsigned int word_popul(unsigned long x) 
 {
 x -= ((x>>1)&0x55555555);
 x = (x&0x33333333) + ((x>>2)&0x33333333);
@@ -140,9 +140,10 @@ x+= (x>>16);
 return x&0x3f;
 }
 #else
-static unsigned long word_popul(unsigned long x)
+//@@@@ use an efficient trick
+static unsigned int word_popul(unsigned long x)
 {
-unsigned long s=0;
+unsigned int s=0;
 for(int i=0; i<64; ++i)
         {
         if(x&1) ++s;
@@ -156,7 +157,6 @@ return s;
 
 unsigned int bitvector::population(const unsigned int before) const
 {
-//@@@before
 int i;
 unsigned int s=0;
 for(i=0; i<nn-1; ++i) s+=word_popul(v[i]);
@@ -169,5 +169,22 @@ if(modulo)
 	}
 return s+word_popul(a);
 }
+
+unsigned int bitvector::operator%(const bitvector &y) const
+{
+if(nn!=y.nn) laerror("incompatible size in bitdifference");
+
+unsigned int s=0;
+for(int i=0; i<nn-1; ++i) s+=word_popul(v[i]^y.v[i]);
+bitvector_block a=v[nn-1]^y.v[nn-1];
+if(modulo)
+        {
+        bitvector_block mask= ~((bitvector_block)0);
+        mask <<=modulo;
+        a &= ~mask;
+        }
+return s+word_popul(a);
+}
+
 
 }//namespace

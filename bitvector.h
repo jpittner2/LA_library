@@ -55,7 +55,7 @@ public:
 	void reset(const unsigned int i) {v[i/blockbits] &= ~(1<<(i%blockbits));};
 	const bool get(const unsigned int i) {return (v[i/blockbits] >>(i%blockbits))&1;};
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
-	void clear() {copyonwrite(); memset(v,0,nn*sizeof(bitvector_block));};
+	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
 	bool operator!=(const bitvector &rhs) const;
 	bool operator==(const bitvector &rhs) const {return !(*this != rhs);};
@@ -70,12 +70,12 @@ public:
 	bitvector operator&(const bitvector &rhs) const {return bitvector(*this) &= rhs;};
 	bitvector operator|(const bitvector &rhs) const {return bitvector(*this) |= rhs;};
 	bitvector operator^(const bitvector &rhs) const {return bitvector(*this) ^= rhs;};
-	unsigned int population(const unsigned int before=0) const; //@@@number of 1's
+        unsigned int operator%(const bitvector &y) const; //number of differing bits
+	unsigned int population(const unsigned int before=0) const; //number of 1's
 	//extended, truncated const i.e. not on *this but return new entity, take care of modulo's bits
 	//logical shifts  <<= >>= << >> not implemented yet
 	//logical rotations not implemented yet
 	};
-
 
 extern std::ostream & operator<<(std::ostream &s, const bitvector &x);
 extern std::istream & operator>>(std::istream  &s, bitvector &x);

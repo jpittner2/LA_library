@@ -52,8 +52,9 @@ INSTANTIZE(complex<double>)
 */
 
 //// forced instantization of functions in the header in the corresponding object file
-template class CSRMat<double>;
-template class CSRMat<complex<double> >;
+//@@@@@template class CSRMat<double>;
+//@@@@template class CSRMat<complex<double> >;
+//@@@@ unfinished class commented out
 
 
 

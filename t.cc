@@ -1799,6 +1799,11 @@ for(int i=0; i<m.nrows(); ++i) for(int j=0; j<m.nrows(); ++j)
 	if(i!=j) err += abs(m2(i,j));
 cout <<"offdiagonality error = "<<err<<endl;
 
+err=0; 
+for(int i=0; i<m.nrows(); ++i) err += abs(m2(i,i) - eivals[i]);
+cout <<"eigenvalue error = "<<err<<endl;
+
+
 //test as general matrix
 NRVec<complex<double> > ww(m.nrows());
 NRMat<complex<double> > vl(m.nrows(),m.nrows()), vr(m.nrows(),m.nrows());
@@ -1811,6 +1816,11 @@ cout <<"check2 "<<m3;
 for(int i=0; i<m.nrows(); ++i) for(int j=0; j<m.nrows(); ++j)
         if(i!=j) err += abs(m3(i,j));
 cout <<"offdiagonality error 2 = "<<err<<endl;
+
+err=0;
+for(int i=0; i<m.nrows(); ++i) err += abs(m3(i,i) - ww[i]);
+cout <<"eigenvalue error = "<<err<<endl;
+
 
 
 }

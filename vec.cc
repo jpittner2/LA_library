@@ -27,11 +27,8 @@
 #include <errno.h>
 #include "vec.h"
 #include "qsort.h"
+#include <unistd.h>
 
-extern "C" {
-	extern ssize_t read(int, void *, size_t);
-	extern ssize_t write(int, const void *, size_t);
-}
 
 namespace LA {
 
@@ -541,7 +538,7 @@ template<>
 void NRVec<double>::gemv(const double beta, const NRMat<double> &A, 
 		const char trans, const double alpha, const NRVec &x) {
 #ifdef DEBUG
-	if((trans == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
 #endif
 	SAME_LOC3(*this, x, A);
 	copyonwrite();
@@ -549,10 +546,10 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 #ifdef CUDALA
 	if(location==cpu){
 #endif
-		cblas_dgemv(CblasRowMajor, (trans=='n' ? CblasNoTrans:CblasTrans), A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
+		cblas_dgemv(CblasRowMajor, (tolower(trans)=='n' ? CblasNoTrans:CblasTrans), A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
 #ifdef CUDALA
 	}else{
-		cublasDgemv((trans=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
+		cublasDgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
 		TEST_CUBLAS("cublasDgemv");
 	}
 #endif
@@ -572,7 +569,7 @@ template<>
 void NRVec<complex<double> >::gemv(const double beta, const NRMat<double> &A,
                 const char trans, const double alpha, const NRVec<complex<double> > &x) {
 #ifdef DEBUG
-	if ((trans == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
 #endif
 	SAME_LOC3(*this, x, A);
 	copyonwrite();
@@ -580,16 +577,16 @@ void NRVec<complex<double> >::gemv(const double beta, const NRMat<double> &A,
 #ifdef CUDALA
 	if(location==cpu){
 #endif
-		cblas_dgemv(CblasRowMajor, (trans=='n'?CblasNoTrans:CblasTrans),
+		cblas_dgemv(CblasRowMajor, (tolower(trans)=='n'?CblasNoTrans:CblasTrans),
 				A.nrows(), A.ncols(), alpha, A, A.ncols(), (double *)x.v, 2, beta, (double *)v, 2);
-		cblas_dgemv(CblasRowMajor, (trans=='n'?CblasNoTrans:CblasTrans),
+		cblas_dgemv(CblasRowMajor, (tolower(trans)=='n'?CblasNoTrans:CblasTrans),
 				A.nrows(), A.ncols(), alpha, A, A.ncols(), ((double *)x.v) + 1, 2, beta, ((double *)v)+1, 2);
 #ifdef CUDALA
 	}else{
-		cublasDgemv((trans=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), (double*)(x.v), 2, beta, (double *)v, 2);
+		cublasDgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), (double*)(x.v), 2, beta, (double *)v, 2);
 		TEST_CUBLAS("cublasDgemv");
 
-		cublasDgemv((trans=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), ((double *)x.v) + 1, 2, beta, ((double *)v)+1, 2);
+		cublasDgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), ((double *)x.v) + 1, 2, beta, ((double *)v)+1, 2);
 		TEST_CUBLAS("cublasDgemv");
 	}
 #endif
@@ -611,14 +608,14 @@ void NRVec<complex<double> >::gemv(const complex<double> beta,
 		const NRMat<complex<double> > &A, const char trans, 
 		const complex<double> alpha, const NRVec<complex<double> > &x) {
 #ifdef DEBUG
-	if ((trans == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
 #endif
 	SAME_LOC3(*this, x, A);
 	copyonwrite();
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zgemv(CblasRowMajor, (trans=='n'?CblasNoTrans:CblasTrans), 
+		cblas_zgemv(CblasRowMajor, (tolower(trans)=='n'?CblasNoTrans:CblasTrans), 
 				A.nrows(), A.ncols(), &alpha, A, A.ncols(), x.v, 1, &beta, v, 1);
 #ifdef CUDALA
 	}else{
@@ -626,7 +623,7 @@ void NRVec<complex<double> >::gemv(const complex<double> beta,
 		const cuDoubleComplex _alpha = make_cuDoubleComplex(alpha.real(), alpha.imag());
 		const cuDoubleComplex  _beta = make_cuDoubleComplex(beta.real(), beta.imag());
 
-		cublasZgemv((trans=='n'?'T':'N'), A.ncols(), A.nrows(),
+		cublasZgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(),
 				_alpha, (cuDoubleComplex*)(A[0]), A.ncols(), (cuDoubleComplex*)(x.v), 1, _beta, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasZgemv");
 	}

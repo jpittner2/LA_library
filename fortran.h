@@ -11,3 +11,6 @@
 #undef FORINT
 #define FINT int
 #endif
+
+#define BLAS_FORTRANCASE(x) toupper(x)
+#define LAPACK_FORTRANCASE(x) toupper(x)

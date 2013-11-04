@@ -39,10 +39,10 @@ protected:
 	T *v;//!< pointer to the data stored continuously in emmory
 #endif
 	int *count;//!< reference counter
+public:
 #ifdef CUDALA
 	GPUID location;
 #endif
-public:
 	friend class NRVec<T>;
 	friend class NRSMat<T>;
 	
@@ -89,16 +89,16 @@ public:
 	//! explicit constructor converting vector into a <code>NRMat<T></code> object
 #ifdef MATPTR
 	explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset = 0):NRMat(&rhs[0][0] + offset , n, m){
-		if (offset < 0 || n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");
+		if (offset < 0 || (size_t)n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");
 	};
 #else
 	explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset = 0);
 #endif
 
 #ifdef MATPTR
-	const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return LA_traits<T>::gencmp(v[0],rhs.v[0],nn*mm);} //memcmp for scalars else elementwise
+	const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return LA_traits<T>::gencmp(v[0],rhs.v[0],(size_t)nn*mm);} //memcmp for scalars else elementwise
 #else
-        const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return LA_traits<T>::gencmp(v,rhs.v,nn*mm);} //memcmp for scalars else elementwise
+        const bool operator!=(const NRMat &rhs) const {if(nn!=rhs.nn || mm!=rhs.mm) return 1; return LA_traits<T>::gencmp(v,rhs.v,(size_t)nn*mm);} //memcmp for scalars else elementwise
 #endif
 
 	const bool operator==(const NRMat &rhs) const {return !(*this != rhs);};
@@ -107,7 +107,7 @@ public:
 	inline int getcount() const {return count?*count:0;}
 
 	//! ensure that the data of this matrix are referenced exactly once
-	void copyonwrite();
+	void copyonwrite(bool detachonly=false);
 
 	/***************************************************************************//**
 	 * routines for CUDA related stuff
@@ -260,7 +260,7 @@ public:
 	//! get the number of columns
 	inline int ncols() const;
 	//! get the number of matrix elements
-	inline int size() const;
+	inline size_t size() const;
 
 	//! unformatted input
         void get(int fd, bool dimensions = 1, bool transposed = false);
@@ -274,8 +274,8 @@ public:
 	//! set all matrix elements equal to zero
         void clear(){
 		if(nn&&mm){
-			copyonwrite();
-			LA_traits<T>::clear((*this)[0], nn*mm);
+			copyonwrite(true);
+			LA_traits<T>::clear((*this)[0], (size_t)nn*mm);
 		}
 	};
 
@@ -379,7 +379,7 @@ template <typename T>
 NRMat<T>::NRMat(const int n, const int m, const GPUID loc) : nn(n), mm(m), count(new int) {
 	T* p;
 	*count = 1;
-	const int nm = n*m;
+	const size_t nm = (size_t)n*m;
 #ifdef CUDALA
 	location = (loc==undefined?DEFAULT_LOC:loc);
 	if(location == cpu) {
@@ -408,7 +408,7 @@ NRMat<T>::NRMat(const int n, const int m, const GPUID loc) : nn(n), mm(m), count
  ******************************************************************************/
 template <typename T>
 NRMat<T>::NRMat(const T &a, const int n, const int m, const GPUID loc) : nn(n), mm(m), count(new int) {
-	const int nm = n*m;
+	const size_t nm = (size_t)n*m;
 	T *p;
 	*count = 1;
 
@@ -447,7 +447,7 @@ NRMat<T>::NRMat(const T &a, const int n, const int m, const GPUID loc) : nn(n), 
  ******************************************************************************/
 template <typename T>
 NRMat<T>::NRMat(const T &a, const int n, const int m) : nn(n), mm(m), count(new int) {
-	const int nm = n*m;
+	const size_t nm = (size_t)n*m;
 	T *p;
 	*count = 1;
 
@@ -460,7 +460,7 @@ NRMat<T>::NRMat(const T &a, const int n, const int m) : nn(n), mm(m), count(new 
 		p = v[0] = new T[nm];
 		for (register int i=1; i<n; i++) v[i] = v[i-1] + m;
 	#else
-		p = v = new T[m*n];
+		p = v = new T[nm];
 	#endif
 	if (a != (T)0)
 		for (register int i=0; i<nm; i++) *p++ = a;
@@ -483,7 +483,7 @@ NRMat<T>::NRMat(const T &a, const int n, const int m) : nn(n), mm(m), count(new 
  ******************************************************************************/
 template <typename T>
 NRMat<T>::NRMat(const T *a, const int n, const int m) : nn(n), mm(m), count(new int) {
-	const int nm = n*m;
+	const size_t nm = (size_t)n*m;
 #ifdef CUDALA
 	location = DEFAULT_LOC;
 #endif
@@ -546,10 +546,10 @@ NRMat<T>::NRMat(const NRSMat<T> &rhs) {
 	*count = 1;
 #ifdef MATPTR
 	v = new T*[nn];
-	v[0] = new T[mm*nn];
+	v[0] = new T[(size_t)mm*nn];
 	for (int i=1; i<nn; i++) v[i] = v[i-1] + mm;
 #else
-	v = new T[mm*nn];
+	v = new T[(size_t)mm*nn];
 #endif
 
 #ifdef MATPTR
@@ -561,7 +561,7 @@ NRMat<T>::NRMat(const NRSMat<T> &rhs) {
 #else
 	for (i=0; i<nn; i++){
 		for (j=0; j<=i; j++){
-			v[i*nn + j] = v[j*nn + i] = rhs[k++];
+			v[i*(size_t)nn + j] = v[j*(size_t)nn + i] = rhs[k++];
 		}
 	}
 #endif
@@ -578,7 +578,7 @@ NRMat<T>::NRMat(const NRSMat<T> &rhs) {
 template <typename T>
 NRMat<T>::NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset)
 {
-	if (offset < 0 || n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");
+	if (offset < 0 || (size_t)n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");
 
 #ifdef CUDALA
 	location=rhs.location;
@@ -628,7 +628,7 @@ inline T* NRMat<T>::operator[](const int i) {
 	#ifdef MATPTR
 		return v[i];
 	#else
-		return v + i*mm;
+		return v + i*(size_t)mm;
 	#endif
 }
 
@@ -646,7 +646,7 @@ inline const T* NRMat<T>::operator[](const int i) const {
 	#ifdef MATPTR
 		return v[i];
 	#else
-		return v + i*mm;
+		return v + i*(size_t)mm;
 	#endif
 }
 
@@ -668,7 +668,7 @@ inline T& NRMat<T>::operator()(const int i, const int j){
 	#ifdef MATPTR
 		return v[i][j];
 	#else
-		return v[i*mm + j];
+		return v[i*(size_t)mm + j];
 	#endif
 }
 
@@ -689,7 +689,7 @@ inline const T& NRMat<T>::operator()(const int i, const int j) const{
 	#ifdef MATPTR
 		return v[i][j];
 	#else
-		return v[i*mm + j];
+		return v[i*(size_t)mm + j];
 	#endif
 }
 
@@ -712,11 +712,11 @@ inline const T NRMat<T>::get_ij(const int i, const int j) const{
 	#ifdef MATPTR
 		return v[i][j];
 	#else
-		return v[i*mm + j];
+		return v[i*(size_t)mm + j];
 	#endif
 #ifdef CUDALA
 	}else{
-		const int pozice = i*mm + j;
+		const size_t pozice = i*(size_t)mm + j;
 		gpuget(1, sizeof(T), v + pozice, &ret);
 		return ret;
 	}
@@ -743,8 +743,8 @@ inline int NRMat<T>::ncols() const{
  * @return number of elements
  ******************************************************************************/
 template <typename T>
-inline int NRMat<T>::size() const{
-	return nn*mm;
+inline size_t NRMat<T>::size() const{
+	return (size_t)nn*mm;
 }
 
 /***************************************************************************//**
@@ -795,7 +795,7 @@ inline const double NRMat<double>::amax() const{
 #ifdef CUDALA
 	}else{
 		double ret(0.0);
-		const int pozice = cublasIdamax(nn*mm, v, 1) - 1;
+		const size_t pozice = cublasIdamax((size_t)nn*mm, v, 1) - 1;
 		TEST_CUBLAS("cublasIdamax");
 		gpuget(1, sizeof(double), v + pozice, &ret);
 		return ret;
@@ -815,7 +815,7 @@ inline const double NRMat<double>::amin() const{
 	if(location == cpu){
 #endif
 		// idamin seems not to be supported
-		const int nm = nn*mm;
+		const size_t nm = (size_t)nn*mm;
 		double val(0.0);
 		int index(-1);
 		ret = std::numeric_limits<double>::max();
@@ -834,7 +834,7 @@ inline const double NRMat<double>::amin() const{
 		#endif	
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIdamin(nn*mm, v, 1) - 1;
+		const size_t pozice = cublasIdamin((size_t)nn*mm, v, 1) - 1;
 		TEST_CUBLAS("cublasIdamin");
 		gpuget(1, sizeof(double), v + pozice, &ret);
 	}
@@ -860,7 +860,7 @@ inline const complex<double> NRMat<complex<double> >::amax() const{
 #ifdef CUDALA
 	}else{
 		complex<double> ret(0.0, 0.0);
-		const int pozice = cublasIzamax(nn*mm, (cuDoubleComplex*)v, 1) - 1;
+		const size_t pozice = cublasIzamax((size_t)nn*mm, (cuDoubleComplex*)v, 1) - 1;
 		TEST_CUBLAS("cublasIzamax");
 		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
 		return ret;
@@ -881,7 +881,7 @@ inline const complex<double> NRMat<complex<double> >::amin() const{
 	if(location == cpu){
 #endif
 		// idamin seems not to be supported
-		const int nm = nn*mm;
+		const size_t nm = (size_t)nn*mm;
 		int index(-1);
 		double val(0.0), min_val(0.0);
 		complex<double> z_val(0.0, 0.0);
@@ -903,7 +903,7 @@ inline const complex<double> NRMat<complex<double> >::amin() const{
 		#endif	
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIzamin(nn*mm, (cuDoubleComplex*)v, 1) - 1;
+		const size_t pozice = cublasIzamin((size_t)nn*mm, (cuDoubleComplex*)v, 1) - 1;
 		TEST_CUBLAS("cublasIzamin");
 		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
 	}
@@ -991,7 +991,7 @@ NRMat<T> & NRMat<T>::operator|=(const NRMat<T> &rhs) {
  * @see NRMat<T>::count, NRMat<T>::operator|=() 
  ******************************************************************************/
 template <typename T>
-void NRMat<T>::copyonwrite() {
+void NRMat<T>::copyonwrite(bool detachonly) {
 	if(!count) laerror("attempt to call copyonwrite() for a matrix with count == 0");
 	if(*count > 1){
 		(*count)--;
@@ -1002,20 +1002,20 @@ void NRMat<T>::copyonwrite() {
 #endif
 		#ifdef MATPTR
 			T **newv = new T*[nn];
-			newv[0] = new T[mm*nn];
-			memcpy(newv[0], v[0], mm*nn*sizeof(T));
+			newv[0] = new T[(size_t)mm*nn];
+			if(!detachonly) memcpy(newv[0], v[0], (size_t)mm*nn*sizeof(T));
 			v = newv;
 			for(register int i=1; i<nn; i++) v[i] = v[i-1] + mm;
 		#else
-			T *newv = new T[mm*nn];
-			memcpy(newv, v, mm*nn*sizeof(T));
+			T *newv = new T[(size_t)mm*nn];
+			if(!detachonly) memcpy(newv, v, (size_t)mm*nn*sizeof(T));
 			v = newv;
 		#endif
 #ifdef CUDALA
 		}else{ //matrix is in GPU memory
-			T *newv = (T *) gpualloc(mm*nn*sizeof(T));
+			T *newv = (T *) gpualloc((size_t)mm*nn*sizeof(T));
 			if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem");
-			cublasScopy(nn*mm*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);
+			if(!detachonly) cublasScopy(nn*mm*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);
 			TEST_CUBLAS("cublasScopy");
 			v = newv;
 		}
@@ -1082,14 +1082,14 @@ void NRMat<T>::resize(int n, int m) {
 #endif
 		#ifdef MATPTR
 			v = new T*[nn];
-			v[0] = new T[m*n];
+			v[0] = new T[(size_t)m*n];
 			for (register int i=1; i< n; i++) v[i] = v[i-1] + m;
 		#else
-			v = new T[m*n];
+			v = new T[(size_t)m*n];
 		#endif
 #ifdef CUDALA
 		}else{
-			v = (T *) gpualloc(n*m*sizeof(T));
+			v = (T *) gpualloc((size_t)n*m*sizeof(T));
 		}
 #endif
                 return;
@@ -1108,15 +1108,15 @@ void NRMat<T>::resize(int n, int m) {
 			delete[] v;
 		#ifdef MATPTR
 			v = new T*[nn];
-			v[0] = new T[m*n];
+			v[0] = new T[(size_t)m*n];
 			for (int i=1; i< n; i++) v[i] = v[i-1] + m;
 		#else
-			v = new T[m*n];
+			v = new T[(size_t)m*n];
 		#endif
 #ifdef CUDALA
 		}else{
 			gpufree(v);
-			v=(T *) gpualloc(n*m*sizeof(T));
+			v=(T *) gpualloc((size_t)n*m*sizeof(T));
 		}
 #endif
 	}
@@ -1228,7 +1228,7 @@ public:
 	#ifdef MATPTR
 		return NRMat<T>::v[i - 1][j - 1];
 	#else
-		return NRMat<T>::v[(i-1)*NRMat<T>::mm+j-1];
+		return NRMat<T>::v[(i-1)*(size_t)NRMat<T>::mm+j-1];
 	#endif
 	}
 
@@ -1258,11 +1258,11 @@ public:
 	#ifdef MATPTR
 			return NRMat<T>::v[i - 1][j - 1];
 	#else
-			return NRMat<T>::v[(i-1)*NRMat<T>::mm + (j-1)];
+			return NRMat<T>::v[(size_t)(i-1)*NRMat<T>::mm + (j-1)];
 	#endif
 	#ifdef CUDALA
 		}else{
-			const int pozice = (i-1)*NRMat<T>::mm + (j-1);
+			const size_t pozice = (size_t)(i-1)*NRMat<T>::mm + (j-1);
 			gpuget(1, sizeof(T), NRMat<T>::v + pozice, &ret);
 			return ret;
 		}
@@ -1286,10 +1286,10 @@ NRMat<T>& NRMat<T>::operator^=(const NRMat<T> &rhs){
 
 	copyonwrite();// ensure that *count == 1
 #ifdef MATPTR
-	for (register int i=0; i< nn*mm; i++) v[0][i] *= rhs.v[0][i];
+	for (register size_t i=0; i< (size_t)nn*mm; i++) v[0][i] *= rhs.v[0][i];
 #else
-	const int Dim = nn*mm;
-	for(register int i=0; i<Dim; i++) v[i] *= rhs.v[i];
+	const size_t Dim = (size_t)nn*mm;
+	for(register size_t i=0; i<Dim; i++) v[i] *= rhs.v[i];
 #endif
 	return *this;
 }
@@ -1320,14 +1320,14 @@ void NRMat<T>::moveto(const GPUID dest) {
 	T *vold = v;
 
 	if(dest == cpu){ //moving from GPU to CPU
-		v = new T[nn*mm];
-		gpuget(nn*mm, sizeof(T), vold, v);
+		v = new T[(size_t)nn*mm];
+		gpuget((size_t)nn*mm, sizeof(T), vold, v);
 		if(*count == 1){ gpufree(vold); }
 		else{ --(*count); count = new int(1); }
 
 	}else{ //moving from CPU to GPU
-		v = (T *) gpualloc(nn*mm*sizeof(T));
-		gpuput(nn*mm, sizeof(T), vold, v);
+		v = (T *) gpualloc((size_t)nn*mm*sizeof(T));
+		gpuput((size_t)nn*mm, sizeof(T), vold, v);
 		if(*count == 1) delete[] vold;
 		else{ --(*count); count = new int(1);}
 	}
@@ -1351,3 +1351,4 @@ NRVECMAT_OPER2(Mat, -)
 
 }//end of the LA-namespace
 #endif/* _LA_MAT_H_ */
+

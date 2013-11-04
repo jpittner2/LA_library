@@ -26,11 +26,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
 
-extern "C" {
-	extern ssize_t read(int, void *, size_t);
-	extern ssize_t write(int, const void *, size_t);
-}
 
 namespace LA {
 
@@ -77,14 +74,14 @@ const NRMat<T> NRMat<T>::otimes(const NRMat<T> &rhs, bool reversecolumns) const 
 		{
 			T c = (*this)(i,j);
 			for(k=0;k<rhs.nn;k++) for(l=0;l<rhs.mm;l++)
-				r( i*rhs.nn + k, l*mm + j ) = c*rhs(k,l);
+				r( i*(size_t)rhs.nn + k, l*mm + j ) = c*rhs(k,l);
 		}
 	}else{
 		for(i=0;i<nn;i++) for(j=0;j<mm;j++)
 		{
 			T c=(*this)(i,j);
 			for(k=0;k<rhs.nn;k++) for(l=0;l<rhs.mm;l++)
-				r( i*rhs.nn+k, j*rhs.mm+l ) = c *rhs(k,l);
+				r( i*(size_t)rhs.nn+k, j*(size_t)rhs.mm+l ) = c *rhs(k,l);
 		}
 	}
 
@@ -108,7 +105,7 @@ const NRVec<T> NRMat<T>::row(const int i, int l) const {
 #ifdef MATPTR
 	        v[i]
 #else
-		v + i*l
+		v + i*(size_t)l
 #endif
 		, l);
 	return r;
@@ -144,7 +141,7 @@ void NRMat<T>::put(int fd, bool dim, bool transp) const {
 				#ifdef MATPTR
 	                                v[i][j]
 				#else
-	                                v[i*mm+j]
+	                                v[i*(size_t)mm+j]
 				#endif
 					,dim ,transp);
 			}
@@ -196,7 +193,7 @@ void NRMat<T>::get(int fd, bool dim, bool transp){
 				#ifdef MATPTR
 					v[i][j]
 				#else
-					v[i*mm+j]
+					v[i*(size_t)mm+j]
 				#endif
 				,dim,transp);
 			}
@@ -476,13 +473,13 @@ NRMat<T> & NRMat<T>::operator-=(const T &a) {
  ******************************************************************************/
 template <>
 const NRMat<double> NRMat<double>::operator-() const {
-	const int nm = nn*mm;
+	const size_t nm = (size_t)nn*mm;
         NRMat<double> result(nn, mm, getlocation());
 #ifdef CUDALA
         if(location == cpu) {
 #endif
 #ifdef MATPTR
-	        for(register int i=0; i<nm; i++) result.v[0][i] = -v[0][i];
+	        for(register size_t i=0; i<nm; i++) result.v[0][i] = -v[0][i];
 #else
 		memcpy(result.v, v, nm*sizeof(double));
 		cblas_dscal(nm, -1., result.v, 1);
@@ -506,13 +503,13 @@ const NRMat<double> NRMat<double>::operator-() const {
  ******************************************************************************/
 template <>
 const NRMat<complex<double> > NRMat<complex<double> >::operator-() const {
-	const int nm = nn*mm;
+	const size_t nm = (size_t)nn*mm;
         NRMat<complex<double> > result(nn, mm, getlocation());
 #ifdef CUDALA
         if(location == cpu) {
 #endif
 #ifdef MATPTR
-	        for(register int i=0; i<nm; i++) result.v[0][i]= -v[0][i];
+	        for(register size_t i=0; i<nm; i++) result.v[0][i]= -v[0][i];
 #else
 		memcpy(result.v, v, nm*sizeof(complex<double>));
 		cblas_zscal(nm, &CMONE, result.v, 1);
@@ -539,9 +536,9 @@ const NRMat<T> NRMat<T>::operator-() const {
 
 	NRMat<T> result(nn, mm, getlocation());
 #ifdef MATPTR
-	for(register int i=0; i<nn*mm; i++) result.v[0][i] = -v[0][i];
+	for(register size_t i=0; i<(size_t)nn*mm; i++) result.v[0][i] = -v[0][i];
 #else
-	for(register int i=0; i<nn*mm; i++) result.v[i] = -v[i];
+	for(register size_t i=0; i<(size_t)nn*mm; i++) result.v[i] = -v[i];
 #endif
 	return result;
 }
@@ -562,11 +559,11 @@ const NRMat<T> NRMat<T>::operator&(const NRMat<T> &b) const {
 		if(sizeof(T)%sizeof(float) != 0) laerror("memory alignment problem");
 
 		for(register int i=0; i<nn; i++){
-			cublasScopy(mm*sizeof(T)/sizeof(float), (float*)(v + i*mm), 1, (float*)(result.v + i*(mm + b.mm)), 1);
+			cublasScopy(mm*sizeof(T)/sizeof(float), (float*)(v + i*(size_t)mm), 1, (float*)(result.v + i*(size_t)(mm + b.mm)), 1);
 			TEST_CUBLAS("cublasScopy");
 		}
 		for(register int i=0; i<b.nn; i++){
-			cublasScopy(mm*sizeof(T)/sizeof(float), (float*)(b.v + i*b.mm), 1, (float*)(result.v + (nn + i)*(mm + b.mm)), 1);
+			cublasScopy(mm*sizeof(T)/sizeof(float), (float*)(b.v + i*(size_t)b.mm), 1, (float*)(result.v + (nn + i)*(mm + b.mm)), 1);
 			TEST_CUBLAS("cublasScopy");
 		}
 	}
@@ -582,7 +579,7 @@ const NRMat<T> NRMat<T>::operator|(const NRMat<T> &b) const {
 		for (int j=0; j<mm; j++)
 			for (int k=0; k<b.nn; k++)
 				for (int l=0; l<b.mm; l++)
-					result[i*b.nn+k][j*b.mm+l] = (*this)[i][j]*b[k][l];
+					result[i*(size_t)b.nn+k][j*(size_t)b.mm+l] = (*this)[i][j]*b[k][l];
 	return result;
 }
 
@@ -689,7 +686,7 @@ const NRVec<double> NRMat<double>::rsum() const {
 #ifdef CUDALA
 	}else{
 		for(register int i=0;i<nn;i++){
-			cublasDaxpy(mm, 1.0, v + i*mm, 1, result.v, 1);
+			cublasDaxpy(mm, 1.0, v + i*(size_t)mm, 1, result.v, 1);
 			TEST_CUBLAS("cublasDaxpy");
 		}
 	}
@@ -714,7 +711,7 @@ const NRVec<complex<double> > NRMat<complex<double> >::rsum() const {
 #ifdef CUDALA
 	}else{
 		for(register int i=0;i<nn;i++){
-			cublasZaxpy(mm, CUONE, (cuDoubleComplex*)(v + i*mm), 1, (cuDoubleComplex*)(result.v), 1);
+			cublasZaxpy(mm, CUONE, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(result.v), 1);
 			TEST_CUBLAS("cublasZaxpy");
 		}
 	}
@@ -748,14 +745,14 @@ const NRMat<T> NRMat<T>::submatrix(const int fromrow, const int torow, const int
 			#ifdef MATPTR
 			memcpy(r.v[i - fromrow], v[i] + fromcol, m*sizeof(T));
 			#else
-			memcpy(r.v+(i - fromrow)*m, v + i*mm + fromcol, m*sizeof(T));
+			memcpy(r.v+(i - fromrow)*m, v + i*(size_t)mm + fromcol, m*sizeof(T));
 			#endif
 		}
 #ifdef CUDALA
 	}else{
 		if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem");
 		for(register int i=fromrow; i<=torow; ++i){
-			cublasScopy(m*sizeof(T)/sizeof(float), (const float *)(v + i*mm + fromcol), 1, (float*)(r.v + (i - fromrow)*m), 1);
+			cublasScopy(m*sizeof(T)/sizeof(float), (const float *)(v + i*(size_t)mm + fromcol), 1, (float*)(r.v + (i - fromrow)*m), 1);
 			TEST_CUBLAS("cublasScopy");
 		}
 	}
@@ -786,13 +783,13 @@ void NRMat<T>::storesubmatrix(const int fromrow, const int fromcol, const NRMat 
 		#ifdef MATPTR
 			memcpy(v[i] + fromcol, rhs.v[i - fromrow], m*sizeof(T));
 		#else
-			memcpy(v + i*mm + fromcol, rhs.v + (i - fromrow)*m, m*sizeof(T));
+			memcpy(v + i*(size_t)mm + fromcol, rhs.v + (i - fromrow)*m, m*sizeof(T));
 		#endif
 
 	#ifdef CUDALA
 		}else{
 			if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem");
-			cublasScopy(m*sizeof(T)/sizeof(float), (const float *) (rhs.v + (i - fromrow)*m), 1, (float *)(v + i*mm + fromcol), 1);
+			cublasScopy(m*sizeof(T)/sizeof(float), (const float *) (rhs.v + (i - fromrow)*m), 1, (float *)(v + i*(size_t)mm + fromcol), 1);
 		}
 	#endif
 	}
@@ -821,8 +818,8 @@ NRMat<T>& NRMat<T>::transposeme(const int _n) {
 				v[j][i] = tmp;
 			#else
 				register int a, b; 
-				a = i*mm + j;
-				b = j*mm + i;
+				a = i*(size_t)mm + j;
+				b = j*(size_t)mm + i;
 				T tmp = v[a];
 				v[a] = v[b];
 				v[b] = tmp;
@@ -847,7 +844,7 @@ NRMat<T>& NRMat<T>::transposeme(const int _n) {
  ******************************************************************************/
 template<>
 NRMat<complex<double> >::NRMat(const NRMat<double> &rhs, bool imagpart): nn(rhs.nrows()), mm(rhs.ncols()), count(new int(1)) {
-	const int nn_mm = nn*mm;
+	const size_t nn_mm = (size_t)nn*mm;
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -888,7 +885,7 @@ NRMat<complex<double> >::NRMat(const NRMat<double> &rhs, bool imagpart): nn(rhs.
  ******************************************************************************/
 template<>
 NRMat<double>::NRMat(const NRMat<complex<double> > &rhs, bool imagpart): nn(rhs.nrows()), mm(rhs.ncols()), count(new int(1)) {
-	const int nn_mm = nn*mm;
+	const size_t nn_mm = (size_t) nn*mm;
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -1079,7 +1076,7 @@ const NRSMat<double>  NRMat<double>::timestransposed() const {
 			#ifdef MATPTR
 				r(i, j) = cblas_ddot(mm, v[i], 1, v[j], 1);
 			#else
-				r(i, j) = cblas_ddot(mm, v + i*mm, 1, v + j*mm, 1);
+				r(i, j) = cblas_ddot(mm, v + i*(size_t)mm, 1, v + j*(size_t)mm, 1);
 			#endif
 			}
 		}
@@ -1087,7 +1084,7 @@ const NRSMat<double>  NRMat<double>::timestransposed() const {
 	}else{
 		for(i=0; i<nn; ++i){
 			for(j=0; j<=i; ++j){
-				r(i, j) = cublasDdot(nn, v + i*mm, 1, v + j*mm, 1);
+				r(i, j) = cublasDdot(nn, v + i*(size_t)mm, 1, v + j*(size_t)mm, 1);
 				TEST_CUBLAS("cublasDdot");
 			}
 		}
@@ -1113,7 +1110,7 @@ const NRSMat<complex<double> >  NRMat<complex<double> >::timestransposed() const
 			#ifdef MATPTR
 				cblas_zdotc_sub(nn, v[i], 1, v[j], 1, &r(i,j));
 			#else
-				cblas_zdotc_sub(nn, v + i*mm, 1, v + j*mm, 1, &r(i,j));
+				cblas_zdotc_sub(nn, v + i*(size_t)mm, 1, v + j*(size_t)mm, 1, &r(i,j));
 			#endif
 			}
 		}
@@ -1121,7 +1118,7 @@ const NRSMat<complex<double> >  NRMat<complex<double> >::timestransposed() const
 	}else{
 		for(i=0; i<mm; ++i){
 			for(j=0; j<=i; ++j){
-				cuDoubleComplex val = cublasZdotc(nn, (const cuDoubleComplex *)(v + i*mm), 1, (const cuDoubleComplex *)(v + j*mm), 1);
+				cuDoubleComplex val = cublasZdotc(nn, (const cuDoubleComplex *)(v + i*(size_t)mm), 1, (const cuDoubleComplex *)(v + j*(size_t)mm), 1);
 				TEST_CUBLAS("cublasZdotc");
 				r(i, j) = *(reinterpret_cast<complex<double>*> (&val));
 			}
@@ -1172,7 +1169,7 @@ void NRMat<double>::randomize(const double &x) {
 	}else{
 		NRMat<double> tmp(nn, mm, cpu);
 		double *tmp_data = tmp;
-		for(register int i=0; i<nn*mm; ++i){
+		for(register size_t i=0; i<(size_t)nn*mm; ++i){
 			tmp_data[i] = x*(2.*random()/(1. + RAND_MAX) - 1.);
 		}
 		tmp.moveto(this->location);
@@ -1203,7 +1200,7 @@ void NRMat<complex<double> >::randomize(const double &x) {
 	}else{
 		NRMat<complex<double> > tmp(nn, mm, cpu);
 		complex<double> *tmp_data = tmp;
-		for(register int i=0; i<nn*mm; ++i){
+		for(register size_t i=0; i<(size_t)nn*mm; ++i){
 			const double re = x*(2.*random()/(1. + RAND_MAX) - 1.);
 			const double im = x*(2.*random()/(1. + RAND_MAX) - 1.);
 			tmp_data[i] = complex<double>(re, im);
@@ -1226,10 +1223,10 @@ NRMat<double>& NRMat<double>::operator*=(const double &a) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_dscal(nn*mm, a, *this, 1);
+		cblas_dscal((size_t)nn*mm, a, *this, 1);
 #ifdef CUDALA
 	}else{
-		cublasDscal(nn*mm, a, v, 1);
+		cublasDscal((size_t)nn*mm, a, v, 1);
 		TEST_CUBLAS("cublasDscal");
 	}
 #endif
@@ -1249,11 +1246,11 @@ NRMat<complex<double> >::operator*=(const complex<double> &a) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zscal(nn*mm, &a, (*this)[0], 1);
+		cblas_zscal((size_t)nn*mm, &a, (*this)[0], 1);
 #ifdef CUDALA
 	}else{
 		const cuDoubleComplex fac = *(reinterpret_cast<const cuDoubleComplex*> (&a));
-		cublasZscal(nn*mm, fac, (cuDoubleComplex *)v, 1);
+		cublasZscal((size_t)nn*mm, fac, (cuDoubleComplex *)v, 1);
 		TEST_CUBLAS("cublasZscal");
 	}
 #endif
@@ -1271,9 +1268,9 @@ NRMat<T> & NRMat<T>::operator*=(const T &a) {
 	NOT_GPU(*this);
         copyonwrite();
 #ifdef MATPTR
-         for(register int i=0; i< nn*mm; i++) v[0][i] *= a;
+         for(register size_t i=0; i< (size_t)nn*mm; i++) v[0][i] *= a;
 #else
-         for(register int i=0; i< nn*mm; i++) v[i] *= a;
+         for(register size_t i=0; i< (size_t)nn*mm; i++) v[i] *= a;
 #endif
         return *this;
 }
@@ -1294,10 +1291,10 @@ NRMat<double> & NRMat<double>::operator+=(const NRMat<double>  &rhs) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_daxpy(nn*mm, 1.0, rhs, 1, *this, 1);
+		cblas_daxpy((size_t)nn*mm, 1.0, rhs, 1, *this, 1);
 #ifdef CUDALA
 	}else{
-		cublasDaxpy(nn*mm, 1.0, rhs, 1, v, 1);
+		cublasDaxpy((size_t)nn*mm, 1.0, rhs, 1, v, 1);
 		TEST_CUBLAS("cublasDaxpy");
 	}
 #endif
@@ -1320,10 +1317,10 @@ NRMat<complex<double> >::operator+=(const NRMat< complex<double> >  &rhs) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zaxpy(nn*mm, &CONE, rhs[0], 1, (*this)[0], 1);
+		cblas_zaxpy((size_t)nn*mm, &CONE, rhs[0], 1, (*this)[0], 1);
 #ifdef CUDALA
 	}else{
-		cublasZaxpy(nn*mm, CUONE, (cuDoubleComplex*)(rhs[0]), 1, (cuDoubleComplex*)((*this)[0]), 1);
+		cublasZaxpy((size_t)nn*mm, CUONE, (cuDoubleComplex*)(rhs[0]), 1, (cuDoubleComplex*)((*this)[0]), 1);
 	}
 #endif
 	return *this;
@@ -1345,9 +1342,9 @@ NRMat<T> & NRMat<T>::operator+=(const NRMat<T>  &rhs) {
 	copyonwrite();
 
 	#ifdef MATPTR
-		for(int i=0; i< nn*mm; i++) v[0][i] += rhs.v[0][i];
+		for(size_t i=0; i< (size_t)nn*mm; i++) v[0][i] += rhs.v[0][i];
 	#else
-		for(int i=0; i< nn*mm; i++) v[i] += rhs.v[i];
+		for(size_t i=0; i< (size_t)nn*mm; i++) v[i] += rhs.v[i];
 	#endif
         return *this;
 }
@@ -1368,10 +1365,10 @@ NRMat<double> & NRMat<double>::operator-=(const NRMat<double>  &rhs) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_daxpy(nn*mm, -1.0, rhs, 1, *this, 1);
+		cblas_daxpy((size_t)nn*mm, -1.0, rhs, 1, *this, 1);
 #ifdef CUDALA
 	}else{
-		cublasDaxpy(nn*mm, -1.0, rhs, 1, v, 1);
+		cublasDaxpy((size_t)nn*mm, -1.0, rhs, 1, v, 1);
 	}
 #endif
 	return *this;
@@ -1395,10 +1392,10 @@ NRMat< complex<double> >::operator-=(const NRMat< complex<double> >  &rhs) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zaxpy(nn*mm, &CMONE, rhs[0], 1, (*this)[0], 1);
+		cblas_zaxpy((size_t)nn*mm, &CMONE, rhs[0], 1, (*this)[0], 1);
 #ifdef CUDALA
 	}else{
-		cublasZaxpy(nn*mm, CUMONE, (cuDoubleComplex*)(rhs[0]), 1, (cuDoubleComplex*)((*this)[0]), 1);
+		cublasZaxpy((size_t)nn*mm, CUMONE, (cuDoubleComplex*)(rhs[0]), 1, (cuDoubleComplex*)((*this)[0]), 1);
 	}
 #endif
 	return *this;
@@ -1421,9 +1418,9 @@ NRMat<T> & NRMat<T>::operator-=(const NRMat<T>  &rhs) {
 	copyonwrite();
 
 	#ifdef MATPTR
-		for(int i=0; i< nn*mm; i++) v[0][i] += rhs.v[0][i];
+		for(size_t i=0; i< (size_t)nn*mm; i++) v[0][i] += rhs.v[0][i];
 	#else
-		for(int i=0; i< nn*mm; i++) v[i] += rhs.v[i];
+		for(size_t i=0; i<(size_t) nn*mm; i++) v[i] += rhs.v[i];
 	#endif
         return *this;
 }
@@ -1693,10 +1690,10 @@ const double NRMat<double>::dot(const NRMat<double> &rhs) const {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		ret = cblas_ddot(nn*mm, (*this)[0], 1, rhs[0], 1);
+		ret = cblas_ddot((size_t)nn*mm, (*this)[0], 1, rhs[0], 1);
 #ifdef CUDALA
 	}else{
-		ret = cublasDdot(nn*mm, v, 1, rhs.v, 1);
+		ret = cublasDdot((size_t)nn*mm, v, 1, rhs.v, 1);
 	}
 #endif
 	return ret;
@@ -1721,10 +1718,10 @@ NRMat<complex<double> >::dot(const NRMat<complex<double> > &rhs) const {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zdotc_sub(nn*mm, (*this)[0], 1, rhs[0], 1, &ret);
+		cblas_zdotc_sub((size_t)nn*mm, (*this)[0], 1, rhs[0], 1, &ret);
 #ifdef CUDALA
 	}else{
-		cuDoubleComplex val = cublasZdotc(nn*mm, (cuDoubleComplex*)v, 1, (cuDoubleComplex*)(rhs.v), 1);
+		cuDoubleComplex val = cublasZdotc((size_t)nn*mm, (cuDoubleComplex*)v, 1, (cuDoubleComplex*)(rhs.v), 1);
 		ret = *(reinterpret_cast<complex<double>*> (&val));
 	}
 #endif
@@ -1804,7 +1801,7 @@ void NRMat<double>::diagmultl(const NRVec<double> &rhs) {
 		for(register int i=0; i<nn; i++){ cblas_dscal(mm, rhs[i], (*this)[i], 1); }
 #ifdef CUDALA
 	}else{
-		for(register int i=0; i<nn; i++){ cublasDscal(mm, rhs[i], v + i*mm, 1); }
+		for(register int i=0; i<nn; i++){ cublasDscal(mm, rhs[i], v + i*(size_t)mm, 1); }
 	}
 #endif
 }
@@ -1830,7 +1827,7 @@ void NRMat< complex<double> >::diagmultl(const NRVec< complex<double> > &rhs) {
 	}else{
 		for(register int i=0; i<nn; i++){
 			const cuDoubleComplex alpha = make_cuDoubleComplex(rhs[i].real(), rhs[i].imag());
-			cublasZscal(mm, alpha, (cuDoubleComplex*)(v + i*mm), 1);
+			cublasZscal(mm, alpha, (cuDoubleComplex*)(v + i*(size_t)mm), 1);
 		}
 	}
 #endif
@@ -1913,7 +1910,7 @@ NRMat<double>::operator*(const NRSMat<double> &rhs) const {
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<nn; i++){
-			cublasDspmv('U', mm, 1.0, rhs.v, v + i*mm, 1, 0.0, result.v + i*rhs_ncols, 1);
+			cublasDspmv('U', mm, 1.0, rhs.v, v + i*(size_t)mm, 1, 0.0, result.v + i*(size_t)rhs_ncols, 1);
 		}
 	}
 #endif
@@ -1947,7 +1944,7 @@ NRMat< complex<double> >::operator*(const NRSMat< complex<double> > &rhs) const 
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<nn; i++){
-			cublasZhpmv('U', mm, CUONE, (cuDoubleComplex*)rhs.v, (cuDoubleComplex*)(v + i*mm), 1, CUZERO, (cuDoubleComplex*)(result.v + i*rhs_ncols), 1);
+			cublasZhpmv('U', mm, CUONE, (cuDoubleComplex*)rhs.v, (cuDoubleComplex*)(v + i*(size_t)mm), 1, CUZERO, (cuDoubleComplex*)(result.v + i*(size_t)rhs_ncols), 1);
 		}
 	}
 #endif
@@ -1974,10 +1971,10 @@ NRMat<complex<double> >& NRMat<complex<double> >::conjugateme() {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_dscal(mm*nn, -1.0, (double *)((*this)[0]) + 1, 2);
+		cblas_dscal((size_t)mm*nn, -1.0, (double *)((*this)[0]) + 1, 2);
 #ifdef CUDALA
 	}else{
-		cublasDscal(mm*nn, -1.0, (double *)(this->v) + 1, 2);
+		cublasDscal((size_t)mm*nn, -1.0, (double *)(this->v) + 1, 2);
 	}
 #endif
 	return *this;
@@ -2048,12 +2045,12 @@ void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 		const char transa, const NRMat<double> &b, const char transb, 
 		const double &alpha) {
 
-	int k(transa=='n'?a.mm:a.nn);
+	int k(tolower(transa)=='n'?a.mm:a.nn);
 
 #ifdef DEBUG
-	int l(transa=='n'?a.nn:a.mm);
-	int kk(transb=='n'?b.nn:b.mm);
-	int ll(transb=='n'?b.mm:b.nn);
+	int l(tolower(transa)=='n'?a.nn:a.mm);
+	int kk(tolower(transb)=='n'?b.nn:b.mm);
+	int ll(tolower(transb)=='n'?b.mm:b.nn);
 	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in NRMat<double>::gemm(...)");
 	if(b.mm <=0 || mm<=0) laerror("illegal matrix dimension in gemm");
 #endif
@@ -2066,8 +2063,8 @@ void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_dgemm(CblasRowMajor, (transa=='n' ? CblasNoTrans : CblasTrans),
-				(transb=='n' ? CblasNoTrans : CblasTrans), nn, mm, k, alpha, a,
+		cblas_dgemm(CblasRowMajor, (tolower(transa)=='n' ? CblasNoTrans : CblasTrans),
+				(tolower(transb)=='n' ? CblasNoTrans : CblasTrans), nn, mm, k, alpha, a,
 				a.mm, b , b.mm, beta, *this , mm);
 #ifdef CUDALA
 	}else{
@@ -2083,20 +2080,20 @@ void NRMat<complex<double> >::gemm(const complex<double> & beta,
 		const NRMat<complex<double> > & b, const char transb, 
 		const complex<double> & alpha)
 {
-	int k(transa=='n'?a.mm:a.nn);
+	int k(tolower(transa)=='n'?a.mm:a.nn);
 
 #ifdef DEBUG
-	int l(transa=='n'?a.nn:a.mm);
-	int kk(transb=='n'?b.nn:b.mm);
-	int ll(transb=='n'?b.mm:b.nn);
+	int l(tolower(transa)=='n'?a.nn:a.mm);
+	int kk(tolower(transb)=='n'?b.nn:b.mm);
+	int ll(tolower(transb)=='n'?b.mm:b.nn);
 	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in NRMat<complex<double> >::gemm(...)");
 #endif
 	if (alpha==CZERO && beta==CONE) return;
 
 	copyonwrite();
 	cblas_zgemm(CblasRowMajor,
-			(transa=='n' ? CblasNoTrans : (transa=='c'?CblasConjTrans:CblasTrans)), 
-			(transb=='n' ? CblasNoTrans : (transa=='c'?CblasConjTrans:CblasTrans)),
+			(tolower(transa)=='n' ? CblasNoTrans : (tolower(transa)=='c'?CblasConjTrans:CblasTrans)), 
+			(tolower(transb)=='n' ? CblasNoTrans : (tolower(transb)=='c'?CblasConjTrans:CblasTrans)),
 			nn, mm, k, &alpha, a , a.mm, b , b.mm, &beta, *this , mm);
 }
 
@@ -2113,10 +2110,10 @@ const double  NRMat<double>::norm(const double scalar) const {
 #ifdef CUDALA
 		if(location == cpu){
 #endif
-			return cblas_dnrm2(nn*mm, (*this)[0], 1);
+			return cblas_dnrm2((size_t)nn*mm, (*this)[0], 1);
 #ifdef CUDALA
 		}else{
-			return cublasDnrm2(nn*mm, v, 1);
+			return cublasDnrm2((size_t)nn*mm, v, 1);
 		}
 #endif
 	}
@@ -2130,7 +2127,7 @@ const double  NRMat<double>::norm(const double scalar) const {
 #ifdef MATPTR
 			tmp = v[i][j];
 #else
-			tmp = v[i*mm+j];
+			tmp = v[i*(size_t)mm+j];
 #endif
 			if(i == j) tmp -= scalar;
 			sum += tmp*tmp;
@@ -2152,10 +2149,10 @@ const double NRMat<complex<double> >::norm(const complex<double> scalar) const {
 #ifdef CUDALA
 		if(location == cpu){
 #endif
-			return cblas_dznrm2(nn*mm, (*this)[0], 1);
+			return cblas_dznrm2((size_t)nn*mm, (*this)[0], 1);
 #ifdef CUDALA
 		}else{
-			return cublasDznrm2(nn*mm, (cuDoubleComplex*)v, 1);
+			return cublasDznrm2((size_t)nn*mm, (cuDoubleComplex*)v, 1);
 		}
 #endif
 	}
@@ -2168,7 +2165,7 @@ const double NRMat<complex<double> >::norm(const complex<double> scalar) const {
 #ifdef MATPTR
 			tmp = v[i][j];
 #else
-			tmp = v[i*mm+j];
+			tmp = v[i*(size_t)mm+j];
 #endif
 			if(i == j) tmp -= scalar;
 			const double re = tmp.real();
@@ -2195,10 +2192,10 @@ void NRMat<double>::axpy(const double alpha, const NRMat<double> &mat) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_daxpy(nn*mm, alpha, mat, 1, *this, 1);
+		cblas_daxpy((size_t)nn*mm, alpha, mat, 1, *this, 1);
 #ifdef CUDALA
 	}else{
-		cublasDaxpy(nn*mm, alpha, mat, 1, *this, 1);
+		cublasDaxpy((size_t)nn*mm, alpha, mat, 1, *this, 1);
 	}
 #endif
 }
@@ -2221,7 +2218,7 @@ void NRMat<complex<double> >::axpy(const complex<double> alpha,
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zaxpy(nn*mm, &alpha, mat, 1, (*this)[0], 1);
+		cblas_zaxpy((size_t)nn*mm, &alpha, mat, 1, (*this)[0], 1);
 #ifdef CUDALA
 	}else{
 		const cuDoubleComplex _alpha = make_cuDoubleComplex(alpha.real(), alpha.imag());
@@ -2245,7 +2242,7 @@ const T NRMat<T>::trace() const {
 #ifdef MATPTR
 	for(register int i=0; i<nn; ++i) sum += v[i][i];
 #else
-	for(register int i=0; i<nn*nn; i += (nn+1)) sum += v[i];
+	for(register size_t i=0; i<(size_t)nn*nn; i += (nn+1)) sum += v[i];
 #endif
 	return sum;
 }
@@ -2554,7 +2551,7 @@ NRMat<double>& NRMat<double>::swap_rows(){
 #ifdef CUDALA
 	}else{
 	        for(register int i=0; i<n_pul; i++){
-		        cublasDswap(mm, v + i*mm, 1, v + (nn - i - 1)*mm, 1);
+		        cublasDswap(mm, v + i*(size_t)mm, 1, v + (nn - i - 1)*mm, 1);
 			TEST_CUBLAS("cublasDswap");
 	        }
 	}
@@ -2580,7 +2577,7 @@ NRMat<complex<double> >& NRMat<complex<double> >::swap_rows(){
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<n_pul; i++){
-		        cublasZswap(mm, (cuDoubleComplex*)(v + i*mm), 1, (cuDoubleComplex*)(v + (nn - i - 1)*mm), 1);
+		        cublasZswap(mm, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(v + (nn - i - 1)*mm), 1);
 			TEST_CUBLAS("cublasZswap");
 		}
 	}
@@ -2613,7 +2610,7 @@ NRMat<T>& NRMat<T>::swap_rows(){
 	}else{
 		if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem in NRMat<T>::swap_rows");
 	        for(register int i=0; i<n_pul; i++){
-		        cublasSswap(mm*sizeof(T)/sizeof(float), (float *)(v + i*mm), 1, (float *)(v + (nn - i - 1)*mm), 1);
+		        cublasSswap(mm*sizeof(T)/sizeof(float), (float *)(v + i*(size_t)mm), 1, (float *)(v + (nn - i - 1)*mm), 1);
 			TEST_CUBLAS("cublasSswap");
 	        }
 	}
@@ -2745,7 +2742,7 @@ NRMat<double>& NRMat<double>::swap_rows_cols(){
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<n_pul; i++){
-			cublasDswap(mm, v + i*mm, 1, v + (nn - i - 1)*mm + mm - 1, -1);
+			cublasDswap(mm, v + i*(size_t)mm, 1, v + (nn - i - 1)*mm + mm - 1, -1);
 			TEST_CUBLAS("cublasDswap");
 		}
 
@@ -2792,7 +2789,7 @@ NRMat<complex<double> >& NRMat<complex<double> >::swap_rows_cols(){
 #ifdef CUDALA
 	}else{
 		for(register int i=0;i<n_pul;i++){
-			cublasZswap(mm, (cuDoubleComplex*)(v + i*mm), 1, (cuDoubleComplex*)(v + (nn - i - 1)*mm + mm - 1), -1);
+			cublasZswap(mm, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(v + (nn - i - 1)*mm + mm - 1), -1);
 			TEST_CUBLAS("cublasZswap");
 		}
 		if(nn & 1){
@@ -2817,7 +2814,7 @@ template<typename T>
 NRMat<T>& NRMat<T>::swap_rows_cols(){
 	const int n_pul = nn >> 1;
 	const int m_pul = mm >> 1;
-	const int dim = nn*mm;
+	const size_t dim = (size_t)nn*mm;
 
 	T *data_ptr;
 	T tmp;
@@ -2837,7 +2834,7 @@ NRMat<T>& NRMat<T>::swap_rows_cols(){
 	}else{
 		if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem in NRMat<T>::swap_rows_cols");
 	        for(register int i=0; i<n_pul; i++){
-		        cublasSswap(mm*sizeof(T)/sizeof(float), (float *)(v + i*mm), 1, (float *)(v + (nn - i - 1)*mm) - 1, -1);
+		        cublasSswap(mm*sizeof(T)/sizeof(float), (float *)(v + i*(size_t)mm), 1, (float *)(v + (nn - i - 1)*mm) - 1, -1);
 			TEST_CUBLAS("cublasSswap");
 	        }
 

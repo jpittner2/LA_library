@@ -35,6 +35,7 @@
 #include <fstream>
 #include <limits>
 #include <complex>
+#include <unistd.h>
 
 
 //using namespace std;
@@ -56,7 +57,7 @@ extern "C" {
 #include "noncblas.h"
 #else
 extern "C" {
-#include "clapack.h"
+#include "atlas/clapack.h"
 }
 #endif
 
@@ -213,7 +214,7 @@ typedef C normtype;
 typedef C realtype;
 typedef complex<C> complextype;
 static inline C sqrabs(const complex<C> x) { return x.real()*x.real()+x.imag()*x.imag();}
-static inline bool gencmp(const complex<C> *x, const complex<C> *y, int n) {return memcmp(x,y,n*sizeof(complex<C>));}
+static inline bool gencmp(const complex<C> *x, const complex<C> *y, size_t n) {return memcmp(x,y,n*sizeof(complex<C>));}
 static bool bigger(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
 static bool smaller(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
 static inline normtype norm (const  complex<C> &x) {return std::abs(x);}
@@ -225,9 +226,10 @@ static void multiget(size_t n,int fd, complex<C> *x, bool dimensions=0)
 	size_t total=0;
 	size_t system_limit = (1L<<30)/sizeof(complex<C>); //do not expect too much from the system and read at most 1GB at once
 	ssize_t r;
+	size_t nn;
 	do{
-		r=read(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
-		if(r<0 || r==0 && n!=0 ) {std::cout<<"read returned "<<r<<" perror "<<strerror(errno) <<std::endl; laerror("read error");}
+		r=read(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
+		if(r<0 || r==0 && nn!=0 ) {std::cout<<"read returned "<<r<<" perror "<<strerror(errno) <<std::endl; laerror("read error");}
 		else total += r/sizeof(complex<C>);
 		if(r%sizeof(complex<C>)) laerror("read error 2");
 	  }
@@ -238,16 +240,17 @@ static void multiput(size_t n, int fd, const complex<C> *x, bool dimensions=0)
 	size_t total=0;
 	size_t system_limit = (1L<<30)/sizeof(complex<C>); //do not expect too much from the system and write at most 1GB at once
 	ssize_t r;
+	size_t nn;
 	do{
-		r=write(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
-		if(r<0 || r==0 && n!=0 ) {std::cout<<"write returned "<<r<<"  perror "<<strerror(errno) <<std::endl; laerror("write error");}
+		r=write(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
+		if(r<0 || r==0 && nn!=0 ) {std::cout<<"write returned "<<r<<"  perror "<<strerror(errno) <<std::endl; laerror("write error");}
 		else total += r/sizeof(complex<C>);
 		if(r%sizeof(complex<C>)) laerror("write error 2");
 	  }
 	while(total < n);
 	}
-static void copy(complex<C> *dest, complex<C> *src, unsigned int n) {memcpy(dest,src,n*sizeof(complex<C>));}
-static void clear(complex<C> *dest, unsigned int n) {memset(dest,0,n*sizeof(complex<C>));}
+static void copy(complex<C> *dest, complex<C> *src, size_t n) {memcpy(dest,src,n*sizeof(complex<C>));}
+static void clear(complex<C> *dest, size_t n) {memset(dest,0,n*sizeof(complex<C>));}
 static void copyonwrite(complex<C> &x) {};
 static void clearme(complex<C> &x) {x=0;};
 static void deallocate(complex<C> &x) {};
@@ -266,7 +269,7 @@ typedef C normtype;
 typedef C realtype;
 typedef complex<C> complextype;
 static inline C sqrabs(const C x) { return x*x;}
-static inline bool gencmp(const C *x, const C *y, int n) {return memcmp(x,y,n*sizeof(C));}
+static inline bool gencmp(const C *x, const C *y, size_t n) {return memcmp(x,y,n*sizeof(C));}
 static inline bool bigger(const  C &x, const C &y) {return x>y;}
 static inline bool smaller(const  C &x, const C &y) {return x<y;}
 static inline normtype norm (const  C &x) {return std::abs(x);}
@@ -278,9 +281,10 @@ static void multiget(size_t n,int fd, C *x, bool dimensions=0)
 	size_t total=0;
 	size_t system_limit = (1L<<30)/sizeof(C); //do not expect too much from the system and read at most 1GB at once
 	ssize_t r;
+	size_t nn;
 	do{
-		r=read(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(C)); 
-		if(r<0 || r==0 && n!=0 ) {std::cout<<"read returned "<<r<<std::endl; laerror("read error");}
+		r=read(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(C)); 
+		if(r<0 || r==0 && nn!=0 ) {std::cout<<"read returned "<<r<<" perror "<<strerror(errno) <<std::endl; laerror("read error");}
 		else total += r/sizeof(C);
 		if(r%sizeof(C)) laerror("read error 2");
 	  }
@@ -291,16 +295,17 @@ static void multiput(size_t n, int fd, const C *x, bool dimensions=0)
 	size_t total=0;
 	size_t system_limit = (1L<<30)/sizeof(C); //do not expect too much from the system and write at most 1GB at once
 	ssize_t r;
+	size_t nn;
 	do{
-		r=write(fd,x+total,(n-total > system_limit ? system_limit : n-total)*sizeof(C)); 
-		if(r<0 || r==0 && n!=0 ) {std::cout<<"write returned "<<r<<std::endl; laerror("write error");}
+		r=write(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(C)); 
+		if(r<0 || r==0 && nn!=0 ) {std::cout<<"write returned "<<r<<" perror "<<strerror(errno) <<std::endl; laerror("write error");}
 		else total += r/sizeof(C);
 		if(r%sizeof(C)) laerror("write error 2");
 	  }
 	while(total < n);
 	}
-static void copy(C *dest, C *src, unsigned int n) {memcpy(dest,src,n*sizeof(C));}
-static void clear(C *dest, unsigned int n) {memset(dest,0,n*sizeof(C));}
+static void copy(C *dest, C *src, size_t n) {memcpy(dest,src,n*sizeof(C));}
+static void clear(C *dest, size_t n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
 static void clearme(C &x) {x=0;};
 static void deallocate(C &x) {};
@@ -323,7 +328,7 @@ typedef X<C> producttype; \
 typedef typename LA_traits<C>::normtype normtype; \
 typedef X<typename LA_traits<C>::realtype> realtype; \
 typedef X<typename LA_traits<C>::complextype> complextype; \
-static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
+static bool gencmp(const C *x, const C *y, size_t n) {for(size_t i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
 static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
 static inline normtype norm (const X<C> &x) {return x.norm();} \
@@ -332,8 +337,8 @@ static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(
 static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions,transp);} \
 static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions);} \
 static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions);} \
-static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];} \
-static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();}\
+static void copy(C *dest, C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];} \
+static void clear(C *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
 static void clearme(X<C> &x) {x.clear();}\
 static void deallocate(X<C> &x) {x.dealloc();}\
@@ -359,7 +364,7 @@ typedef NRMat<C> producttype;  \
 typedef typename LA_traits<C>::normtype normtype;  \
 typedef X<typename LA_traits<C>::realtype> realtype; \
 typedef X<typename LA_traits<C>::complextype> complextype; \
-static bool gencmp(const C *x, const C *y, int n) {for(int i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
+static bool gencmp(const C *x, const C *y, size_t n) {for(size_t i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
 static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
 static inline normtype norm (const X<C> &x) {return x.norm();}  \
@@ -368,8 +373,8 @@ static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(
 static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);}  \
 static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions);}  \
 static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
-static void copy(C *dest, C *src, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i]=src[i];}  \
-static void clear(C *dest, unsigned int n) {for(unsigned int i=0; i<n; ++i) dest[i].clear();} \
+static void copy(C *dest, C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];}  \
+static void clear(C *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \
 static void clearme(X<C> &x) {x.clear();} \
 static void deallocate(X<C> &x) {x.dealloc();} \

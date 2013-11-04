@@ -195,13 +195,14 @@ void cblas_dspmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
 {
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+	char U = BLAS_FORTRANCASE('u');
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
-	FORNAME(dspmv) ("U",&ntmp, &alpha, Ap, X, &incxtmp, &beta, Y, &incytmp);
+	FORNAME(dspmv) (&U,&ntmp, &alpha, Ap, X, &incxtmp, &beta, Y, &incytmp);
 #else
-	FORNAME(dspmv) ("U",&N, &alpha, Ap, X, &incX, &beta, Y, &incY);
+	FORNAME(dspmv) (&U,&N, &alpha, Ap, X, &incX, &beta, Y, &incY);
 #endif
 }
 
@@ -214,13 +215,14 @@ void cblas_zhpmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
 {
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+	char U = BLAS_FORTRANCASE('u');
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
-	FORNAME(zhpmv) ("U",&ntmp, alpha, Ap, X, &incxtmp, beta, Y, &incytmp);
+	FORNAME(zhpmv) (&U,&ntmp, alpha, Ap, X, &incxtmp, beta, Y, &incytmp);
 #else
-	FORNAME(zhpmv) ("U",&N, alpha, Ap, X, &incX, beta, Y, &incY);
+	FORNAME(zhpmv) (&U,&N, alpha, Ap, X, &incX, beta, Y, &incY);
 #endif
 }
 
@@ -298,6 +300,8 @@ void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
 {
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	//swap a-b, m-n
+	char transb = BLAS_FORTRANCASE(TransB==CblasNoTrans?'N':'T');
+	char transa = BLAS_FORTRANCASE(TransA==CblasNoTrans?'N':'T');
 #ifdef FORINT
 	const FINT mtmp=M;
 	const FINT ntmp=N;
@@ -305,10 +309,10 @@ void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
 	const FINT ldatmp=lda;
 	const FINT ldbtmp=ldb;
 	const FINT ldctmp=ldc;
-	FORNAME(dgemm) (TransB==CblasNoTrans?"N":"T", TransA==CblasNoTrans?"N":"T",
+	FORNAME(dgemm) (&transb,&transa,
 			&ntmp, &mtmp, &ktmp, &alpha, B, &ldbtmp, A, &ldatmp, &beta, C, &ldctmp);
 #else
-	FORNAME(dgemm) (TransB==CblasNoTrans?"N":"T", TransA==CblasNoTrans?"N":"T",
+	FORNAME(dgemm) (&transb,&transa,
 			&N, &M, &K, &alpha, B, &ldb, A, &lda, &beta, C, &ldc);
 #endif
 }
@@ -322,6 +326,8 @@ void cblas_zgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
 {
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	//swap a-b, m-n
+	char transb =  BLAS_FORTRANCASE(TransB==CblasConjTrans?'C':(TransB==CblasNoTrans?'N':'T'));
+	char transa =  BLAS_FORTRANCASE(TransA==CblasConjTrans?'C':(TransA==CblasNoTrans?'N':'T'));
 #ifdef FORINT
 	const FINT mtmp=M;
 	const FINT ntmp=N;
@@ -329,12 +335,10 @@ void cblas_zgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
 	const FINT ldatmp=lda;
 	const FINT ldbtmp=ldb;
 	const FINT ldctmp=ldc;
-	FORNAME(zgemm) ( TransB==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
-			TransA==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
+	FORNAME(zgemm) (&transb,&transa,
 			&ntmp, &mtmp, &ktmp, alpha, B, &ldbtmp, A, &ldatmp, beta, C, &ldctmp);
 #else
-	FORNAME(zgemm) ( TransB==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
-			TransA==CblasConjTrans?"C":(TransB==CblasNoTrans?"N":"T"),
+	FORNAME(zgemm) ( &transb,&transa,
 			&N, &M, &K, alpha, B, &ldb, A, &lda, beta, C, &ldc);
 #endif
 }
@@ -347,19 +351,21 @@ void cblas_dgemv(const enum CBLAS_ORDER Order,
 		const double *X, const int incX, const double beta,
 		double *Y, const int incY)
 {
+	char transa =  BLAS_FORTRANCASE(TransA==CblasNoTrans?'N':'T');
+	char transax =  BLAS_FORTRANCASE(TransA==CblasNoTrans?'T':'N');
 #ifdef FORINT
 	const FINT mtmp=M;
 	const FINT ntmp=N;
 	const FINT ldatmp=lda;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
-	if(Order!=CblasRowMajor) FORNAME(dgemv) (TransA==CblasNoTrans?"N":"T", &ntmp, &mtmp, &alpha, A, &ldatmp, X, &incxtmp, &beta, Y, &incytmp );
+	if(Order!=CblasRowMajor) FORNAME(dgemv) (&transa, &ntmp, &mtmp, &alpha, A, &ldatmp, X, &incxtmp, &beta, Y, &incytmp );
 	//swap n-m and toggle transposition
-	else FORNAME(dgemv) (TransA==CblasNoTrans?"T":"N", &ntmp, &mtmp, &alpha, A, &ldatmp, X, &incxtmp, &beta, Y, &incytmp );
+	else FORNAME(dgemv) (&transax, &ntmp, &mtmp, &alpha, A, &ldatmp, X, &incxtmp, &beta, Y, &incytmp );
 #else
-	if(Order!=CblasRowMajor) FORNAME(dgemv) (TransA==CblasNoTrans?"N":"T", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
+	if(Order!=CblasRowMajor) FORNAME(dgemv) (&transa, &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
 	//swap n-m and toggle transposition
-	else FORNAME(dgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
+	else FORNAME(dgemv) (&transax, &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
 #endif
 }
 
@@ -374,15 +380,16 @@ void cblas_zgemv(const enum CBLAS_ORDER Order,
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	if(TransA == CblasConjTrans) laerror("zgemv with CblasConjTrans not supportted");
 	//swap n-m and toggle transposition
+	char transa =  BLAS_FORTRANCASE(TransA==CblasNoTrans?'T':'N');
 #ifdef FORINT
 	const FINT mtmp=M;
 	const FINT ntmp=N;
 	const FINT ldatmp=lda;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
-	FORNAME(zgemv) (TransA==CblasNoTrans?"T":"N", &ntmp, &mtmp, alpha, A, &ldatmp, X, &incxtmp, beta, Y, &incytmp );
+	FORNAME(zgemv) (&transa, &ntmp, &mtmp, alpha, A, &ldatmp, X, &incxtmp, beta, Y, &incytmp );
 #else
-	FORNAME(zgemv) (TransA==CblasNoTrans?"T":"N", &N, &M, alpha, A, &lda, X, &incX, beta, Y, &incY );
+	FORNAME(zgemv) (&transa, &N, &M, alpha, A, &lda, X, &incX, beta, Y, &incY );
 #endif
 }
 

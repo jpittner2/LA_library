@@ -132,8 +132,8 @@ public:
 	void setunsymmetric();//unwind the matrix assuming it was indeed symmetric
 	inline bool issymmetric() const {return symmetric;}
 	unsigned int length() const;
-	void copyonwrite();
-	void clear() {copyonwrite();unsort();deletelist();}
+	void copyonwrite(bool detachonly=false);
+	void clear() {copyonwrite(true); if(count) {delete count; count=NULL;}}
 	void simplify();
 	const T trace() const;
 	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first

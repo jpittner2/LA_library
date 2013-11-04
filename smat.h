@@ -25,7 +25,7 @@
 #include "la_traits.h"
 
 namespace LA {
-#define NN2 (nn*(nn+1)/2)
+#define NN2 ((size_t)nn*(nn+1)/2)
 
 
 /***************************************************************************//**
@@ -134,15 +134,15 @@ public:
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
 	void gemv(const T beta, NRVec<complex<T> > &r, const char trans, const T alpha, const NRVec<complex<T> > &x) const {r.gemv(beta,*this,trans,alpha,x);};
 
-	inline const T& operator[](const int ij) const;
-	inline T& operator[](const int ij);
+	inline const T& operator[](const size_t ij) const;
+	inline T& operator[](const size_t ij);
 
 	inline const T& operator()(const int i, const int j) const;
 	inline T& operator()(const int i, const int j);
 
 	inline int nrows() const;
 	inline int ncols() const;
-	inline int size() const;
+	inline size_t size() const;
 
 	inline bool transp(const int i, const int j) const {return i>j;} //this can be used for compact storage of matrices, which are actually not symmetric, but one triangle of them is redundant
 	const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const;
@@ -155,9 +155,9 @@ public:
 	void get(int fd, bool dimensions = 1, bool transp = 0);
         void put(int fd, bool dimensions = 1, bool transp = 0) const;
 
-	void copyonwrite();
+	void copyonwrite(bool detachonly=false);
 
-	void clear() {copyonwrite(); LA_traits<T>::clear(v,NN2);}; //zero out
+	void clear() {copyonwrite(true); LA_traits<T>::clear(v,NN2);}; //zero out
 	void resize(const int n);
 	void dealloc(void) {resize(0);}
 
@@ -212,7 +212,7 @@ inline NRSMat<T>::NRSMat(const T& a, const int n) : nn(n), count(new int(1)) {
 	if(location == cpu){
 #endif
 		v = new T[NN2];
-		if(a != (T)0) for(register int i = 0; i<NN2; i++) v[i] = a;
+		if(a != (T)0) for(register size_t i = 0; i<NN2; i++) v[i] = a;
 		else memset(v, 0, NN2*sizeof(T));
 
 #ifdef CUDALA
@@ -338,7 +338,7 @@ inline NRSMat<T> & NRSMat<T>::operator*=(const T &a) {
 	NOT_GPU(*this);
 
 	copyonwrite();
-	for(register int i = 0; i<NN2; ++i) v[i] *= a;
+	for(register size_t i = 0; i<NN2; ++i) v[i] *= a;
         return *this;
 }
 
@@ -353,7 +353,7 @@ inline NRSMat<T> & NRSMat<T>::operator+=(const T &a) {
 	NOT_GPU(*this);
 
 	copyonwrite();
-	for(register int i = 0; i<nn; i++) v[i*(i+1)/2 + i] += a;
+	for(register int i = 0; i<nn; i++) v[i*(size_t)(i+1)/2 + i] += a;
 	return *this;
 }
 
@@ -368,7 +368,7 @@ inline NRSMat<T> & NRSMat<T>::operator-=(const T &a) {
 	NOT_GPU(*this);
 
 	copyonwrite();
-	for(register int i = 0; i<nn; i++) v[i*(i+1)/2+i] -= a;
+	for(register int i = 0; i<nn; i++) v[i*(size_t)(i+1)/2+i] -= a;
 	return *this;
 }
 
@@ -438,7 +438,7 @@ inline NRSMat<T>& NRSMat<T>::operator+=(const NRSMat<T>& rhs) {
 	SAME_LOC(*this, rhs);
 
         copyonwrite();
-	for(register int i = 0; i<NN2; ++i) v[i] += rhs.v[i];
+	for(register size_t i = 0; i<NN2; ++i) v[i] += rhs.v[i];
         return *this;
 }
 
@@ -507,7 +507,7 @@ inline NRSMat<T>& NRSMat<T>::operator-=(const NRSMat<T>& rhs) {
 	NOT_GPU(*this);
         copyonwrite();
 
-        for(register int i = 0; i<NN2; ++i) v[i] -= rhs.v[i];
+        for(register size_t i = 0; i<NN2; ++i) v[i] -= rhs.v[i];
         return *this;
 }
 
@@ -540,7 +540,7 @@ inline const NRMat<T> NRSMat<T>::operator-(const NRMat<T> &rhs) const {
  * @return reference to the corresponding matrix element
  ******************************************************************************/
 template <typename T>
-inline T& NRSMat<T>::operator[](const int ij) {
+inline T& NRSMat<T>::operator[](const size_t ij) {
 #ifdef DEBUG
 	if(_LA_count_check && *count != 1) laerror("T& NRSMat<T>::operator[] used for matrix with count>1");
 	if(ij<0 || ij>=NN2) laerror("T& NRSMat<T>::operator[] out of range");
@@ -560,7 +560,7 @@ inline T& NRSMat<T>::operator[](const int ij) {
  * @return constant reference to the corresponding matrix element
  ******************************************************************************/
 template <typename T>
-inline const T & NRSMat<T>::operator[](const int ij) const {
+inline const T & NRSMat<T>::operator[](const size_t ij) const {
 #ifdef DEBUG
 	if(ij<0 || ij>=NN2) laerror("T& NRSMat<T>::operator[] out of range");
 	if(!v) laerror("T& NRSMat<T>::operator[] used for unallocated NRSmat<T> object");
@@ -578,8 +578,8 @@ inline const T & NRSMat<T>::operator[](const int ij) const {
  * @return cumulative index
  ******************************************************************************/
 template<typename T>
-inline T SMat_index(T i, T j) {
-	return (i>=j) ? i*(i+1)/2+j : j*(j+1)/2+i;
+inline size_t SMat_index(T i, T j) {
+	return (i>=j) ? i*(size_t)(i+1)/2+j : j*(size_t)(j+1)/2+i;
 }
 
 /***************************************************************************//**
@@ -590,8 +590,8 @@ inline T SMat_index(T i, T j) {
  * @return cumulative index
  ******************************************************************************/
 template<typename T>
-inline T SMat_index_igej(T i, T j) {
-	return i*(i+1)/2+j;
+inline size_t SMat_index_igej(T i, T j) {
+	return i*(size_t)(i+1)/2+j;
 }
 
 /***************************************************************************//**
@@ -602,8 +602,8 @@ inline T SMat_index_igej(T i, T j) {
  * @return cumulative index
  ******************************************************************************/
 template<typename T>
-inline T SMat_index_ilej(T i, T j) {
-	return j*(j+1)/2+i;
+inline size_t SMat_index_ilej(T i, T j) {
+	return j*(size_t)(j+1)/2+i;
 }
 
 /***************************************************************************//**
@@ -614,8 +614,8 @@ inline T SMat_index_ilej(T i, T j) {
  * @return cumulative index
  ******************************************************************************/
 template<typename T>
-inline T SMat_index_1(T i, T j) {
-	return (i>=j)? i*(i-1)/2+j-1 : j*(j-1)/2+i-1;
+inline size_t SMat_index_1(T i, T j) {
+	return (i>=j)? i*(size_t)(i-1)/2+j-1 : j*(size_t)(j-1)/2+i-1;
 }
 
 /***************************************************************************//**
@@ -626,8 +626,8 @@ inline T SMat_index_1(T i, T j) {
  * @return cumulative index
  ******************************************************************************/
 template<typename T>
-inline T SMat_index_1igej(T i, T j) {
-	return i*(i-1)/2+j-1;
+inline size_t SMat_index_1igej(T i, T j) {
+	return i*(size_t)(i-1)/2+j-1;
 }
 
 /***************************************************************************//**
@@ -638,21 +638,21 @@ inline T SMat_index_1igej(T i, T j) {
  * @return cumulative index
  ******************************************************************************/
 template<typename T>
-inline T SMat_index_1ilej(T i, T j) {
-	return j*(j-1)/2+i-1;
+inline size_t SMat_index_1ilej(T i, T j) {
+	return j*(size_t)(j-1)/2+i-1;
 }
 
 //indexing for antisymmetric matrix (used by fourindex)
 
 template<typename T>
-inline T ASMat_index(T i, T j)
+inline size_t ASMat_index(T i, T j)
 {
 if(i == j) return -1;
-return (i>j) ? i*(i-1)/2+j : j*(j-1)/2+i;
+return (i>j) ? i*(size_t)(i-1)/2+j : j*(size_t)(j-1)/2+i;
 }
 
 template<typename T>
-inline T ASMat_index_1(T i, T j)
+inline size_t ASMat_index_1(T i, T j)
 {
 if(i == j) return -1;
 return (i>j)? (i-2)*(i-1)/2+j-1 : (j-2)*(j-1)/2+i-1;
@@ -715,7 +715,7 @@ inline int NRSMat<T>::ncols() const {
  * @return number of elements of this symmetric matrix of generalt type <code>T</code>
  ******************************************************************************/
 template <typename T>
-inline int NRSMat<T>::size() const {
+inline size_t NRSMat<T>::size() const {
         return NN2;
 }
 
@@ -758,7 +758,7 @@ inline const double NRSMat<double>::amin() const {
 		double val(0.0);
 		int index(-1);
 		ret = std::numeric_limits<double>::max();
-		for(register int i = 0; i < NN2; i++){
+		for(register size_t i = 0; i < NN2; i++){
 			val = std::abs(v[i]);
 			if(val < ret){ index = i; ret = val; }
 		}
@@ -812,7 +812,7 @@ inline const complex<double> NRSMat<complex<double> >::amin() const{
 		complex<double> z_val(0.0, 0.0);
 
 		min_val = std::numeric_limits<double>::max();
-		for(register int i = 0; i < NN2; i++){
+		for(register size_t i = 0; i < NN2; i++){
 			z_val = v[i];
 			val = std::abs(z_val.real()) + std::abs(z_val.imag());
 			if(val < min_val){ index = i; min_val = val; }	
@@ -920,7 +920,7 @@ NRSMat<T> & NRSMat<T>::operator=(const NRSMat<T> & rhs) {
  * @see NRSMat<T>::operator|=, NRSMat<T>::copyonwrite()
  ******************************************************************************/
 template <typename T>
-void NRSMat<T>::copyonwrite() {
+void NRSMat<T>::copyonwrite(bool detachonly) {
 	if(!count) laerror("calling NRSMat<T>::copyonwrite() for undefined NRSMat<T> object");
 	if(*count > 1){
 		(*count)--;
@@ -931,12 +931,12 @@ void NRSMat<T>::copyonwrite() {
 		if(location == cpu) {
 #endif
 			newv = new T[NN2];
-			memcpy(newv, v, NN2*sizeof(T));
+			if(!detachonly) memcpy(newv, v, NN2*sizeof(T));
 #ifdef CUDALA
 		}else{
 			newv = (T *) gpualloc(NN2*sizeof(T));
 			if(sizeof(T)%sizeof(float) != 0) laerror("memory alignment problem in NRSMat<T>::copyonwrite()");
-			cublasScopy(NN2*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);
+			if(!detachonly) cublasScopy(NN2*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);
 			TEST_CUBLAS("cublasScopy");//"NRSMat<T>::copyonwrite()"
 		}
 #endif

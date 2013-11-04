@@ -149,10 +149,10 @@ public:
 	#endif
 
 	//! create separate copy of the data corresponding to this vector 
-	void copyonwrite();
+	void copyonwrite(bool detachonly=false);
 
 	//! purge this vector 
-	void clear() { copyonwrite(); LA_traits<T>::clear(v, nn); };
+	void clear() { copyonwrite(true); LA_traits<T>::clear(v, nn); };
 
 	//! assignment operator assigns given vector
 	NRVec& operator=(const NRVec &rhs);
@@ -806,7 +806,7 @@ NRVec<T>::~NRVec() {
  * make own copy of the underlying data connected with this vector
  ******************************************************************************/
 template <typename T>
-void NRVec<T>::copyonwrite() {
+void NRVec<T>::copyonwrite(bool detachonly) {
 	if(!count) laerror("copyonwrite of an undefined vector");
 	if(*count > 1) {
 		(*count)--;
@@ -817,12 +817,12 @@ void NRVec<T>::copyonwrite() {
 		if(location == cpu){
 #endif
 			newv = new T[nn];
-			memcpy(newv, v, nn*sizeof(T));
+			if(!detachonly) memcpy(newv, v, nn*sizeof(T));
 #ifdef CUDALA
 		}else{
 			newv = (T *) gpualloc(nn*sizeof(T));
 			if(sizeof(T)%sizeof(float) != 0) laerror("memory alignment problem in NRVec<T>::copyonwrite()");
-			cublasScopy(nn*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);
+			if(!detachonly) cublasScopy(nn*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);
 			TEST_CUBLAS("cublasScopy");//"NRVec<T>::copyonwrite()"
 		}
 #endif

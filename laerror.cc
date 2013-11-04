@@ -87,7 +87,26 @@ extern "C" void ATL_xerbla(int p, char *rout, char *form, ...){
 	laerror(msg0);
 }
 
-int cblas_errprn(int ierr, int info, char *form, ...) {
+#ifndef NONCBLAS
+#include "cblas.h"
+#include <stdarg.h>
+extern "C" void cblas_xerbla(int p, const char *rout, const char *form, ...)
+{
+   va_list argptr;
+
+   va_start(argptr, form);
+   if (p)
+      {
+      fprintf(stdout, "Parameter %d to routine %s was incorrect\n", p, rout);
+      fprintf(stderr, "Parameter %d to routine %s was incorrect\n", p, rout);
+      }
+   vfprintf(stdout, form, argptr);
+   vfprintf(stderr, form, argptr);
+   va_end(argptr);
+   laerror("terminating in cblas_xerbla");
+}
+
+extern "C" int cblas_errprn(int ierr, int info, char *form, ...) {
 	char msg0[1024], *msg;
 	va_list argptr;
 	va_start(argptr, form);
@@ -98,5 +117,6 @@ int cblas_errprn(int ierr, int info, char *form, ...) {
 	laerror(msg0);
 	return 0;
 }
+#endif
 
 }//namespace

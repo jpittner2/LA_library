@@ -1,7 +1,33 @@
+04.11.2013 added conjugateme() for corder=1 in complex diagonalize() and
+gdiagonalize() to get correct eigenvector convention for C-storage
+30.10.2013 macros for consistent lowercase and uppercase of character
+parameters for case sensitive BLAS and LAPACK; case-insesitivness of these in vec.cc and mat.cc (cublas still not treated)
+29.10.2013 included la_traits.h in nonclass.c to get correct extern "C" of cblas
+14.10.2013 added operator% to bivector
+01.06.2012 more efficient clear() by detachonly parameter to copyonwrite()
+14.03.2012 fixed overflow in product of dimensions of NRMat and NRSMat
+13.03.2012 symmetry of integrals with different spins added to fourindex.h
+23.02.2012 included unistd.h 
+23.02.2012 fixed max read/write size in multiget and multiput to 1GB
+24.01.2012 Improved DIIS (L.V.)
+19.01.2012 Fixed location for gpu in nonclass.cc
+02.06.2011 In oplus() =0 replaced by clear() to work on non-square matrices (J.P.)
+01.02.2011 Added trace2 for complex matrices by L. Veis
+18.01.2011 Minor bugfixes and compatibility with Intel C++ compiler by Roman Curik
+28.12.2010 Generalized diagonalization and functions of general complex matrices 
+21.12.2010 Changed to size_t in matrix put,get to prevent overflow
+08.12.2010 Deallocate method added to LA_traits, used for memory saving in matrix exp
+24.11.2010 Added checking for integer overflow in exptimes
+23.10.2010 Fixed dependency on atlas for static libraries in configure.ac 
+27.09.2010 Seed of CSRMat class added.
+22.09.2010 Allowed formal operator[] on gpu matrices
+22.09.2010 Added submatrix() to SparseSMat
+22.09.2010 Zgerc and zgeru implemented in non-cblas version
+21.09.2010 Fixed a bug in laerror macro causing sometimes compilation problems
 08.09.2010 RELEASE 0.6
-08.09.2010 Doxygen documentation by M. Sulc
+08.09.2010 Doxygen documentation for  NRVec, NRMat, NRSMat classes contributed by M. Sulc
 08.09.2010 Extended CUBLAS support for NRVec, NRMat, NRSMat classes contributed by M. Sulc
-08.09.2010 Minor bugfixes contributed by M. Sulc
+08.09.2010 Minor bugfixes and improvements contributed by M. Sulc
 25.06.2010 Added proof-of-concept CUBLAS support for NRVec, NRMat, NRSMat 
 24.06.2010 Fixed a memory leak existing when MATPTR  was defined
 18.06.2010 added autoconf support for BLAS+LAPACK compiled with 64-bit integers and for CUBLAS
@@ -60,3 +86,4 @@ xx.08.2008 fixed wrong permutation symmetry in previously unused (and untested) 
 11.03.2008 added cblas_idamax replacement for non-cblas
 05.03.2008 fixed transposed bug in inverse() with non-cblas
 26.02.2008 INITIAL RELEASE 0.1
+

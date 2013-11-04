@@ -28,11 +28,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
 
-extern "C" {
-	extern ssize_t read(int, void *, size_t);
-	extern ssize_t write(int, const void *, size_t);
-}
 
 namespace LA {
 
@@ -130,7 +127,7 @@ NRSMat<T> & NRSMat<T>::operator=(const T &a) {
 	NOT_GPU(*this);
 	copyonwrite();
 	memset(v, 0, NN2*sizeof(T));
-	for(register int i=0; i<nn; i++) v[i*(i+1)/2 + i] = a;
+	for(register int i=0; i<nn; i++) v[(size_t)i*(i+1)/2 + i] = a;
 	return *this;
 }
 
@@ -157,11 +154,11 @@ const T* NRSMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const
 
 	if(divide){
 		for(register int i=0; i<nn; i++){
-			const T a = v[i*(i+1)/2+i];
+			const T a = v[(size_t)i*(i+1)/2+i];
 			if(a != 0.) r[i] /= a;
 		}
 	}else{
-	        for(register int i=0; i<nn; i++) r[i] = v[i*(i+1)/2+i];
+	        for(register int i=0; i<nn; i++) r[i] = v[(size_t)i*(i+1)/2+i];
 	}
 
 	return divide?NULL:&r[0];
@@ -178,7 +175,7 @@ const NRSMat<T> NRSMat<T>::operator-() const {
 	NOT_GPU(*this);
 
 	NRSMat<T> result(nn, getlocation());
-	for(register int i = 0; i<NN2; i++) result.v[i]= -v[i];
+	for(register size_t i = 0; i<NN2; i++) result.v[i]= -v[i];
 	return result;
 }
 
@@ -239,7 +236,7 @@ const T NRSMat<T>::trace() const {
 	NOT_GPU(*this);
 
 	T tmp = 0;
-	for(register int i=0; i<nn; i++) tmp += v[i*(i+1)/2+i];
+	for(register int i=0; i<nn; i++) tmp += v[(size_t)i*(i+1)/2+i];
 	return tmp;
 }
 
@@ -251,7 +248,7 @@ template<>
 void NRSMat<double>::randomize(const double &x) {
 	NOT_GPU(*this);
 
-	for(int i=0; i<NN2; ++i){
+	for(size_t i=0; i<NN2; ++i){
 		v[i] = x*(2.*random()/(1.+RAND_MAX) -1.);
 	}
 }
@@ -262,11 +259,11 @@ void NRSMat<double>::randomize(const double &x) {
  ******************************************************************************/
 template<>
 void NRSMat<complex<double> >::randomize(const double &x) {
-	for(register int i=0; i<NN2; ++i) v[i].real() = x*(2.*random()/(1. + RAND_MAX) -1.);
-	for(register int i=0; i<NN2; ++i) v[i].imag() = x*(2.*random()/(1. + RAND_MAX) -1.);
+	for(register size_t i=0; i<NN2; ++i) v[i].real() = x*(2.*random()/(1. + RAND_MAX) -1.);
+	for(register size_t i=0; i<NN2; ++i) v[i].imag() = x*(2.*random()/(1. + RAND_MAX) -1.);
 	for(register int i=0; i<nn; ++i){
 		for(register int j=0; j<=i; ++j){
-		       	if(i == j) v[i*(i+1)/2+j].imag() = 0; //hermitean
+		       	if(i == j) v[i*(size_t)(i+1)/2+j].imag() = 0; //hermitean
 		}
 	}
 }
