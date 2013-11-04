@@ -438,14 +438,15 @@ cout <<v.transpose(1)*u;
 }
 
 
-if(1)
+if(0)
 {
 NRMat<complex<double> > a;
 cin >>a;
 int n=a.nrows();
 NRMat<complex<double> > u(n,n),v(n,n);
 NRVec<complex<double> >w(n);
-gdiagonalize(a,w,&u,&v,0,n,0,1);
+gdiagonalize(a,w,&u,&v);
+//gdiagonalize(a,w,&u,&v,0,n,0,1);
 cout <<u;
 cout <<w;
 cout <<v;
@@ -1758,6 +1759,61 @@ cout <<"error = "<<(r2-NRMat<complex<double> >(r)).norm()<<endl;
 }
 */
 
+
+if(1)
+{
+NRMat<complex<double> > m;
+ifstream f("libormat");
+f >> m;
+f.close();
+
+NRVec<double> eivals(m.nrows());
+NRMat<complex<double> > m_aux = m;
+NRMat<complex<double> > m_test = m;
+
+cout << "hermiticity error = " <<(m_aux.transpose(true) - m_aux).norm()<<endl; 
+diagonalize(m,eivals);
+cout << "eivals "<<eivals;
+cout <<"eivecs "<<m<<endl;
+NRVec<complex<double> > eivalsc(eivals);
+
+NRMat<complex<double> > m4 =  m.transpose(true);
+
+cout <<"unitarity error "<< (m4*m).norm(true)<<endl;
+
+NRMat<complex<double> > m5(m.nrows(),m.nrows());
+for(int i=0; i<m.nrows(); ++i)  for(int j=0; j<m.nrows(); ++j)
+	m5(i,j) = complex<double>(m(j,i).real(), - m(j,i).imag());
+
+cout << "conjugatetest "<<(m4-m5).norm()<<endl;
+
+NRMat<complex<double> > m1= m_aux * m;
+NRMat<complex<double> > m1x = m; m1x.diagmultr(eivalsc);
+cout << "test m1 m1x "<<(m1-m1x).norm()<<endl;
+NRMat<complex<double> > m2=  m.transpose(true) * m1;
+//NRMat<complex<double> > m2b=  m * m_aux * m.transpose(true);
+cout <<"check "<<m2<<endl;
+//cout <<"checkb "<<m2b<<endl;
+double err=0.;
+for(int i=0; i<m.nrows(); ++i) for(int j=0; j<m.nrows(); ++j)
+	if(i!=j) err += abs(m2(i,j));
+cout <<"offdiagonality error = "<<err<<endl;
+
+//test as general matrix
+NRVec<complex<double> > ww(m.nrows());
+NRMat<complex<double> > vl(m.nrows(),m.nrows()), vr(m.nrows(),m.nrows());
+gdiagonalize(m_test,ww,&vl,&vr);
+cout << "eivals "<<ww<<endl;
+cout << "eivecs "<<vl<<vr<<endl;
+NRMat<complex<double> > m3= vl.transpose(true)* m_aux *vr;
+cout <<"check2 "<<m3;
+ err=0.;
+for(int i=0; i<m.nrows(); ++i) for(int j=0; j<m.nrows(); ++j)
+        if(i!=j) err += abs(m3(i,j));
+cout <<"offdiagonality error 2 = "<<err<<endl;
+
+
+}
 
 
 
