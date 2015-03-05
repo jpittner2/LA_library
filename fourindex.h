@@ -290,6 +290,7 @@ protected:
 
 
 public:
+	void resize(I n) {nn=n;}
         fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=1024) :current(NULL),fd(file),nread(0),symmetry(s),nn(n) 
 		{
 		struct statfs sfs;
@@ -647,6 +648,28 @@ std::istream& operator>>(std::istream  &s, fourindex<I,T> &x)
                         }
                 return s;
                 }
+
+template <class I, class T>
+std::istream& operator>>(std::istream &s, fourindex_ext<I,T> &x)
+                {
+                int n;
+                s >> n;
+                x.resize(n);
+		typename LA_traits_io<I>::IOtype i,j,k,l;
+                typename LA_traits_io<T>::IOtype elem;
+		
+		s >> i >> j >>k >>l;
+                while(i!= (typename LA_traits_io<I>::IOtype)-1 && j!= (typename LA_traits_io<I>::IOtype)-1 &&  k != (typename LA_traits_io<I>::IOtype)-1 && l!= (typename LA_traits_io<I>::IOtype)-1)
+                        {
+                        s>>elem;
+                        x.put((I)i,(I)j,(I)k,(I)l,(T)elem);
+                        s >> i >> j >>k >>l;
+                        }
+	
+		x.flush();
+                return s;
+                }
+
 
 
 /////////////////////densely stored fourindex///////////////////////////////////
