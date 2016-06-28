@@ -136,6 +136,7 @@ void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
 static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const int ldb, double *det, int n)
 {
 	int r, *ipiv;
+	int iswap=0;
 
 	
 	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
@@ -150,21 +151,21 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 		*det = 1.;
 		//take into account some numerical instabilities in dgesv for singular matrices
 		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
+		//find out whether ipiv are numbered from 0 or from 1
+		int shift=1;
+	        for (int i=0; i<n; ++i) if(ipiv[i]==0) shift=0;
 		//change sign of det by parity of ipiv permutation
-		if(*det) for (int i=0; i<n; ++i) if(
-#ifdef NONCBLAS
-			i+1
-#else
-			i
-#endif
-			!=ipiv[i]) *det = -(*det);
+		if(*det) for (int i=0; i<n; ++i) if(i+shift != ipiv[i]) {*det = -(*det); ++iswap;}
 	}
-	if(det && r>0) *det = 0;
 /*
+       std::cout <<"iswap = "<<iswap<<std::endl;
+	if(det && r>0) *det = 0;
+
 	std::cout <<"ipiv = ";
 	for (int i=0; i<n; ++i) std::cout <<ipiv[i]<<" ";
 	std::cout <<std::endl;
 */
+
 	delete [] ipiv;
 	if (r>0 && B) laerror("singular matrix in lapack_gesv");
 }
@@ -762,7 +763,7 @@ extern "C" void FORNAME(dgesvd)(const char *JOBU,  const char *JOBVT,  const FIN
 		double *VT, const FINT *LDVT, double *WORK, const FINT *LWORK, FINT *INFO );
 
 void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s,
-		NRMat<double> *v, const bool corder, int m, int n)
+		NRMat<double> *v, const bool vnotdagger, int m, int n)
 {
 	FINT m0 = a.nrows();
 	FINT n0 = a.ncols();
@@ -811,11 +812,83 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 #endif
 
 	delete[] work;
-	if (v && corder) v->transposeme(n);
+	if (v && vnotdagger) v->transposeme(n);
 
 	if (r < 0) laerror("illegal argument in gesvd() of singular_decomposition()");
-	if (r > 0) laerror("convergence problem in gesvd() of ingular_decomposition()");
+	if (r > 0) laerror("convergence problem in gesvd() of singular_decomposition()");
 }
+
+
+
+
+
+
+extern "C" void FORNAME(zgesvd)(const char *JOBU,  const char *JOBVT,  const FINT *M,
+		const FINT *N,  complex<double> *A, const FINT *LDA, double *S, complex<double> *U, const FINT *LDU,
+		complex<double> *VT, const FINT *LDVT, complex<double> *WORK, const FINT *LWORK, double *RWORK, FINT *INFO );
+
+void singular_decomposition(NRMat<complex<double> > &a, NRMat<complex<double> > *u, NRVec<double> &s,
+		NRMat<complex<double> > *v, const bool vnotdagger, int m, int n)
+{
+	FINT m0 = a.nrows();
+	FINT n0 = a.ncols();
+	if(m<=0) m=(int)m0;
+	if(n<=0) n=(int)n0;
+	if(n>n0 || m>m0) laerror("bad dimension in singular_decomposition");
+	if (u) if (m > u->nrows() || m> u->ncols())
+		laerror("inconsistent dimension of U Mat in singular_decomposition()");
+	if (s.size() < m && s.size() < n) 
+		laerror("inconsistent dimension of S Vec in singular_decomposition()");
+	if (v) if (n > v->nrows() || n > v->ncols())
+		laerror("inconsistent dimension of V Mat in singular_decomposition()");
+
+	int nmin =  n<m?n:m;
+	a.copyonwrite();
+	s.copyonwrite();
+	if (u) u->copyonwrite();
+	if (v) v->copyonwrite();
+	
+	// C-order (transposed) input and swap u,v matrices,
+	// v should be transposed at the end
+	char jobu = u ? 'A' : 'N';
+	char jobv = v ? 'A' : 'N';
+	complex<double> work0;
+	FINT lwork = -1;
+	FINT r;
+        double *rwork = new double[5*nmin];
+
+#ifdef FORINT
+        FINT ntmp = n;
+	FINT mtmp = m;
+	FORNAME(zgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, &work0, &lwork, rwork, &r);
+#else
+	FORNAME(zgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, &work0, &lwork, rwork, &r);
+#endif
+
+	lwork = (FINT) work0.real();
+	complex<double> *work = new complex<double>[lwork];
+
+#ifdef FORINT
+	FORNAME(zgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, work, &lwork, rwork, &r);
+#else
+	FORNAME(zgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
+			u?(*u)[0]:0, &m0, work, &lwork, rwork, &r);
+#endif
+
+	delete[] work;
+	delete[] rwork;
+	if (v && vnotdagger) {v->transposeme(n); v->conjugateme();}
+
+	if (r < 0) laerror("illegal argument in gesvd() of singular_decomposition()");
+	if (r > 0) laerror("convergence problem in gesvd() of singular_decomposition()");
+}
+
+
+
+
 
 //QR decomposition
 //extern "C" void FORNAME(dgeqrf)(const int *M, const int *N, double *A, const int *LDA, double *TAU, double *WORK, int *LWORK, int *INFO);
