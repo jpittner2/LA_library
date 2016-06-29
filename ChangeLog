@@ -1,7 +1,11 @@
-04.11.2013 added conjugateme() for corder=1 in complex diagonalize() and
-gdiagonalize() to get correct eigenvector convention for C-storage
-30.10.2013 macros for consistent lowercase and uppercase of character
-parameters for case sensitive BLAS and LAPACK; case-insesitivness of these in vec.cc and mat.cc (cublas still not treated)
+28.06.2016 minor changes in Makefile.am to work smoothly with recent autotools
+28.06.2016 fixed determinant sign issue due to dgesv ipiv counting from 1 in nonclass.cc
+11.11.2015 autotool files changed to support separate only-static ATLAS libraries
+05.03.2015 operator>> for fourindex_ext
+27.10.2014 added interface for Lapack SVD of complex matrices
+27.10.2014 diagonalset() for rectangular matrices
+04.11.2013 added conjugateme() for corder=1 in complex diagonalize() and gdiagonalize() to get correct eigenvector convention for C-storage
+30.10.2013 macros for consistent lowercase and uppercase of character parameters for case sensitive BLAS and LAPACK; case-insesitivness of these in vec.cc and mat.cc (cublas still not treated)
 29.10.2013 included la_traits.h in nonclass.c to get correct extern "C" of cblas
 14.10.2013 added operator% to bivector
 01.06.2012 more efficient clear() by detachonly parameter to copyonwrite()
