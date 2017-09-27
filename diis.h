@@ -54,7 +54,7 @@ public:
 	DIIS(const int n, const bool core=1);
 	void setup(const int n, const bool core=1);
 	~DIIS();
-	typename LA_traits<U>::normtype extrapolate(T &vec, const U &errvec, bool verbose=false, const Un diiseps=0); //vec is input/output; returns square residual norm
+	typename LA_traits<U>::normtype extrapolate(T &vec, U &errvec, bool verbose=false, const Un diiseps=0, bool errvecout=false); //vec is input/output, errvec optionally too; returns square residual norm
 	};
 
 template<typename T, typename U>
@@ -94,7 +94,7 @@ if(errstor) delete[] errstor;
 
 
 template<typename T, typename U>
-typename LA_traits<U>::normtype DIIS<T,U>::extrapolate(T &vec, const U &errvec, bool verbose, const Un diiseps)
+typename LA_traits<U>::normtype DIIS<T,U>::extrapolate(T &vec, U &errvec, bool verbose, const Un diiseps, bool errvecout)
 {
 if(!dim) laerror("attempt to extrapolate from uninitialized DIIS");
 //if dim exceeded, shift 
@@ -156,16 +156,26 @@ if(verbose) std::cout <<"DIIS coefficients: "<<rhs<<std::endl;
 
 //build the new linear combination
 vec.clear();
+if(errvecout) errvec.clear();
 if(incore)
 	for(int i=1; i<=aktdim; ++i) 
+		{
 		vec.axpy(rhs[i],stor[(i-1+cyclicshift)%dim]);
+		if(errvecout) errvec.axpy(rhs[i],errstor[(i-1+cyclicshift)%dim]);
+		}
 else
         {
 	T tmp=vec; //copy dimensions
+	T errtmp; if(errvecout) errtmp=errvec;
 	for(int i=1; i<=aktdim; ++i)
                 {
                 st->get(tmp,(i-1+cyclicshift)%dim);
 		vec.axpy(rhs[i],tmp);
+		if(errvecout)
+			{
+			errst->get(errtmp,(i-1+cyclicshift)%dim);
+			errvec.axpy(rhs[i],errtmp);
+			}
                 }
         }
 
