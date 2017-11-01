@@ -148,6 +148,9 @@ rhs= (Ue)0; rhs[0]= (Ue)-1;
 //solve for coefficients
 //@@@@@@ implement checking for bad condition number and eliminating old vectors
 //@@@ explicit solution - cf. remarks in Pulay memorial book
+//@@@@@@or use DGGLSE, interface that in nonclass.cc, the matrix then has to be without the 0-th dimension - will be a bit confusing
+//@@@@@this avoid the normal equations (which worsen the condition number), but requires work with matrices with one LARGE dimension and can be inconvenient
+//for several approaches to DIIS solution cf. Shepard et al. Mol. Phys. 105, 2839 (2007)
 {
 NRSMat<Te> amat=bmat;
 linear_solve(amat,rhs,NULL,aktdim+1);
@@ -166,7 +169,7 @@ if(incore)
 else
         {
 	T tmp=vec; //copy dimensions
-	T errtmp; if(errvecout) errtmp=errvec;
+	U errtmp; if(errvecout) errtmp=errvec;
 	for(int i=1; i<=aktdim; ++i)
                 {
                 st->get(tmp,(i-1+cyclicshift)%dim);
