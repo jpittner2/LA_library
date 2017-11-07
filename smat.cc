@@ -259,11 +259,11 @@ void NRSMat<double>::randomize(const double &x) {
  ******************************************************************************/
 template<>
 void NRSMat<complex<double> >::randomize(const double &x) {
-	for(register size_t i=0; i<NN2; ++i) v[i].real() = x*(2.*random()/(1. + RAND_MAX) -1.);
-	for(register size_t i=0; i<NN2; ++i) v[i].imag() = x*(2.*random()/(1. + RAND_MAX) -1.);
+	for(register size_t i=0; i<NN2; ++i) v[i].real(x*(2.*random()/(1. + RAND_MAX) -1.));
+	for(register size_t i=0; i<NN2; ++i) v[i].imag(x*(2.*random()/(1. + RAND_MAX) -1.));
 	for(register int i=0; i<nn; ++i){
 		for(register int j=0; j<=i; ++j){
-		       	if(i == j) v[i*(size_t)(i+1)/2+j].imag() = 0; //hermitean
+		       	if(i == j) v[i*(size_t)(i+1)/2+j].imag(0.); //hermitean
 		}
 	}
 }
