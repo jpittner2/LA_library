@@ -50,10 +50,10 @@ public:
 	void resize(const unsigned int n) {NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits); modulo=n%blockbits;};
 	unsigned int size() const {return (nn*blockbits)-blockbits+(modulo?modulo:blockbits);};
 	//arguments must be unsigned to keep the resulting assembly code simple and efficient
-        const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1;};
-	void set(const unsigned int i) {v[i/blockbits] |= (1<<(i%blockbits));};
-	void reset(const unsigned int i) {v[i/blockbits] &= ~(1<<(i%blockbits));};
-	const bool get(const unsigned int i) {return (v[i/blockbits] >>(i%blockbits))&1;};
+        const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1UL;};
+	void set(const unsigned int i) {v[i/blockbits] |= (1UL<<(i%blockbits));};
+	void reset(const unsigned int i) {v[i/blockbits] &= ~(1UL<<(i%blockbits));};
+	const bool get(const unsigned int i) {return (v[i/blockbits] >>(i%blockbits))&1UL;};
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
 	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
