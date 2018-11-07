@@ -1,3 +1,12 @@
+07.11.2018 NRMat nonsymmetry and nonhermiticity
+03.11.2018 bugfix in bitvector class
+25.07.2018 minor bugfix and improvement in davidson.h
+12.07.2018 bugfix in fourindex_dense<antisymtwoelectronrealdirac,T,DUMMY>::operator()
+11.07.2018 added new symmetry type to fourindex.h
+06.11.2017 smat.cc fixed complex lvalue problem for g++ 6.4.0
+25.10.2017 bitvector improved input from stream
+27.09.2017 DIIS extended to optionally compute extrapolated error vector
+08.11.2016 implemented swap_rows(i,j) and swap_cols(i,j) for NRMat
 28.06.2016 minor changes in Makefile.am to work smoothly with recent autotools
 28.06.2016 fixed determinant sign issue due to dgesv ipiv counting from 1 in nonclass.cc
 11.11.2015 autotool files changed to support separate only-static ATLAS libraries

@@ -330,6 +330,11 @@ public:
 	//! swap the order of the rows and columns of the current matrix
 	NRMat & swap_rows_cols();
 
+	// LV - swapping of columns i and j
+	NRMat & swap_cols(const int i, const int j);
+	// LV - swapping of rows i and j
+	NRMat & swap_rows(const int i, const int j);
+
 	//! multiply by sparse matrix
 	SparseSMat<T> operator*(const SparseSMat<T> &rhs) const;
 
@@ -350,6 +355,9 @@ public:
 
         inline void simplify() {};
 	bool issymmetric() const { return 0; };
+
+	const typename  LA_traits<T>::normtype  nonsymmetry() const;
+	const typename  LA_traits<T>::normtype  nonhermiticity() const;
 
 #ifndef NO_STRASSEN
 	//! Strassen's multiplication (better than \f$\mathacal{O}(n^3)\f$, analogous syntax to \see NRMat<T>::gemm() )
@@ -579,7 +587,7 @@ template <typename T>
 NRMat<T>::NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset)
 {
 	if (offset < 0 || (size_t)n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");
-
+	if(offset!=0) std::cout << "dangerous: if the underlying vector is deallocated before the matrix, wrong delete[] will result for nonzero offset!!!\n";
 #ifdef CUDALA
 	location=rhs.location;
 #endif

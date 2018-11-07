@@ -828,12 +828,114 @@ NRMat<T>& NRMat<T>::transposeme(const int _n) {
 		}
 #ifdef CUDALA
 	}else{
-
+laerror("transposeme not implemented on GPU yet");
 
 	}
 #endif
 	return *this;
 }
+
+
+/***************************************************************************//**
+ * compute matrix non-symmetry
+ ******************************************************************************/
+template <typename T>
+const typename  LA_traits<T>::normtype  NRMat<T>::nonsymmetry() const {
+#ifdef DEBUG
+	if (nn != mm) laerror("NRMat<T>:nonsymmetry() invalid for non-square matrix");
+#endif
+typename  LA_traits<T>::normtype sum = 0;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=1; i<nn; i++){
+			for(register int j=0; j<i; j++){
+			#ifdef MATPTR
+				sum += (v[i][j]-v[j][i])*(v[i][j]-v[j][i]); 
+			#else
+				register int a, b; 
+				a = i*(size_t)mm + j;
+				b = j*(size_t)mm + i;
+				sum += (v[a] - v[b])*(v[a] - v[b]);
+			#endif
+			}
+		}
+#ifdef CUDALA
+	}else{
+laerror("nonsymmetry not implemented on GPU yet");
+
+	}
+#endif
+	return sum;
+}
+
+/***************************************************************************//**
+ * compute matrix non-hermiticity
+ ******************************************************************************/
+template <>
+const double NRMat<complex<double> >::nonhermiticity() const {
+#ifdef DEBUG
+	if (nn != mm) laerror("NRMat<T>:nonsymmetry() invalid for non-square matrix");
+#endif
+double sum = 0;
+complex<double> tmp;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=1; i<nn; i++){
+			for(register int j=0; j<=i; j++){
+			#ifdef MATPTR
+				tmp = complex<double> (v[i][j].real()-v[j][i].real(),v[i][j].imag()+v[j][i].imag()); 
+			#else
+				register int a, b; 
+				a = i*(size_t)mm + j;
+				b = j*(size_t)mm + i;
+				tmp = complex<double> (v[a].real() - v[b].real(), v[a].imag()+v[b].imag());
+			#endif
+			sum += tmp.real()*tmp.real()+tmp.imag()*tmp.imag();
+			}
+		}
+#ifdef CUDALA
+	}else{
+laerror("nonsymmetry not implemented on GPU yet");
+
+	}
+#endif
+	return sum;
+}
+
+template <>
+const double NRMat<complex<double> >::nonsymmetry() const {
+#ifdef DEBUG
+        if (nn != mm) laerror("NRMat<T>:nonsymmetry() invalid for non-square matrix");
+#endif
+double sum = 0;
+complex<double> tmp;
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                for(register int i=1; i<nn; i++){
+                        for(register int j=0; j<i; j++){
+                        #ifdef MATPTR
+                                tmp = v[i][j]-v[j][i];
+                        #else
+                                register int a, b;
+                                a = i*(size_t)mm + j;
+                                b = j*(size_t)mm + i;
+                                tmp = v[a] - v[b];
+                        #endif
+                        sum += tmp.real()*tmp.real()+tmp.imag()*tmp.imag();
+                        }
+                }
+#ifdef CUDALA
+        }else{
+laerror("nonsymmetry not implemented on GPU yet");
+
+        }
+#endif
+        return sum;
+}
+
 
 
 /***************************************************************************//**
@@ -1962,7 +2064,7 @@ NRMat<double>& NRMat<double>::conjugateme() {
 }
 
 /***************************************************************************//**
- * conjugate this complex matrix \f$A\f$, i.e. do nothing :-)
+ * conjugate this complex matrix \f$A\f$, or leading minor of size n
  * @return reference to the modified matrix
  ******************************************************************************/
 template<>
@@ -2337,9 +2439,9 @@ const double* NRMat<double>::diagonalof(NRVec<double> &r, const bool divide, boo
  ******************************************************************************/
 template<>
 void NRMat<double>::diagonalset(const NRVec<double> &r) {
+int nnmin= nn<=mm?nn:mm;
 #ifdef DEBUG
-	if(r.size() != nn) laerror("incompatible vectors int NRMat<double>::diagonalset(...)");
-	if(nn != mm) laerror("NRMat<double>::diagonalset(...) can be used only for square matrices");
+	if(r.size() != nnmin) laerror("incompatible vectors int NRMat<double>::diagonalset(...)");
 #endif
 
 	SAME_LOC(*this, r);
@@ -2350,14 +2452,14 @@ void NRMat<double>::diagonalset(const NRVec<double> &r) {
 #endif
 
 #ifdef MATPTR
-	for (int i=0; i<nn; i++) v[i][i] = r[i];
+	for (int i=0; i<nnmin; i++) v[i][i] = r[i];
 #else
-	cblas_dcopy(nn, r.v, 1, v, nn+1); //{int i,j; for (i=j=0; j< nn; ++j, i+=nn+1) v[i] = r[j];}
+	cblas_dcopy(nnmin, r.v, 1, v, mm+1); //{int i,j; for (i=j=0; j< nnmin; ++j, i+=mm+1) v[i] = r[j];}
 #endif
 
 #ifdef CUDALA
 	}else{
-		cublasDcopy(nn, r.v, 1, v, nn+1);
+		cublasDcopy(nnmin, r.v, 1, v, mm+1);
 	}
 #endif
 }
@@ -2369,9 +2471,9 @@ void NRMat<double>::diagonalset(const NRVec<double> &r) {
  ******************************************************************************/
 template<>
 void NRMat<complex<double> >::diagonalset(const NRVec<complex<double> > &r) {
+int nnmin= nn<=mm?nn:mm;
 #ifdef DEBUG
-	if(r.size() != nn) laerror("incompatible vectors int NRMat<complex<double> >::diagonalset(...)");
-	if(nn != mm) laerror("NRMat<complex<double> >::diagonalset(...) can be used only for square matrices");
+	if(r.size() != nnmin) laerror("incompatible vectors int NRMat<complex<double> >::diagonalset(...)");
 #endif
 	SAME_LOC(*this, r);
 	copyonwrite();
@@ -2380,13 +2482,13 @@ void NRMat<complex<double> >::diagonalset(const NRVec<complex<double> > &r) {
 	if(location == cpu){
 #endif
 	#ifdef MATPTR
-		for (int i=0; i<nn; i++) v[i][i] = r[i];
+		for (int i=0; i<nnmin; i++) v[i][i] = r[i];
 	#else
-		cblas_zcopy(nn, r.v, 1, v, nn+1);//{int i,j; for (i=j=0; j<nn; ++j, i+=nn+1) v[i] = r[j];}
+		cblas_zcopy(nnmin, r.v, 1, v, mm+1);//{int i,j; for (i=j=0; j<nnmin; ++j, i+=mm+1) v[i] = r[j];}
 	#endif
 #ifdef CUDALA
 	}else{
-		cublasZcopy(nn, (cuDoubleComplex*)(r.v), 1, (cuDoubleComplex*)(this->v), 1);
+		cublasZcopy(nnmin, (cuDoubleComplex*)(r.v), 1, (cuDoubleComplex*)(this->v), mm+1);
 	}
 #endif
 }
@@ -2559,6 +2661,23 @@ NRMat<double>& NRMat<double>::swap_rows(){
         return *this;
 }
 
+template<>
+NRMat<double>& NRMat<double>::swap_rows(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif		
+		        cblas_dswap(mm, (*this)[i], 1, (*this)[j], 1);
+#ifdef CUDALA
+	}else{
+		        cublasDswap(mm, v + i*(size_t)mm, 1, v + j*mm, 1);
+			TEST_CUBLAS("cublasDswap");
+	}
+#endif	
+        return *this;
+}
+
 /***************************************************************************//**
  * interchange the order of the rows of the current (complex) matrix
  * @return reference to the modified matrix
@@ -2580,6 +2699,23 @@ NRMat<complex<double> >& NRMat<complex<double> >::swap_rows(){
 		        cublasZswap(mm, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(v + (nn - i - 1)*mm), 1);
 			TEST_CUBLAS("cublasZswap");
 		}
+	}
+#endif
+        return *this;
+}
+
+template<>
+NRMat<complex<double> >& NRMat<complex<double> >::swap_rows(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		        cblas_zswap(mm, (*this)[i], 1, (*this)[j], 1);
+#ifdef CUDALA
+	}else{
+		        cublasZswap(mm, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(v + j*(size_t)mm), 1);
+			TEST_CUBLAS("cublasZswap");
 	}
 #endif
         return *this;
@@ -2643,6 +2779,24 @@ NRMat<double>& NRMat<double>::swap_cols(){
 #endif	
 	return *this;
 }
+
+template<>
+NRMat<double>& NRMat<double>::swap_cols(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_dswap(nn, &((*this)(0, i)), mm, &((*this)(0, j)), mm);
+#ifdef CUDALA
+	}else{
+			cublasDswap(nn, v + i, mm, v + j, mm);
+			TEST_CUBLAS("cublasDswap");
+	}
+#endif	
+	return *this;
+}
+
 /***************************************************************************//**
  * interchange the order of the columns of the current (complex) matrix
  * @return reference to the modified matrix
@@ -2664,6 +2818,23 @@ NRMat<complex<double> >& NRMat<complex<double> >::swap_cols(){
 			cublasZswap(nn, (cuDoubleComplex*)(v + i), mm, (cuDoubleComplex*)(v + (mm - i - 1)), mm);
 			TEST_CUBLAS("cublasZswap");
 		}
+	}
+#endif	
+	return *this;
+}
+
+template<>
+NRMat<complex<double> >& NRMat<complex<double> >::swap_cols(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_zswap(nn, &((*this)(0, i)), mm, &((*this)(0, j)), mm);
+#ifdef CUDALA
+	}else{
+			cublasZswap(nn, (cuDoubleComplex*)(v + i), mm, (cuDoubleComplex*)(v + j), mm);
+			TEST_CUBLAS("cublasZswap");
 	}
 #endif	
 	return *this;
@@ -2699,6 +2870,56 @@ NRMat<T>& NRMat<T>::swap_cols(){
 					(float *)(v + (mm - i - 1)), mm*sizeof(T)/sizeof(float) );
 			TEST_CUBLAS("cublasSswap");
 	        }
+	}
+#endif	
+        return *this;
+}
+
+/*interchange two columns*/
+template<typename T>
+NRMat<T>& NRMat<T>::swap_cols(const int a, const int b){
+	T tmp;
+        copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			for(register int j=0;j<nn;j++){
+				tmp = (*this)(j, a);
+				(*this)(j, a) = (*this)(j,b);
+				(*this)(j,b) = tmp;
+			}
+#ifdef CUDALA
+	}else{
+		if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem in NRMat<T>::swap_cols");
+		        cublasSswap(nn*sizeof(T)/sizeof(float), 
+					(float *)(v + a), mm*sizeof(T)/sizeof(float), 
+					(float *)(v + b), mm*sizeof(T)/sizeof(float) );
+			TEST_CUBLAS("cublasSswap");
+	}
+#endif	
+        return *this;
+}
+
+/*interchange two rows*/
+template<typename T>
+NRMat<T>& NRMat<T>::swap_rows(const int a, const int b){
+	T tmp;
+        copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			for(register int j=0;j<mm;j++){
+				tmp = (*this)(a,j);
+				(*this)(a,j) = (*this)(b,j);
+				(*this)(b,j) = tmp;
+			}
+#ifdef CUDALA
+	}else{
+		if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem in NRMat<T>::swap_rows");
+		        cublasSswap(nn*sizeof(T)/sizeof(float), 
+					(float *)(v + a*mm), sizeof(T)/sizeof(float), 
+					(float *)(v + b*mm), sizeof(T)/sizeof(float) );
+			TEST_CUBLAS("cublasSswap");
 	}
 #endif	
         return *this;
