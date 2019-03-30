@@ -2,9 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([libla], [0.6], [jiri@pittnerovi.com])
+AC_INIT([libla], [0.8], [jiri@pittnerovi.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
+AM_PROG_AR
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 LT_INIT
 
@@ -19,12 +20,12 @@ AC_LANG(C++)
 
 # Checks for mandatory libraries.
 ATLASLIB=""	
-AC_CHECK_LIB([atlas], [ATL_zgemv],ATLASLIB=-latlas, [
+AC_CHECK_LIB([atlas], [ATL_zgemv],ATLASLIB="-lblas -latlas", [
         echo "ATLAS not found, I hope you are using some other (more) efficient BLAS!"
         ])
 AC_SUBST([ATLASLIB])
 
-AC_CHECK_LIB([blas], [dgemm_],BLASLIB=-lblas, [
+AC_CHECK_LIB([blas], [dgemm_],BLASLIB="-lblas", [
         echo ERROR: BLAS not found! You have to install the BLAS library.
         exit
         ],[$ATLASLIB])
@@ -42,7 +43,7 @@ AC_ARG_ENABLE([matptr],[  --enable-matptr   switch to double** matrix representa
 
 
 #cblas and clapack available?
-AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB=-lcblas], [CBLASOPT=-DNONCBLAS],[$ATLASLIB])
+AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB="-lcblas"], [CBLASOPT=-DNONCBLAS],[$ATLASLIB])
 AC_CHECK_HEADER([cblas.h],,[CBLASOPT=-DNONCBLAS CBLASLIB=""], AC_INCLUDES_DEFAULT)
 AC_SUBST([CBLASLIB])
 AC_SUBST([CBLASOPT])
