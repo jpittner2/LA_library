@@ -1,3 +1,6 @@
+11.11.2019 fourindex for twobody integrals with reduced symmetry
+08.11.2019 Conversion constructor for NRMat_from1(NRSMat_from1)
+31.03.2019 AUTOCONF files adapted for using MKL as first option
 07.11.2018 NRMat nonsymmetry and nonhermiticity
 03.11.2018 bugfix in bitvector class
 25.07.2018 minor bugfix and improvement in davidson.h
