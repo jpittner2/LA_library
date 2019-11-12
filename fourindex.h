@@ -1,6 +1,6 @@
 /*
     LA: linear algebra C++ interface library
-    Copyright (C) 2008 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    Copyright (C) 2008-2019 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #ifndef _fourindex_included
 #define _fourindex_included
 #include <iostream>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -108,7 +109,7 @@ __attribute__((packed))
 typedef enum {
 	undefined_symmetry=-1,
 	nosymmetry=0, 
-	twoelectronrealmullikan=1, 
+	twoelectronrealmullikan=1, twoelectronrealmullikanAA=1,
 	twoelectronrealdirac=2, 
 	T2ijab_aces=3, 
 	trdm2AA=3, 
@@ -147,6 +148,13 @@ void symmetry_faktor(const fourindexsymtype symmetry,const union packed_index<I>
 {
 switch(symmetry)
 	{
+	case twoelectronrealmullikanreducedsymAA:
+		if(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l) elem*=.5;
+		if(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l) elem*=.5;
+		break;
+	case twoelectronrealmullikanreducedsymAB:
+		if(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l) elem*=.5;
+		break;
 	case antisymtwoelectronrealdirac: 
 	case antisymtwoelectronrealdiracAB: 
 		laerror("not implemented");
@@ -165,7 +173,7 @@ switch(symmetry)
 	case T2ijab_aces: break; //result will automatically vanish due to generated antisymmetry; i!=a from principle
 	case T2IjAb_aces: break; //no actual symmetry
 	case nosymmetry: break;
-	default: laerror("illegal symmetry");
+	default: laerror("illegal symmetry or symmetry-redundant scaling factor not implemented");
 	}
 }
 
@@ -177,6 +185,8 @@ protected:
 	I nn;
         int *count;
 	matel4<I,T> *list;
+	I terminator;
+	bool doscaling;
 private:
 	void deletelist();
 	void copylist(const matel4<I,T> *l);
@@ -198,10 +208,14 @@ public:
                 const matel4<I,T> * operator->() const {return p;}
                 const matel4<I,T> & operator*() const {return *p;}
 	};
+	void setterminator(const I terminator0) {terminator=terminator0;}
+	I getterminator() const {return terminator;}
+	void setscaling(const bool doscaling0) {doscaling=doscaling0;}
 	iterator begin() const {return list;}
 	iterator end() const {return NULL;}
         
-        //permiterator ... iterates also over all permutations, with a possibly scaled matrix element or skips permutations yielding equivalent result
+        //permiterator ... iterates also over all permutations, with a possibly scaled matrix element for redundant results of the permutations
+        //it is assumed the original fourindex is the symmetry-reduced petite list, then the results of piterator contributions can be accumulated
         //has to take into account the symmetry type of the fourindex
         class piterator {
 	private:
@@ -209,6 +223,7 @@ public:
 		matel4<I,T> *p;
 		matel4<I,T> my;
 		int permindex;
+		bool doscaling;
 		void setup(void) //make a copy of *p to my with scaled element and anti/permuted indices
 			{
 			if(symmetry==undefined_symmetry) laerror("fourindex symmetry has not been set");
@@ -218,17 +233,17 @@ public:
 			my.elem = p->elem * fourindex_permutations[symmetry][permindex][4];
 			//now treat the redundancy due to possibly equal indices by a scaling factor
 			//if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
-			symmetry_faktor(symmetry, p->index, my.elem);
+			if(doscaling) symmetry_faktor(symmetry, p->index, my.elem);
 			};
         public:
                 piterator() {};
-		piterator(matel4<I,T> *pp): symmetry(nosymmetry),p(pp),permindex(0){};
+		piterator(matel4<I,T> *pp): symmetry(nosymmetry),p(pp),permindex(0),doscaling(true){};
                 ~piterator() {};
-		piterator(const fourindex &x): symmetry(x.symmetry),p(x.list),permindex(0) {setup();};
+		piterator(const fourindex &x): symmetry(x.symmetry),p(x.list),permindex(0),doscaling(x.doscaling) {setup();};
 		piterator& operator++() {if(++permindex>=fourindex_permnumbers[symmetry]) {permindex=0; p=p->next;} setup(); return *this;}
                 const matel4<I,T> & operator*() const {return my;}
                 const matel4<I,T> * operator->() const {return &my;}
-		piterator operator++(int) {laerror("postincrement not possible on permute-iterator");}
+		piterator operator++(int) {laerror("postincrement not possible on permute-iterator"); return *this;}
                 bool operator!=(const piterator &rhs) const {return p!=rhs.p;} //should only be used for comparison with pend()
 		bool end(void) {return !p;}
 		bool notend(void) {return p;}
@@ -237,8 +252,8 @@ public:
         piterator pend() const {return piterator(NULL);}//inefficient, use end() or notend() instead
 
 	//constructors etc.
-	inline fourindex() :symmetry(undefined_symmetry),nn(0),count(NULL),list(NULL) {};
-	inline fourindex(const I n) :symmetry(undefined_symmetry),nn(n),count(new int(1)),list(NULL) {};
+	inline fourindex() :symmetry(undefined_symmetry),nn(0),count(NULL),list(NULL),terminator(-1),doscaling(true) {};
+	inline fourindex(const I n, const fourindexsymtype symmetry0=undefined_symmetry, const I terminator0= -1, const bool doscaling0=true) :nn(n),count(new int(1)),list(NULL),symmetry(symmetry0),terminator(terminator0),doscaling(doscaling0) {};
 	fourindex(const fourindex &rhs); //copy constructor
 	inline int getcount() const {return count?*count:0;}
 	fourindex & operator=(const fourindex &rhs);
@@ -267,6 +282,8 @@ public:
 		{matel4<I,T> *ltmp= new matel4<I,T>; ltmp->next=list; list=ltmp; memcpy(&list->index.packed, &rhs.index, sizeof(union packed_index<I>)); list->elem=rhs.elem;}
 	unsigned long put(int fd,bool withattr=true) const;
 	unsigned long get(int fd,bool withattr=true);
+	void fscanf(FILE *f); //C-style formatted IO
+	void fprintf(FILE *f, char *format) const;
 };
 
 
@@ -292,6 +309,8 @@ protected:
 	unsigned int nread;
         fourindexsymtype symmetry;
 	I nn;
+	bool doscaling;
+	I terminator;
 
 	//methods
 	void tryread() const
@@ -315,8 +334,11 @@ protected:
 
 
 public:
+        void setterminator(const I terminator0) {terminator=terminator0;}
+	I getterminator() const {return terminator;}
+       	void setscaling(const bool doscaling0) {doscaling=doscaling0;}
 	void resize(I n) {nn=n;}
-        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=1024) :current(NULL),fd(file),nread(0),symmetry(s),nn(n) 
+        fourindex_ext(const int file, const fourindexsymtype s=undefined_symmetry, const I n=0, const unsigned int b=1024, const I terminator0= -1, const bool doscaling0= true) :current(NULL),fd(file),nread(0),symmetry(s),nn(n) 
 		{
 		struct statfs sfs;
 		struct stat64 sf;
@@ -334,6 +356,8 @@ public:
 		buffer = (matel4stored<I,T> *) buf;
 		mlock(buf,bufsize); //ignore error when not root, hope we will not be paged out anyway
 		bufsize /= sizeof(matel4stored<I,T>);
+		terminator=terminator0;
+		doscaling=doscaling0;
 		}
 	~fourindex_ext() {if(buffer0) delete[] buffer0;}
 	void setsymmetry(fourindexsymtype s) {symmetry=s;};
@@ -384,7 +408,7 @@ public:
                 ~iterator() {};
                 bool operator!=(const iterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
                 iterator &operator++() {if(base) base->next(); if(base->eof()) base=NULL; return *this;} 
-		iterator operator++(int) {laerror("postincrement not possible");}
+		iterator operator++(int) {laerror("postincrement not possible"); return *this;}
                 const matel4stored<I,T> * operator->() const {return base->current;}
                 const matel4stored<I,T> & operator*() const {return *base->current;}
 		bool notNULL() const {return base;}
@@ -411,7 +435,7 @@ public:
                         my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4];
                         //redundancy due to possibly equal indices
                         //if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
-			symmetry_faktor(base->symmetry, it->index, my.elem);
+			if(base->doscaling) symmetry_faktor(base->symmetry, it->index, my.elem);
                         };
         public:
 		piterator() {};
@@ -420,7 +444,7 @@ public:
                 ~piterator() {};
                 bool operator!=(const piterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
                 piterator &operator++() {if(++permindex>=fourindex_permnumbers[base->symmetry]) {permindex=0; ++it;} if(it.notNULL()) setup(); else base=NULL; return *this;} 
-		piterator operator++(int) {laerror("postincrement not possible");}
+		piterator operator++(int) {laerror("postincrement not possible"); return *this;}
                 const matel4<I,T> * operator->() const {return &my;}
                 const matel4<I,T> & operator*() const {return my;}
 		bool end(void) {return !base;}
@@ -504,6 +528,8 @@ if(! &rhs) laerror("fourindex copy constructor with NULL argument");
 	if(rhs.list&&!rhs.count) laerror("some inconsistency in fourindex contructors or assignments");
         list=rhs.list;
         if(list) {count=rhs.count; (*count)++;} else count=new int(1); //make the matrix defined, but empty and not shared
+	terminator=rhs.terminator;
+	doscaling=rhs.doscaling;
 }
 
 
@@ -518,6 +544,8 @@ fourindex<I,T> & fourindex<I,T>::operator=(const fourindex<I,T> &rhs)
                     if(--(*count) ==0) {deletelist(); delete count;} // old stuff obsolete
                 list=rhs.list;
                 nn=rhs.nn; 
+		terminator=rhs.terminator;
+        	doscaling=rhs.doscaling;
                 if(list) count=rhs.count; else count= new int(0); //make the matrix defined, but empty and not shared, count will be incremented below
                 if(count) (*count)++;
                 }
@@ -622,6 +650,7 @@ while(l)
 return n;
 }
 
+
 template <class I, class T>
 std::ostream& operator<<(std::ostream &s, const fourindex_ext<I,T> &x)
                 {
@@ -634,7 +663,7 @@ std::ostream& operator<<(std::ostream &s, const fourindex_ext<I,T> &x)
                         s << (typename LA_traits_io<I>::IOtype)it->index.indiv.i << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.j<<  ' ' <<(typename LA_traits_io<I>::IOtype)it->index.indiv.k << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
                         ++it;
                         }
-                s << "-1 -1 -1 -1 0.\n";
+		s << (typename LA_traits_io<I>::IOtype) x.getterminator() << ' ' << (typename LA_traits_io<I>::IOtype)x.getterminator() <<  ' ' <<(typename LA_traits_io<I>::IOtype)x.getterminator() << ' ' << (typename LA_traits_io<I>::IOtype)x.getterminator()  << ' ' << (typename LA_traits_io<T>::IOtype) 0 << '\n';
                 return s;
                 }
 
@@ -652,7 +681,7 @@ std::ostream& operator<<(std::ostream &s, const fourindex<I,T> &x)
                         s << (typename LA_traits_io<I>::IOtype)it->index.indiv.i << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.j<<  ' ' <<(typename LA_traits_io<I>::IOtype)it->index.indiv.k << ' ' << (typename LA_traits_io<I>::IOtype)it->index.indiv.l  << ' ' << (typename LA_traits_io<T>::IOtype) it->elem << '\n';
 			++it;
                         }
-                s << "-1 -1 -1 -1 0.\n";
+		s << (typename LA_traits_io<I>::IOtype)x.getterminator() << ' ' << (typename LA_traits_io<I>::IOtype)x.getterminator() <<  ' ' <<(typename LA_traits_io<I>::IOtype)x.getterminator() << ' ' << (typename LA_traits_io<I>::IOtype)x.getterminator()  << ' ' << (typename LA_traits_io<T>::IOtype) 0 << '\n';
                 return s;
                 }
 
@@ -665,7 +694,7 @@ std::istream& operator>>(std::istream  &s, fourindex<I,T> &x)
                 s >> n ;
                 x.resize(n);
                 s >> i >> j >>k >>l;
-                while(i!= (typename LA_traits_io<I>::IOtype)-1 && j!= (typename LA_traits_io<I>::IOtype)-1 &&  k != (typename LA_traits_io<I>::IOtype)-1 && l!= (typename LA_traits_io<I>::IOtype)-1)
+                while(i!= (typename LA_traits_io<I>::IOtype)x.getterminator() && j!= (typename LA_traits_io<I>::IOtype)x.getterminator() &&  k != (typename LA_traits_io<I>::IOtype)x.getterminator() && l!= (typename LA_traits_io<I>::IOtype)x.getterminator())
                         {
 			s>>elem;
 			x.add((I)i,(I)j,(I)k,(I)l,(T)elem);
@@ -684,7 +713,7 @@ std::istream& operator>>(std::istream &s, fourindex_ext<I,T> &x)
                 typename LA_traits_io<T>::IOtype elem;
 		
 		s >> i >> j >>k >>l;
-                while(i!= (typename LA_traits_io<I>::IOtype)-1 && j!= (typename LA_traits_io<I>::IOtype)-1 &&  k != (typename LA_traits_io<I>::IOtype)-1 && l!= (typename LA_traits_io<I>::IOtype)-1)
+                while(i!= (typename LA_traits_io<I>::IOtype)x.getterminator() && j!= (typename LA_traits_io<I>::IOtype)x.getterminator() &&  k != (typename LA_traits_io<I>::IOtype)x.getterminator() && l!= (typename LA_traits_io<I>::IOtype)x.getterminator())
                         {
                         s>>elem;
                         x.put((I)i,(I)j,(I)k,(I)l,(T)elem);
@@ -918,6 +947,40 @@ int J = SMat_index_1(k,l);
 #endif
 return NRSMat<T>::v[SMat_index(I,J)];
 }
+
+template<class T, class I>
+class fourindex_dense<nosymmetry,T,I> : public NRMat<T> {
+protected:
+	unsigned int nn;
+friend class explicit_t2;
+public:
+        fourindex_dense(): NRMat<T>() {nn=0;};
+	void resize(const int nnn) {nn=nnn; (*this).NRMat<T>::resize(nn*nn,nn*nn);};
+        explicit fourindex_dense(const int nnn): NRMat<T>(nnn*nnn,nnn*nnn) {nn=nnn;};
+
+        inline T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b)
+{
+#ifdef DEBUG
+if(i<1||i>nn ||j<1||j>nn|| a<1||a>nn||b<1||b>nn) laerror("nosymmetry fourindex out of range");
+if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
+#endif
+return (*this).NRMat<T>::operator() ((j-1)*nn+i-1,(b-1)*nn+a-1);
+}
+        inline const T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b) const
+{
+#ifdef DEBUG
+if(i<1||i>nn ||j<1||j>nn|| a<1||a>nn||b<1||b>nn) laerror("nosymmetry fourindex out of range");
+if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
+#endif
+return (*this).NRMat<T>::operator() ((j-1)*nn+i-1,(b-1)*nn+a-1);
+}
+
+void print(std::ostream &out) const
+		{
+		unsigned int i,j,a,b;
+		for(i=1; i<=nn; ++i) for(j=1; j<=nn; ++j) for(a=1; a<=nn; ++a) for(b=1; b<=nn; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<std::endl;
+		}
+};
 
 
 //access to spin-blocks of T2 amplitudes in aces storage order

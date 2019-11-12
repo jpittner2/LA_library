@@ -1,3 +1,6 @@
+12.11.2019 fourindex_dense with nosymetry implemented
+12.11.2019 fourindex.cc created for template specializations 
+12.11.2019 fourindex optional scaling and terminator 
 11.11.2019 fourindex for twobody integrals with reduced symmetry
 08.11.2019 Conversion constructor for NRMat_from1(NRSMat_from1)
 31.03.2019 AUTOCONF files adapted for using MKL as first option
