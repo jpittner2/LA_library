@@ -45,6 +45,8 @@ public:
 #endif
 	friend class NRVec<T>;
 	friend class NRSMat<T>;
+	friend class NRMat_from1<T>;
+	friend class NRSMat_from1<T>;
 	
 	//! standard destructor
 	~NRMat();
@@ -550,7 +552,7 @@ NRMat<T>::NRMat(const NRSMat<T> &rhs) {
 
 	int i(0), j(0), k(0);
 	nn = mm = rhs.nrows();
-	 count = new int;
+	count = new int;
 	*count = 1;
 #ifdef MATPTR
 	v = new T*[nn];
@@ -1222,6 +1224,7 @@ class NRMat_from1 : public NRMat<T> {
 public:
 	NRMat_from1(): NRMat<T>() {};
 	explicit NRMat_from1(const int n): NRMat<T>(n) {};
+	explicit NRMat_from1(const NRSMat_from1<T> &rhs) : NRMat<T>(rhs) {};
 	NRMat_from1(const NRMat<T> &rhs): NRMat<T>(rhs) {};//!< be able to convert the parent class transparently to this
 	NRMat_from1(const int n, const int m): NRMat<T>(n, m) {};
 	NRMat_from1(const T &a, const int n, const int m): NRMat<T>(a, n, m) {};
@@ -1341,6 +1344,10 @@ void NRMat<T>::moveto(const GPUID dest) {
 	}
 }
 #endif
+
+
+
+ 
 
 /***************************************************************************//**
  * generate operators: Mat + a, a + Mat, Mat * a

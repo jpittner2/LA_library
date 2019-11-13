@@ -352,18 +352,33 @@ if(0)
 {
 NRMat<double> a;
 cin >>a ;
-NRMat<double> b=a.transpose();
+NRMat<double> abak=a;
 NRMat<double> u(a.nrows(),a.nrows()),v(a.ncols(),a.ncols());
-NRVec<double>s(a.ncols());
-singular_decomposition(a,&u,s,&v);
-//singular_decomposition(a,NULL,s,NULL); //this does not work when linked with static version of lapack, works with .so.3 version (from suse distrib)
+NRVec<double>s(a.ncols()<a.nrows()?a.ncols():a.nrows());
+singular_decomposition(a,&u,s,&v,0);
 cout <<u;
-cout <<s;
+NRMat<double> sdiag(0., u.ncols(),v.nrows());
+sdiag.diagonalset(s);
+cout <<sdiag;
 cout <<v;
-//singular_decomposition(b,&v,s,&u);
-//cout <<v;
-//cout <<s;
-//cout <<u;
+cout << "Error "<<(u*sdiag*v-abak).norm()<<endl;
+}
+
+if(0)
+{
+NRMat<complex<double> > a;
+cin >>a ;
+NRMat<complex<double> > abak=a;
+NRMat<complex<double> > u(a.nrows(),a.nrows()),v(a.ncols(),a.ncols());
+NRVec<double>s(a.ncols()<a.nrows()?a.ncols():a.nrows());
+singular_decomposition(a,&u,s,&v,0);
+cout <<u;
+NRMat<complex<double> > sdiag(0., u.ncols(),v.nrows());
+NRVec<complex<double> > ss = s;
+sdiag.diagonalset(ss);
+cout <<sdiag;
+cout <<v;
+cout << "Error "<<(u*sdiag*v-abak).norm()<<endl;
 }
 
 if(0)
@@ -1579,7 +1594,7 @@ cin >>n;
 NRMat<complex<double> > a(n,n);
 a.randomize(1);
 for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=0.;}
-for(int i=0; i<n; ++i) {a(i,i).imag()=0.; if(a(i,i).real()<0) a(i,i).real() *= -1;}
+for(int i=0; i<n; ++i) {a(i,i).imag(0.); if(a(i,i).real()<0) a(i,i).real(-a(i,i).real());}
 cout <<a;
 NRMat<complex<double> > bb=a.transpose(true)*a;
 NRMat<complex<double> > cc(bb);
@@ -1642,7 +1657,7 @@ cin >>n;
 NRMat<complex<double> > a(n,n);
 a.randomize(1);
 for(int i=0; i<n; ++i) for(int j=0; j<i; ++j) {a(i,j)=0.;}
-for(int i=0; i<n; ++i) {a(i,i).imag() = 0.; if(a(i,i).real()<0) a(i,i).real() *= -10; else a(i,i).real() *= 10.;}
+for(int i=0; i<n; ++i) {a(i,i).imag(0.); if(a(i,i).real()<0) a(i,i).real(-10.*a(i,i).real()); else a(i,i).real(10.*a(i,i).real());}
 if(n<100)cout <<a;
 NRMat<complex<double> > bb=a.transpose(true)*a;
 SparseSMat<complex<double> > cc(bb);
@@ -1760,7 +1775,7 @@ cout <<"error = "<<(r2-NRMat<complex<double> >(r)).norm()<<endl;
 */
 
 
-if(1)
+if(0)
 {
 NRMat<complex<double> > m;
 ifstream f("libormat");
@@ -1825,6 +1840,23 @@ cout <<"eigenvalue error = "<<err<<endl;
 
 }
 
+if(0)
+{
+NRMat<double> a;
+cin >>a ;
+double det=determinant_destroy(a);
+cout << "det= "<<det<<endl;
+}
+
+if(1)
+{
+bitvector v(3);
+v.assign(0,0);
+v.assign(1,1);
+v.assign(2,0);
+cin >>v;
+cout <<v;
+}
 
 
 }

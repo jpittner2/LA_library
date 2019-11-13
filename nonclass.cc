@@ -1651,6 +1651,11 @@ double r=0;
 return r;
 }
 
+inline double trace2(const NRMat<double> &a, const NRSMat<double> &b, const bool diagscaled)
+{
+return trace2(b,a,diagscaled);
+}
+
 
 //Cholesky interface
 extern "C" void FORNAME(dpotrf)(const char *UPLO, const FINT *N, double *A, const FINT *LDA, FINT *INFO);

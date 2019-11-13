@@ -49,7 +49,11 @@
 #include "noncblas.h"
 #else
 extern "C" {
+#ifdef HAS_MKL
+#include "mkl_cblas.h"
+#else
 #include "cblas.h"
+#endif
 }
 #endif
 

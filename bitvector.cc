@@ -29,9 +29,10 @@ return s;
 
 std::istream & operator>>(std::istream  &s, bitvector &x)
 {
-bool a;
-x.copyonwrite();
-for(unsigned int i=0; i<x.size(); ++i) {s >>a; x.assign(i,a);}
+std::string str;
+s >> str;
+x.resize(str.size());
+for(unsigned int i=0; i<x.size(); ++i) {x.assign(i,str[i]!='0');}
 return s;
 }
 

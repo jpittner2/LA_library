@@ -188,7 +188,7 @@ void cblas_zdotc_sub(const int N, const void *X, const int incX, const void *Y, 
 
 
 extern "C" void FORNAME(dspmv) (const char *uplo, const FINT *n, const double *alpha, const double *ap, const double *x, const FINT *incx, const double *beta, double *y, const FINT *incy);
-void cblas_dspmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
+void cblas_dspmv(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
 		const int N, const double alpha, const double *Ap,
 		const double *X, const int incX,
 		const double beta, double *Y, const int incY)
@@ -208,7 +208,7 @@ void cblas_dspmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
 
 
 extern "C" void FORNAME(zhpmv) (const char *uplo, const FINT *n, const void *alpha, const void *ap, const void *x, const FINT *incx, const void *beta, void *y, const FINT *incy);
-void cblas_zhpmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
+void cblas_zhpmv(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
 		const int N, const void *alpha, const void *Ap,
 		const void *X, const int incX,
 		const void *beta, void *Y, const int incY)
@@ -230,7 +230,7 @@ void cblas_zhpmv(const enum CBLAS_ORDER Order, const enum CBLAS_UPLO Uplo,
 //Level 2 and Level 3 on general matrices - take into account the transposed storage of matrices in Fortran and C
 
 extern "C" void FORNAME(dger) (const FINT *m, const FINT *n, const double *alpha, const double *x, const FINT *incx, const double *y, const FINT *incy, double *a, const FINT *lda);
-void cblas_dger(const enum CBLAS_ORDER Order, const int M, const int N,
+void cblas_dger(const CBLAS_ORDER Order, const int M, const int N,
 		const double alpha, const double *X, const int incX,
 		const double *Y, const int incY, double *A, const int lda)
 {
@@ -249,7 +249,7 @@ void cblas_dger(const enum CBLAS_ORDER Order, const int M, const int N,
 }
 
 extern "C" void FORNAME(zgerc)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
-void cblas_zgerc(const enum CBLAS_ORDER Order, const int M, const int N,
+void cblas_zgerc(const CBLAS_ORDER Order, const int M, const int N,
 		const void *alpha, const void *X, const int incX,
 		const void *Y, const int incY, void *A, const int lda)
 {
@@ -273,7 +273,7 @@ p= (complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag() = -p->imag(); p+= in
 
 
 extern "C" void FORNAME(zgeru)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
-void cblas_zgeru(const enum CBLAS_ORDER Order, const int M, const int N,
+void cblas_zgeru(const CBLAS_ORDER Order, const int M, const int N,
 		const void *alpha, const void *X, const int incX,
 		const void *Y, const int incY, void *A, const int lda)
 {
@@ -292,8 +292,8 @@ void cblas_zgeru(const enum CBLAS_ORDER Order, const int M, const int N,
 
 
 extern "C" void FORNAME(dgemm) (const char *transa, const char *transb, const FINT *m, const FINT *n, const FINT *k, const double *alpha, const double *a, const FINT *lda, const double *b, const FINT *ldb, const double *beta, double *c, const FINT *ldc);
-void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA,
-		const enum CBLAS_TRANSPOSE TransB, const int M, const int N,
+void cblas_dgemm(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
+		const CBLAS_TRANSPOSE TransB, const int M, const int N,
 		const int K, const double alpha, const double *A,
 		const int lda, const double *B, const int ldb,
 		const double beta, double *C, const int ldc)
@@ -318,8 +318,8 @@ void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
 }
 
 extern "C" void FORNAME(zgemm) (const char *transa, const char *transb, const FINT *m, const FINT *n, const FINT *k, const void *alpha, const void *a, const FINT *lda, const void *b, const FINT *ldb, const void *beta, void *c, const FINT *ldc);
-void cblas_zgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA,
-		const enum CBLAS_TRANSPOSE TransB, const int M, const int N,
+void cblas_zgemm(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
+		const CBLAS_TRANSPOSE TransB, const int M, const int N,
 		const int K, const void *alpha, const void *A,
 		const int lda, const void *B, const int ldb,
 		const void *beta, void *C, const int ldc)
@@ -345,8 +345,8 @@ void cblas_zgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA
 
 
 extern "C" void FORNAME(dgemv)  (const char *TRANS, const FINT *M, const FINT *N, const double *ALPHA, const double *A,  const FINT *LDA,  const double *X,  const FINT *INCX, const double *BETA, double *Y, const FINT *INCY);
-void cblas_dgemv(const enum CBLAS_ORDER Order,
-		const enum CBLAS_TRANSPOSE TransA, const int M, const int N,
+void cblas_dgemv(const CBLAS_ORDER Order,
+		const CBLAS_TRANSPOSE TransA, const int M, const int N,
 		const double alpha, const double *A, const int lda,
 		const double *X, const int incX, const double beta,
 		double *Y, const int incY)
@@ -371,8 +371,8 @@ void cblas_dgemv(const enum CBLAS_ORDER Order,
 
 
 extern "C" void FORNAME(zgemv)  (const char *TRANS, const FINT *M, const FINT *N, const void *ALPHA, const void *A,  const FINT *LDA,  const void *X,  const FINT *INCX, const void *BETA, void *Y, const FINT *INCY);
-void cblas_zgemv(const enum CBLAS_ORDER Order,
-		const enum CBLAS_TRANSPOSE TransA, const int M, const int N,
+void cblas_zgemv(const CBLAS_ORDER Order,
+		const CBLAS_TRANSPOSE TransA, const int M, const int N,
 		const void *alpha, const void *A, const int lda,
 		const void *X, const int incX, const void *beta,
 		void *Y, const int incY)
@@ -446,7 +446,7 @@ CBLAS_INDEX cblas_izamin(const int N, const void *X, const int incX) {
 //allocate auxiliary storage and transpose input and output quantities to fortran/C order
 extern "C" void FORNAME(dgesv) (const FINT *N, const FINT *NRHS, double *A, const FINT *LDA, FINT *IPIV, double *B, const FINT *LDB, FINT *INFO);
 
-int clapack_dgesv(const enum CBLAS_ORDER Order, const int N, const int NRHS,
+int clapack_dgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
 		double *A, const int lda, int *ipiv,
 		double *B, const int ldb)
 {

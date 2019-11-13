@@ -34,6 +34,7 @@ namespace LA {
 //Note that for efficiency in a direct CI case the diagonalof() should cache its result
 
 
+//@@@ for large krylov spaces >200 it can occur 'convergence problem in sygv/syev in diagonalize()'
 //@@@options: left eigenvectors by matrix transpose, overridesymmetric (for nrmat)
 //@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
 //@@@test gdiagonalize whether it sorts the roots and what for complex ones
@@ -73,7 +74,7 @@ else
 
 int i,j;
 
-if(maxkrylov<maxit) maxit=maxkrylov;
+//NO, we will restart, maxit can be bigger if(maxkrylov<maxit) maxit=maxkrylov;
 if(nroots>=maxkrylov) nroots =maxkrylov-1;
 int  nroot=0;
 int oldnroot;
@@ -139,7 +140,9 @@ if(it>0) //if this is the first iteration just need to diagonalise the matrix
 smallV=smallH;
 NRMat<T> smallSwork=smallS;
 if(bigmat.issymmetric()) 
+	{
 	diagonalize(smallV,r,1,1,krylovsize+1,&smallSwork,1); //for symmetric matrix they have already been sorted to ascending order in lapack
+	}
 else 
 	{
 	NRVec<T> ri(krylovsize+1),beta(krylovsize+1);
@@ -160,7 +163,7 @@ for(int iroot=0; iroot<=std::min(krylovsize,nroots-1); ++iroot)
         if(test>eps) nroot=std::min(nroot,iroot);
         if(verbose && iroot<=std::max(oldnroot,nroot)) 
 		{
-		std::cout <<"Davidson: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" energy="<<r[iroot]<<"\n";
+		std::cout <<"Davidson: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" eigenvalue="<<r[iroot]<<"\n";
 		std::cout.flush();
 		}
 	}
@@ -169,7 +172,7 @@ if(verbose && oldnroot!=nroot) {std::cout <<"root no. "<<oldnroot<<" converged\n
 if (nroot>=nroots) goto converged;
 if (it==maxit-1) break; //not converged
 
-if (krylovsize==maxkrylov) //restart, krylov space exceeded
+if (krylovsize==maxkrylov-1) //restart, krylov space exceeded
 	{
 	if(nroot!=0) {flag=1; goto finished;}
 	smallH=0;
@@ -180,7 +183,7 @@ if (krylovsize==maxkrylov) //restart, krylov space exceeded
 		if(!incore) s0->get(vec2,i);
                 vec1.axpy(smallV(i,0),incore?v0[i]:vec2);
 		}
-	s0->put(vec1,0);
+	if(!incore) s0->put(vec1,0);
 	vec1.normalize();
         krylovsize = 0;
 	continue;

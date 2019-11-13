@@ -17,11 +17,39 @@ AC_PROG_CC
 #AC_PROG_RANLIB obsoleted by libtool
 AC_LANG(C++)
 
+# Check for Intel MKL first
+#user has to e.g. setenv LDFLAGS "-L/opt/intel/composer_xe_2013_sp1.1.106/mkl/lib/intel64/"
+#and              setenv CXXFLAGS "-I/opt/intel/composer_xe_2013_sp1.1.106/mkl/include/"
+MKLLIB=""
+mkl_present=1
+AC_CHECK_LIB([mkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread], [dgemm_], [
+		echo "MKL LIBRARY FOUND"
+	] , [
+	mkl_present=0
+        ])
+
+AC_CHECK_HEADER(mkl_cblas.h, [echo "MKL INCLUDE FOUND"], [mkl_present=0])
+
+if test $mkl_present == 1
+then
+	MKLLIB="-Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -lpthread"
+	AC_SUBST([MKLLIB])
+	CLAPACKOPT=-DNONCLAPACK
+	AC_SUBST([CLAPACKOPT])
+	MKLOPT="-DHAS_MKL"
+	AC_SUBST([MKLOPT])
+else
+	echo "MKL LIBRARY OR HEADER NOT FOUND, will try ATLAS next!"
+fi
+
 
 # Checks for mandatory libraries.
 ATLASLIB=""	
+
+if test $mkl_present == 0
+then
 AC_CHECK_LIB([atlas], [ATL_zgemv],ATLASLIB="-lblas -latlas", [
-        echo "ATLAS not found, I hope you are using some other (more) efficient BLAS!"
+        echo "ATLAS not found, I hope you are using some other efficient BLAS!"
         ])
 AC_SUBST([ATLASLIB])
 
@@ -30,7 +58,7 @@ AC_CHECK_LIB([blas], [dgemm_],BLASLIB="-lblas", [
         exit
         ],[$ATLASLIB])
 AC_SUBST([BLASLIB])
-
+fi
 
 MATPTROPT=""
 AC_ARG_ENABLE([matptr],[  --enable-matptr   switch to double** matrix representation (CUDA incompatible)  [[default=no]]],
@@ -43,6 +71,11 @@ AC_ARG_ENABLE([matptr],[  --enable-matptr   switch to double** matrix representa
 
 
 #cblas and clapack available?
+CBLASLIB=""
+CBLASOPT=""
+
+if test $mkl_present == 0
+then
 AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB="-lcblas"], [CBLASOPT=-DNONCBLAS],[$ATLASLIB])
 AC_CHECK_HEADER([cblas.h],,[CBLASOPT=-DNONCBLAS CBLASLIB=""], AC_INCLUDES_DEFAULT)
 AC_SUBST([CBLASLIB])
@@ -59,6 +92,8 @@ AC_CHECK_LIB([lapack], [clapack_dgesv], , [CLAPACKOPT=-DNONCLAPACK],[$CBLASLIB $
 AC_CHECK_HEADER([clapack.h],,[CLAPACKOPT=-DNONCLAPACK], AC_INCLUDES_DEFAULT)
 AC_SUBST([CLAPACKOPT])
 
+fi
+#MKL end
 
 #CUDA available? link with cublas and avoid cblas and clapack then...
 AC_CHECK_LIB([cublas], [cublasInit], [MATPTROPT="" NVCC=nvcc NVCCFLAGS="-O -arch sm_20" CUDALIBS=-lcublas CUDAOPT=-DCUDALA CBLASOPT=-DNONCBLAS CLAPACKOPT=-DNONCLAPACK CBLASLIB=""], [CUDALIB="" CUDAOPT=""])
@@ -138,7 +173,8 @@ echo "**************************************************************************
 echo "The LA library has now been configured. You may run make; make check; make install"
 echo "Please make sure that the generated Makefile employs a proper version of optimized"
 echo "BLAS/LAPACK library. If not, re-run configure with CXXFLAGS and LDFLAGS options   "
-echo "set to '-I path' and '-L path' for your preferred BLAS/LAPACK library version.    "
+echo "set to '-I/path' and '-L/path' for your preferred BLAS/LAPACK library version.    "
+echo "Either use export or specify these options on the command line ./configure .....  "
 echo "In addition, similarly you might set include and link paths for Nvidia CUBLAS.    "
 echo "Use  ./configure --disable-optimize CXXFLAGS='' LDFLAGS='' for a fast compile.    "
 echo "Use --enable-fotran64int to link with BLAS and LAPACK using 64-bit integers.      "

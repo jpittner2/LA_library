@@ -88,14 +88,14 @@ extern const  NRVec<T> diagofproduct(const NRMat<T> &a, const NRMat<T> &b,\
 extern T trace2(const NRMat<T> &a, const NRMat<T> &b, bool trb=0); \
 extern T trace2(const NRSMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern T trace2(const NRSMat<T> &a, const NRMat<T> &b, const bool diagscaled=0);\
+extern T trace2(const NRMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern void linear_solve(NRMat<T> &a, NRMat<T> *b, T *det=0,int n=0); /*solve Ax^T=b^T (b is nrhs x n) */ \
 extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, T *det=0, int n=0); /*solve Ax^T=b^T (b is nrhs x n) */\
 extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void diagonalize(NRMat<T> &a, NRVec<LA_traits<T>::normtype> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1); \
 extern void diagonalize(NRSMat<T> &a, NRVec<LA_traits<T>::normtype> &w, NRMat<T> *v, const bool corder=1, int n=0, NRSMat<T> *b=NULL, const int itype=1);\
-extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<T> &s,\
-		NRMat<T> *v, const bool corder=1, int m=0, int n=0);
+extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<LA_traits<T>::normtype> &s, NRMat<T> *v, const bool vnotdagger=0, int m=0, int n=0);
 
 /*NOTE!!! all versions of diagonalize DESTROY A and generalized diagonalize also B matrix */
 
