@@ -24,10 +24,63 @@ template <typename T>
 class Quaternion 
 	{
 public:
+	//just plain old data
 	T q[4];
+	//
 	Quaternion(void) {};
-	Quaternion(const T x) {q[0]=x; memset(&q[1],0,3*sizeof(T));};
+	Quaternion(const T x, const T u=0, const T v=0, const T w=0) {q[0]=x; q[1]=u; q[2]=v; q[3]=w;}; //quaternion from real
+
+	//compiler generates default copy constructor and assignment operator
+
+	//operations of quaternions with scalars
+	Quaternion& operator=(const T x) {q[0]=x; memset(&q[1],0,3*sizeof(T)); return *this;};  //quaternion from real 
+	Quaternion& operator+=(const T rhs) {this->q[0]+=rhs; return *this;};
+	Quaternion& operator-=(const T rhs) {this->q[0]-=rhs; return *this;};
+	Quaternion& operator*=(const T rhs) {this->q[0]*=rhs; this->q[1]*=rhs; this->q[2]*=rhs; this->q[3]*=rhs; return *this;};
+	Quaternion& operator/=(const T rhs) {return *this *= ((T)1/rhs);};
+	const Quaternion operator+(const T rhs) const {return Quaternion(*this) += rhs;};
+        const Quaternion operator-(const T rhs) const {return Quaternion(*this) -= rhs;};
+        const Quaternion operator*(const T rhs) const {return Quaternion(*this) *= rhs;};
+        const Quaternion operator/(const T rhs) const {return Quaternion(*this) /= rhs;};
+
+	//quaternion algebra
+	Quaternion& operator+=(const Quaternion &rhs) {this->q[0]+=rhs.q[0];this->q[1]+=rhs.q[1];this->q[2]+=rhs.q[2];this->q[3]+=rhs.q[3]; return *this;};
+	Quaternion& operator-=(const Quaternion &rhs) {this->q[0]-=rhs.q[0];this->q[1]-=rhs.q[1];this->q[2]-=rhs.q[2];this->q[3]-=rhs.q[3]; return *this;};
+	const Quaternion operator+(const Quaternion &rhs) const {return Quaternion(*this) += rhs;};
+	const Quaternion operator-(const Quaternion &rhs) const {return Quaternion(*this) -= rhs;};
+	const Quaternion operator*(const Quaternion &rhs) const 
+		{
+		return Quaternion
+			(
+			this->q[0]*rhs.q[0]-this->q[1]*rhs.q[1]-this->q[2]*rhs.q[2]-this->q[3]*rhs.q[3],
+			this->q[0]*rhs.q[1]+this->q[1]*rhs.q[0]+this->q[2]*rhs.q[3]-this->q[3]*rhs.q[2],
+			this->q[0]*rhs.q[2]+this->q[2]*rhs.q[0]+this->q[3]*rhs.q[1]-this->q[1]*rhs.q[3],
+			this->q[0]*rhs.q[3]+this->q[3]*rhs.q[0]+this->q[1]*rhs.q[2]-this->q[2]*rhs.q[1]
+			);
+		};	
 	};
+	
+//stream I/O
+template <typename T>
+std::istream& operator>>(std::istream  &s, Quaternion<T> &x)
+{
+s >> x.q[0];
+s >> x.q[1];
+s >> x.q[2];
+s >> x.q[3];
+return s;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream &s, const Quaternion<T> &x) {
+s << x.q[0]<<" ";
+s << x.q[1]<<" ";
+s << x.q[2]<<" ";
+s << x.q[3];
+return s;
+}
+
+
 
 #endif /* _QUATERNION_H_ */
 
