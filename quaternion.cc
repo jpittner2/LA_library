@@ -17,5 +17,19 @@
 */
 
 #include "quaternion.h"
+#include <math.h>
+
+template<>
+double Quaternion<double>::norm(void) const
+{
+return sqrt(this->normsqr());
+}
+
+template<>
+float Quaternion<float>::norm(void) const
+{
+return sqrtf(this->normsqr());
+}
+
 
 

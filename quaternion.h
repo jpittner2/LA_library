@@ -19,6 +19,7 @@
 #define _QUATERNION_H_
 
 #include <stdlib.h>
+#include <iostream>
 
 template <typename T>
 class Quaternion 
@@ -31,6 +32,10 @@ public:
 	Quaternion(const T x, const T u=0, const T v=0, const T w=0) {q[0]=x; q[1]=u; q[2]=v; q[3]=w;}; //quaternion from real
 
 	//compiler generates default copy constructor and assignment operator
+	
+	//formal indexing
+	const T operator[](const int i) const {return this->q[i];};
+	T operator[](const int i) {return this->q[i];};
 
 	//operations of quaternions with scalars
 	Quaternion& operator=(const T x) {q[0]=x; memset(&q[1],0,3*sizeof(T)); return *this;};  //quaternion from real 
@@ -58,7 +63,14 @@ public:
 			this->q[0]*rhs.q[3]+this->q[3]*rhs.q[0]+this->q[1]*rhs.q[2]-this->q[2]*rhs.q[1]
 			);
 		};	
+	Quaternion& conjugateme(void) {q[1] = -q[1]; q[2] = -q[2]; q[3] = -q[3]; return *this;}
+	Quaternion conjugate(void) const {return Quaternion(*this).conjugateme();}
+	T normsqr(void) const {return q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3];};
+	T norm(void) const;
+	Quaternion inverse(void) const {return Quaternion(*this).conjugateme()/this->normsqr();};
+	const Quaternion operator/(const Quaternion &rhs) const {return *this * rhs.inverse();};
 	};
+
 	
 //stream I/O
 template <typename T>
