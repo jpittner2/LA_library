@@ -17,19 +17,45 @@
 */
 
 #include "quaternion.h"
-#include <math.h>
 
-template<>
-double Quaternion<double>::norm(void) const
+
+//do not replicate this code in each object file, therefore not in .h
+//and instantize the templates for the types needed
+
+
+template<typename T>
+const Quaternion<T> Quaternion<T>::operator*(const Quaternion<T> &rhs) const 
 {
-return sqrt(this->normsqr());
-}
+return Quaternion<T>
+	(
+	this->q[0]*rhs.q[0]-this->q[1]*rhs.q[1]-this->q[2]*rhs.q[2]-this->q[3]*rhs.q[3],
+	this->q[0]*rhs.q[1]+this->q[1]*rhs.q[0]+this->q[2]*rhs.q[3]-this->q[3]*rhs.q[2],
+	this->q[0]*rhs.q[2]+this->q[2]*rhs.q[0]+this->q[3]*rhs.q[1]-this->q[1]*rhs.q[3],
+	this->q[0]*rhs.q[3]+this->q[3]*rhs.q[0]+this->q[1]*rhs.q[2]-this->q[2]*rhs.q[1]
+	);
+};	
 
-template<>
-float Quaternion<float>::norm(void) const
+
+//optionally skip this for microcontrollers if not needed
+//note that C++ standard headers should use float version of the functions for T=float
+#ifndef AVOID_GONIOM_FUNC
+template<typename T>
+void  normquat2euler(const Quaternion<T> &q, T (&e)[3])
 {
-return sqrtf(this->normsqr());
+e[0]= atan2(2*q[1]*q[2]-2*q[0]*q[3],2*q[0]*q[0]+2*q[1]*q[1]-1);
+e[1]= -asin(2*q[1]*q[3]+2*q[0]*q[2]);
+e[2]= atan2(2*q[2]*q[3]-2*q[0]*q[1],2*q[0]*q[0]+2*q[3]*q[3]-1);
 }
+#endif
 
 
 
+//force instantization
+#define INSTANTIZE(T) \
+template class Quaternion<T>; \
+template void normquat2euler(const Quaternion<T> &q, T (&e)[3]); \
+
+INSTANTIZE(float)
+#ifndef QUAT_NO_DOUBLE
+INSTANTIZE(double)
+#endif
