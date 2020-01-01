@@ -38,7 +38,7 @@ public:
 	Quaternion(void) {};
 	Quaternion(const T x, const T u=0, const T v=0, const T w=0) {q[0]=x; q[1]=u; q[2]=v; q[3]=w;}; //quaternion from real(s)
 	Quaternion(const std::complex<T> &rhs) {q[0]=rhs.real(); q[1]=rhs.imag(); q[2]=0; q[3]=0;} //quaternion from complex
-	explicit Quaternion(const T* x) {memcpy(q,x,4*sizeof(T));}
+	explicit Quaternion(const T* x, const int shift=1) {q[0]=0; memcpy(q+shift,x,(4-shift)*sizeof(T));} //for shift=1 quaternion from xyz vector
 
 	//compiler generates default copy constructor and assignment operator
 	
@@ -71,6 +71,8 @@ public:
 	Quaternion& normalize(bool unique_sign=false) {*this /= this->norm(); if(unique_sign && q[0]<0) *this *= (T)-1; return *this;};
 	Quaternion inverse(void) const {return Quaternion(*this).conjugateme()/this->normsqr();};
 	const Quaternion operator/(const Quaternion &rhs) const {return *this * rhs.inverse();};
+	Quaternion rotateby(const Quaternion &rhs, bool rhs_is_normalized=true); //conjugation-rotation of this by rhs
+	void rotate(T *rhs) const; //rotate xyz vector by *this
 	};
 
 	
@@ -97,7 +99,7 @@ return s;
 
 //"euler" or Tait-Bryan angles [corresponding to meul -r -T xyz -d -t -R]
 template<typename T>
-void  normquat2euler(const Quaternion<T> &q, T (&e)[3]);
+void  normquat2euler(const Quaternion<T> &q, T *);
 
 
 //the following must be in .h due to the generic M type which is unspecified and can be any type providing [][], either plain C matrix or LA matrix
@@ -161,6 +163,16 @@ if(a[1][2]-a[2][1]<0) q[1] = -q[1];
 if(a[2][0]-a[0][2]<0) q[2] = -q[2];
 if(a[0][1]-a[1][0]<0) q[3] = -q[3];
 }
+
+
+//rotation about unit vector axis through an angle to a normalized quaternion
+#ifndef AVOID_GONIOM_FUNC
+template<typename T>
+void axis2normquat(const T *axis, const T &angle, Quaternion<T> &q);
+
+template<typename T>
+void normquat2axis(const Quaternion<T> &q, T *axis,  T &angle);
+#endif
 
 
 

@@ -35,16 +35,44 @@ return Quaternion<T>
 	);
 };	
 
+template<typename T>
+Quaternion<T> Quaternion<T>::rotateby(const Quaternion<T> &rhs, bool rhs_is_normalized)
+{
+return rhs * *this * rhs.inverse(); //inefficient reference implementation
+}
+
 
 //optionally skip this for microcontrollers if not needed
 //note that C++ standard headers should use float version of the functions for T=float
 #ifndef AVOID_GONIOM_FUNC
 template<typename T>
-void  normquat2euler(const Quaternion<T> &q, T (&e)[3])
+void  normquat2euler(const Quaternion<T> &q, T *e)
 {
 e[0]= atan2(2*q[1]*q[2]-2*q[0]*q[3],2*q[0]*q[0]+2*q[1]*q[1]-1);
 e[1]= -asin(2*q[1]*q[3]+2*q[0]*q[2]);
 e[2]= atan2(2*q[2]*q[3]-2*q[0]*q[1],2*q[0]*q[0]+2*q[3]*q[3]-1);
+}
+
+template<typename T>
+void axis2normquat(const T *axis, const T &angle, Quaternion<T> &q)
+{
+T a = (T).5*angle;
+q[0]=cos(a);
+T s=sin(a);
+q[1]=axis[0]*s;
+q[2]=axis[1]*s;
+q[3]=axis[2]*s;
+}
+
+template<typename T>
+void normquat2axis(const Quaternion<T> &q, T *axis,  T &angle)
+{
+T s = sqrt(q[1]*q[1] + q[2]*q[2] +q[3]*q[3]);
+angle = 2*atan2(s,q[0]);
+s= 1/s;
+axis[0]= q[1]*s;
+axis[1]= q[2]*s;
+axis[2]= q[3]*s;
 }
 #endif
 
@@ -53,9 +81,22 @@ e[2]= atan2(2*q[2]*q[3]-2*q[0]*q[1],2*q[0]*q[0]+2*q[3]*q[3]-1);
 //force instantization
 #define INSTANTIZE(T) \
 template class Quaternion<T>; \
-template void normquat2euler(const Quaternion<T> &q, T (&e)[3]); \
+
+#define INSTANTIZE2(T) \
+template void normquat2euler(const Quaternion<T> &q, T *e); \
+template void axis2normquat(const T *axis, const T &angle, Quaternion<T> &q); \
+template void normquat2axis(const Quaternion<T> &q, T *axis,  T &angle); \
+
 
 INSTANTIZE(float)
 #ifndef QUAT_NO_DOUBLE
 INSTANTIZE(double)
 #endif
+
+#ifndef AVOID_GONIOM_FUNC
+INSTANTIZE2(float)
+#ifndef QUAT_NO_DOUBLE
+INSTANTIZE2(double)
+#endif
+#endif
+
