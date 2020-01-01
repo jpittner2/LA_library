@@ -71,8 +71,8 @@ public:
 	Quaternion& normalize(bool unique_sign=false) {*this /= this->norm(); if(unique_sign && q[0]<0) *this *= (T)-1; return *this;};
 	Quaternion inverse(void) const {return Quaternion(*this).conjugateme()/this->normsqr();};
 	const Quaternion operator/(const Quaternion &rhs) const {return *this * rhs.inverse();};
-	Quaternion rotateby(const Quaternion &rhs, bool rhs_is_normalized=true); //conjugation-rotation of this by rhs
-	void rotate(T *rhs) const; //rotate xyz vector by *this
+	Quaternion rotateby(const Quaternion &rhs); //conjugation-rotation of this by NORMALIZED  rhs
+	void rotate(T *to, const T *from) const; //rotate xyz vector by NORMALIZED *this
 	};
 
 	
@@ -102,7 +102,7 @@ template<typename T>
 void  normquat2euler(const Quaternion<T> &q, T *);
 
 
-//the following must be in .h due to the generic M type which is unspecified and can be any type providing [][], either plain C matrix or LA matrix
+//the following must be in .h due to the generic M type which is unspecified and can be any type providing [][], either plain C matrix or std::matrix or LA matrix
 
 //conversion between quanternions and rotation matrices
 //
@@ -165,7 +165,7 @@ if(a[0][1]-a[1][0]<0) q[3] = -q[3];
 }
 
 
-//rotation about unit vector axis through an angle to a normalized quaternion
+//rotation about unit vector axis (given by pointer for simplicity)  through an angle to a normalized quaternion
 #ifndef AVOID_GONIOM_FUNC
 template<typename T>
 void axis2normquat(const T *axis, const T &angle, Quaternion<T> &q);

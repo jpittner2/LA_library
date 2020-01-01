@@ -35,10 +35,31 @@ return Quaternion<T>
 	);
 };	
 
+
+//basically the same code as in normquat2rotmat, but avoiding extra storage
 template<typename T>
-Quaternion<T> Quaternion<T>::rotateby(const Quaternion<T> &rhs, bool rhs_is_normalized)
+void Quaternion<T>::rotate(T *to, const T *from) const 
 {
-return rhs * *this * rhs.inverse(); //inefficient reference implementation
+to[0] = (2*q[0]*q[0]-1+2*q[1]*q[1]) * from[0] +
+         2*(q[1]*q[2]+q[0]*q[3]) *    from[1] +
+         2*(q[1]*q[3]-q[0]*q[2]) *    from[2];
+to[1] =  2*(q[1]*q[2]-q[0]*q[3]) *    from[0] +
+        (2*q[0]*q[0]-1+2*q[2]*q[2]) * from[1] +
+         2*(q[2]*q[3]+q[0]*q[1]) *    from[2];
+to[2] =  2*(q[1]*q[3]+q[0]*q[2])    * from[0] +
+         2*(q[2]*q[3]-q[0]*q[1])    * from[1] +
+        (2*q[0]*q[0]-1+2*q[3]*q[3]) * from[2];
+}
+
+
+template<typename T>
+Quaternion<T> Quaternion<T>::rotateby(const Quaternion<T> &rhs)
+{
+//return rhs.inverse() * *this * rhs; //inefficient reference implementation
+Quaternion<T> r;
+r[0]=0;
+rhs.rotate(&r[1],&q[1]);
+return r;
 }
 
 
