@@ -24,8 +24,10 @@
 #define _VECMAT3_H_
 
 #include <stdlib.h>
+#ifndef AVOID_STDSTREAM
 #include <iostream>
-#include <cstring>
+#endif
+#include <string.h>
 #include <math.h>
 
 //forward declaration
@@ -169,6 +171,7 @@ public:
 
 	
 //stream I/O
+#ifndef AVOID_STDSTREAM
 template <typename T>
 std::istream& operator>>(std::istream  &s, Vec3<T> &x)
 {
@@ -208,8 +211,7 @@ s << x.q[1][0]<<" "<< x.q[1][1]<<" " << x.q[1][2]<<std::endl;
 s << x.q[2][0]<<" "<< x.q[2][1]<<" " << x.q[2][2]<<std::endl;
 return s;
 }
-
-
+#endif
 
 
 #endif /* _VECMAT3_H_ */

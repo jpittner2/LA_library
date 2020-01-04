@@ -21,10 +21,11 @@
 #ifndef _QUATERNION_H_
 #define _QUATERNION_H_
 
-#include <stdlib.h>
+#ifndef AVOID_STDSTREAM
 #include <iostream>
+#endif
+#include <string.h>
 #include <complex>
-#include <cstring>
 #include <math.h>
 
 
@@ -61,9 +62,12 @@ public:
 	const Quaternion operator-() const {Quaternion r(*this); r.q[0]= -r.q[0]; r.q[1]= -r.q[1]; r.q[2]= -r.q[2]; r.q[3]= -r.q[3]; return r;}; //unary minus
 	Quaternion& operator+=(const Quaternion &rhs) {q[0]+=rhs.q[0];q[1]+=rhs.q[1];q[2]+=rhs.q[2];q[3]+=rhs.q[3]; return *this;};
 	Quaternion& operator-=(const Quaternion &rhs) {q[0]-=rhs.q[0];q[1]-=rhs.q[1];q[2]-=rhs.q[2];q[3]-=rhs.q[3]; return *this;};
-	const Quaternion operator+(const Quaternion &rhs) const {return Quaternion(*this) += rhs;};
-	const Quaternion operator-(const Quaternion &rhs) const {return Quaternion(*this) -= rhs;};
-	const Quaternion operator*(const Quaternion &rhs) const;
+	Quaternion operator+(const Quaternion &rhs) const {return Quaternion(*this) += rhs;};
+	Quaternion operator-(const Quaternion &rhs) const {return Quaternion(*this) -= rhs;};
+	Quaternion operator*(const Quaternion &rhs) const; //regular product
+	Quaternion times_vec3(const T *rhs) const; //save flops for quaternions representing vectors
+	Quaternion vec3_times(const T *rhs) const; //save flops for quaternions representing vectors
+	
 	Quaternion& conjugateme(void) {q[1] = -q[1]; q[2] = -q[2]; q[3] = -q[3]; return *this;}
 	Quaternion conjugate(void) const {return Quaternion(*this).conjugateme();}
 	T dot(const Quaternion &rhs) const  {return q[0]*rhs.q[0] + q[1]*rhs.q[1] + q[2]*rhs.q[2] + q[3]*rhs.q[3];};
@@ -84,6 +88,7 @@ public:
 
 	
 //stream I/O
+#ifndef AVOID_STDSTREAM
 template <typename T>
 std::istream& operator>>(std::istream  &s, Quaternion<T> &x)
 {
@@ -102,6 +107,7 @@ s << x.q[2]<<" ";
 s << x.q[3];
 return s;
 }
+#endif
 
 
 

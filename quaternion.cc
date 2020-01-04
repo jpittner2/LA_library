@@ -24,16 +24,42 @@
 
 
 template<typename T>
-const Quaternion<T> Quaternion<T>::operator*(const Quaternion<T> &rhs) const 
+Quaternion<T> Quaternion<T>::operator*(const Quaternion<T> &rhs) const 
 {
 return Quaternion<T>
 	(
-	this->q[0]*rhs.q[0]-this->q[1]*rhs.q[1]-this->q[2]*rhs.q[2]-this->q[3]*rhs.q[3],
-	this->q[0]*rhs.q[1]+this->q[1]*rhs.q[0]+this->q[2]*rhs.q[3]-this->q[3]*rhs.q[2],
-	this->q[0]*rhs.q[2]+this->q[2]*rhs.q[0]+this->q[3]*rhs.q[1]-this->q[1]*rhs.q[3],
-	this->q[0]*rhs.q[3]+this->q[3]*rhs.q[0]+this->q[1]*rhs.q[2]-this->q[2]*rhs.q[1]
+	q[0]*rhs.q[0]-q[1]*rhs.q[1]-q[2]*rhs.q[2]-q[3]*rhs.q[3],
+	q[0]*rhs.q[1]+q[1]*rhs.q[0]+q[2]*rhs.q[3]-q[3]*rhs.q[2],
+	q[0]*rhs.q[2]+q[2]*rhs.q[0]+q[3]*rhs.q[1]-q[1]*rhs.q[3],
+	q[0]*rhs.q[3]+q[3]*rhs.q[0]+q[1]*rhs.q[2]-q[2]*rhs.q[1]
 	);
 };	
+
+template<typename T>
+Quaternion<T> Quaternion<T>::times_vec3(const T *rhs) const
+{
+return Quaternion<T>
+        (
+       -q[1]*rhs[0]-q[2]*rhs[1]-q[3]*rhs[2],
+        q[0]*rhs[0]+q[2]*rhs[2]-q[3]*rhs[1],
+        q[0]*rhs[1]+q[3]*rhs[0]-q[1]*rhs[2],
+        q[0]*rhs[2]+q[1]*rhs[1]-q[2]*rhs[0]
+        );
+};
+
+template<typename T>
+Quaternion<T> Quaternion<T>::vec3_times(const T *lhs) const
+{
+return Quaternion<T>
+        (
+       -lhs[0]*q[1]-lhs[1]*q[2]-lhs[2]*q[3],
+        lhs[0]*q[0]+lhs[1]*q[3]-lhs[2]*q[2],
+        lhs[1]*q[0]+lhs[2]*q[1]-lhs[0]*q[3],
+        lhs[2]*q[0]+lhs[0]*q[2]-lhs[1]*q[1]
+        );
+};
+
+
 
 
 //basically the same code as in normquat2rotmat, but avoiding extra storage
