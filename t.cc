@@ -20,6 +20,8 @@
 
 #include <time.h>
 #include "la.h"
+#include "vecmat3.h"
+#include "quaternion.h"
 
 using namespace std;
 using namespace LA;
@@ -1848,7 +1850,7 @@ double det=determinant_destroy(a);
 cout << "det= "<<det<<endl;
 }
 
-if(1)
+if(0)
 {
 bitvector v(3);
 v.assign(0,0);
@@ -1857,6 +1859,70 @@ v.assign(2,0);
 cin >>v;
 cout <<v;
 }
+
+if(1)
+{
+Quaternion<double> q(1.);
+Quaternion<double> p,r(q);
+p=r;
+q+=p;
+q-=r;
+r=p+q;
+r+=Quaternion<double>(0,8,8,8);
+r+= 2.;
+r/=4.;
+cout<<r<<endl;
+Quaternion<double> s(-1,2,1,2);
+Quaternion<double> t=r*s.conjugate();
+cout <<t<<" "<<t[0]<<" "<<t.norm()<<endl;
+Quaternion<double>tt = t.inverse();
+cout <<tt<<" "<<t*tt<<endl;
+r=s/t;
+r.normalize();
+cout<<r<<endl;
+Mat3<double> rotmat;
+quat2rotmat(r,rotmat);
+cout << rotmat[0][1]<<endl;
+r.normalize(true);
+NRMat<double> rotmat2(3,3),rotmat3(3,3);
+Quaternion<NRMat<double> > rotmatder;
+rotmatder[0].resize(3,3);
+rotmatder[1].resize(3,3);
+rotmatder[2].resize(3,3);
+rotmatder[3].resize(3,3);
+normquat2rotmatder(r,rotmatder);
+cout << rotmatder;
+normquat2rotmat(r,rotmat2);
+normquat2rotmat(-r,rotmat3);
+cout << rotmat2<<endl;
+cout << rotmat3<<endl;
+Quaternion<double> rr;
+rotmat2normquat(rotmat2,rr);
+cout <<"orig "<<r<<endl;
+cout <<"reconstruct "<<rr<<endl;
+cout <<"diff " <<r-rr<<endl;
+Vec3<double> eul;
+r.normquat2euler(eul);
+cout<<eul[0]<<" " <<eul[1]<<" "<<eul[2]<<endl;
+Vec3<double> axis={0,1/sqrt(2),1/sqrt(2)};
+Quaternion<double> rrr;
+rrr.axis2normquat(axis,0.5);
+NRVec<double> axis2(3);
+double angle;
+rrr.normquat2axis(&axis2[0],angle);
+cout <<"back angle "<<angle<<" "<<axis2<<endl;
+Vec3<double> vec={1,2,3};
+Quaternion<double> qvec(vec);
+Quaternion<double>  rvec = qvec.rotateby(rrr);
+Quaternion<double>  rvec2 = qvec.rotateby(rrr.conjugate());
+cout <<rvec<<endl;
+cout <<rvec2<<endl;
+Quaternion<double> rrvec = rvec.rotateby(rrr.conjugate());
+cout <<rrvec<<endl;
+Vec3<double>  rotvec;
+rrr.rotate(rotvec,vec);
+}
+
 
 
 }

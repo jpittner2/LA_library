@@ -43,14 +43,14 @@ public:
 	//compiler generates default copy constructor and assignment operator
 	
 	//formal indexing
-	const T operator[](const int i) const {return this->q[i];};
-	T& operator[](const int i) {return this->q[i];};
+	inline const T operator[](const int i) const {return q[i];};
+	inline T& operator[](const int i) {return q[i];};
 
 	//operations of quaternions with scalars
 	Quaternion& operator=(const T x) {q[0]=x; memset(&q[1],0,3*sizeof(T)); return *this;};  //quaternion from real 
-	Quaternion& operator+=(const T rhs) {this->q[0]+=rhs; return *this;};
-	Quaternion& operator-=(const T rhs) {this->q[0]-=rhs; return *this;};
-	Quaternion& operator*=(const T rhs) {this->q[0]*=rhs; this->q[1]*=rhs; this->q[2]*=rhs; this->q[3]*=rhs; return *this;};
+	Quaternion& operator+=(const T rhs) {q[0]+=rhs; return *this;};
+	Quaternion& operator-=(const T rhs) {q[0]-=rhs; return *this;};
+	Quaternion& operator*=(const T rhs) {q[0]*=rhs; q[1]*=rhs; q[2]*=rhs; q[3]*=rhs; return *this;};
 	Quaternion& operator/=(const T rhs) {return *this *= ((T)1/rhs);};
 	const Quaternion operator+(const T rhs) const {return Quaternion(*this) += rhs;};
         const Quaternion operator-(const T rhs) const {return Quaternion(*this) -= rhs;};
@@ -59,20 +59,27 @@ public:
 
 	//quaternion algebra
 	const Quaternion operator-() const {Quaternion r(*this); r.q[0]= -r.q[0]; r.q[1]= -r.q[1]; r.q[2]= -r.q[2]; r.q[3]= -r.q[3]; return r;}; //unary minus
-	Quaternion& operator+=(const Quaternion &rhs) {this->q[0]+=rhs.q[0];this->q[1]+=rhs.q[1];this->q[2]+=rhs.q[2];this->q[3]+=rhs.q[3]; return *this;};
-	Quaternion& operator-=(const Quaternion &rhs) {this->q[0]-=rhs.q[0];this->q[1]-=rhs.q[1];this->q[2]-=rhs.q[2];this->q[3]-=rhs.q[3]; return *this;};
+	Quaternion& operator+=(const Quaternion &rhs) {q[0]+=rhs.q[0];q[1]+=rhs.q[1];q[2]+=rhs.q[2];q[3]+=rhs.q[3]; return *this;};
+	Quaternion& operator-=(const Quaternion &rhs) {q[0]-=rhs.q[0];q[1]-=rhs.q[1];q[2]-=rhs.q[2];q[3]-=rhs.q[3]; return *this;};
 	const Quaternion operator+(const Quaternion &rhs) const {return Quaternion(*this) += rhs;};
 	const Quaternion operator-(const Quaternion &rhs) const {return Quaternion(*this) -= rhs;};
 	const Quaternion operator*(const Quaternion &rhs) const;
 	Quaternion& conjugateme(void) {q[1] = -q[1]; q[2] = -q[2]; q[3] = -q[3]; return *this;}
 	Quaternion conjugate(void) const {return Quaternion(*this).conjugateme();}
-	T normsqr(void) const {return q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3];};
-	T norm(void) const {return sqrt(this->normsqr());};
-	Quaternion& normalize(bool unique_sign=false) {*this /= this->norm(); if(unique_sign && q[0]<0) *this *= (T)-1; return *this;};
-	Quaternion inverse(void) const {return Quaternion(*this).conjugateme()/this->normsqr();};
+	T dot(const Quaternion &rhs) const  {return q[0]*rhs.q[0] + q[1]*rhs.q[1] + q[2]*rhs.q[2] + q[3]*rhs.q[3];};
+	T normsqr(void) const {return dot(*this);};
+	T norm(void) const {return sqrt(normsqr());};
+	Quaternion& normalize(bool unique_sign=false) {*this /= norm(); if(unique_sign && q[0]<0) *this *= (T)-1; return *this;};
+	Quaternion inverse(void) const {return Quaternion(*this).conjugateme()/normsqr();};
 	const Quaternion operator/(const Quaternion &rhs) const {return *this * rhs.inverse();};
 	Quaternion rotateby(const Quaternion &rhs); //conjugation-rotation of this by NORMALIZED  rhs
-	void rotate(T *to, const T *from) const; //rotate xyz vector by NORMALIZED *this
+	void rotate(T *to, const T *from, Quaternion<T> *grad=NULL) const; //rotate xyz vector by NORMALIZED *this
+	Quaternion rotate_match(T *to, const T *from, const T *match) const; //gradient of quaternion rotation which should match a given vector by rotating the from vector 
+
+	//some conversions
+	void  normquat2euler(T *) const; //"euler" or Tait-Bryan angles [corresponding to meul -r -T xyz -d -t -R]
+	void axis2normquat(const T *axis, const T &angle);
+	void normquat2axis(T *axis,  T &angle) const;
 	};
 
 	
@@ -97,27 +104,40 @@ return s;
 }
 
 
-//"euler" or Tait-Bryan angles [corresponding to meul -r -T xyz -d -t -R]
-template<typename T>
-void  normquat2euler(const Quaternion<T> &q, T *);
 
 
-//the following must be in .h due to the generic M type which is unspecified and can be any type providing [][], either plain C matrix or std::matrix or LA matrix
+//the following must be in .h due to the generic M type which is unspecified and can be any type providing [][], either plain C matrix, Mat3 class, or std::matrix or LA matrix NRMat
 
 //conversion between quanternions and rotation matrices
 //
 template<typename T, typename M>
 void normquat2rotmat(const Quaternion<T> &q, M &a)
 {
-a[0][0] = 2*q[0]*q[0]-1+2*q[1]*q[1];
-a[0][1] = 2*(q[1]*q[2]+q[0]*q[3]);
-a[0][2] = 2*(q[1]*q[3]-q[0]*q[2]);
-a[1][0] = 2*(q[1]*q[2]-q[0]*q[3]);
-a[1][1] = 2*q[0]*q[0]-1+2*q[2]*q[2];
-a[1][2] = 2*(q[2]*q[3]+q[0]*q[1]);
-a[2][0] = 2*(q[1]*q[3]+q[0]*q[2]);
-a[2][1] = 2*(q[2]*q[3]-q[0]*q[1]);
-a[2][2] = 2*q[0]*q[0]-1+2*q[3]*q[3];
+//some explicit common subexpression optimizations
+{
+T q00= q[0]*q[0];
+T q11= q[1]*q[1];
+T q22= q[2]*q[2];
+T q33= q[3]*q[3];
+
+a[0][0] = q00+q11-q22-q33;
+a[1][1] = q00+q22-q11-q33;
+a[2][2] = q00+q33-q11-q22;
+}
+
+T q01= q[0]*q[1];
+T q02= q[0]*q[2];
+T q03= q[0]*q[3];
+T q12= q[1]*q[2];
+T q13= q[1]*q[3];
+T q23= q[2]*q[3];
+
+a[0][1] = 2*(q12+q03);
+a[0][2] = 2*(q13-q02);
+a[1][0] = 2*(q12-q03);
+a[1][2] = 2*(q23+q01);
+a[2][0] = 2*(q13+q02);
+a[2][1] = 2*(q23-q01);
 }
 
 template<typename T, typename M>
@@ -125,6 +145,57 @@ void quat2rotmat(Quaternion<T> q, M &a, const bool already_normalized=false)
 {
 if(!already_normalized) q.normalize();
 normquat2rotmat(q,a);
+}
+
+//derivative of the rotation matrix by quaternion elements
+template<typename T, typename M>
+void normquat2rotmatder(const Quaternion<T> &q, Quaternion<M> &a)
+{
+//some explicit common subexpression optimizations
+T q0= q[0]+q[0];
+T q1= q[1]+q[1];
+T q2= q[2]+q[2];
+T q3= q[3]+q[3];
+
+a[0][0][0]=  q0;
+a[0][0][1]=  q3;
+a[0][0][2]= -q2;
+a[0][1][0]= -q3;
+a[0][1][1]=  q0;
+a[0][1][2]=  q1;
+a[0][2][0]=  q2;
+a[0][2][1]= -q1;
+a[0][2][2]=  q0;
+
+a[1][0][0]=  q1;
+a[1][0][1]=  q2;
+a[1][0][2]=  q3;
+a[1][1][0]=  q2;
+a[1][1][1]= -q1;
+a[1][1][2]=  q0;
+a[1][2][0]=  q3;
+a[1][2][1]= -q0;
+a[1][2][2]= -q1;
+
+a[2][0][0]= -q2;
+a[2][0][1]=  q1;
+a[2][0][2]= -q0;
+a[2][1][0]=  q1;
+a[2][1][1]=  q2;
+a[2][1][2]=  q3;
+a[2][2][0]=  q0;
+a[2][2][1]=  q3;
+a[2][2][2]= -q2;
+
+a[3][0][0]= -q3;
+a[3][0][1]=  q0;
+a[3][0][2]=  q1;
+a[3][1][0]= -q0;
+a[3][1][1]= -q3;
+a[3][1][2]=  q2;
+a[3][2][0]=  q1;
+a[3][2][1]=  q2;
+a[3][2][2]=  q3;
 }
 
 
@@ -165,14 +236,6 @@ if(a[0][1]-a[1][0]<0) q[3] = -q[3];
 }
 
 
-//rotation about unit vector axis (given by pointer for simplicity)  through an angle to a normalized quaternion
-#ifndef AVOID_GONIOM_FUNC
-template<typename T>
-void axis2normquat(const T *axis, const T &angle, Quaternion<T> &q);
-
-template<typename T>
-void normquat2axis(const Quaternion<T> &q, T *axis,  T &angle);
-#endif
 
 
 

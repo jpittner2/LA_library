@@ -38,8 +38,39 @@ return Quaternion<T>
 
 //basically the same code as in normquat2rotmat, but avoiding extra storage
 template<typename T>
-void Quaternion<T>::rotate(T *to, const T *from) const 
+void Quaternion<T>::rotate(T *to, const T *from, Quaternion<T> *grad) const 
 {
+//some subexpression eliminations
+{
+T q00= q[0]*q[0];
+T q11= q[1]*q[1];
+T q22= q[2]*q[2];
+T q33= q[3]*q[3];
+
+to[0] = (q00+q11-q22-q33) * from[0];
+to[1] = (q00+q22-q11-q33) * from[1];
+to[2] = (q00+q33-q11-q22) * from[2];
+}
+
+T q01= q[0]*q[1];
+T q02= q[0]*q[2];
+T q03= q[0]*q[3];
+T q12= q[1]*q[2];
+T q13= q[1]*q[3];
+T q23= q[2]*q[3];
+
+T f0=from[0]+from[0];
+T f1=from[1]+from[1];
+T f2=from[2]+from[2];
+
+to[0] += (q12+q03)*f1;
+to[0] += (q13-q02)*f2;
+to[1] += (q12-q03)*f0;
+to[1] += (q23+q01)*f2;
+to[2] += (q13+q02)*f0;
+to[2] += (q23-q01)*f1;
+
+/*
 to[0] = (2*q[0]*q[0]-1+2*q[1]*q[1]) * from[0] +
          2*(q[1]*q[2]+q[0]*q[3]) *    from[1] +
          2*(q[1]*q[3]-q[0]*q[2]) *    from[2];
@@ -49,6 +80,26 @@ to[1] =  2*(q[1]*q[2]-q[0]*q[3]) *    from[0] +
 to[2] =  2*(q[1]*q[3]+q[0]*q[2])    * from[0] +
          2*(q[2]*q[3]-q[0]*q[1])    * from[1] +
         (2*q[0]*q[0]-1+2*q[3]*q[3]) * from[2];
+*/
+
+if(grad)
+	{
+	grad[0][0]=  q[0]*f0 + q[3]*f1 - q[2]*f2;
+	grad[0][1]=  q[1]*f0 + q[2]*f1 + q[3]*f2;
+	grad[0][2]= -q[2]*f0 + q[1]*f1 - q[0]*f2;
+	grad[0][3]= -q[3]*f0 + q[0]*f1 + q[1]*f2;
+
+        grad[1][0]= -q[3]*f0 + q[0]*f1 + q[1]*f2;
+        grad[1][1]=  q[2]*f0 - q[1]*f1 + q[0]*f2;
+        grad[1][2]=  q[1]*f0 + q[2]*f1 + q[3]*2;
+        grad[1][3]= -q[0]*f0 - q[3]*f1 + q[2]*f2;
+
+        grad[2][0]=  q[2]*f0 - q[1]*f1 + q[0]*f2;
+        grad[2][1]=  q[3]*f0 - q[0]*f1 - q[1]*f2;
+        grad[2][2]=  q[0]*f0 + q[3]*f1 - q[2]*f2;
+        grad[2][3]=  q[1]*f0 + q[2]*f1 + q[3]*f2;
+
+	}
 }
 
 
@@ -62,12 +113,24 @@ rhs.rotate(&r[1],&q[1]);
 return r;
 }
 
+template<typename T>
+Quaternion<T> Quaternion<T>::rotate_match(T *to, const T *from, const T *match) const
+{
+Quaternion<T> grad[3];
+Quaternion<T>::rotate(to, from, grad);
+Quaternion<T> derivative;
+derivative =  grad[0] * (to[0]-match[0]);
+derivative += grad[1] * (to[1]-match[1]);
+derivative += grad[2] * (to[2]-match[2]);
+return derivative;
+}
+
 
 //optionally skip this for microcontrollers if not needed
 //note that C++ standard headers should use float version of the functions for T=float
 #ifndef AVOID_GONIOM_FUNC
 template<typename T>
-void  normquat2euler(const Quaternion<T> &q, T *e)
+void Quaternion<T>::normquat2euler(T *e) const
 {
 e[0]= atan2(2*q[1]*q[2]-2*q[0]*q[3],2*q[0]*q[0]+2*q[1]*q[1]-1);
 e[1]= -asin(2*q[1]*q[3]+2*q[0]*q[2]);
@@ -75,7 +138,7 @@ e[2]= atan2(2*q[2]*q[3]-2*q[0]*q[1],2*q[0]*q[0]+2*q[3]*q[3]-1);
 }
 
 template<typename T>
-void axis2normquat(const T *axis, const T &angle, Quaternion<T> &q)
+void Quaternion<T>::axis2normquat(const T *axis, const T &angle)
 {
 T a = (T).5*angle;
 q[0]=cos(a);
@@ -86,7 +149,7 @@ q[3]=axis[2]*s;
 }
 
 template<typename T>
-void normquat2axis(const Quaternion<T> &q, T *axis,  T &angle)
+void Quaternion<T>::normquat2axis(T *axis,  T &angle) const
 {
 T s = sqrt(q[1]*q[1] + q[2]*q[2] +q[3]*q[3]);
 angle = 2*atan2(s,q[0]);
@@ -104,9 +167,6 @@ axis[2]= q[3]*s;
 template class Quaternion<T>; \
 
 #define INSTANTIZE2(T) \
-template void normquat2euler(const Quaternion<T> &q, T *e); \
-template void axis2normquat(const T *axis, const T &angle, Quaternion<T> &q); \
-template void normquat2axis(const Quaternion<T> &q, T *axis,  T &angle); \
 
 
 INSTANTIZE(float)
