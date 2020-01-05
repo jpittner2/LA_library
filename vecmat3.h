@@ -29,6 +29,9 @@
 #endif
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
+
+namespace LA_Vecmat3 {
 
 //forward declaration
 template <typename T> class Mat3;
@@ -81,7 +84,11 @@ public:
                 r[2] = q[0]*rhs.q[0][2] + q[1]*rhs.q[1][2] + q[2]*rhs.q[2][2];
                 return r;
                 }; //matrix times vector
-
+	//C-style IO
+	void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0],q[1],q[2]);};
+        void sprintf(char *f, const char *format) const {::sprintf(f,format,q[0],q[1],q[2]);};
+	int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0],q[1],q[2]);};
+        int sscanf(char *f, const char *format) const {return ::sscanf(f,format,q[0],q[1],q[2]);};
 };
 
 
@@ -166,6 +173,10 @@ public:
 		r[2][2]=  q[1][1]*q[0][0]-q[1][0]*q[0][1];
 		return r/determinant();
 		};
+	//C-style IO
+        void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0][0],q[0][1],q[0][2]); ::fprintf(f,format,q[1][0],q[1][1],q[1][2]); ::fprintf(f,format,q[2][0],q[2][1],q[2][2]);};
+        int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
+
 };
 
 
@@ -213,6 +224,6 @@ return s;
 }
 #endif
 
-
+}//namespace
 #endif /* _VECMAT3_H_ */
 

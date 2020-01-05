@@ -21,13 +21,16 @@
 #ifndef _QUATERNION_H_
 #define _QUATERNION_H_
 
+
 #ifndef AVOID_STDSTREAM
 #include <iostream>
 #endif
+#include <stdio.h>
 #include <string.h>
 #include <complex>
 #include <math.h>
 
+namespace LA_Quaternion {
 
 template <typename T>
 class Quaternion 
@@ -73,17 +76,25 @@ public:
 	T dot(const Quaternion &rhs) const  {return q[0]*rhs.q[0] + q[1]*rhs.q[1] + q[2]*rhs.q[2] + q[3]*rhs.q[3];};
 	T normsqr(void) const {return dot(*this);};
 	T norm(void) const {return sqrt(normsqr());};
-	Quaternion& normalize(bool unique_sign=false) {*this /= norm(); if(unique_sign && q[0]<0) *this *= (T)-1; return *this;};
+	Quaternion& normalize(T *getnorm=NULL, bool unique_sign=false) {T nn=norm(); if(getnorm) *getnorm=nn; *this /= nn; if(unique_sign && q[0]<0) *this *= (T)-1; return *this;};
 	Quaternion inverse(void) const {return Quaternion(*this).conjugateme()/normsqr();};
 	const Quaternion operator/(const Quaternion &rhs) const {return *this * rhs.inverse();};
 	Quaternion rotateby(const Quaternion &rhs); //conjugation-rotation of this by NORMALIZED  rhs
 	void rotate(T *to, const T *from, Quaternion<T> *grad=NULL) const; //rotate xyz vector by NORMALIZED *this
 	Quaternion rotate_match(T *to, const T *from, const T *match) const; //gradient of quaternion rotation which should match a given vector by rotating the from vector 
+	Quaternion commutator(const Quaternion &rhs) const {return *this * rhs - rhs * *this;}; //could be made more efficient
+	Quaternion anticommutator(const Quaternion &rhs) const {return *this * rhs + rhs * *this;}; //could be made more efficient
 
 	//some conversions
 	void  normquat2euler(T *) const; //"euler" or Tait-Bryan angles [corresponding to meul -r -T xyz -d -t -R]
 	void axis2normquat(const T *axis, const T &angle);
 	void normquat2axis(T *axis,  T &angle) const;
+
+	//C-style IO
+	void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0],q[1],q[2],q[3]);};
+	void sprintf(char *f, const char *format) const {::sprintf(f,format,q[0],q[1],q[2],q[3]);};
+	int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0],q[1],q[2],q[3]);};
+        int sscanf(char *f, const char *format) const {return ::sscanf(f,format,q[0],q[1],q[2],q[3]);};
 	};
 
 	
@@ -243,7 +254,61 @@ if(a[0][1]-a[1][0]<0) q[3] = -q[3];
 
 
 
+//Functions - cf. https://en.wikipedia.org/wiki/Quaternion 
 
+
+template<typename T>
+Quaternion<T> exp(const Quaternion<T> &x) 
+{
+Quaternion<T> r;
+T vnorm = sqrt(x[1]*x[1]+x[2]*x[2]+x[3]*x[3]);
+r[0] = cos(vnorm);
+vnorm = sin(vnorm)/vnorm;
+r[1] = x[1] * vnorm;
+r[2] = x[2] * vnorm;
+r[3] = x[3] * vnorm;
+r*= ::exp(x[0]);
+return r;
+}
+
+
+template<typename T>
+Quaternion<T> log(const Quaternion<T> &x) 
+{
+Quaternion<T> r;
+T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
+T xnorm = vnorm + x[0]*x[0];
+vnorm = sqrt(vnorm);
+xnorm = sqrt(xnorm);
+r[0] = ::log(xnorm);
+T tmp = acos(x[0]/xnorm)/vnorm;
+r[1] = x[1] * tmp;
+r[2] = x[2] * tmp;
+r[3] = x[3] * tmp;
+return r;
+}
+
+
+template<typename T>
+Quaternion<T> pow(const Quaternion<T> &x, const T &y)
+{
+Quaternion<T> r;
+T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
+T xnorm = vnorm + x[0]*x[0];
+vnorm = sqrt(vnorm);
+xnorm = sqrt(xnorm);
+T phi = acos(x[0]/xnorm);
+r[0] = cos(y*phi);
+T tmp = sin(y*phi)/vnorm;
+r[1] = x[1] * tmp;
+r[2] = x[2] * tmp;
+r[3] = x[3] * tmp;
+r *= ::pow(xnorm,y);
+return r;
+}
+
+
+} //namespace
 
 #endif /* _QUATERNION_H_ */
 

@@ -18,6 +18,8 @@
 
 #include "quaternion.h"
 
+using namespace LA_Quaternion;
+
 
 //do not replicate this code in each object file, therefore not in .h
 //and instantize the templates for the types needed
@@ -154,7 +156,6 @@ return derivative;
 
 //optionally skip this for microcontrollers if not needed
 //note that C++ standard headers should use float version of the functions for T=float
-#ifndef AVOID_GONIOM_FUNC
 template<typename T>
 void Quaternion<T>::normquat2euler(T *e) const
 {
@@ -184,7 +185,6 @@ axis[0]= q[1]*s;
 axis[1]= q[2]*s;
 axis[2]= q[3]*s;
 }
-#endif
 
 
 
@@ -192,18 +192,10 @@ axis[2]= q[3]*s;
 #define INSTANTIZE(T) \
 template class Quaternion<T>; \
 
-#define INSTANTIZE2(T) \
-
 
 INSTANTIZE(float)
 #ifndef QUAT_NO_DOUBLE
 INSTANTIZE(double)
 #endif
 
-#ifndef AVOID_GONIOM_FUNC
-INSTANTIZE2(float)
-#ifndef QUAT_NO_DOUBLE
-INSTANTIZE2(double)
-#endif
-#endif
 

@@ -24,7 +24,10 @@
 #include "quaternion.h"
 
 using namespace std;
+using namespace LA_Vecmat3;
+using namespace LA_Quaternion;
 using namespace LA;
+
 
 
 extern void test(const NRVec<double> &x);
@@ -1883,7 +1886,7 @@ cout<<r<<endl;
 Mat3<double> rotmat;
 quat2rotmat(r,rotmat);
 cout << rotmat[0][1]<<endl;
-r.normalize(true);
+r.normalize();
 NRMat<double> rotmat2(3,3),rotmat3(3,3);
 Quaternion<NRMat<double> > rotmatder;
 rotmatder[0].resize(3,3);
@@ -1921,6 +1924,11 @@ Quaternion<double> rrvec = rvec.rotateby(rrr.conjugate());
 cout <<rrvec<<endl;
 Vec3<double>  rotvec;
 rrr.rotate(rotvec,vec);
+Quaternion<double> qq={1.5,2,-3,2.123};
+cout << " test "<<qq*qq<<endl;
+cout <<"exp " <<exp(qq)<<endl;
+cout <<"log " <<log(qq)<<endl;
+cout <<"pow " <<pow(qq,0.5)<<endl;
 }
 
 
