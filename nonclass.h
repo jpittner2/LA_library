@@ -100,7 +100,7 @@ extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<LA_traits<T>:
 /*NOTE!!! all versions of diagonalize DESTROY A and generalized diagonalize also B matrix */
 
 declare_la(double)
-declare_la(complex<double>)
+declare_la(std::complex<double>)
 
 // Separate declarations
 //general nonsymmetric matrix and generalized diagonalization
@@ -110,8 +110,8 @@ extern void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 		NRMat<double> *b=NULL, NRVec<double> *beta=NULL); //this used real storage of eigenvectors like dgeev
 
 template<typename T>
-extern void gdiagonalize(NRMat<T> &a, NRVec< complex<double> > &w,
-		 NRMat< complex<double> >*vl, NRMat< complex<double> > *vr,
+extern void gdiagonalize(NRMat<T> &a, NRVec< std::complex<double> > &w,
+		 NRMat< std::complex<double> >*vl, NRMat< std::complex<double> > *vr,
 		 const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
 		NRMat<T> *b=NULL, NRVec<T> *beta=NULL); //eigenvectors are stored in complex matrices for T both double and complex
 
@@ -129,7 +129,7 @@ extern const typename LA_traits<T>::complextype complexmatrix (const T&, const T
 
 //Cholesky decomposition
 extern void cholesky(NRMat<double> &a, bool upper=1);
-extern void cholesky(NRMat<complex<double> > &a, bool upper=1);
+extern void cholesky(NRMat<std::complex<double> > &a, bool upper=1);
 
 //inverse by means of linear solve, preserving rhs intact
 template<typename T>
@@ -207,7 +207,7 @@ int linear_solve_x(NRMat<T> &A, T *B, const int rhsCount, const int eqCount, con
 //	the info parameter of dgesvx is returned (see man dgesvx)
 //------------------------------------------------------------------------------
 template<class T>
-int multiply_by_inverse(NRMat<T> &A, NRMat<T> &B, bool useEq, double *rcond);
+int multiply_by_inverse(NRMat<T> &A, NRMat<T> &B, bool useEq=false, double *rcond=NULL);
 
 
 //general submatrix, INDEX will typically be NRVec<int> or even int*
@@ -310,7 +310,7 @@ return r;
 //matrix functions via diagonalization
 
 extern NRMat<double> realmatrixfunction(NRMat<double> a, double (*f) (double)); //a has to by in fact symmetric
-extern NRMat<complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (double), double (*fim) (double)); //a has to by in fact symmetric
+extern NRMat<std::complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre) (double), double (*fim) (double)); //a has to by in fact symmetric
 
 template<typename T> 
 NRMat<T> matrixfunction(NRSMat<T> a, double (*f) (double)) //of symmetric/hermitian matrix
@@ -331,18 +331,18 @@ NRMat<T> matrixfunction(NRSMat<T> a, double (*f) (double)) //of symmetric/hermit
 
 
 template<typename T>
-extern NRMat<T> matrixfunction(NRMat<T> a, complex<double> (*f)(const complex<double> &)) //of a general real/complex matrix
+extern NRMat<T> matrixfunction(NRMat<T> a, std::complex<double> (*f)(const std::complex<double> &)) //of a general real/complex matrix
 {
 	int n = a.nrows();
-	NRVec<complex<double> > w(n);
-	NRMat<complex<double> > u(n,n),v(n,n);
+	NRVec<std::complex<double> > w(n);
+	NRMat<std::complex<double> > u(n,n),v(n,n);
 
 #ifdef debugmf
-NRMat<complex<double> > a0=a;
+NRMat<std::complex<double> > a0=a;
 #endif
 
         gdiagonalize<T>(a, w, &u, &v, false,n,0,false,NULL,NULL);//a gets destroyed, eigenvectors are rows
-        NRVec< complex<double> > z = diagofproduct(u, v, 1, 1);
+        NRVec< std::complex<double> > z = diagofproduct(u, v, 1, 1);
 
 #ifdef debugmf
 std::cout <<"TEST matrixfunction\n"<<w<<u<<v<<z;
@@ -351,7 +351,7 @@ std::cout <<"TEST matrixfunction2 "<< a0*v.transpose(1) - v.transpose(1)*diagona
 std::cout <<"TEST matrixfunction3 "<< u*v.transpose(1)<<diagonalmatrix(z)<<std::endl;
 #endif
 
-NRVec< complex<double> > wz(n);
+NRVec< std::complex<double> > wz(n);
 for (int i=0; i<a.nrows(); i++) wz[i] = w[i]/z[i];
 
 #ifdef debugmf
@@ -361,7 +361,7 @@ std::cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*
         for (int i=0; i<a.nrows(); i++) w[i] = (*f)(w[i])/z[i];
         u.diagmultl(w);
 
-        NRMat< complex<double> > r(n, n);
+        NRMat< std::complex<double> > r(n, n);
         r.gemm(0.0, v, 'c', u, 'n', 1.0);
 	return (NRMat<T>) r; //convert back to real if applicable by the explicit decomplexifying constructor; it is NOT checked to which accuracy the imaginary part is actually zero
 }
@@ -369,7 +369,7 @@ std::cout <<"TEST matrixfunction4 "<< a0<< v.transpose(true)*diagonalmatrix(wz)*
 
 
 
-extern complex<double> sqrtinv(const complex<double> &);
+extern std::complex<double> sqrtinv(const std::complex<double> &);
 extern double sqrtinv(const double);
 
 //functions on matrices
@@ -379,9 +379,9 @@ inline NRMat<double>  realsqrt(const NRMat<double> &a) { return realmatrixfuncti
 inline NRMat<double>  realsqrtinv(const NRMat<double> &a) { return realmatrixfunction(a,&sqrtinv); }
 inline NRMat<double>  log(const NRSMat<double> &a) { return matrixfunction(a,&std::log); }
 extern NRMat<double> log(const NRMat<double> &a);
-extern NRMat<complex<double> > log(const NRMat<complex<double> > &a);
-extern NRMat<complex<double> > exp0(const NRMat<complex<double> > &a);
-extern NRMat<complex<double> > copytest(const NRMat<complex<double> > &a);
+extern NRMat<std::complex<double> > log(const NRMat<std::complex<double> > &a);
+extern NRMat<std::complex<double> > exp0(const NRMat<std::complex<double> > &a);
+extern NRMat<std::complex<double> > copytest(const NRMat<std::complex<double> > &a);
 extern NRMat<double> copytest(const NRMat<double> &a);
 extern NRMat<double> exp0(const NRMat<double> &a);
 

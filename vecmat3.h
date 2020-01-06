@@ -76,14 +76,7 @@ public:
 	T normsqr(void) const {return dot(*this);};
 	T norm(void) const {return sqrt(normsqr());};
 	Vec3& normalize(void) {*this /= norm(); return *this;};
-	const Vec3 operator*(const Mat3<T> &rhs) const
-                {
-                Vec3 r;
-                r[0] = q[0]*rhs.q[0][0] + q[1]*rhs.q[1][0] + q[2]*rhs.q[2][0];
-                r[1] = q[0]*rhs.q[0][1] + q[1]*rhs.q[1][1] + q[2]*rhs.q[2][1];
-                r[2] = q[0]*rhs.q[0][2] + q[1]*rhs.q[1][2] + q[2]*rhs.q[2][2];
-                return r;
-                }; //matrix times vector
+	const Vec3 operator*(const Mat3<T> &rhs) const;
 	//C-style IO
 	void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0],q[1],q[2]);};
         void sprintf(char *f, const char *format) const {::sprintf(f,format,q[0],q[1],q[2]);};
@@ -103,10 +96,12 @@ public:
 	Mat3(void) {};
 	Mat3(const T x) {memset(q,0,9*sizeof(T)); q[0][0]=q[1][1]=q[2][2]=x;}; //scalar matrix
 	Mat3(const T* x) {memcpy(q,x,9*sizeof(T));} 
+	Mat3(const T x00, const T x01,const T x02,const T x10,const T x11,const T x12,const T x20,const T x21,const T x22) 
+		{q[0][0]=x00; q[0][1]=x01; q[0][2]=x02; q[1][0]=x10; q[1][1]=x11; q[1][2]=x12; q[2][0]=x20; q[2][1]=x21; q[2][2]=x22;};
 	
 	//get pointer to data transparently
-	inline operator const T*() const {return q;};
-	inline operator T*() {return q;};
+	inline operator const T*() const {return &q[0][0];};
+	inline operator T*() {return &q[0][0];};
 
 	//compiler generates default copy constructor and assignment operator
 	
@@ -129,50 +124,17 @@ public:
 
 	//Mat3 algebra
 	const Mat3 operator-() const {return *this * (T)-1;}; //unary minus
-	Mat3& operator+=(const Mat3 &rhs) {q[0][0]+=rhs.q[0][0];q[0][1]+=rhs.q[0][1];q[0][2]+=rhs.q[0][2]; q[1][0]+=rhs.q[1][0];q[1][1]+=rhs.q[1][1];q[1][2]+=rhs.q[1][2]; q[2][0]+=rhs.q[2][0];q[2][1]+=rhs.q[2][1];q[2][2]+=rhs.q[2][2]; return *this;};
-	Mat3& operator-=(const Mat3 &rhs) {q[0][0]-=rhs.q[0][0];q[0][1]-=rhs.q[0][1];q[0][2]-=rhs.q[0][2]; q[1][0]-=rhs.q[1][0];q[1][1]-=rhs.q[1][1];q[1][2]-=rhs.q[1][2]; q[2][0]-=rhs.q[2][0];q[2][1]-=rhs.q[2][1];q[2][2]-=rhs.q[2][2]; return *this;};
+	Mat3& operator+=(const Mat3 &rhs);
+	Mat3& operator-=(const Mat3 &rhs);
 	const Mat3 operator+(const Mat3 &rhs) const {return Mat3(*this) += rhs;};
 	const Mat3 operator-(const Mat3 &rhs) const {return Mat3(*this) -= rhs;};
-	const Mat3 operator*(const Mat3 &rhs) const
-		{
-		Mat3 r;
-		r[0][0]= q[0][0]*rhs.q[0][0] + q[0][1]*rhs.q[1][0] + q[0][2]*rhs.q[2][0];
-		r[0][1]= q[0][0]*rhs.q[0][1] + q[0][1]*rhs.q[1][1] + q[0][2]*rhs.q[2][1];
-		r[0][2]= q[0][0]*rhs.q[0][2] + q[0][1]*rhs.q[1][2] + q[0][2]*rhs.q[2][2];
-                r[1][0]= q[1][0]*rhs.q[0][0] + q[1][1]*rhs.q[1][0] + q[1][2]*rhs.q[2][0];
-                r[1][1]= q[1][0]*rhs.q[0][1] + q[1][1]*rhs.q[1][1] + q[1][2]*rhs.q[2][1];
-                r[1][2]= q[1][0]*rhs.q[0][2] + q[1][1]*rhs.q[1][2] + q[1][2]*rhs.q[2][2];
-                r[2][0]= q[2][0]*rhs.q[0][0] + q[2][1]*rhs.q[1][0] + q[2][2]*rhs.q[2][0];
-                r[2][1]= q[2][0]*rhs.q[0][1] + q[2][1]*rhs.q[1][1] + q[2][2]*rhs.q[2][1];
-                r[2][2]= q[2][0]*rhs.q[0][2] + q[2][1]*rhs.q[1][2] + q[2][2]*rhs.q[2][2];
-		return r;
-		};  //matrix product
-	const Vec3<T> operator*(const Vec3<T> &rhs) const
-		{
-		Vec3<T> r;
-		r[0] = q[0][0]*rhs.q[0] + q[0][1]*rhs.q[1] + q[0][2]*rhs.q[2];
-		r[1] = q[1][0]*rhs.q[0] + q[1][1]*rhs.q[1] + q[1][2]*rhs.q[2];
-		r[2] = q[2][0]*rhs.q[0] + q[2][1]*rhs.q[1] + q[2][2]*rhs.q[2];
-		return r;
-		}; //matrix times vector
+	const Mat3 operator*(const Mat3 &rhs) const; //matrix product
+	const Vec3<T> operator*(const Vec3<T> &rhs) const; //matrix times vector
 	T trace() const  {return q[0][0]+q[1][1]+q[2][2];};
-	T determinant() const {return q[0][0]*(q[2][2]*q[1][1]-q[2][1]*q[1][2])-q[1][0]*(q[2][2]*q[0][1]-q[2][1]*q[0][2])+q[2][0]*(q[1][2]*q[0][1]-q[1][1]*q[0][2]); };//determinant
-	void transposeme() {T t; t=q[0][1]; q[0][1]=q[1][0]; q[1][0]=t; t=q[0][2]; q[0][2]=q[2][0]; q[2][0]=t; t=q[1][2]; q[1][2]=q[2][1]; q[2][1]=t;};
+	T determinant() const;
+	void transposeme();
 	const Mat3 transpose() const {Mat3 r(*this); r.transposeme(); return r;};
-	const Mat3 inverse() const
-		{
-		Mat3 r;
-		r[0][0]=  q[2][2]*q[1][1]-q[2][1]*q[1][2];
-		r[0][1]= -q[2][2]*q[0][1]+q[2][1]*q[0][2];
-		r[0][2]=  q[1][2]*q[0][1]-q[1][1]*q[0][2];
-		r[1][0]= -q[2][2]*q[1][0]+q[2][0]*q[1][1];
-		r[1][1]=  q[2][2]*q[0][0]-q[2][0]*q[0][2];
-		r[1][2]= -q[1][2]*q[0][0]+q[1][0]*q[0][2];
-		r[2][0]=  q[2][1]*q[1][0]-q[2][0]*q[1][1];
-		r[2][1]= -q[2][1]*q[0][0]+q[2][0]*q[0][1];
-		r[2][2]=  q[1][1]*q[0][0]-q[1][0]*q[0][1];
-		return r/determinant();
-		};
+	const Mat3 inverse() const;
 	//C-style IO
         void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0][0],q[0][1],q[0][2]); ::fprintf(f,format,q[1][0],q[1][1],q[1][2]); ::fprintf(f,format,q[2][0],q[2][1],q[2][2]);};
         int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
@@ -184,45 +146,28 @@ public:
 //stream I/O
 #ifndef AVOID_STDSTREAM
 template <typename T>
-std::istream& operator>>(std::istream  &s, Vec3<T> &x)
-{
-s >> x.q[0];
-s >> x.q[1];
-s >> x.q[2];
-return s;
-}
+std::istream& operator>>(std::istream  &s, Vec3<T> &x);
 
 template <typename T>
-std::ostream& operator<<(std::ostream &s, const Vec3<T> &x) {
-s << x.q[0]<<" ";
-s << x.q[1]<<" ";
-s << x.q[2];
-return s;
-}
+std::ostream& operator<<(std::ostream &s, const Vec3<T> &x);
 
 template <typename T>
-std::istream& operator>>(std::istream  &s, Mat3<T> &x)
-{
-s >> x.q[0][0];
-s >> x.q[0][1];
-s >> x.q[0][2];
-s >> x.q[1][0];
-s >> x.q[1][1];
-s >> x.q[1][2];
-s >> x.q[2][0];
-s >> x.q[2][1];
-s >> x.q[2][2];
-return s;
-}
+std::istream& operator>>(std::istream  &s, Mat3<T> &x);
 
 template <typename T>
-std::ostream& operator<<(std::ostream &s, const Mat3<T> &x) {
-s << x.q[0][0]<<" "<< x.q[0][1]<<" " << x.q[0][2]<<std::endl;
-s << x.q[1][0]<<" "<< x.q[1][1]<<" " << x.q[1][2]<<std::endl;
-s << x.q[2][0]<<" "<< x.q[2][1]<<" " << x.q[2][2]<<std::endl;
-return s;
-}
+std::ostream& operator<<(std::ostream &s, const Mat3<T> &x);
 #endif
+
+//euler angles to rotation matrices cf. https://en.wikipedia.org/wiki/Euler_angles and NASA paper cited therein
+
+#define Euler_case(a,b,c) (((a)-'x')*9+((b)-'x')*3+((c)-'x'))
+
+template<typename T>
+void euler2rotmat(const T *eul, Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0);
+
+template<typename T>
+void rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0);
+
 
 }//namespace
 #endif /* _VECMAT3_H_ */

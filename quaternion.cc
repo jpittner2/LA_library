@@ -17,8 +17,10 @@
 */
 
 #include "quaternion.h"
+#include "vecmat3.h"
 
 using namespace LA_Quaternion;
+using namespace LA_Vecmat3;
 
 
 //do not replicate this code in each object file, therefore not in .h
@@ -155,14 +157,148 @@ return derivative;
 
 
 //optionally skip this for microcontrollers if not needed
-//note that C++ standard headers should use float version of the functions for T=float
+//note that C++ standard headers automatically use float versions  of the goniometric functions for T=float
 template<typename T>
-void Quaternion<T>::normquat2euler(T *e) const
+void Quaternion<T>::normquat2eulerzyx(T *e) const
 {
 e[0]= atan2(2*q[1]*q[2]-2*q[0]*q[3],2*q[0]*q[0]+2*q[1]*q[1]-1);
 e[1]= -asin(2*q[1]*q[3]+2*q[0]*q[2]);
 e[2]= atan2(2*q[2]*q[3]-2*q[0]*q[1],2*q[0]*q[0]+2*q[3]*q[3]-1);
 }
+
+
+template<typename T>
+void Quaternion<T>::normquat2euler(T *eul, const char *type) const
+{
+Mat3<T> rotmat;
+normquat2rotmat(*this,rotmat,false);
+rotmat2euler(eul,rotmat,type,false,false,false);
+}
+
+//could be done more efficiently since not all rotmat element s are needed in each case, but this is lazy implementation
+template<typename T>
+void Quaternion<T>::euler2normquat(const T *e, const char *type)
+{
+T s1=sin(e[0]*(T)0.5);
+T s2=sin(e[1]*(T)0.5);
+T s3=sin(e[2]*(T)0.5);
+T c1=cos(e[0]*(T)0.5);
+T c2=cos(e[1]*(T)0.5);
+T c3=cos(e[2]*(T)0.5);
+
+switch(Euler_case(type[0],type[1],type[2]))
+{
+
+case Euler_case('x','z','x'):
+	{
+        q[0] = c2*(c1*c3-s1*s3);
+        q[1] = c2*(s1*c3+c1*s3);
+        q[2] = -s2*(s1*c3-c1*s3);
+        q[3] = s2*(c1*c3+s1*s3);
+	}
+	break;
+
+case Euler_case('x','y','x'):
+	{
+        q[0] = c2*(c1*c3-s1*s3);
+        q[1] = c2*(s1*c3+c1*s3);
+        q[2] = s2*(c1*c3+s1*s3);
+        q[3] = s2*(s1*c3-c1*s3);
+	}
+	break;
+
+case Euler_case('y','x','y'):
+        {
+        q[0] = c2*(c1*c3-s1*s3);
+        q[1] = s2*(c1*c3+s1*s3);
+        q[2] = c2*(s1*c3+c1*s3);
+        q[3] = -s2*(s1*c3-c1*s3);
+        }
+	break;
+
+case Euler_case('y','z','y'):
+        {
+        q[0] = c2*(c1*c3-s1*s3);
+        q[1] = s2*(s1*c3-c1*s3);
+        q[2] = c2*(s1*c3+c1*s3);
+        q[3] = s2*(c1*c3+s1*s3);
+        }
+	break;
+
+case Euler_case('z','y','z'):
+        {
+        q[0] = c2*(c1*c3-s1*s3);
+        q[1] = -s2*(s1*c3-c1*s3);
+        q[2] = s2*(c1*c3+s1*s3);
+        q[3] = c2*(s1*c3+c1*s3);
+        }
+	break;
+
+case Euler_case('z','x','z'):
+        {
+        q[0] = c2*(c1*c3-s1*s3);
+        q[1] = s2*(c1*c3+s1*s3);
+        q[2] = s2*(s1*c3-c1*s3);
+        q[3] = c2*(s1*c3+c1*s3);
+        }
+	break;
+
+case Euler_case('x','z','y'):
+        {
+        q[0] = s1*s2*s3 +c1*c2*c3;
+        q[1] = s1*c2*c3 - c1*s2*s3;
+        q[2] = -s1*s2*c3+c1*c2*s3;
+        q[3] = s1*c2*s3 +c1*s2*c3;
+        }
+	break;
+
+case Euler_case('x','y','z'):
+        {
+	q[0] = -s1*s2*s3 + c1*c2*c3;
+	q[1] = s1*c2*c3 +c1*s2*s3;
+	q[2] = -s1*c2*s3 + c1*s2*c3;
+	q[3] = s1*s2*c3 + c1*c2*s3;
+        }
+	break;
+
+case Euler_case('y','x','z'):
+        {
+        q[0] = s1*s2*s3 + c1*c2*c3;
+        q[1] = s1*c2*s3 + c1*s2*c3;
+        q[2] = s1*c2*c3 - c1*s2*s3;
+        q[3] = -s1*s2*c3 + c1*c2*s3;
+        }
+	break;
+
+case Euler_case('y','z','x'):
+        {
+        q[0] = -s1*s2*s3 + c1*c2*c3;
+        q[1] = s1*s2*c3 + c1*c2*s3;
+        q[2] = s1*c2*c3 + c1*s2*s3;
+        q[3] = -s1*c2*s3 + c1*s2*c3;
+        }
+	break;
+
+case Euler_case('z','y','x'):
+        {
+	q[0] = c1*c2*c3 + s1*s2*s3;
+	q[1] = s1*s2*c3 - c1*c2*s3;
+	q[2] = -s1*c2*s3 - c1*s2*c3;
+	q[3] = -s1*c2*c3 + c1*s2*s3;
+        }
+	break;
+
+case Euler_case('z','x','y'):
+        {
+        q[0] = -s1*s2*s3 + c1*c2*c3;
+        q[1] = -s1*c2*s3 + c1*s2*c3;
+        q[2] = s1*s2*c3 +  c1*c2*s3;
+        q[3] = s1*c2*c3 + c1*s2*s3;
+        }
+	break;
+}//switch
+}
+
 
 template<typename T>
 void Quaternion<T>::axis2normquat(const T *axis, const T &angle)
@@ -188,9 +324,69 @@ axis[2]= q[3]*s;
 
 
 
+template<typename T>
+Quaternion<T> LA_Quaternion::exp(const Quaternion<T> &x) 
+{
+Quaternion<T> r;
+T vnorm = sqrt(x[1]*x[1]+x[2]*x[2]+x[3]*x[3]);
+r[0] = cos(vnorm);
+vnorm = sin(vnorm)/vnorm;
+r[1] = x[1] * vnorm;
+r[2] = x[2] * vnorm;
+r[3] = x[3] * vnorm;
+r*= ::exp(x[0]);
+return r;
+}
+
+
+//NOTE: log(exp(x))  need not be always = x ... log is not unique!
+//NOTE2: log(x*y) != log(y*x) != log(x)+log(y)
+template<typename T>
+Quaternion<T> LA_Quaternion::log(const Quaternion<T> &x) 
+{
+Quaternion<T> r;
+T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
+T xnorm = vnorm + x[0]*x[0];
+vnorm = sqrt(vnorm);
+xnorm = sqrt(xnorm);
+r[0] = ::log(xnorm);
+T tmp = acos(x[0]/xnorm)/vnorm;
+r[1] = x[1] * tmp;
+r[2] = x[2] * tmp;
+r[3] = x[3] * tmp;
+return r;
+}
+
+
+template<typename T>
+Quaternion<T> LA_Quaternion::pow(const Quaternion<T> &x, const T &y)
+{
+Quaternion<T> r;
+T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
+T xnorm = vnorm + x[0]*x[0];
+vnorm = sqrt(vnorm);
+xnorm = sqrt(xnorm);
+T phi = acos(x[0]/xnorm);
+r[0] = cos(y*phi);
+T tmp = sin(y*phi)/vnorm;
+r[1] = x[1] * tmp;
+r[2] = x[2] * tmp;
+r[3] = x[3] * tmp;
+r *= ::pow(xnorm,y);
+return r;
+}
+
+
+
+
+
 //force instantization
 #define INSTANTIZE(T) \
 template class Quaternion<T>; \
+template Quaternion<T> LA_Quaternion::pow(const Quaternion<T> &x, const T &y); \
+template Quaternion<T> LA_Quaternion::log(const Quaternion<T> &x); \
+template Quaternion<T> LA_Quaternion::exp(const Quaternion<T> &x); \
+
 
 
 INSTANTIZE(float)

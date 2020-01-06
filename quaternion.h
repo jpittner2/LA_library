@@ -85,8 +85,12 @@ public:
 	Quaternion commutator(const Quaternion &rhs) const {return *this * rhs - rhs * *this;}; //could be made more efficient
 	Quaternion anticommutator(const Quaternion &rhs) const {return *this * rhs + rhs * *this;}; //could be made more efficient
 
-	//some conversions
-	void  normquat2euler(T *) const; //"euler" or Tait-Bryan angles [corresponding to meul -r -T xyz -d -t -R]
+	//some conversions (for all 12 cases of euler angles go via rotation matrices), cf. also the 1977 NASA paper
+	void normquat2eulerzyx(T *eul) const;  //corresponds to [meul -r -T xyz -d -t -R] or  euler2rotmat(...,"xyz",true,true,true)
+	void euler2normquat(const T *eul, const char *type);
+	void normquat2euler(T *eul, const char *type) const; 
+	inline void eulerzyx2normquat(const T *eul) {euler2normquat(eul,"zyx");};  
+	//@quaternion to euler via rotation matrix
 	void axis2normquat(const T *axis, const T &angle);
 	void normquat2axis(T *axis,  T &angle) const;
 
@@ -98,8 +102,9 @@ public:
 	};
 
 	
-//stream I/O
+//stream I/O ... cannot be moved to .cc, since we do e.g. Quaternion<NRMat<double>>>
 #ifndef AVOID_STDSTREAM
+
 template <typename T>
 std::istream& operator>>(std::istream  &s, Quaternion<T> &x)
 {
@@ -110,8 +115,10 @@ s >> x.q[3];
 return s;
 }
 
+
 template <typename T>
-std::ostream& operator<<(std::ostream &s, const Quaternion<T> &x) {
+std::ostream& operator<<(std::ostream &s, const Quaternion<T> &x)
+{
 s << x.q[0]<<" ";
 s << x.q[1]<<" ";
 s << x.q[2]<<" ";
@@ -124,11 +131,24 @@ return s;
 
 
 //the following must be in .h due to the generic M type which is unspecified and can be any type providing [][], either plain C matrix, Mat3 class, or std::matrix or LA matrix NRMat
+//maybe we go via T* and recast it to T (*)[3] and move this to .cc to avoid replication of the code in multiple object files?
 
-//conversion between quanternions and rotation matrices
+//conversion from normalized quaternion to SU(2) matrix (+/- q yields different SU(2) element)
+template<typename T, typename M>
+void normquat2su2mat(const Quaternion<T> &q, M &a)
+{
+a[0][0] = std::complex<T>(q[0],q[1]);
+a[0][1] = std::complex<T>(q[2],q[3]);
+a[1][0] = std::complex<T>(-q[2],q[3]);
+a[1][1] = std::complex<T>(q[0],-q[1]);
+}
+
+
+//use transpose option to match nasa paper definition
+//conversion between quanternions and rotation matrices (+/- q yields the same rotation)
 //
 template<typename T, typename M>
-void normquat2rotmat(const Quaternion<T> &q, M &a)
+void normquat2rotmat(const Quaternion<T> &q, M &a, bool transpose=false)
 {
 //some explicit common subexpression optimizations
 {
@@ -149,24 +169,34 @@ T q12= q[1]*q[2];
 T q13= q[1]*q[3];
 T q23= q[2]*q[3];
 
+if(transpose) //effectively sign change of the temporaries
+	{
+	q01 = -q01;
+	q02 = -q03;
+	q03 = -q02;
+	}
 a[0][1] = 2*(q12+q03);
-a[0][2] = 2*(q13-q02);
 a[1][0] = 2*(q12-q03);
-a[1][2] = 2*(q23+q01);
+a[0][2] = 2*(q13-q02);
 a[2][0] = 2*(q13+q02);
+a[1][2] = 2*(q23+q01);
 a[2][1] = 2*(q23-q01);
 }
 
+
+//transpose option to match nasa
 template<typename T, typename M>
-void quat2rotmat(Quaternion<T> q, M &a, const bool already_normalized=false)
+void quat2rotmat(Quaternion<T> q, M &a,  bool transpose=false, const bool already_normalized=false)
 {
 if(!already_normalized) q.normalize();
-normquat2rotmat(q,a);
+normquat2rotmat(q,a,transpose);
 }
 
+
+//use transpose option to match nasa
 //derivative of the rotation matrix by quaternion elements
 template<typename T, typename M>
-void normquat2rotmatder(const Quaternion<T> &q, Quaternion<M> &a)
+void normquat2rotmatder(const Quaternion<T> &q, Quaternion<M> &a, bool transpose=false)
 {
 //some explicit common subexpression optimizations
 T q0= q[0]+q[0];
@@ -213,18 +243,29 @@ a[3][1][2]=  q2;
 a[3][2][0]=  q1;
 a[3][2][1]=  q2;
 a[3][2][2]=  q3;
+
+if(transpose)
+	{
+	a[0].transposeme();
+	a[1].transposeme();
+	a[2].transposeme();
+	a[3].transposeme();
+	}
 }
 
 
 //normalized quaternion from rotation matrix
 //convention compatible with the paper on MEMS sensors by Sebastian O.H. Madgwick
-//the rotation matrix correcponds to transpose of (4) in Sarabandi and Thomas paper
+//the rotation matrix correcponds to transpose of (4) in Sarabandi and Thomas paper or the NASA paper
 //where the method is described
 
 template<typename T, typename M>
-void rotmat2normquat(const M &a, Quaternion<T> &q)
+void rotmat2normquat(const M &a, Quaternion<T> &q, bool transpose=false)
 {
 T tr= a[0][0]+a[1][1]+a[2][2];
+T a12m = transpose? a[1][0]-a[0][1] : a[0][1]-a[1][0];
+T a13m = transpose? a[2][0]-a[0][2] : a[0][2]-a[2][0];
+T a23m = transpose? a[2][1]-a[1][2] : a[1][2]-a[2][1];
 if(tr>=0)
         {
         q[0] = (T).5*sqrt((T)1. +tr);
@@ -235,11 +276,8 @@ if(tr>=0)
 else
         {
         T a12p = a[0][1]+a[1][0];
-        T a12m = a[0][1]-a[1][0];
         T a13p = a[0][2]+a[2][0];
-        T a13m = a[0][2]-a[2][0];
         T a23p = a[1][2]+a[2][1];
-        T a23m = a[1][2]-a[2][1];
 
         q[0] = (T).5*sqrt((a23m*a23m+a13m*a13m+a12m*a12m)/((T)3.-tr));
         q[1] = (T).5*sqrt((a23m*a23m+a12p*a12p+a13p*a13p)/((T)3.-a[0][0]+a[1][1]+a[2][2]));
@@ -247,65 +285,29 @@ else
         q[3] = (T).5*sqrt((a12m*a12m+a13p*a13p+a23p*a23p)/((T)3.+a[0][0]+a[1][1]-a[2][2]));
         }
 
-if(a[1][2]-a[2][1]<0) q[1] = -q[1];
-if(a[2][0]-a[0][2]<0) q[2] = -q[2];
-if(a[0][1]-a[1][0]<0) q[3] = -q[3];
+if(a23m<0) q[1] = -q[1];
+if(a13m>0) q[2] = -q[2];
+if(a12m<0) q[3] = -q[3];
 }
 
 
 
-//Functions - cf. https://en.wikipedia.org/wiki/Quaternion 
+//Quaternion Functions - cf. https://en.wikipedia.org/wiki/Quaternion 
 
 
 template<typename T>
-Quaternion<T> exp(const Quaternion<T> &x) 
-{
-Quaternion<T> r;
-T vnorm = sqrt(x[1]*x[1]+x[2]*x[2]+x[3]*x[3]);
-r[0] = cos(vnorm);
-vnorm = sin(vnorm)/vnorm;
-r[1] = x[1] * vnorm;
-r[2] = x[2] * vnorm;
-r[3] = x[3] * vnorm;
-r*= ::exp(x[0]);
-return r;
-}
+Quaternion<T> exp(const Quaternion<T> &x);
+
+
+//NOTE: log(exp(x))  need not be always = x ... log is not unique!
+//NOTE2: log(x*y) != log(y*x) != log(x)+log(y)
+template<typename T>
+Quaternion<T> log(const Quaternion<T> &x); 
 
 
 template<typename T>
-Quaternion<T> log(const Quaternion<T> &x) 
-{
-Quaternion<T> r;
-T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
-T xnorm = vnorm + x[0]*x[0];
-vnorm = sqrt(vnorm);
-xnorm = sqrt(xnorm);
-r[0] = ::log(xnorm);
-T tmp = acos(x[0]/xnorm)/vnorm;
-r[1] = x[1] * tmp;
-r[2] = x[2] * tmp;
-r[3] = x[3] * tmp;
-return r;
-}
+Quaternion<T> pow(const Quaternion<T> &x, const T &y);
 
-
-template<typename T>
-Quaternion<T> pow(const Quaternion<T> &x, const T &y)
-{
-Quaternion<T> r;
-T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
-T xnorm = vnorm + x[0]*x[0];
-vnorm = sqrt(vnorm);
-xnorm = sqrt(xnorm);
-T phi = acos(x[0]/xnorm);
-r[0] = cos(y*phi);
-T tmp = sin(y*phi)/vnorm;
-r[1] = x[1] * tmp;
-r[2] = x[2] * tmp;
-r[3] = x[3] * tmp;
-r *= ::pow(xnorm,y);
-return r;
-}
 
 
 } //namespace
