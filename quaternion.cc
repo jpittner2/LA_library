@@ -28,6 +28,35 @@ using namespace LA_Vecmat3;
 
 
 template<typename T>
+Quaternion<T>& Quaternion<T>::normalize(T *getnorm, bool unique_sign) 
+{
+T nn=norm(); 
+if(getnorm) *getnorm=nn; 
+if(unique_sign && q[0]<0)  nn= -nn;
+*this /= nn; 
+return *this;
+};
+
+template<>
+Quaternion<float> & Quaternion<float>::fast_normalize(bool unique_sign)
+{
+float nn=fast_sqrtinv(normsqr()); 
+if(unique_sign && q[0]<0)  nn= -nn;       
+*this *= nn;
+return *this;
+}
+
+template<typename T>
+Quaternion<T>& Quaternion<T>::fast_normalize(bool unique_sign)  
+{
+return normalize(NULL,unique_sign);
+};
+
+
+
+
+
+template<typename T>
 Quaternion<T> Quaternion<T>::operator*(const Quaternion<T> &rhs) const 
 {
 return Quaternion<T>
@@ -82,6 +111,7 @@ to[1] = (q00+q22-q11-q33) * from[1];
 to[2] = (q00+q33-q11-q22) * from[2];
 }
 
+
 T q01= q[0]*q[1];
 T q02= q[0]*q[2];
 T q03= q[0]*q[3];
@@ -121,7 +151,7 @@ if(grad)
 
         grad[1][0]= -q[3]*f0 + q[0]*f1 + q[1]*f2;
         grad[1][1]=  q[2]*f0 - q[1]*f1 + q[0]*f2;
-        grad[1][2]=  q[1]*f0 + q[2]*f1 + q[3]*2;
+        grad[1][2]=  q[1]*f0 + q[2]*f1 + q[3]*f2;
         grad[1][3]= -q[0]*f0 - q[3]*f1 + q[2]*f2;
 
         grad[2][0]=  q[2]*f0 - q[1]*f1 + q[0]*f2;
@@ -375,10 +405,6 @@ r[3] = x[3] * tmp;
 r *= ::pow(xnorm,y);
 return r;
 }
-
-
-
-
 
 //force instantization
 #define INSTANTIZE(T) \

@@ -38,7 +38,7 @@ class Quaternion
 public:
 	//just plain old data
 	T q[4];
-	//
+	//methods
 	Quaternion(void) {};
 	Quaternion(const T x, const T u=0, const T v=0, const T w=0) {q[0]=x; q[1]=u; q[2]=v; q[3]=w;}; //quaternion from real(s)
 	Quaternion(const std::complex<T> &rhs) {q[0]=rhs.real(); q[1]=rhs.imag(); q[2]=0; q[3]=0;} //quaternion from complex
@@ -50,7 +50,12 @@ public:
 	inline const T operator[](const int i) const {return q[i];};
 	inline T& operator[](const int i) {return q[i];};
 
+	//get pointer to data transparently
+        inline operator const T*() const {return q;};
+        inline operator T*() {return q;};
+
 	//operations of quaternions with scalars
+	void clear() {memset(q,0,4*sizeof(T));}
 	Quaternion& operator=(const T x) {q[0]=x; memset(&q[1],0,3*sizeof(T)); return *this;};  //quaternion from real 
 	Quaternion& operator+=(const T rhs) {q[0]+=rhs; return *this;};
 	Quaternion& operator-=(const T rhs) {q[0]-=rhs; return *this;};
@@ -76,23 +81,25 @@ public:
 	T dot(const Quaternion &rhs) const  {return q[0]*rhs.q[0] + q[1]*rhs.q[1] + q[2]*rhs.q[2] + q[3]*rhs.q[3];};
 	T normsqr(void) const {return dot(*this);};
 	T norm(void) const {return sqrt(normsqr());};
-	Quaternion& normalize(T *getnorm=NULL, bool unique_sign=false) {T nn=norm(); if(getnorm) *getnorm=nn; *this /= nn; if(unique_sign && q[0]<0) *this *= (T)-1; return *this;};
+	Quaternion& fast_normalize(bool unique_sign=false); //using quick 1/sqrt for floats
+	Quaternion& normalize(T *getnorm=NULL, bool unique_sign=false);
 	Quaternion inverse(void) const {return Quaternion(*this).conjugateme()/normsqr();};
 	const Quaternion operator/(const Quaternion &rhs) const {return *this * rhs.inverse();};
 	Quaternion rotateby(const Quaternion &rhs); //conjugation-rotation of this by NORMALIZED  rhs
 	void rotate(T *to, const T *from, Quaternion<T> *grad=NULL) const; //rotate xyz vector by NORMALIZED *this
-	Quaternion rotate_match(T *to, const T *from, const T *match) const; //gradient of quaternion rotation which should match a given vector by rotating the from vector 
+	Quaternion rotate_match(T *to, const T *from, const T *match) const; //gradient of quaternion rotation which should "to" = "from" transformed by *this to match a given vector by gradient descent
 	Quaternion commutator(const Quaternion &rhs) const {return *this * rhs - rhs * *this;}; //could be made more efficient
 	Quaternion anticommutator(const Quaternion &rhs) const {return *this * rhs + rhs * *this;}; //could be made more efficient
+	T geodesic_distance(const Quaternion &rhs) const {T t=dot(rhs); return acos(2*t*t-1);}; //length of great arc between two quaternions on the S3 hypersphere
 
 	//some conversions (for all 12 cases of euler angles go via rotation matrices), cf. also the 1977 NASA paper
 	void normquat2eulerzyx(T *eul) const;  //corresponds to [meul -r -T xyz -d -t -R] or  euler2rotmat(...,"xyz",true,true,true)
-	void euler2normquat(const T *eul, const char *type);
-	void normquat2euler(T *eul, const char *type) const; 
 	inline void eulerzyx2normquat(const T *eul) {euler2normquat(eul,"zyx");};  
-	//@quaternion to euler via rotation matrix
+	void normquat2euler(T *eul, const char *type) const; 
+	void euler2normquat(const T *eul, const char *type);
 	void axis2normquat(const T *axis, const T &angle);
 	void normquat2axis(T *axis,  T &angle) const;
+	
 
 	//C-style IO
 	void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0],q[1],q[2],q[3]);};
