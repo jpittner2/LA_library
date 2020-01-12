@@ -1,6 +1,6 @@
 /*
     LA: linear algebra C++ interface library
-    Copyright (C) 2008-2020 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    Copyright (C) 2020 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@
 
 namespace LA_Vecmat3 {
 
+float fast_sqrtinv(float);
+
 //forward declaration
 template <typename T> class Mat3;
 
@@ -60,6 +62,7 @@ public:
 	inline T& operator[](const int i) {return q[i];};
 
 	//operations of Vec3s with scalars
+	void clear() {memset(q,0,3*sizeof(T));}
 	Vec3& operator*=(const T rhs) {q[0]*=rhs; q[1]*=rhs; q[2]*=rhs; return *this;};
 	Vec3& operator/=(const T rhs) {return *this *= ((T)1/rhs);};
         const Vec3 operator*(const T rhs) const {return Vec3(*this) *= rhs;};
@@ -76,6 +79,7 @@ public:
 	T normsqr(void) const {return dot(*this);};
 	T norm(void) const {return sqrt(normsqr());};
 	Vec3& normalize(void) {*this /= norm(); return *this;};
+	Vec3& fast_normalize(void);
 	const Vec3 operator*(const Mat3<T> &rhs) const;
 	//C-style IO
 	void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0],q[1],q[2]);};
@@ -113,6 +117,7 @@ public:
 	
 
 	//operations of Mat3s with scalars
+	void clear() {memset(&q[0][0],0,9*sizeof(T));}
 	Mat3& operator+=(const T rhs) {q[0][0]+=rhs; q[1][1]+=rhs; q[2][2]+=rhs; return *this;};
 	Mat3& operator-=(const T rhs) {q[0][0]-=rhs; q[1][1]-=rhs; q[2][2]-=rhs; return *this;};
 	const Mat3 operator+(const T rhs) const {return Mat3(*this) += rhs;};

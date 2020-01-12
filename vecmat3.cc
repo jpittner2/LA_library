@@ -1,6 +1,6 @@
 /*
     LA: linear algebra C++ interface library
-    Copyright (C) 2008-2020 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    Copyright (C) 2020 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,33 @@
 #include "vecmat3.h"
 
 using namespace LA_Vecmat3;
+
+
+//http://en.wikipedia.org/wiki/Fast_inverse_square_root
+float LA_Vecmat3::fast_sqrtinv(float number )
+{
+ long i;
+ float x2, y;
+ const float threehalfs = 1.5F;
+
+ x2 = number * 0.5F;
+ y  = number;
+ i  = * ( long * ) &y;                       // evil floating point bit level hacking
+ i  = 0x5f3759df - ( i >> 1 );               // what the fuck? 
+ y  = * ( float * ) &i;
+ y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+ y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+ return y;
+}
+
+
+template<>
+Vec3<float> & Vec3<float>::fast_normalize(void) {*this *= fast_sqrtinv(normsqr()); return *this;};
+
+template<typename T>
+Vec3<T>& Vec3<T>::fast_normalize(void) {normalize(); return *this;};
+
 
 template<typename T>
 const Vec3<T> Vec3<T>::operator*(const Mat3<T> &rhs) const

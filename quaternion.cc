@@ -1,6 +1,6 @@
 /*
     LA: linear algebra C++ interface library
-    Copyright (C) 2008-2020 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    Copyright (C) 2020 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -184,6 +184,7 @@ derivative += grad[1] * (to[1]-match[1]);
 derivative += grad[2] * (to[2]-match[2]);
 return derivative;
 }
+
 
 
 //optionally skip this for microcontrollers if not needed
