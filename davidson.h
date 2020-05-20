@@ -26,7 +26,7 @@
 
 namespace LA {
 
-//Davidson diagonalization of real symmetric matrix (modified Lanczos)
+//Davidson diagonalization of real symmetric matrix (modified Lanczos), works also for right eigenvectors on non-symmetric matrix
 
 //matrix can be any class which has nrows(), ncols(), diagonalof(), issymmetric(), and gemv() available
 //does not even have to be explicitly stored - direct CI
@@ -211,7 +211,11 @@ for(i=0; i<n; ++i)
 }
 
 //orthogonalise to previous vectors
-vec1.normalize();
+typename LA_traits<T>::normtype vnorm= vec1.norm();
+if(vnorm) laerror("Zero Krylov vector in Davidson - perhaps try different initial guess");
+else
+{
+vec1 *= (1./vnorm);
 for(j=0; j<=krylovsize; ++j)
 	{
 	typename LA_traits<T>::normtype vnorm;
@@ -223,6 +227,7 @@ for(j=0; j<=krylovsize; ++j)
 		vec1 *= (1./vnorm);
 		} while (vnorm<0.99);
 	}
+}
 
 //here it is possible to apply some purification procedure if the eivector has to fulfill other conditions
 //vec1.normalize(); //after the purification
