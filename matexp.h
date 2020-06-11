@@ -131,12 +131,12 @@ return z;
 
 //general BCH expansion (can be written more efficiently in a specialization for matrices)
 template<class T>
-const T BCHexpansion (const T &h, const T &t, const int n, const bool verbose=0)\
+const T BCHexpansion (const T &h, const T &t, const int nmax, const bool verbose=0)
 {
 T result=h;
 double factor=1.;
 T z=h;
-for(int i=1; i<=n; ++i)
+for(int i=1; i<=nmax; ++i)
 	{
 	factor/=i;
 	z= z*t-t*z;
@@ -146,6 +146,55 @@ for(int i=1; i<=n; ++i)
 return result;
 }
 
+
+//implementation of nested commutators and BCH expansion applied to a certain ket recursively
+//for a class which has only a gemv operation rather than explicit storage of the objects (direct operation like in Davidson)
+//exp(-T) H exp(T) |x> = H |x> + [H,T] |x> + 1/2 [[H,T],T] |x> +1/3!  [[[H,T],T],T] |x> + ... (for right=1)
+//defining C_n^j(x) = [...[H,T],...T]_n T^j |x>
+//we precompute C_0^j(x) = H T^j |x> up to j=nmax
+//and then recursively C_n^j(x) =  C_{n-1}^{j+1}(x) - T  C_{n-1}^j(x)
+//we overwrite C_{n-1} by C_n in place and free the last one to save memory 
+//and accumulate the final results on the fly
+//for left,  C_0^j(x) remains same 
+//definition is C_n^j(x) = [T,...[T,H]]_n T^j |x>
+//and the recursion is C_n^j(x) =   T  C_{n-1}^j(x) -  C_{n-1}^{j+1}(x) 
+
+template<typename V, typename M1, typename M2>
+const V BCHtimes(const M1 &H, const char transH, const M2 &T, const char transT, const V &x, const int nmax, const bool right=1)
+{
+double factor=1.;
+NRVec<V> c(nmax+1); 
+c[0]=x;
+for(int j=1; j<=nmax; ++j)
+	{
+	c[j].resize(x.size());
+	T.gemv(0,c[j],transT,1,c[j-1]);
+	}
+for(int j=0; j<=nmax; ++j)
+	{
+	V tmp(x.size());
+	H.gemv(0,tmp,transH,1,c[j]);
+	c[j]=tmp;
+	}
+V result = c[0];
+for(int i=1; i<=nmax; ++i)
+        {
+	//recursive step in the dummy n index of c, overwriting on the fly
+	for(int j=0; j<=nmax-i; ++j)
+		{
+		V tmp = c[j+1];
+		if(right) T.gemv(1,tmp,transT,-1,c[j]);
+		else	T.gemv(-1,tmp,transT,1,c[j]);
+		c[j] = tmp;
+                }
+	c[nmax-i+1].resize(0); //free unnecessary memory
+
+	//accumulate the series
+        factor/=i;
+	result += c[0] * factor;
+	}
+return result;
+}
 
 template<class T>
 const T ipow( const T &x, int i)
