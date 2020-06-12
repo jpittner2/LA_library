@@ -131,7 +131,7 @@ return z;
 
 //general BCH expansion (can be written more efficiently in a specialization for matrices)
 template<class T>
-const T BCHexpansion (const T &h, const T &t, const int nmax, const bool verbose=0)
+const T BCHexpansion (const T &h, const T &t, const int nmax, const bool verbose=0, const bool right=1)
 {
 T result=h;
 double factor=1.;
@@ -139,7 +139,7 @@ T z=h;
 for(int i=1; i<=nmax; ++i)
 	{
 	factor/=i;
-	z= z*t-t*z;
+	if(right) z= z*t-t*z; else z= t*z-z*t;
 	if(verbose) std::cerr << "BCH contribution at order "<<i<<" : "<<z.norm()*factor<<std::endl;
 	result+= z*factor; 
 	}
