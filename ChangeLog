@@ -1,3 +1,11 @@
+11.06.2020 Nested commutators and Hausdorff formula applied to a ket vector using only matrix*vector operation
+10.06.2020 File IO for bitvector
+08.06.2020 Trick to access real and imag part of complex as l-value (pointer to real)
+12.01.2020 RELEASE 0.10
+06.01.2020 minor fix in multiply_by_inverse
+05.01.2020 quaternions and lightweight 3-dim vector and matrix class, compatible but independent from the remainder of LA, to be usable also on MCUs
+30.12.2019 removed #define complex
+13.11.2019 RELEASE 0.9
 12.11.2019 fourindex_dense with nosymetry implemented
 12.11.2019 fourindex.cc created for template specializations 
 12.11.2019 fourindex optional scaling and terminator 

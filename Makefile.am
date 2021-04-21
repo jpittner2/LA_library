@@ -1,6 +1,6 @@
 lib_LTLIBRARIES = libla.la
-include_HEADERS = fortran.h cuda_la.h auxstorage.h  davidson.h   laerror.h    mat.h          qsort.h             vec.h bisection.h   diis.h       la.h         noncblas.h     smat.h bitvector.h   fourindex.h  la_traits.h  nonclass.h     sparsemat.h sparsesmat.h csrmat.h conjgrad.h    gmres.h      matexp.h     permutation.h  
-libla_la_SOURCES = vec.cc mat.cc smat.cc sparsemat.cc sparsesmat.cc csrmat.cc laerror.cc noncblas.cc  bitvector.cc strassen.cc nonclass.cc cuda_la.cc fourindex.cc
+include_HEADERS = vecmat3.h quaternion.h fortran.h cuda_la.h auxstorage.h  davidson.h   laerror.h    mat.h          qsort.h             vec.h bisection.h   diis.h       la.h         noncblas.h     smat.h bitvector.h   fourindex.h  la_traits.h  nonclass.h     sparsemat.h sparsesmat.h csrmat.h conjgrad.h    gmres.h      matexp.h     permutation.h  
+libla_la_SOURCES = quaternion.cc vecmat3.cc vec.cc mat.cc smat.cc sparsemat.cc sparsesmat.cc csrmat.cc laerror.cc noncblas.cc  bitvector.cc strassen.cc nonclass.cc cuda_la.cc fourindex.cc
 check_PROGRAMS = t test
 t_SOURCES = t.cc t2.cc 
 test_SOURCES = test.cc
