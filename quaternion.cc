@@ -331,10 +331,11 @@ case Euler_case('z','x','y'):
 }
 
 
+//
 template<typename T>
 void Quaternion<T>::axis2normquat(const T *axis, const T &angle)
 {
-T a = (T).5*angle;
+T a = ((T).5)*angle;
 q[0]=cos(a);
 T s=sin(a);
 q[1]=axis[0]*s;

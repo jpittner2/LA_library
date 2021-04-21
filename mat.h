@@ -83,7 +83,7 @@ public:
 	//! complexifying constructor 
 	NRMat(const typename LA_traits_complex<T>::NRMat_Noncomplex_type &rhs, bool imagpart = false);
 	//! explicit decomplexifying constructor
-	explicit NRMat(const NRMat<complex<T> > &rhs, bool imagpart = false);
+	explicit NRMat(const NRMat<std::complex<T> > &rhs, bool imagpart = false);
 
 	//! explicit constructor converting symmetric matrix stored in packed form into a <code>NRMat<T></code> object
 	explicit NRMat(const NRSMat<T> &rhs);
@@ -191,8 +191,8 @@ public:
 		return result;
 	};
 	//! multiply this matrix of general type <code>T</code> by vector of type <code>complex<T></code>
-	const NRVec<complex<T> > operator*(const NRVec<complex<T> > &rhs) const {
-		NRVec<complex<T> > result(nn, rhs.getlocation());
+	const NRVec<std::complex<T> > operator*(const NRVec<std::complex<T> > &rhs) const {
+		NRVec<std::complex<T> > result(nn, rhs.getlocation());
 		result.gemv((T)0, *this, 'n', (T)1, rhs);
 		return result;
 	};
@@ -243,7 +243,7 @@ public:
 	//! perform the <b>gemv</b> operation with vector of type <code>T</code>
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const { r.gemv(beta, *this, trans, alpha, x); };
 	//! perform the <b>gemv</b> operation with vector of type <code>complex<T></code>
-	void gemv(const T beta, NRVec<complex<T> > &r, const char trans, const T alpha, const NRVec<complex<T> > &x) const { r.gemv(beta, *this, trans, alpha, x); };
+	void gemv(const T beta, NRVec<std::complex<T> > &r, const char trans, const T alpha, const NRVec<std::complex<T> > &x) const { r.gemv(beta, *this, trans, alpha, x); };
 
 	//! determine the pointer to the i<sup>th</sup> row
 	inline T* operator[](const int i);
@@ -289,6 +289,7 @@ public:
 
 	//! get the pointer to the data
 	inline operator T*();
+
 	//! get the const pointer to the data
 	inline operator const T*() const;
 
@@ -858,7 +859,7 @@ inline const double NRMat<double>::amin() const{
  * @return \f$A_{l,m}\f$ which maximizes \f$\left\{\left|\Re{}A_{i,j}\right|+\left|\Im{}A_{i,j}\right|\right}\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRMat<complex<double> >::amax() const{
+inline const std::complex<double> NRMat<std::complex<double> >::amax() const{
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -869,10 +870,10 @@ inline const complex<double> NRMat<complex<double> >::amax() const{
 	#endif
 #ifdef CUDALA
 	}else{
-		complex<double> ret(0.0, 0.0);
+		std::complex<double> ret(0.0, 0.0);
 		const size_t pozice = cublasIzamax((size_t)nn*mm, (cuDoubleComplex*)v, 1) - 1;
 		TEST_CUBLAS("cublasIzamax");
-		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
+		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 		return ret;
 	}
 #endif
@@ -885,8 +886,8 @@ inline const complex<double> NRMat<complex<double> >::amax() const{
  * @return \f$A_{l,m}\f$ which minimizes \f$\left\{\left|\Re{}A_{i,j}\right|+\left|\Im{}A_{i,j}\right|\right}\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRMat<complex<double> >::amin() const{
-	complex<double> ret(0.0, 0.0);
+inline const std::complex<double> NRMat<std::complex<double> >::amin() const{
+	std::complex<double> ret(0.0, 0.0);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -894,7 +895,7 @@ inline const complex<double> NRMat<complex<double> >::amin() const{
 		const size_t nm = (size_t)nn*mm;
 		int index(-1);
 		double val(0.0), min_val(0.0);
-		complex<double> z_val(0.0, 0.0);
+		std::complex<double> z_val(0.0, 0.0);
 
 		min_val = std::numeric_limits<double>::max();
 		for(register int i=0; i < nm; i++){
@@ -915,7 +916,7 @@ inline const complex<double> NRMat<complex<double> >::amin() const{
 	}else{
 		const size_t pozice = cublasIzamin((size_t)nn*mm, (cuDoubleComplex*)v, 1) - 1;
 		TEST_CUBLAS("cublasIzamin");
-		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
+		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}
 #endif
 	return ret;
@@ -1139,10 +1140,10 @@ void NRMat<T>::resize(int n, int m) {
  * @return matrix \f$B\f$ where \f$\Re B=A\f$ and \f$\Im B = 0\f$
  ******************************************************************************/
 template<typename T>
-NRMat<complex<T> > complexify(const NRMat<T> &rhs) {
+NRMat<std::complex<T> > complexify(const NRMat<T> &rhs) {
 	NOT_GPU(rhs);
 
-	NRMat<complex<T> > r(rhs.nrows(), rhs.ncols(), rhs.getlocation());
+	NRMat<std::complex<T> > r(rhs.nrows(), rhs.ncols(), rhs.getlocation());
 	for(register int i=0; i<rhs.nrows(); ++i){ 
 		for(register int j=0; j<rhs.ncols(); ++j) r(i,j) = rhs(i,j);
 	}

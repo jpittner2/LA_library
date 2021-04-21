@@ -75,6 +75,9 @@ public:
 	//extended, truncated const i.e. not on *this but return new entity, take care of modulo's bits
 	//logical shifts  <<= >>= << >> not implemented yet
 	//logical rotations not implemented yet
+	//unformatted file IO
+	void read(int fd, bool dimensions=1, bool transp=0);
+	void write(int fd, bool dimensions=1, bool transp=0);
 	};
 
 extern std::ostream & operator<<(std::ostream &s, const bitvector &x);

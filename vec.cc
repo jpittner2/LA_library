@@ -168,8 +168,8 @@ const NRVec<double> NRVec<double>::operator-() const {
  * @return the modified vector by value
  ******************************************************************************/
 template<>
-const NRVec<complex<double> > NRVec<complex<double> >::operator-() const {
-	NRVec<complex<double> > result(*this);
+const NRVec<std::complex<double> > NRVec<std::complex<double> >::operator-() const {
+	NRVec<std::complex<double> > result(*this);
 	result.copyonwrite();
 #ifdef CUDALA
 	if(location == cpu){
@@ -262,11 +262,11 @@ void NRVec<double>::randomize(const double &x){
  *	\li \c true current vector is smaller than vector \c rhs
  ******************************************************************************/
 template<>
-void NRVec<complex<double> >::randomize(const double &x) {
+void NRVec<std::complex<double> >::randomize(const double &x) {
 	NOT_GPU(*this);
 
 	for(register int i=0; i<nn; ++i){
-		v[i] = complex<double>(x*(2.*random()/(1. + RAND_MAX) - 1.), x*(2.*random()/(1. + RAND_MAX) - 1.));
+		v[i] = std::complex<double>(x*(2.*random()/(1. + RAND_MAX) - 1.), x*(2.*random()/(1. + RAND_MAX) - 1.));
 	}
 }
 
@@ -281,7 +281,7 @@ void NRVec<complex<double> >::randomize(const double &x) {
  *	\li \c true current vector is smaller than vector \c rhs
  ******************************************************************************/
 template<>
-NRVec<complex<double> >::NRVec(const NRVec<double> &rhs, bool imagpart): nn(rhs.size()){
+NRVec<std::complex<double> >::NRVec(const NRVec<double> &rhs, bool imagpart): nn(rhs.size()){
 
 	 count = new int;
 	*count = 1;
@@ -289,12 +289,12 @@ NRVec<complex<double> >::NRVec(const NRVec<double> &rhs, bool imagpart): nn(rhs.
 	location = rhs.getlocation();
 	if(location == cpu){
 #endif
-		v = (complex<double>*)new complex<double>[nn];
-		memset(v, 0, nn*sizeof(complex<double>));
+		v = (std::complex<double>*)new std::complex<double>[nn];
+		memset(v, 0, nn*sizeof(std::complex<double>));
 		cblas_dcopy(nn, &rhs[0], 1, ((double *)v) + (imagpart?1:0), 2);
 #ifdef CUDALA
 	}else{
-		v = (complex<double>*) gpualloc(nn*sizeof(complex<double>));
+		v = (std::complex<double>*) gpualloc(nn*sizeof(std::complex<double>));
 
 		cublasZscal(nn, CUZERO, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasZscal");
@@ -338,7 +338,7 @@ void NRVec<double>::axpy(const double alpha, const NRVec<double> &x) {
  * @param[in] x complex vector \f$\vec{x}\f$
  ******************************************************************************/
 template<>
-void NRVec<complex<double> >::axpy(const complex<double> alpha, const NRVec<complex<double> > &x){
+void NRVec<std::complex<double> >::axpy(const std::complex<double> alpha, const NRVec<std::complex<double> > &x){
 #ifdef DEBUG
 	if (nn != x.nn) laerror("incompatible vectors");
 #endif
@@ -382,7 +382,7 @@ void NRVec<double>::axpy(const double alpha, const double *x, const int stride){
  * @param[in] stride sets the stride
  ******************************************************************************/
 template<>
-void NRVec<complex<double> >::axpy(const complex<double> alpha, const complex<double> *x, const int stride){
+void NRVec<std::complex<double> >::axpy(const std::complex<double> alpha, const std::complex<double> *x, const int stride){
 	NOT_GPU(*this);
 
 	copyonwrite();
@@ -416,7 +416,7 @@ copyonwrite();
  * @return reference to the modified vector
  ******************************************************************************/
 template<>
-NRVec<complex<double> >& NRVec<complex<double> >::operator=(const complex<double> &a){
+NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator=(const std::complex<double> &a){
 copyonwrite();
 
 #ifdef CUDALA
@@ -425,7 +425,7 @@ copyonwrite();
 		cblas_zcopy(nn, &a, 0, v, 1);
 #ifdef CUDALA
 	}else{
-		smart_gpu_set(nn, (complex<double>)0, v);
+		smart_gpu_set(nn, (std::complex<double>)0, v);
 	}
 #endif	
 	return *this;
@@ -492,7 +492,7 @@ NRVec<double>& NRVec<double>::normalize(double *norm){
  * @return reference to the modified vector
  ******************************************************************************/
 template<>
-NRVec<complex<double> > & NRVec<complex<double> >::normalize(double *norm){
+NRVec<std::complex<double> > & NRVec<std::complex<double> >::normalize(double *norm){
 	double tmp(0.0);
 #ifdef CUDALA
 	if(location == cpu){
@@ -566,8 +566,8 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
  * @see gemm
  ******************************************************************************/
 template<>
-void NRVec<complex<double> >::gemv(const double beta, const NRMat<double> &A,
-                const char trans, const double alpha, const NRVec<complex<double> > &x) {
+void NRVec<std::complex<double> >::gemv(const double beta, const NRMat<double> &A,
+                const char trans, const double alpha, const NRVec<std::complex<double> > &x) {
 #ifdef DEBUG
 	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
 #endif
@@ -604,9 +604,9 @@ void NRVec<complex<double> >::gemv(const double beta, const NRMat<double> &A,
  * @see gemm
  ******************************************************************************/
 template<>
-void NRVec<complex<double> >::gemv(const complex<double> beta,
-		const NRMat<complex<double> > &A, const char trans, 
-		const complex<double> alpha, const NRVec<complex<double> > &x) {
+void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
+		const NRMat<std::complex<double> > &A, const char trans, 
+		const std::complex<double> alpha, const NRVec<std::complex<double> > &x) {
 #ifdef DEBUG
 	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
 #endif
@@ -673,8 +673,8 @@ void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
  * @see gemm, NRSMat<T>
  ******************************************************************************/
 template<>
-void NRVec<complex<double> >::gemv(const double beta, const NRSMat<double> &A,
-		const char trans, const double alpha, const NRVec<complex<double> > &x) {
+void NRVec<std::complex<double> >::gemv(const double beta, const NRSMat<double> &A,
+		const char trans, const double alpha, const NRVec<std::complex<double> > &x) {
 #ifdef DEBUG
 	if(A.ncols() != x.size()){ laerror("incompatible dimensions"); }
 #endif
@@ -708,9 +708,9 @@ void NRVec<complex<double> >::gemv(const double beta, const NRSMat<double> &A,
  * @see gemm, NRSMat<T>
  ******************************************************************************/
 template<>
-void NRVec<complex<double> >::gemv(const complex<double> beta,
-                const NRSMat<complex<double> > &A, const char trans,
-                const complex<double> alpha, const NRVec<complex<double> > &x){
+void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
+                const NRSMat<std::complex<double> > &A, const char trans,
+                const std::complex<double> alpha, const NRVec<std::complex<double> > &x){
 #ifdef DEBUG
 	if(A.ncols() != x.size()) laerror("incompatible dimensions");
 #endif
@@ -726,7 +726,7 @@ void NRVec<complex<double> >::gemv(const complex<double> beta,
 		const cuDoubleComplex _alpha = make_cuDoubleComplex(alpha.real(), alpha.imag());
 		const cuDoubleComplex  _beta = make_cuDoubleComplex(beta.real(), beta.imag());
 
-		cublasZhpmv('U', A.ncols(), _alpha, (cuDoubleComplex*)((const complex<double>*)A), (cuDoubleComplex*)(x.v), 1, _beta, (cuDoubleComplex*)(this->v), 1);
+		cublasZhpmv('U', A.ncols(), _alpha, (cuDoubleComplex*)((const std::complex<double>*)A), (cuDoubleComplex*)(x.v), 1, _beta, (cuDoubleComplex*)(this->v), 1);
 		TEST_CUBLAS("cublasZhpmv");
 	}
 #endif
@@ -771,11 +771,11 @@ const NRMat<double> NRVec<double>::otimes(const NRVec<double> &b,const bool conj
  * @param[in] scale complex scaling factor \f$\alpha\f$
  ******************************************************************************/
 template<>
-const NRMat<complex<double> > 
-NRVec<complex<double> >::otimes(const NRVec<complex<double> > &b, const bool conj, const complex<double> &scale) const {
+const NRMat<std::complex<double> > 
+NRVec<std::complex<double> >::otimes(const NRVec<std::complex<double> > &b, const bool conj, const std::complex<double> &scale) const {
 	
 	SAME_LOC(*this, b);
-	NRMat<complex<double> > result(0., nn, b.nn, this->getlocation());
+	NRMat<std::complex<double> > result(0., nn, b.nn, this->getlocation());
 
 #ifdef CUDALA
 	if(location == cpu){
@@ -816,8 +816,8 @@ int NRVec<T>::sort(int direction, int from, int to, int *perm) {
 }
 
 template<>
-NRVec<complex<double> > complexify(const NRVec<double> &rhs) {
-	NRVec<complex<double> > r(rhs.size(), rhs.getlocation());
+NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
+	NRVec<std::complex<double> > r(rhs.size(), rhs.getlocation());
 
 #ifdef CUDALA
 	if(rhs.getlocation() == cpu){
@@ -844,7 +844,7 @@ template void NRVec<T>::put(int fd, bool dim, bool transp) const; \
 template void NRVec<T>::get(int fd, bool dim, bool transp); \
 
 INSTANTIZE(double)
-INSTANTIZE(complex<double>)
+INSTANTIZE(std::complex<double>)
 INSTANTIZE(char)
 INSTANTIZE(short)
 INSTANTIZE(int)
@@ -869,7 +869,7 @@ template<> const NRMat<T> NRVec<T>::otimes(const NRVec<T> &b,const bool conj, co
 // Roman
 // following gemv are not implemented
 template<> void NRVec<double>::gemv(const double beta, const SparseMat<double> &a, const char trans,  const double alpha, const NRVec<double> &x, bool s) { laerror("gemv on unsupported types"); } 
-template<> void NRVec< complex<double> >::gemv(const complex<double> beta, const SparseMat< complex<double> > &a, const char trans,  const complex<double> alpha, const NRVec< complex<double> > &x, bool s) { laerror("gemv on unsupported types"); } 
+template<> void NRVec< std::complex<double> >::gemv(const std::complex<double> beta, const SparseMat< std::complex<double> > &a, const char trans,  const std::complex<double> alpha, const NRVec< std::complex<double> > &x, bool s) { laerror("gemv on unsupported types"); } 
 
 
 INSTANTIZE_DUMMY(char)
@@ -882,21 +882,21 @@ INSTANTIZE_DUMMY(unsigned short)
 INSTANTIZE_DUMMY(unsigned int)
 INSTANTIZE_DUMMY(unsigned long)
 INSTANTIZE_DUMMY(unsigned long long)
-INSTANTIZE_DUMMY(complex<char>)
-INSTANTIZE_DUMMY(complex<short>)
-INSTANTIZE_DUMMY(complex<int>)
-INSTANTIZE_DUMMY(complex<long>)
-INSTANTIZE_DUMMY(complex<long long>)
-INSTANTIZE_DUMMY(complex<unsigned char>)
-INSTANTIZE_DUMMY(complex<unsigned short>)
-INSTANTIZE_DUMMY(complex<unsigned int>)
-INSTANTIZE_DUMMY(complex<unsigned long>)
-INSTANTIZE_DUMMY(complex<unsigned long long>)
-INSTANTIZE_DUMMY(complex<complex<double> >)
-INSTANTIZE_DUMMY(complex<complex<float> >)
+INSTANTIZE_DUMMY(std::complex<char>)
+INSTANTIZE_DUMMY(std::complex<short>)
+INSTANTIZE_DUMMY(std::complex<int>)
+INSTANTIZE_DUMMY(std::complex<long>)
+INSTANTIZE_DUMMY(std::complex<long long>)
+INSTANTIZE_DUMMY(std::complex<unsigned char>)
+INSTANTIZE_DUMMY(std::complex<unsigned short>)
+INSTANTIZE_DUMMY(std::complex<unsigned int>)
+INSTANTIZE_DUMMY(std::complex<unsigned long>)
+INSTANTIZE_DUMMY(std::complex<unsigned long long>)
+INSTANTIZE_DUMMY(std::complex<std::complex<double> >)
+INSTANTIZE_DUMMY(std::complex<std::complex<float> >)
 
 template class NRVec<double>;
-template class NRVec<complex<double> >;
+template class NRVec<std::complex<double> >;
 template class NRVec<char>;
 template class NRVec<short>;
 template class NRVec<int>;

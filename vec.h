@@ -33,7 +33,7 @@ template <typename T> void lawritemat(FILE *file, const T *a, int r, int c,
 /***************************************************************************//**
  * static constants used in several cblas-routines
  ******************************************************************************/
-const static complex<double> CONE = 1.0, CMONE = -1.0, CZERO = 0.0;
+const static std::complex<double> CONE = 1.0, CMONE = -1.0, CZERO = 0.0;
 #ifdef CUDALA
 const static cuDoubleComplex CUONE = {1.,0.}, CUMONE = {-1.,0.}, CUZERO = {0.,0.};
 #endif
@@ -73,7 +73,7 @@ protected:
 public:
 	friend class NRSMat<T>;
 	friend class NRMat<T>;
-	template <typename U> friend NRVec<complex<U> > complexify(const NRVec<U>&);
+	template <typename U> friend NRVec<std::complex<U> > complexify(const NRVec<U>&);
 
 	typedef T ROWTYPE;
 
@@ -272,6 +272,7 @@ public:
 
 	//! get the pointer to the underlying data structure 
 	inline operator T*(); 
+
 	//! get the constant pointer to the underlying data structure 
 	inline operator const T*() const;
 
@@ -963,14 +964,14 @@ NRVec<T> & NRVec<T>::operator|=(const NRVec<T> &rhs) {
  * @see NRVec<T>::copyonwrite()
  ******************************************************************************/
 template<typename T>
-NRVec<complex<T> > complexify(const NRVec<T> &rhs) {
+NRVec<std::complex<T> > complexify(const NRVec<T> &rhs) {
 	NOT_GPU(rhs);
 
-	NRVec<complex<T> > r(rhs.size(), rhs.getlocation());
+	NRVec<std::complex<T> > r(rhs.size(), rhs.getlocation());
 	for(register int i=0; i<rhs.size(); ++i)  r[i] = rhs[i];
 	return r;
 }
-template<> NRVec<complex<double> > complexify<double>(const NRVec<double> &rhs);
+template<> NRVec<std::complex<double> > complexify<double>(const NRVec<double> &rhs);
 
 /***************************************************************************//**
  * routine for moving vector data between CPU and GPU memory
@@ -1039,7 +1040,7 @@ inline NRVec<double>& NRVec<double>::operator+=(const double &a) {
  * @return reference to the modified vector
  ******************************************************************************/
 template<>
-inline NRVec<complex<double> >& NRVec<complex<double> >::operator+=(const complex<double> &a) {
+inline NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator+=(const std::complex<double> &a) {
 	copyonwrite();
 #ifdef CUDALA
 	if(location == cpu){
@@ -1047,7 +1048,7 @@ inline NRVec<complex<double> >& NRVec<complex<double> >::operator+=(const comple
 		cblas_zaxpy(nn, &CONE, &a, 0, v, 1);
 #ifdef CUDALA
 	}else{
-		complex<double> *d = gpuputcomplex(a);
+		std::complex<double> *d = gpuputcomplex(a);
                 cublasZaxpy(nn, CUONE, (cuDoubleComplex *)d, 0, (cuDoubleComplex *)v, 1);
 		TEST_CUBLAS("cublasZaxpy");
                 gpufree(d);
@@ -1087,7 +1088,7 @@ inline NRVec<double>& NRVec<double>::operator-=(const double &a) {
  * @return reference to the modified vector
  ******************************************************************************/
 template<>
-inline NRVec<complex<double> >& NRVec<complex<double> >::operator-=(const complex<double> &a) {
+inline NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator-=(const std::complex<double> &a) {
 	copyonwrite();
 #ifdef CUDALA
 	if(location == cpu){
@@ -1095,7 +1096,7 @@ inline NRVec<complex<double> >& NRVec<complex<double> >::operator-=(const comple
 		cblas_zaxpy(nn, &CMONE, &a, 0, v, 1);
 #ifdef CUDALA
 	}else{
-		complex<double> *d = gpuputcomplex(a);
+		std::complex<double> *d = gpuputcomplex(a);
 		cublasZaxpy(nn, CUMONE, (cuDoubleComplex *)d, 0, (cuDoubleComplex *)v, 1);
 		TEST_CUBLAS("cublasZaxpy");
 		gpufree(d);
@@ -1137,7 +1138,7 @@ inline NRVec<double>& NRVec<double>::operator+=(const NRVec<double> &rhs) {
  * @return reference to the modified vector
  ******************************************************************************/
 template<>
-inline NRVec<complex<double> >& NRVec<complex<double> >::operator+=(const NRVec<complex<double> > &rhs) {
+inline NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator+=(const NRVec<std::complex<double> > &rhs) {
 #ifdef DEBUG
         if (nn != rhs.nn) laerror("incompatible dimensions");
 #endif
@@ -1189,7 +1190,7 @@ inline NRVec<double> & NRVec<double>::operator-=(const NRVec<double> &rhs) {
  * @return reference to the modified vector
  ******************************************************************************/
 template<>
-inline NRVec<complex<double> >& NRVec<complex<double> >::operator-=(const NRVec<complex<double> > &rhs) {
+inline NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator-=(const NRVec<std::complex<double> > &rhs) {
 #ifdef DEBUG
         if (nn != rhs.nn) laerror("incompatible dimensions");
 #endif
@@ -1237,7 +1238,7 @@ inline NRVec<double>& NRVec<double>::operator*=(const double &a) {
  * @return reference to the modified vector
  ******************************************************************************/
 template<>
-inline NRVec<complex<double> >& NRVec<complex<double> >::operator*=(const complex<double> &a) {
+inline NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator*=(const std::complex<double> &a) {
         copyonwrite();
 #ifdef CUDALA
 	if(location == cpu){
@@ -1285,11 +1286,11 @@ inline const double NRVec<double>::operator*(const NRVec<double> &rhs) const {
  * @return \f$\sum_{i=1}^N\overbar{\vec{x}_i}\cdot\vec{y}_i\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRVec<complex<double> >::operator*(const NRVec< complex<double> > &rhs) const {
+inline const std::complex<double> NRVec<std::complex<double> >::operator*(const NRVec< std::complex<double> > &rhs) const {
 #ifdef DEBUG
         if(nn != rhs.nn) laerror("incompatible dimensions");
 #endif
-        complex<double> dot;
+        std::complex<double> dot;
 	SAME_LOC(*this, rhs);
 #ifdef CUDALA
 	if(location == cpu){
@@ -1299,7 +1300,7 @@ inline const complex<double> NRVec<complex<double> >::operator*(const NRVec< com
 	}else{
 		const cuDoubleComplex val = cublasZdotc(nn, (cuDoubleComplex*)v, 1, (cuDoubleComplex*)rhs.v, 1);
 		TEST_CUBLAS("cublasZdotc");
-		dot = complex<double>(cuCreal(val), cuCimag(val)); 
+		dot = std::complex<double>(cuCreal(val), cuCimag(val)); 
 	}
 #endif
         return dot;
@@ -1324,8 +1325,8 @@ inline const double NRVec<double>::dot(const double *y, const int stride) const 
  * @return \f$\sum_{i=1}^N\vec{x}_{i}\cdot \overbar{y_{\mathrm{stride}\cdot(i-1) + 1}}\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRVec<complex<double> >::dot(const complex<double> *y, const int stride) const {
-        complex<double> dot;
+inline const std::complex<double> NRVec<std::complex<double> >::dot(const std::complex<double> *y, const int stride) const {
+        std::complex<double> dot;
 	NOT_GPU(*this);
         cblas_zdotc_sub(nn, y, stride, v, 1, &dot);
         return dot;
@@ -1358,7 +1359,7 @@ inline const double NRVec<double>::asum() const {
  * @return the value of this sum
  ******************************************************************************/
 template<>
-inline const double NRVec<complex<double> >::asum() const {
+inline const double NRVec<std::complex<double> >::asum() const {
 	double ret(0.0);
 #ifdef CUDALA
 	if(location == cpu){
@@ -1398,7 +1399,7 @@ inline const double  NRVec<double>::norm() const {
  * @return \f$\sum_{i=1}^N\left|\vec{x}_i\right|^2\f$
  ******************************************************************************/
 template<>
-inline const double NRVec< complex<double> >::norm() const {
+inline const double NRVec< std::complex<double> >::norm() const {
 	double ret(0.);
 #ifdef CUDALA
 	if(location == cpu){
@@ -1469,8 +1470,8 @@ inline const double NRVec<double>::amin() const {
  * @return \f$\vec{v}_{j}\f$ which maximizes \f$\left\{\left|\Re{}\vec{v}_{i}\right|+\left|\Im{}\vec{v}_{i}\right|\right}\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRVec<complex<double> >::amax() const {
-	complex<double> ret(0., 0.);
+inline const std::complex<double> NRVec<std::complex<double> >::amax() const {
+	std::complex<double> ret(0., 0.);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -1479,7 +1480,7 @@ inline const complex<double> NRVec<complex<double> >::amax() const {
 	}else{
 		const int pozice = cublasIzamax(nn, (cuDoubleComplex*)v, 1) - 1;
 		TEST_CUBLAS("cublasIzamax");
-		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
+		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}
 #endif
 	return ret;
@@ -1491,15 +1492,15 @@ inline const complex<double> NRVec<complex<double> >::amax() const {
  * @return \f$\vec{v}_{j}\f$ which minimizes \f$\left\{\left|\Re{}\vec{v}_{i}\right|+\left|\Im{}\vec{v}_{i}\right|\right}\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRVec<complex<double> >::amin() const {
-	complex<double> ret(0., 0.);
+inline const std::complex<double> NRVec<std::complex<double> >::amin() const {
+	std::complex<double> ret(0., 0.);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
 		// izamin seems not to be supported
 		int index(0);
 		double val(0.0), min_val(std::numeric_limits<double>::max());
-		complex<double> z_val(0.0, 0.0);
+		std::complex<double> z_val(0.0, 0.0);
 
 		for(register int i=0; i < nn; i++){
 			z_val = v[i];
@@ -1511,7 +1512,7 @@ inline const complex<double> NRVec<complex<double> >::amin() const {
 	}else{
 		const int pozice = cublasIzamin(nn, (cuDoubleComplex*)v, 1) - 1;
 		TEST_CUBLAS("cublasIzamin");
-		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
+		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}
 #endif
 	return ret;

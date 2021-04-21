@@ -127,12 +127,12 @@ public:
 	const T dot(const NRVec<T> &rhs) const;
 
 	const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn,rhs.getlocation()); result.gemv((T)0,*this,'n',(T)1,rhs); return result;};
-	const NRVec<complex<T> > operator*(const NRVec<complex<T> > &rhs) const {NRVec<complex<T> > result(nn,rhs.getlocation()); result.gemv((T)0,*this,'n',(T)1,rhs); return result;};
+	const NRVec<std::complex<T> > operator*(const NRVec<std::complex<T> > &rhs) const {NRVec<std::complex<T> > result(nn,rhs.getlocation()); result.gemv((T)0,*this,'n',(T)1,rhs); return result;};
 
 	const T* diagonalof(NRVec<T> &, const bool divide = 0, bool cache = false) const;
 
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const {r.gemv(beta,*this,trans,alpha,x);};
-	void gemv(const T beta, NRVec<complex<T> > &r, const char trans, const T alpha, const NRVec<complex<T> > &x) const {r.gemv(beta,*this,trans,alpha,x);};
+	void gemv(const T beta, NRVec<std::complex<T> > &r, const char trans, const T alpha, const NRVec<std::complex<T> > &x) const {r.gemv(beta,*this,trans,alpha,x);};
 
 	inline const T& operator[](const size_t ij) const;
 	inline T& operator[](const size_t ij);
@@ -309,8 +309,8 @@ inline NRSMat<double> & NRSMat<double>::operator*=(const double &a) {
  * @return reference to the modified matrix
  ******************************************************************************/
 template<>
-inline NRSMat<complex<double> > &
-NRSMat<complex<double> >::operator*=(const complex<double> &a) {
+inline NRSMat<std::complex<double> > &
+NRSMat<std::complex<double> >::operator*=(const std::complex<double> &a) {
 	copyonwrite();
 #ifdef CUDALA
 	if(location == cpu){
@@ -320,7 +320,7 @@ NRSMat<complex<double> >::operator*=(const complex<double> &a) {
 	}else{
 		const cuDoubleComplex _a = make_cuDoubleComplex(a.real(), a.imag());
 		cublasZscal(NN2, _a, (cuDoubleComplex*)v, 1);
-		TEST_CUBLAS("cublasZscal");//"NRSMat<complex<double> >& NRSMat<complex<double> >::operator*=(const complex<double> &)"
+		TEST_CUBLAS("cublasZscal");//"NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator*=(const std::complex<double> &)"
 	}
 #endif
 	return *this;
@@ -404,9 +404,9 @@ inline NRSMat<double>& NRSMat<double>::operator+=(const NRSMat<double> & rhs) {
  * @return reference to the modified matrix
  ******************************************************************************/
 template<>
-inline NRSMat<complex<double> >& NRSMat<complex<double> >::operator+=(const NRSMat<complex<double> > & rhs) {
+inline NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator+=(const NRSMat<std::complex<double> > & rhs) {
 #ifdef DEBUG
-	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<complex<double> >& NRSMat<complex<double> >::operator+=(const NRSMat<complex<double> > &)");
+	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator+=(const NRSMat<std::complex<double> > &)");
 #endif
 	SAME_LOC(*this, rhs);
 	copyonwrite();
@@ -418,7 +418,7 @@ inline NRSMat<complex<double> >& NRSMat<complex<double> >::operator+=(const NRSM
 #ifdef CUDALA
 	}else{
 		cublasZaxpy(NN2, CUONE, (cuDoubleComplex*)(rhs.v), 1, (cuDoubleComplex*)v, 1);
-		TEST_CUBLAS("cublasZaxpy");//"NRSMat<complex<double> >& NRSMat<complex<double> >::operator+=(const NRSMat<complex<double> > &)"
+		TEST_CUBLAS("cublasZaxpy");//"NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator+=(const NRSMat<std::complex<double> > &)"
 	}
 #endif
 	return *this;
@@ -474,9 +474,9 @@ inline NRSMat<double>& NRSMat<double>::operator-=(const NRSMat<double>& rhs) {
  * @return reference to the modified matrix
  ******************************************************************************/
 template<>
-inline NRSMat<complex<double> >& NRSMat<complex<double> >::operator-=(const NRSMat<complex<double> >& rhs) {
+inline NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator-=(const NRSMat<std::complex<double> >& rhs) {
 #ifdef DEBUG
-	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<complex<double> >& NRSMat<complex<double> >::operator-=(const NRSMat<complex<double> > &)");
+	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator-=(const NRSMat<std::complex<double> > &)");
 #endif
 	SAME_LOC(*this, rhs);
 	copyonwrite();
@@ -488,7 +488,7 @@ inline NRSMat<complex<double> >& NRSMat<complex<double> >::operator-=(const NRSM
 #ifdef CUDALA
 	}else{
 		cublasZaxpy(NN2, CUMONE, (cuDoubleComplex*)(rhs.v), 1, (cuDoubleComplex*)v, 1);
-		TEST_CUBLAS("cublasZaxpy");//"NRSMat<complex<double> >& NRSMat<complex<double> >::operator-=(const NRSMat<complex<double> > &)"
+		TEST_CUBLAS("cublasZaxpy");//"NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator-=(const NRSMat<std::complex<double> > &)"
 	}
 #endif
 	return *this;
@@ -779,8 +779,8 @@ inline const double NRSMat<double>::amin() const {
  * @return \f$A_{l,m}\f$ which maximizes \f$\left|\Re{}A_{i,j}\right| + \left|\Im{}A_{i,j}\right|\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRSMat< complex<double> >::amax() const{
-	complex<double> ret(0., 0.);
+inline const std::complex<double> NRSMat< std::complex<double> >::amax() const{
+	std::complex<double> ret(0., 0.);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -788,8 +788,8 @@ inline const complex<double> NRSMat< complex<double> >::amax() const{
 #ifdef CUDALA
 	}else{
 		const int pozice = cublasIzamax(NN2, (cuDoubleComplex*)v, 1) - 1;
-		TEST_CUBLAS("cublasIzamax");//"complex<double> NRSMat<complex<double> >::amax()"
-		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
+		TEST_CUBLAS("cublasIzamax");//"std::complex<double> NRSMat<std::complex<double> >::amax()"
+		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}
 #endif
 	return ret;
@@ -801,15 +801,15 @@ inline const complex<double> NRSMat< complex<double> >::amax() const{
  * @return \f$A_{l,m}\f$ which minimizes \f$\left|\Re{}A_{i,j}\right| + \left|\Im{}A_{i,j}\right|\f$
  ******************************************************************************/
 template<>
-inline const complex<double> NRSMat<complex<double> >::amin() const{
-	complex<double> ret(0., 0.);
+inline const std::complex<double> NRSMat<std::complex<double> >::amin() const{
+	std::complex<double> ret(0., 0.);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
 		// izamin seems not to be supported
 		int index(0);
 		double val(0.0), min_val(0.0);
-		complex<double> z_val(0.0, 0.0);
+		std::complex<double> z_val(0.0, 0.0);
 
 		min_val = std::numeric_limits<double>::max();
 		for(register size_t i = 0; i < NN2; i++){
@@ -821,8 +821,8 @@ inline const complex<double> NRSMat<complex<double> >::amin() const{
 #ifdef CUDALA
 	}else{
 		const int pozice = cublasIzamin(nn, (cuDoubleComplex*)v, 1) - 1;
-		TEST_CUBLAS("cublasIzamin");//"complex<double> NRSMat<complex<double> >::amin()"
-		gpuget(1, sizeof(complex<double>), v + pozice, &ret);
+		TEST_CUBLAS("cublasIzamin");//"std::complex<double> NRSMat<std::complex<double> >::amin()"
+		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}
 #endif
 	return ret;
@@ -1056,10 +1056,10 @@ void NRSMat<T>::moveto(const GPUID dest) {
  * @return matrix \f$B\f$ where \f$\Re B=A\f$ and \f$\Im B = 0\f$
  ******************************************************************************/
 template<typename T>
-NRSMat<complex<T> > complexify(const NRSMat<T> &rhs) {
+NRSMat<std::complex<T> > complexify(const NRSMat<T> &rhs) {
 	NOT_GPU(rhs);
 
-	NRSMat<complex<T> > r(rhs.nrows());
+	NRSMat<std::complex<T> > r(rhs.nrows());
 	for(register int i = 0; i<rhs.nrows(); ++i) 
 		for(register int j = 0; j<=i; ++j) r(i,j) = rhs(i,j);
 	return r;
@@ -1073,8 +1073,8 @@ NRSMat<complex<T> > complexify(const NRSMat<T> &rhs) {
  ******************************************************************************/
 /*
 template<>
-NRSMat<complex<double> > complexify(const NRSMat<double> &rhs) {
-	NRSMat<complex<double> > r(rhs.nrows(), rhs.getlocation());
+NRSMat<std::complex<double> > complexify(const NRSMat<double> &rhs) {
+	NRSMat<std::complex<double> > r(rhs.nrows(), rhs.getlocation());
 #ifdef CUDALA
 	if(rhs.getlocation() == cpu){
 #endif
@@ -1082,7 +1082,7 @@ NRSMat<complex<double> > complexify(const NRSMat<double> &rhs) {
 #ifdef CUDALA
 	}else{
 		cublasDcopy(rhs.size(), &(rhs[0]), 1, (double*)(&(r[0])), 2);
-		TEST_CUBLAS("cublasDcopy");//"NRSMat<complex<double> > complexify(const NRSMat<double> &)"
+		TEST_CUBLAS("cublasDcopy");//"NRSMat<std::complex<double> > complexify(const NRSMat<double> &)"
 	}
 #endif
 	return r;

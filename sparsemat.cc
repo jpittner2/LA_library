@@ -764,7 +764,7 @@ return r;
 }
 
 template<>
-void NRMat<complex<double> >::gemm(const complex<double>  &beta, const SparseMat<complex<double> > &a, const char transa, const NRMat<complex<double> > &b, const char transb, const complex<double>  &alpha)
+void NRMat<std::complex<double> >::gemm(const std::complex<double>  &beta, const SparseMat<std::complex<double> > &a, const char transa, const NRMat<std::complex<double> > &b, const char transb, const std::complex<double>  &alpha)
 {
 laerror("not implemented yet");
 }
@@ -1291,13 +1291,13 @@ template void SparseMat<T>::permuteindices(const NRVec<SPMatindex> &p);\
 
 
 INSTANTIZE(double)
-INSTANTIZE(complex<double>) //some functions are not OK for hermitean matrices, needs a revision!!!
+INSTANTIZE(std::complex<double>) //some functions are not OK for hermitean matrices, needs a revision!!!
 */
 
 //////////////////////////////////////////////////////////////////////////////
 //// forced instantization in the corresponding object file
 template class SparseMat<double>;
-template class SparseMat<complex<double> >;
+template class SparseMat<std::complex<double> >;
 
 #define INSTANTIZE(T) \
 template NRMat<T>::NRMat(const SparseMat<T> &rhs); \
@@ -1305,7 +1305,7 @@ template NRSMat<T>::NRSMat(const SparseMat<T> &rhs); \
 template NRVec<T>::NRVec(const SparseMat<T> &rhs);
 
 INSTANTIZE(double)
-INSTANTIZE(complex<double>)
+INSTANTIZE(std::complex<double>)
 
 
 }//namespace

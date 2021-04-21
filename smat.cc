@@ -208,12 +208,12 @@ const NRSMat<double> NRSMat<double>::operator-() const {
  * @return modified copy of this matrix
  ******************************************************************************/
 template <>
-const NRSMat<complex<double> > NRSMat<complex<double> >::operator-() const {
-	NRSMat<complex<double> > result(nn, getlocation());
+const NRSMat<std::complex<double> > NRSMat<std::complex<double> >::operator-() const {
+	NRSMat<std::complex<double> > result(nn, getlocation());
 #ifdef CUDALA
         if(location == cpu) {
 #endif
-		memcpy(result.v, v, NN2*sizeof(complex<double>));
+		memcpy(result.v, v, NN2*sizeof(std::complex<double>));
 		cblas_zscal(NN2, &CMONE, result.v, 1);
 
 #ifdef CUDALA
@@ -258,7 +258,7 @@ void NRSMat<double>::randomize(const double &x) {
  * distribution. The real and imaginary parts are generated independently.
  ******************************************************************************/
 template<>
-void NRSMat<complex<double> >::randomize(const double &x) {
+void NRSMat<std::complex<double> >::randomize(const double &x) {
 	for(register size_t i=0; i<NN2; ++i) v[i].real(x*(2.*random()/(1. + RAND_MAX) -1.));
 	for(register size_t i=0; i<NN2; ++i) v[i].imag(x*(2.*random()/(1. + RAND_MAX) -1.));
 	for(register int i=0; i<nn; ++i){
@@ -342,13 +342,13 @@ const NRMat<double> NRSMat<double>::operator*(const NRMat<double> &rhs) const {
  * @return matrix produt \f$S\times{}A\f$
  ******************************************************************************/
 template<>
-const NRMat<complex<double> >
-NRSMat<complex<double> >::operator*(const NRMat<complex<double> > &rhs) const {
+const NRMat<std::complex<double> >
+NRSMat<std::complex<double> >::operator*(const NRMat<std::complex<double> > &rhs) const {
 #ifdef DEBUG
-	if (nn != rhs.nrows()) laerror("incompatible dimensions in NRSMat<complex<double> >::operator*(const NRMat<complex<double> > &)");
+	if (nn != rhs.nrows()) laerror("incompatible dimensions in NRSMat<std::complex<double> >::operator*(const NRMat<std::complex<double> > &)");
 #endif
 	SAME_LOC(*this, rhs);
-	NRMat<complex<double> > result(nn, rhs.ncols(), getlocation());
+	NRMat<std::complex<double> > result(nn, rhs.ncols(), getlocation());
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -429,14 +429,14 @@ const NRMat<double> NRSMat<double>::operator*(const NRSMat<double> &rhs) const {
  * @return matrix produt \f$G\times{}H\f$ (not necessarily symmetric)
  ******************************************************************************/
 template<>
-const NRMat<complex<double> > 
-NRSMat<complex<double> >::operator*(const NRSMat<complex<double> > &rhs) const {
+const NRMat<std::complex<double> > 
+NRSMat<std::complex<double> >::operator*(const NRSMat<std::complex<double> > &rhs) const {
 #ifdef DEBUG
-	if (nn != rhs.nn) laerror("incompatible dimensions in NRSMat<complex<double> >::operator*(const NRSMat<complex<double> > &)");
+	if (nn != rhs.nn) laerror("incompatible dimensions in NRSMat<std::complex<double> >::operator*(const NRSMat<std::complex<double> > &)");
 #endif
 	SAME_LOC(*this, rhs);
-	NRMat<complex<double> > result(nn, nn, getlocation());
-	NRMat<complex<double> > rhsmat(rhs);
+	NRMat<std::complex<double> > result(nn, nn, getlocation());
+	NRMat<std::complex<double> > rhsmat(rhs);
 	result = *this * rhsmat;
 	return result;
 }
@@ -477,11 +477,11 @@ const double NRSMat<double>::dot(const NRSMat<double> &rhs) const {
  * @return computed inner product
  ******************************************************************************/
 template<>
-const complex<double> NRSMat<complex<double> >::dot(const NRSMat<complex<double> > &rhs) const {
+const std::complex<double> NRSMat<std::complex<double> >::dot(const NRSMat<std::complex<double> > &rhs) const {
 #ifdef DEBUG
-	if (nn != rhs.nn) laerror("incompatible dimensions in complex<double> NRSMat<complex<double> >::dot(const NRSMat<complex<double> > &)");
+	if (nn != rhs.nn) laerror("incompatible dimensions in std::complex<double> NRSMat<std::complex<double> >::dot(const NRSMat<std::complex<double> > &)");
 #endif
-	complex<double> dot(0., 0.);
+	std::complex<double> dot(0., 0.);
 	SAME_LOC(*this, rhs);
 
 #ifdef CUDALA
@@ -491,7 +491,7 @@ const complex<double> NRSMat<complex<double> >::dot(const NRSMat<complex<double>
 #ifdef CUDALA
 	}else{
 		const cuDoubleComplex _dot = cublasZdotc(NN2, (cuDoubleComplex*)v, 1, (cuDoubleComplex*)(rhs.v), 1);
-		dot = complex<double>(cuCreal(_dot), cuCimag(_dot));
+		dot = std::complex<double>(cuCreal(_dot), cuCimag(_dot));
 		TEST_CUBLAS("cublasZdotc");
 	}
 #endif
@@ -522,6 +522,7 @@ const double NRSMat<double>::dot(const NRVec<double> &rhs) const {
 		TEST_CUBLAS("cublasDdot");
 	}
 #endif
+return ret;
 }
 
 
@@ -532,12 +533,12 @@ const double NRSMat<double>::dot(const NRVec<double> &rhs) const {
  * @return computed inner product
  ******************************************************************************/
 template<>
-const complex<double> 
-NRSMat<complex<double> >::dot(const NRVec<complex<double> > &rhs) const {
+const std::complex<double> 
+NRSMat<std::complex<double> >::dot(const NRVec<std::complex<double> > &rhs) const {
 #ifdef DEBUG
-	if(NN2 != rhs.nn) laerror("incompatible dimensions in complex<double>  NRSMat<complex<double> >::dot(const NRVec<complex<double> > &)");
+	if(NN2 != rhs.nn) laerror("incompatible dimensions in std::complex<double>  NRSMat<std::complex<double> >::dot(const NRVec<std::complex<double> > &)");
 #endif
-	complex<double> dot(0., 0.);
+	std::complex<double> dot(0., 0.);
 	SAME_LOC(*this, rhs);
 #ifdef CUDALA
 	if(location == cpu){
@@ -547,7 +548,7 @@ NRSMat<complex<double> >::dot(const NRVec<complex<double> > &rhs) const {
 	}else{
 		const cuDoubleComplex _dot = cublasZdotc(NN2, (cuDoubleComplex*)v, 1, (cuDoubleComplex*)rhs.v, 1);
 		TEST_CUBLAS("cublasZdotc");
-		dot = complex<double>(cuCreal(_dot), cuCimag(_dot));
+		dot = std::complex<double>(cuCreal(_dot), cuCimag(_dot));
 	}
 #endif
 	return dot;
@@ -593,7 +594,7 @@ const double NRSMat<double>::norm(const double scalar) const {
  * @param[in] scalar subtract this scalar value from the diagonal elements before the norm computation
  ******************************************************************************/
 template<>
-const double NRSMat< complex<double> >::norm(const complex<double> scalar) const {
+const double NRSMat< std::complex<double> >::norm(const std::complex<double> scalar) const {
 	if(!(scalar.real()) && !(scalar.imag())){
 		double ret(0.);
 #ifdef CUDALA
@@ -611,7 +612,7 @@ const double NRSMat< complex<double> >::norm(const complex<double> scalar) const
 
 	int k(0);
 	double sum(0.);
-	complex<double> tmp;
+	std::complex<double> tmp;
 
 	for(register int i=0; i<nn; ++i){
 		for(register int j=0; j<=i; ++j){
@@ -655,9 +656,9 @@ void NRSMat<double>::axpy(const double alpha, const NRSMat<double> &x) {
  * \f[H \leftarrow \alpha G + H\f]
  ******************************************************************************/
 template<>
-void NRSMat<complex<double> >::axpy(const complex<double> alpha, const NRSMat<complex<double> > & x) {
+void NRSMat<std::complex<double> >::axpy(const std::complex<double> alpha, const NRSMat<std::complex<double> > & x) {
 #ifdef DEBUG
-	if(nn != x.nn) laerror("incompatible dimensions in void NRSMat<complex<double> >::axpy(const complex<double> , const NRSMat<complex<double> >&)");
+	if(nn != x.nn) laerror("incompatible dimensions in void NRSMat<std::complex<double> >::axpy(const std::complex<double> , const NRSMat<std::complex<double> >&)");
 #endif
 	SAME_LOC(*this, x);
 	copyonwrite();
@@ -682,21 +683,21 @@ void NRSMat<complex<double> >::axpy(const complex<double> alpha, const NRSMat<co
  * @param[in] imagpart flag determining whether \f$S\f$ should correspond to the real or imaginary part of \f$H\f$
  ******************************************************************************/
 template<>
-NRSMat<complex<double> >::NRSMat(const NRSMat<double> &rhs, bool imagpart): nn(rhs.nrows()), count(new int(1)) {
+NRSMat<std::complex<double> >::NRSMat(const NRSMat<double> &rhs, bool imagpart): nn(rhs.nrows()), count(new int(1)) {
 	//inconsistent in general case?
 	const int nnp1 = nn*(nn + 1)/2;
 #ifdef CUDALA
 	location = rhs.getlocation();
 	if(location == cpu){
 #endif
-		v = new complex<double>[nnp1];
-		memset(v, 0, nnp1*sizeof(complex<double>));
+		v = new std::complex<double>[nnp1];
+		memset(v, 0, nnp1*sizeof(std::complex<double>));
 		cblas_dcopy(nnp1, &rhs(0, 0), 1, ((double *)v) + (imagpart?1:0), 2);
 #ifdef CUDALA
 	}else{
-		v = (complex<double>*) gpualloc(nnp1*sizeof(complex<double>));
+		v = (std::complex<double>*) gpualloc(nnp1*sizeof(std::complex<double>));
 
-		complex<double> *_val = gpuputcomplex(CZERO);
+		std::complex<double> *_val = gpuputcomplex(CZERO);
 		cublasZcopy(nnp1, (cuDoubleComplex*)_val, 0, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasZcopy");
 		gpufree(_val);
@@ -711,7 +712,7 @@ NRSMat<complex<double> >::NRSMat(const NRSMat<double> &rhs, bool imagpart): nn(r
  * forced instantization in the corresponding object file
  ******************************************************************************/
 template class NRSMat<double>;
-template class NRSMat<complex<double> >;
+template class NRSMat<std::complex<double> >;
 
 template class NRSMat<long long>;
 template class NRSMat<long>;

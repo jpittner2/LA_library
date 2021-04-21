@@ -764,6 +764,7 @@ extern "C" void FORNAME(dgesvd)(const char *JOBU,  const char *JOBVT,  const FIN
 		const FINT *N,  double *A, const FINT *LDA, double *S, double *U, const FINT *LDU,
 		double *VT, const FINT *LDVT, double *WORK, const FINT *LWORK, FINT *INFO );
 
+//normally in v returns vtransposed for default vnotdagger=0
 void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s,
 		NRMat<double> *v, const bool vnotdagger, int m, int n)
 {

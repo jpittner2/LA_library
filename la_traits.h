@@ -39,7 +39,6 @@
 
 
 //using namespace std;
-#define complex std::complex
 
 #include "laerror.h"
 
@@ -79,6 +78,18 @@ template<typename C> class SparseMat;
 template<typename C> class SparseSMat;
 template<typename C> class CSRMat;
 
+//trick to allow real and imag part of complex as l-values
+template<typename T>
+T &real(std::complex<T> &c) {
+  return reinterpret_cast<T*>(&c)[0];
+}
+template<typename T>
+T &imag(std::complex<T> &c) {
+  return reinterpret_cast<T*>(&c)[1];
+}
+
+
+//
 
 typedef class {} Dummy_type;
 typedef class {} Dummy_type2;
@@ -96,7 +107,7 @@ struct LA_traits_complex
 
 #define SPECIALIZE_COMPLEX(T) \
 template<> \
-struct LA_traits_complex<complex<T> > \
+struct LA_traits_complex<std::complex<T> > \
         { \
         typedef T Component_type; \
 	typedef NRVec<T> NRVec_Noncomplex_type; \
@@ -106,9 +117,9 @@ struct LA_traits_complex<complex<T> > \
 
 
 SPECIALIZE_COMPLEX(double)
-SPECIALIZE_COMPLEX(complex<double>)
+SPECIALIZE_COMPLEX(std::complex<double>)
 SPECIALIZE_COMPLEX(float)
-SPECIALIZE_COMPLEX(complex<float>)
+SPECIALIZE_COMPLEX(std::complex<float>)
 SPECIALIZE_COMPLEX(char)
 SPECIALIZE_COMPLEX(unsigned char)
 SPECIALIZE_COMPLEX(short)
@@ -172,9 +183,9 @@ class isscalar { public: typedef scalar_false scalar_type;};
 template<>\
 class isscalar<X> {public: typedef scalar_true scalar_type;};\
 template<>\
-class isscalar<complex<X> > {public: typedef scalar_true scalar_type;};\
+class isscalar<std::complex<X> > {public: typedef scalar_true scalar_type;};\
 template<>\
-class isscalar<complex<complex<X> > > {public: typedef scalar_true scalar_type;};\
+class isscalar<std::complex<std::complex<X> > > {public: typedef scalar_true scalar_type;};\
 
 
 //declare what is scalar
@@ -211,56 +222,56 @@ template<typename C, typename Scalar> struct LA_traits_aux
 
 //complex scalars
 template<typename C>
-struct LA_traits_aux<complex<C>, scalar_true> {
-typedef complex<C> elementtype;
-typedef complex<C> producttype;
+struct LA_traits_aux<std::complex<C>, scalar_true> {
+typedef std::complex<C> elementtype;
+typedef std::complex<C> producttype;
 typedef C normtype;
 typedef C realtype;
-typedef complex<C> complextype;
-static inline C sqrabs(const complex<C> x) { return x.real()*x.real()+x.imag()*x.imag();}
-static inline bool gencmp(const complex<C> *x, const complex<C> *y, size_t n) {return memcmp(x,y,n*sizeof(complex<C>));}
-static bool bigger(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
-static bool smaller(const  complex<C> &x, const complex<C> &y) {laerror("complex comparison undefined"); return false;}
-static inline normtype norm (const  complex<C> &x) {return std::abs(x);}
-static inline void axpy (complex<C> &s, const complex<C> &x, const complex<C> &c) {s+=x*c;}
-static inline void get(int fd, complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=read(fd,&x,sizeof(complex<C>))) laerror("read error");}
-static inline void put(int fd, const complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(complex<C>)!=write(fd,&x,sizeof(complex<C>))) laerror("write error");}
-static void multiget(size_t n,int fd, complex<C> *x, bool dimensions=0)
+typedef std::complex<C> complextype;
+static inline C sqrabs(const std::complex<C> x) { return x.real()*x.real()+x.imag()*x.imag();}
+static inline bool gencmp(const std::complex<C> *x, const std::complex<C> *y, size_t n) {return memcmp(x,y,n*sizeof(std::complex<C>));}
+static bool bigger(const  std::complex<C> &x, const std::complex<C> &y) {laerror("std::complex comparison undefined"); return false;}
+static bool smaller(const  std::complex<C> &x, const std::complex<C> &y) {laerror("std::complex comparison undefined"); return false;}
+static inline normtype norm (const  std::complex<C> &x) {return std::abs(x);}
+static inline void axpy (std::complex<C> &s, const std::complex<C> &x, const std::complex<C> &c) {s+=x*c;}
+static inline void get(int fd, std::complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(std::complex<C>)!=read(fd,&x,sizeof(std::complex<C>))) laerror("read error");}
+static inline void put(int fd, const std::complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(std::complex<C>)!=write(fd,&x,sizeof(std::complex<C>))) laerror("write error");}
+static void multiget(size_t n,int fd, std::complex<C> *x, bool dimensions=0)
 	{
 	size_t total=0;
-	size_t system_limit = (1L<<30)/sizeof(complex<C>); //do not expect too much from the system and read at most 1GB at once
+	size_t system_limit = (1L<<30)/sizeof(std::complex<C>); //do not expect too much from the system and read at most 1GB at once
 	ssize_t r;
 	size_t nn;
 	do{
-		r=read(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
+		r=read(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(std::complex<C>)); 
 		if(r<0 || r==0 && nn!=0 ) {std::cout<<"read returned "<<r<<" perror "<<strerror(errno) <<std::endl; laerror("read error");}
-		else total += r/sizeof(complex<C>);
-		if(r%sizeof(complex<C>)) laerror("read error 2");
+		else total += r/sizeof(std::complex<C>);
+		if(r%sizeof(std::complex<C>)) laerror("read error 2");
 	  }
 	while(total < n);
 	}
-static void multiput(size_t n, int fd, const complex<C> *x, bool dimensions=0) 
+static void multiput(size_t n, int fd, const std::complex<C> *x, bool dimensions=0) 
 	{
 	size_t total=0;
-	size_t system_limit = (1L<<30)/sizeof(complex<C>); //do not expect too much from the system and write at most 1GB at once
+	size_t system_limit = (1L<<30)/sizeof(std::complex<C>); //do not expect too much from the system and write at most 1GB at once
 	ssize_t r;
 	size_t nn;
 	do{
-		r=write(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(complex<C>)); 
+		r=write(fd,x+total,nn=(n-total > system_limit ? system_limit : n-total)*sizeof(std::complex<C>)); 
 		if(r<0 || r==0 && nn!=0 ) {std::cout<<"write returned "<<r<<"  perror "<<strerror(errno) <<std::endl; laerror("write error");}
-		else total += r/sizeof(complex<C>);
-		if(r%sizeof(complex<C>)) laerror("write error 2");
+		else total += r/sizeof(std::complex<C>);
+		if(r%sizeof(std::complex<C>)) laerror("write error 2");
 	  }
 	while(total < n);
 	}
-static void copy(complex<C> *dest, complex<C> *src, size_t n) {memcpy(dest,src,n*sizeof(complex<C>));}
-static void clear(complex<C> *dest, size_t n) {memset(dest,0,n*sizeof(complex<C>));}
-static void copyonwrite(complex<C> &x) {};
-static void clearme(complex<C> &x) {x=0;};
-static void deallocate(complex<C> &x) {};
-static inline complex<C> conjugate(const complex<C> &x) {return complex<C>(x.real(),-x.imag());};
-static inline C realpart(const complex<C> &x) {return x.real();}
-static inline C imagpart(const complex<C> &x) {return x.imag();}
+static void copy(std::complex<C> *dest, std::complex<C> *src, size_t n) {memcpy(dest,src,n*sizeof(std::complex<C>));}
+static void clear(std::complex<C> *dest, size_t n) {memset(dest,0,n*sizeof(std::complex<C>));}
+static void copyonwrite(std::complex<C> &x) {};
+static void clearme(std::complex<C> &x) {x=0;};
+static void deallocate(std::complex<C> &x) {};
+static inline std::complex<C> conjugate(const std::complex<C> &x) {return std::complex<C>(x.real(),-x.imag());};
+static inline C realpart(const std::complex<C> &x) {return x.real();}
+static inline C imagpart(const std::complex<C> &x) {return x.imag();}
 };
 
 
@@ -271,7 +282,7 @@ typedef C elementtype;
 typedef C producttype;
 typedef C normtype;
 typedef C realtype;
-typedef complex<C> complextype;
+typedef std::complex<C> complextype;
 static inline C sqrabs(const C x) { return x*x;}
 static inline bool gencmp(const C *x, const C *y, size_t n) {return memcmp(x,y,n*sizeof(C));}
 static inline bool bigger(const  C &x, const C &y) {return x>y;}

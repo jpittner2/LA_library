@@ -48,7 +48,7 @@ template void CSRMat<T>::put(int fd, bool dimen, bool transp) const; \
 
 
 INSTANTIZE(double)
-INSTANTIZE(complex<double>) 
+INSTANTIZE(std::complex<double>) 
 */
 
 //// forced instantization of functions in the header in the corresponding object file

@@ -924,6 +924,24 @@ cout <<"error = "<<(r1-r2).norm()<<endl;
 
 if(0)
 {
+int dim; cin>>dim;
+int degree; cin >>degree;
+NRMat<double> h(dim,dim);
+NRMat<double> t(dim,dim);
+NRVec<double> x(dim);
+h.randomize(1.);
+t.randomize(1.);
+x.randomize(2.);
+NRVec<double> y1 = exp(-t) * h * exp(t) *x;
+NRVec<double> y2 = BCHtimes(h,'n',t,'n',x,degree,true);
+NRVec<double> y3  = exp(t) * h * exp(-t) *x;
+NRVec<double> y4 = BCHtimes(h,'n',t,'n',x,degree,false);
+cout <<"BCHtimes error = "<<(y1-y2).norm()<<endl;
+cout <<"BCHtimes error = "<<(y3-y4).norm()<<endl;
+}
+
+if(0)
+{
 int n;
 cin >>n;
 SparseMat<double> a(n,n);
@@ -1863,7 +1881,7 @@ cin >>v;
 cout <<v;
 }
 
-if(1)
+if(0)
 {
 Quaternion<double> q(1.);
 Quaternion<double> p,r(q);
@@ -1962,5 +1980,11 @@ cout <<"normquat2euler test "<<endl<<qq<<endl<<xqq<<endl<<qq-xqq<<endl;
 }
 
 
-
+if(1)
+{
+NRVec<double> a,b,c;
+cin >>a>>b;
+c=a+b;
+cout<<c;
+}
 }

@@ -102,8 +102,8 @@ public:
 	
 
 	//C-style IO
-	void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0],q[1],q[2],q[3]);};
-	void sprintf(char *f, const char *format) const {::sprintf(f,format,q[0],q[1],q[2],q[3]);};
+	int fprintf(FILE *f, const char *format) const {return ::fprintf(f,format,q[0],q[1],q[2],q[3]);};
+	int sprintf(char *f, const char *format) const {return ::sprintf(f,format,q[0],q[1],q[2],q[3]);};
 	int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0],q[1],q[2],q[3]);};
         int sscanf(char *f, const char *format) const {return ::sscanf(f,format,q[0],q[1],q[2],q[3]);};
 	};

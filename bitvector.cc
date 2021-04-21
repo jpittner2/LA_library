@@ -17,6 +17,7 @@
 */
 
 #include "bitvector.h"
+#include <unistd.h>
 
 namespace LA {
 
@@ -186,6 +187,27 @@ if(modulo)
         }
 return s+word_popul(a);
 }
+
+void bitvector::read(int fd, bool dimensions, bool transp)
+{
+if(dimensions) 
+	{
+	int r = ::read(fd,&modulo,sizeof(modulo));
+	if(r!=sizeof(modulo)) laerror("cannot read in bitvector");
+	}
+NRVec<bitvector_block>::get(fd,dimensions,transp);
+}
+
+void bitvector::write(int fd, bool dimensions, bool transp)
+{
+if(dimensions)
+        {
+        int r = ::write(fd,&modulo,sizeof(modulo));
+        if(r!=sizeof(modulo)) laerror("cannot write in bitvector");
+        }
+NRVec<bitvector_block>::put(fd,dimensions,transp);
+}
+
 
 
 }//namespace

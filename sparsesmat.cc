@@ -357,7 +357,7 @@ INSTANTIZE(complex<double>)
 
 //// forced instantization of functions in the header in the corresponding object file
 template class SparseSMat<double>;
-template class SparseSMat<complex<double> >;
+template class SparseSMat<std::complex<double> >;
 
 /*activate this if needed
 template void SparseSMat<NRMat<double> >::put(int fd, bool dimen, bool transp) const;

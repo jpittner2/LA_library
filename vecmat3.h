@@ -82,8 +82,8 @@ public:
 	Vec3& fast_normalize(void);
 	const Vec3 operator*(const Mat3<T> &rhs) const;
 	//C-style IO
-	void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0],q[1],q[2]);};
-        void sprintf(char *f, const char *format) const {::sprintf(f,format,q[0],q[1],q[2]);};
+	int fprintf(FILE *f, const char *format) const {return ::fprintf(f,format,q[0],q[1],q[2]);};
+        int sprintf(char *f, const char *format) const {return ::sprintf(f,format,q[0],q[1],q[2]);};
 	int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0],q[1],q[2]);};
         int sscanf(char *f, const char *format) const {return ::sscanf(f,format,q[0],q[1],q[2]);};
 };
@@ -141,7 +141,7 @@ public:
 	const Mat3 transpose() const {Mat3 r(*this); r.transposeme(); return r;};
 	const Mat3 inverse() const;
 	//C-style IO
-        void fprintf(FILE *f, const char *format) const {::fprintf(f,format,q[0][0],q[0][1],q[0][2]); ::fprintf(f,format,q[1][0],q[1][1],q[1][2]); ::fprintf(f,format,q[2][0],q[2][1],q[2][2]);};
+        int fprintf(FILE *f, const char *format) const {int n= ::fprintf(f,format,q[0][0],q[0][1],q[0][2]); n+=::fprintf(f,format,q[1][0],q[1][1],q[1][2]); n+=::fprintf(f,format,q[2][0],q[2][1],q[2][2]); return n;};
         int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
 
 };
