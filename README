@@ -1,0 +1,70 @@
+    LA: linear algebra C++ interface library
+
+    Copyright (C) 2008- Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    complex versions written by Roman Curik <roman.curik@jh-inst.cas.cz>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--------------------------------------------------------------------------------------------------
+This software provides a C++ vector and matrix class with an interface
+to BLAS and ATLAS linear algebra libraries and a few additional features.
+Templates are employed in order to achieve generic applicability of the algorithms.
+In particular, iterative methods suitable for sparse matrices (Davidson diagonalization, linear solvers, matrix exponential)
+can be applied to your custom matrix class, which does not need to contain any explicit
+storage of the matrix (only matrix times vector operation has to be provided).
+(In quantum chemistry, a particular application of this technique is called direct-CI.)
+The library implements reference counting to avoid overhead when copying matrices and passing them by value;
+on the other hand it does NOT optimize matrix expressions, you should yourself call gemv, axpy etc. instead of using operator* etc. where appropriate.
+
+vec.h, vec.cc : vector class
+mat.h, mat.cc : general matrix class
+smat.h, smat.cc: symmetric matrix class
+sparsemat.h sparsemat.cc: sparse matrix class
+sparsesmat.h sparsesmat.cc: sparse symmetric matrix class
+nonclass.h nonclass.cc: some methods not belonging to a class - linear solver, diagonalization
+conjgrad.h: conjugate gradient sparse linear solver
+gmres.h: generalized minimal residual sparse linear solver
+matexp.h: matrix exponential (suitable both for dense and sparse matrices - cf. exptimes routine)
+qsort.h: generic quick-sort template
+bitvector.h: bit vector class
+bisection.h: generic bisection search
+diis.h: DIIS convergence acceleration
+davidson.h: Davidson (modified Lanczos) sparse matrix diagonalization
+fourindex.h: class for four-index quantities, in particular two-electron integrals in quantum chemistry, allows transparent access to externally stored integrals
+auxstorage.h: class facilitating simple file IO for the vectors and matrices
+
+
+INSTALLATION:
+1. ./configure with DEBUG, OPTIMIZE and MATPTR options, export CXXFLAGS=-I<path> and export LDFLAGS=-L<path> (and possibly added -latlas -lcblas) 
+   pointing to your preferred BLAS/LAPACK, your preferred --prefix and --enable/--disable options for optimization and debugging
+2. make
+3. make check (to see that the programs t and test compile and link without errors)
+4. make install
+
+USING:
+1. #include "la.h"
+2. using namespace LA;
+3. look at test.cc and t.cc for examples of use
+4. remember to always call .copyonwrite() before you start writing to individual matrix elements explicitly
+   (when modifying a matrix via provided methods or operators other than () and [], copy on write is performed transparently)
+5. Note that the library does not attempt to do any optimizations of the evaluation of matrix expressions (by template metaprogramming and postponed evaluation techniques), so instead of inefficient "z=A*2*x + y*1.5 " call gemv and axpy methods. On the other hand it makes shallow copies, so you can pass matrix by value to a subroutine and you are allowed to write x=A*x, as a temporary will be created.
+6. you may compile it with DEBUG defined to perform index range and other checks
+
+NOTE: 
+We named the classes NRMat, NRVec etc. since we started to use them together with the Numerical Recipes library. They can be used with Numerical Recipes in C++, however, they are completely independent of this library.
+
+This is a beta release. The library has already been in use, but not every function/method has been tested.
+There is no documentation except the source itself, since I originaly did not intend to distribute it.
+I will appreciate your bugfixes, exhancements, suggestions etc.
+
+Jiri Pittner

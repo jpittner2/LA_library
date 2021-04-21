@@ -51,4 +51,5 @@ config.log
 libla.la
 t
 test
+*.tar.bz2
 # CVS default ignores end
