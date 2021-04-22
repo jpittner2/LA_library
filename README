@@ -2,6 +2,7 @@
 
     Copyright (C) 2008- Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
     complex versions written by Roman Curik <roman.curik@jh-inst.cas.cz>
+    cuda interface contributed by Miroslav Sulc <miroslav.sulc@jh-inst.cas.cz>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,8 +30,11 @@ on the other hand it does NOT optimize matrix expressions, you should yourself c
 vec.h, vec.cc : vector class
 mat.h, mat.cc : general matrix class
 smat.h, smat.cc: symmetric matrix class
+vecmat3.h, vecmat3.cc : simplified class for 3-dimensional entities
+quaternion.h, quaternion.cc : quaternions and 3-dim rotations
 sparsemat.h sparsemat.cc: sparse matrix class
 sparsesmat.h sparsesmat.cc: sparse symmetric matrix class
+csrmat.h, csrmat.cc: unfinished work on compressed row format sparse matrices
 nonclass.h nonclass.cc: some methods not belonging to a class - linear solver, diagonalization
 conjgrad.h: conjugate gradient sparse linear solver
 gmres.h: generalized minimal residual sparse linear solver
@@ -40,11 +44,13 @@ bitvector.h: bit vector class
 bisection.h: generic bisection search
 diis.h: DIIS convergence acceleration
 davidson.h: Davidson (modified Lanczos) sparse matrix diagonalization
-fourindex.h: class for four-index quantities, in particular two-electron integrals in quantum chemistry, allows transparent access to externally stored integrals
+fourindex.h, fourindex.cc: class for four-index quantities, in particular two-electron integrals in quantum chemistry, allows transparent access to externally stored integrals
 auxstorage.h: class facilitating simple file IO for the vectors and matrices
+permutation.h, qsort.h : permutations and sorting
 
 
 INSTALLATION:
+0. autoreconf --install if ./configure does not exist
 1. ./configure with DEBUG, OPTIMIZE and MATPTR options, export CXXFLAGS=-I<path> and export LDFLAGS=-L<path> (and possibly added -latlas -lcblas) 
    pointing to your preferred BLAS/LAPACK, your preferred --prefix and --enable/--disable options for optimization and debugging
 2. make
