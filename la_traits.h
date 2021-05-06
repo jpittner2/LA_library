@@ -26,7 +26,10 @@
 #ifndef _LA_TRAITS_INCL
 #define _LA_TRAITS_INCL
 
-
+//avoid unsupported register directive in new C++ versions
+#if __cplusplus > 201402L
+#define register
+#endif
 
 
 #include <stdio.h>
