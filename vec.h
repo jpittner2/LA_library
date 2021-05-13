@@ -364,6 +364,60 @@ public:
 
 namespace LA {
 
+
+/***************************************************************************//**
+ * implements \c NRVec<T> functionality with indexing from 1
+ * all possible constructors have to be given explicitly, other stuff is inherited
+ * with exception of the operator() which differs
+ ******************************************************************************/
+template<typename T>
+class NRVec_from1 : public NRVec<T> {
+public:
+	NRVec_from1(): NRVec<T>() {};
+	explicit NRVec_from1(const int n): NRVec<T>(n) {};
+	NRVec_from1(const NRVec<T> &rhs): NRVec<T>(rhs) {};//!< be able to convert the parent class transparently to this
+	NRVec_from1(const T &a, const int n): NRVec<T>(a, n) {};
+	NRVec_from1(const T *a, const int n): NRVec<T>(a, n) {};
+	inline const T& operator[] (const int i) const;
+        inline T& operator[] (const int i);
+};
+
+/***************************************************************************//**
+ * indexing operator giving the element at given position with range checking in
+ * the DEBUG mode
+ * @param[in] i position of the required vector element (starting from 0)
+ * @return reference to the requested element
+ ******************************************************************************/
+template <typename T>
+inline T& NRVec_from1<T>::operator[](const int i) {
+#ifdef DEBUG
+        if(_LA_count_check && *NRVec<T>::count != 1) laerror("possible use of NRVec[] with count>1 as l-value");
+        if(i < 1 || i > NRVec<T>::nn) laerror("out of range");
+        if(!NRVec<T>::v) laerror("unallocated NRVec");
+#endif
+        NOT_GPU(*this);
+
+        return NRVec<T>::v[i-1];
+}
+
+/***************************************************************************//**
+ * indexing operator giving the element at given position with range checking in
+ * the DEBUG mode
+ * @param[in] i position of the required vector element (starting from 0)
+ * @return constant reference to the requested element
+ ******************************************************************************/
+template <typename T>
+inline const T& NRVec_from1<T>::operator[](const int i) const {
+#ifdef DEBUG
+        if(i < 1 || i > NRVec<T>::nn) laerror("out of range");
+        if(!NRVec<T>::v) laerror("unallocated NRVec");
+#endif
+        NOT_GPU(*this);
+
+        return NRVec<T>::v[i-1];
+}
+
+
 /***************************************************************************//**
  * output operator
  * @param[in,out] s output stream
