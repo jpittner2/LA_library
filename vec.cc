@@ -833,6 +833,22 @@ NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
 	return r;
 }
 
+template<typename T>
+const NRVec<T> NRVec<T>::permute(const NRPerm<int> &p) const
+{
+#ifdef DEBUG
+if(!p.is_valid()) laerror("invalid permutation of vector");
+#endif
+int n=p.size();
+if(n!=(*this).size()) laerror("incompatible permutation and vector");
+#ifdef CUDALA
+        if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
+#endif
+NRVec<T> r(n);
+for(int i=1; i<=n; ++i) r[i-1] = v[p[i]-1];
+return r;
+}
+
 /***************************************************************************//**
  * forced instantization in the corespoding object file
  ******************************************************************************/

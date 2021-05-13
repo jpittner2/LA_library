@@ -303,6 +303,24 @@ void NRSMat<T>::fscanf(FILE *f, const char *format) {
 				laerror("NRSMat<T>::fscanf(FILE *, const char *) - unable to read matrix element");
 }
 
+//apply permutation
+template <typename T>
+const NRSMat<T> NRSMat<T>::permute(const NRPerm<int> &p) const
+{
+#ifdef DEBUG
+if(!p.is_valid()) laerror("invalid permutation of smatrix");
+#endif
+int n=p.size();
+if(n!=(*this).size()) laerror("incompatible permutation and smatrix");
+#ifdef CUDALA
+        if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
+#endif
+NRSMat<T> r(n);
+for(int i=1; i<=n; ++i) {int pi = p[i]-1; r(i-1,i-1) = (*this)(pi,pi);}
+return r;
+}
+
+
 
 /***************************************************************************//**
  * multiply this real double-precision symmetric matrix \f$S\f$ stored in packed form

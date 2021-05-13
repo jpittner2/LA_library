@@ -24,6 +24,10 @@
 
 namespace LA {
 
+//forward declaration
+template<typename T> class NRPerm;
+
+
 /***************************************************************************//**
  * \brief NRMat<T> class template implementing the matrix interface
  * @see NRVec<T>, NRSMat<T>
@@ -110,6 +114,12 @@ public:
 
 	//! ensure that the data of this matrix are referenced exactly once
 	void copyonwrite(bool detachonly=false);
+
+	//! permute matrix elements
+        const NRMat permute_rows(const NRPerm<int> &p) const;
+        const NRMat permute_cols(const NRPerm<int> &p) const;
+        const NRMat permute_both(const NRPerm<int> &p, const NRPerm<int> &q) const;
+
 
 	/***************************************************************************//**
 	 * routines for CUDA related stuff
@@ -376,6 +386,7 @@ public:
 #include "smat.h"
 #include "sparsemat.h"
 #include "sparsesmat.h"
+#include "permutation.h"
 
 namespace LA {
 

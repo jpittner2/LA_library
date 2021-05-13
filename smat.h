@@ -27,6 +27,9 @@
 namespace LA {
 #define NN2 ((size_t)nn*(nn+1)/2)
 
+//forward declaration
+template<typename T> class NRPerm;
+
 
 /***************************************************************************//**
  * This class implements a general symmetric or hermitian matrix the elements
@@ -89,6 +92,8 @@ public:
 	//! assign scalar value to diagonal elements
 	NRSMat & operator=(const T &a);
 
+	//! permute matrix elements
+        const NRSMat permute(const NRPerm<int> &p) const;
 
 	inline int getcount() const {return count?*count:0;}
 
@@ -176,6 +181,7 @@ public:
 //due to mutual includes this has to be after full class declaration
 #include "vec.h"
 #include "mat.h"
+#include "permutation.h"
 
 namespace LA {
 

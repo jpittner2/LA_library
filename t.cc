@@ -22,6 +22,7 @@
 #include "la.h"
 #include "vecmat3.h"
 #include "quaternion.h"
+#include "permutation.h"
 
 using namespace std;
 using namespace LA_Vecmat3;
@@ -1980,11 +1981,24 @@ cout <<"normquat2euler test "<<endl<<qq<<endl<<xqq<<endl<<qq-xqq<<endl;
 }
 
 
-if(1)
+if(0)
 {
 NRVec<double> a,b,c;
 cin >>a>>b;
 c=a+b;
 cout<<c;
 }
+
+if(1)
+{
+NRPerm<int> p;
+cin >>p;
+int n=p.size();
+NRVec_from1<double> v(n);
+int i;
+for(i=1; i<=n; ++i) v[i]=10.*i;
+cout <<v.permute(p);
+}
+
+
 }

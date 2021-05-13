@@ -3075,6 +3075,59 @@ NRMat<T>& NRMat<T>::swap_rows_cols(){
         return *this;
 }
 
+//apply permutations
+template<typename T>
+const NRMat<T> NRMat<T>::permute_rows(const NRPerm<int> &p) const
+{
+#ifdef DEBUG
+if(!p.is_valid()) laerror("invalid permutation of matrix");
+#endif
+int n=p.size();
+if(n!=nn) laerror("incompatible permutation and matrix");
+#ifdef CUDALA
+        if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
+#endif
+NRMat<T> r(nn,mm);
+for(int i=1; i<=n; ++i) {int pi=p[i]-1; for(int j=0; j<mm; ++j)  r(i-1,j) = (*this)(pi,j);}
+return r;
+}
+
+template<typename T>
+const NRMat<T> NRMat<T>::permute_cols(const NRPerm<int> &p) const
+{
+#ifdef DEBUG
+if(!p.is_valid()) laerror("invalid permutation of matrix");
+#endif
+int n=p.size();
+if(n!=mm) laerror("incompatible permutation and matrix");
+#ifdef CUDALA
+        if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
+#endif
+NRMat<T> r(nn,mm);
+for(int i=1; i<=n; ++i) {int pi=p[i]-1; for(int j=0; j<nn; ++j)  r(j,i-1) = (*this)(j,pi);}
+return r;
+}
+
+template<typename T>
+const NRMat<T> NRMat<T>::permute_both(const NRPerm<int> &p, const NRPerm<int> &q) const
+{
+#ifdef DEBUG
+if(!p.is_valid() || !q.is_valid() ) laerror("invalid permutation of matrix");
+#endif
+int n=p.size();
+int m=q.size();
+if(n!=nn ||m!=mm) laerror("incompatible permutation and matrix");
+#ifdef CUDALA
+        if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
+#endif
+NRMat<T> r(nn,mm);
+for(int i=1; i<=n; ++i) {int pi=p[i]-1; for(int j=1; j<=m; ++j)  r(i-1,j-1) = (*this)(pi,q[j]-1);}
+return r;
+}
+
+
+
+
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/

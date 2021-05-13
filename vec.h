@@ -30,6 +30,8 @@ namespace LA {
 template <typename T> void lawritemat(FILE *file, const T *a, int r, int c,
 		const char *form0, int nodim, int modulo, int issym);
 
+template <typename T> class NRPerm;
+
 /***************************************************************************//**
  * static constants used in several cblas-routines
  ******************************************************************************/
@@ -260,6 +262,9 @@ public:
 		return sum;
 	};
 
+	//! permute vector elements
+	const NRVec permute(const NRPerm<int> &p) const;
+
 	//! compute the sum of the absolute values of the elements of this vector 
 	inline const typename LA_traits<T>::normtype asum() const;
 
@@ -381,6 +386,12 @@ public:
 	inline const T& operator[] (const int i) const;
         inline T& operator[] (const int i);
 };
+
+}//namespace
+//needs NRVec_from1
+#include "permutation.h"
+namespace LA {
+
 
 /***************************************************************************//**
  * indexing operator giving the element at given position with range checking in

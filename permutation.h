@@ -28,6 +28,9 @@
 
 namespace LA {
 
+//forward declaration
+template <typename T> class NRVec_from1;
+
 template <typename T>
 class NRPerm : public NRVec_from1<T> {
 public:
@@ -39,17 +42,21 @@ public:
         NRPerm(const T *a, const int n): NRVec_from1<T>(a, n) {};
 
 	//specific operations
+	void identity();
 	bool is_valid() const; //is it really a permutation
+	bool is_identity() const;
 	NRPerm inverse() const;
-	NRPerm operator*(const NRPerm rhs) const;
+	NRPerm operator*(const NRPerm q) const; //q is rhs and applied first, this applied second
+	NRPerm conjugate_by(const NRPerm q) const; //q^-1 p q
+	int parity() const;
+
 
 	//TODO:
-	//@@@conjugate by q
+	//@@@permutation matrix
 	//@@@permgener
-	//@@@lex rank
 	//@@@next permutation
+	//@@@lex rank
 	//@@@inversion tables
-	//@@@parity
 	//@@@conversion to cycle structure and back
 };
 

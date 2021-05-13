@@ -20,6 +20,32 @@
 namespace LA {
 
 template <typename T>
+void NRPerm<T>::identity()
+{
+T n=this->size();
+#ifdef DEBUG
+        if(n<0) laerror("invalid permutation size");
+#endif
+if(n==0) return;
+for(T i=1; i<=n; ++i) (*this)[i]=i;
+}
+
+
+template <typename T>
+bool NRPerm<T>::is_identity() const
+{
+T n=this->size();
+#ifdef DEBUG
+        if(n<0) laerror("invalid permutation size");
+#endif
+if(n==0) return 1;
+for(T i=1; i<=n; ++i) if((*this)[i]!=i) return 0;
+return 1;
+}
+
+
+
+template <typename T>
 bool NRPerm<T>::is_valid() const
 {
 T n = this->size();
@@ -39,6 +65,10 @@ return 1;
 template <typename T>
 NRPerm<T> NRPerm<T>::inverse() const
 {
+#ifdef DEBUG
+	if(!this->is_valid()) laerror("inverse of invalid permutation");
+#endif
+
 NRPerm<T> q(this->size());
 for(T i=1; i<=this->size(); ++i) q[(*this)[i]]=i;
 return q;
@@ -48,15 +78,44 @@ return q;
 template <typename T>
 NRPerm<T> NRPerm<T>::operator*(const NRPerm<T> q) const
 {
+#ifdef DEBUG
+        if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
+#endif
+
 T n=this->size();
 if(n!=q.size()) laerror("product of incompatible permutations");
 NRPerm<T> r(n);
-for(T i=1; i<=n; ++i) r[i] = q[(*this)[i]];
+for(T i=1; i<=n; ++i) r[i] = (*this)[q[i]];
 return r;
 
 }
 
+template <typename T>
+NRPerm<T> NRPerm<T>::conjugate_by(const NRPerm<T> q) const
+{
+#ifdef DEBUG
+        if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
+#endif
 
+T n=this->size();
+if(n!=q.size()) laerror("product of incompatible permutations");
+NRPerm<T> qi=q.inverse();
+NRPerm<T> r(n);
+for(T i=1; i<=n; ++i) r[i] = qi[(*this)[q[i]]];
+return r;
+
+}
+
+template <typename T>
+int NRPerm<T>::parity() const
+{
+if(!this->is_valid()) return 0;
+T n=this->size();
+if(n==1) return 1;
+T count=0;
+for(T i=2;i<=n;i++) for(T j=1;j<i;j++) if((*this)[j]>(*this)[i]) count++;
+return (count&1)? -1:1;
+}
 
 
 
