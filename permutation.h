@@ -1,6 +1,6 @@
 /*
     LA: linear algebra C++ interface library
-    Copyright (C) 2008 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    Copyright (C) 2021 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,17 +15,46 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+
 #ifndef _PERMUTATION_H
 #define _PERMUTATION_H
+
+#include "la_traits.h"
+#include "vec.h"
+#include "mat.h"
+
+//permutations are always numbered from 1; offset is employed when applied to vectors and matrices
+
 namespace LA {
-template<typename T>
-const NRVec<T> inversepermutation(const NRVec<T> &p, const T offset=0)
-{
-int n=p.size();
-NRVec<T> q(n);
-if(!offset) for(int i=0; i<n; ++i) q[p[i]]=i;
-else for(int i=0; i<n; ++i) q[p[i]-offset]=i+offset;
-return q;
-}
+
+template <typename T>
+class NRPerm : public NRVec_from1<T> {
+public:
+	//basic constructors
+	NRPerm(): NRVec_from1<T>() {};
+	NRPerm(const int n) : NRVec_from1<T>(n) {};
+	NRPerm(const NRVec_from1<T> &rhs): NRVec_from1<T>(rhs) {};
+	NRPerm(const T &a, const int n): NRVec_from1<T>(a, n) {};
+        NRPerm(const T *a, const int n): NRVec_from1<T>(a, n) {};
+
+	//specific operations
+	bool is_valid() const; //is it really a permutation
+	NRPerm inverse() const;
+	NRPerm operator*(const NRPerm rhs) const;
+
+	//TODO:
+	//@@@conjugate by q
+	//@@@permgener
+	//@@@lex rank
+	//@@@next permutation
+	//@@@inversion tables
+	//@@@parity
+	//@@@conversion to cycle structure and back
+};
+
+
+
+
 }//namespace
 #endif

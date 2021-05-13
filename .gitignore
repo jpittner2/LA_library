@@ -52,4 +52,5 @@ libla.la
 t
 test
 *.tar.bz2
+.*.swp
 # CVS default ignores end

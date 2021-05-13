@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.63])
-AC_INIT([libla], [1.1], [jiri@pittnerovi.com])
+AC_PREREQ([2.71])
+AC_INIT([libla],[1.1],[jiri@pittnerovi.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_PROG_AR
@@ -12,7 +12,7 @@ LT_INIT
 
 # Checks for programs.
 AC_PROG_CXX
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_CC
 #AC_PROG_RANLIB obsoleted by libtool
 AC_LANG(C++)
