@@ -31,6 +31,7 @@ template <typename T> void lawritemat(FILE *file, const T *a, int r, int c,
 		const char *form0, int nodim, int modulo, int issym);
 
 template <typename T> class NRPerm;
+template <typename T> class CyclePerm;
 
 /***************************************************************************//**
  * static constants used in several cblas-routines
@@ -257,10 +258,17 @@ public:
 
 	//! compute the sum of the vector elements 
 	inline const T sum() const {
-		T sum(0);
-		for(register int i=0; i<nn; i++){ sum += v[i];}
+		T sum(v[0]);
+		for(register int i=1; i<nn; i++){ sum += v[i];}
 		return sum;
 	};
+
+	//! compute the product of the vector elements
+        inline const T prod() const {
+                T prod(v[0]);
+                for(register int i=1; i<nn; i++){ prod *= v[i];}
+                return prod;
+        };
 
 	//! permute vector elements
 	const NRVec permute(const NRPerm<int> &p) const;

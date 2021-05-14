@@ -22,7 +22,6 @@
 
 #include "la_traits.h"
 #include "vec.h"
-#include "mat.h"
 
 //permutations are always numbered from 1; offset is employed when applied to vectors and matrices
 
@@ -30,6 +29,8 @@ namespace LA {
 
 //forward declaration
 template <typename T> class NRVec_from1;
+template <typename T> class CyclePerm;
+template <typename T> class Partition;
 
 template <typename T>
 class NRPerm : public NRVec_from1<T> {
@@ -40,6 +41,7 @@ public:
 	NRPerm(const NRVec_from1<T> &rhs): NRVec_from1<T>(rhs) {};
 	NRPerm(const T &a, const int n): NRVec_from1<T>(a, n) {};
         NRPerm(const T *a, const int n): NRVec_from1<T>(a, n) {};
+	NRPerm(const CyclePerm<T> &rhs, int n); 
 
 	//specific operations
 	void identity();
@@ -57,10 +59,44 @@ public:
 	//@@@next permutation
 	//@@@lex rank
 	//@@@inversion tables
-	//@@@conversion to cycle structure and back
 };
 
 
+//permutations represented in the cycle format
+template <typename T>
+class CyclePerm : public NRVec_from1<NRVec_from1<T> > {
+public:
+	CyclePerm() :  NRVec_from1<NRVec_from1<T> >() {};
+	CyclePerm(const NRPerm<T> &rhs);
+
+	bool is_valid() const; //is it really a permutation
+	bool is_identity() const; //no cycles of length > 1
+	CyclePerm inverse() const; //reverse all cycles
+	int parity() const; //negative if having odd number of even-length cycles
+	Partition<T> cycles(const T n) const;
+	//@@@efficient algorithm for multiplication?
+	//@@@operator >> and <<
+	//@@@operation in place on matrix and vector
+};
+
+
+//partitions stored as #of 1s, #of 2s, etc.
+template <typename T>
+class Partition : public NRVec_from1<T> {
+public:
+	Partition(): NRVec_from1<T>() {};
+	Partition(const int n) : NRVec_from1<T>(n) {};
+	T sum() const {T s=0; for(T i=1; i<=this->size(); ++i) s += i*(*this)[i]; return s;}
+	T nparts() const {T s=0; for(T i=1; i<=this->size(); ++i) s += (*this)[i]; return s;}
+	T nclasses() const {T s=0; for(T i=1; i<=this->size(); ++i) if((*this)[i]) ++s; return s;}
+	bool is_valid() const {return this->size() == this->sum();}
+
+//@@@generate all partitions, 
+//@@@enumerator of partitions of n to r parts and total
+//@@@adjoint partition, 
+//@@@ output as in the group character table
+//@@@Sn character table
+};
 
 
 }//namespace

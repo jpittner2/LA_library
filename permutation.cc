@@ -117,11 +117,173 @@ for(T i=2;i<=n;i++) for(T j=1;j<i;j++) if((*this)[j]>(*this)[i]) count++;
 return (count&1)? -1:1;
 }
 
+template <typename T>
+NRPerm<T>::NRPerm(const CyclePerm<T> &rhs, int n)
+: NRVec_from1<T>(n)
+{
+#ifdef DEBUG
+        if(!rhs.is_valid()) laerror("invalid cycle permutation");
+#endif
 
+identity();
+T ncycles=rhs.size();
+for(T j=1; j<=ncycles; ++j)
+        {
+	T length= rhs[j].size();
+        for(T i=1; i<=length; ++i) (*this)[rhs[j][i]] = rhs[j][i%length+1];
+        }
+#ifdef DEBUG
+if(!is_valid()) laerror("internal error in NRPerm constructor from CyclePerm");
+#endif
+}
+
+
+////////////////////////////////////////////////////////
+
+template <typename T>
+CyclePerm<T>:: CyclePerm(const NRPerm<T> &p)
+{
+#ifdef DEBUG
+        if(!p.is_valid()) laerror("invalid permutation");
+#endif
+T n=p.size();
+NRVec_from1<T> used(0,n),tmp(n);
+T firstunused=1;
+T currentcycle=0;
+std::list<NRVec<T> > cyclelist={};
+do
+        {
+        //find a cycle starting with first unused element
+        T cyclelength=0;
+        T next = firstunused;
+        do
+                {
+                ++cyclelength;
+                used[next]=1;
+                tmp[cyclelength] = next;
+                next = p[next];
+                }
+        while(used[next]==0);
+        if(cyclelength>1) //nontrivial cycle
+                {
+		NRVec_from1<T> cycle(&tmp[1],cyclelength);
+		cyclelist.push_front(cycle);
+                ++currentcycle;
+                }
+        while(used[firstunused]) {++firstunused; if(firstunused>n) break;} //find next unused element
+        }
+while(firstunused<=n);
+//convert list to NRVec
+this->resize(currentcycle);
+T i=1;
+for(auto l=cyclelist.begin(); l!=cyclelist.end(); ++l) (*this)[i++] = *l;
+}
+
+
+template <typename T>
+bool CyclePerm<T>::is_valid() const
+{
+for(T i=1; i<=this->size(); ++i)
+	{
+	T n=(*this)[i].size();
+	if(n<=0) return false;
+	for(T j=1; j<=n; ++j)
+		{
+		T x=(*this)[i][j];
+		if(x<=0) return false;
+
+		//now check for illegal duplicity of numbers withis a cycle or across cycles
+		for(T ii=i; ii<=this->size(); ++ii)
+			{
+			T nn=(*this)[ii].size();
+			for(T jj=1; jj<=nn; ++jj)
+				{
+				T xx=(*this)[ii][jj];
+				if(x==xx) return false;
+				}
+			}
+		}
+	}
+return true;
+}
+
+
+template <typename T>
+bool CyclePerm<T>::is_identity() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid cycleperm");
+#endif
+for(T i=1; i<=this->size(); ++i) if((*this)[i].size()>1) return false; //at least one nontrivial cycle
+return true;
+}
+
+
+template <typename T>
+CyclePerm<T> CyclePerm<T>::inverse() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid cycleperm");
+#endif
+
+CyclePerm<T> r;
+T ncycles=this->size();
+r.resize(ncycles);
+for(T i=1; i<=ncycles; ++i)
+	{
+	T length=(*this)[i].size();
+	r[i].resize(length);
+	for(T j=1; j<=length; ++j) r[i][j] = (*this)[i][length-j+1];
+	}
+return r;
+}
+
+
+template <typename T>
+int CyclePerm<T>::parity() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid cycleperm");
+#endif
+int n_even_cycles=0;
+T ncycles=this->size();
+for(T i=1; i<=ncycles; ++i)
+        {
+        T length=(*this)[i].size();
+	if((length&1)==0) ++n_even_cycles;
+	}
+return (n_even_cycles&1)?-1:1;
+}
+
+
+template <typename T>
+Partition<T> CyclePerm<T>::cycles(const T n) const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid cycleperm");
+#endif
+Partition<T> r(n); r.clear();
+T ncycles=this->size();
+for(T i=1; i<=ncycles; ++i)
+        {
+	T length=(*this)[i].size();
+	if(length<=0||length>n) laerror("unexpected cycle length in permutation");
+	r[length]++;
+	}
+//fill in trivial cycles of length one
+r[1] = n - r.sum();
+if(r[1]<0) laerror("inconsistent cycle lengths in CyclePerm::cycles");
+return r;
+}
+
+
+///////////////////////////////////////////////////////
 
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
 template class NRPerm<int>;
+template class CyclePerm<int>;
+template class Partition<int>;
 }

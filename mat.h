@@ -26,6 +26,7 @@ namespace LA {
 
 //forward declaration
 template<typename T> class NRPerm;
+template<typename T> class CyclePerm;
 
 
 /***************************************************************************//**
