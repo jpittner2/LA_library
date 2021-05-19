@@ -1989,7 +1989,7 @@ c=a+b;
 cout<<c;
 }
 
-if(1)
+if(0)
 {
 NRPerm<int> p;
 cin >>p;
@@ -1997,8 +1997,67 @@ int n=p.size();
 NRVec_from1<double> v(n);
 int i;
 for(i=1; i<=n; ++i) v[i]=10.*i;
-cout <<v.permute(p);
+cout <<v.permuted(p);
 }
 
+if(0)
+{
+CyclePerm<int> c;
+cin>>c;
+cout<<c<<endl;
+NRPerm<int> p(c);
+cout <<p;
+CyclePerm<int> cc(p);
+cout <<cc<<endl;
+}
+
+if(0)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+int n;
+cin >>n;
+NRPerm<int> p(n);
+p.randomize();
+cout <<p;
+CyclePerm<int> cc(p);
+cout <<cc<<endl;
+NRPerm<int> pp(cc,n);
+cout <<pp;
+if(pp!=p) laerror("inconsistency");
+NRVec<double> v(n);
+for(int i=0; i<n; ++i) v[i]=10.*(i+1);
+NRVec<double> vv(v);
+v.permuteme(cc);
+cout <<v;
+NRVec<double>  vvv= vv.permuted(pp);
+cout<<vvv;
+cout<<"error "<<(v-vvv).norm()<<endl;
+}
+
+if(1)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+int n;
+cin >>n;
+NRVec<double> v(n);
+v.randomize(1.);
+NRVec<double> vv(v);
+NRPerm<int> p(n);
+vv.sort(0,p);
+NRVec<double> vvv=v.permuted(p,true);
+NRVec<double> v4=vv.permuted(p,false);
+cout<<v<<vv;
+cout<<vvv<<v4<<p;
+cout <<"error "<<(vv-vvv).norm() <<" "<<(v-v4).norm()<<endl;
+
+}
 
 }

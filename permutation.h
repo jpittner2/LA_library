@@ -41,7 +41,7 @@ public:
 	NRPerm(const NRVec_from1<T> &rhs): NRVec_from1<T>(rhs) {};
 	NRPerm(const T &a, const int n): NRVec_from1<T>(a, n) {};
         NRPerm(const T *a, const int n): NRVec_from1<T>(a, n) {};
-	NRPerm(const CyclePerm<T> &rhs, int n); 
+	explicit NRPerm(const CyclePerm<T> &rhs, const int n=0); 
 
 	//specific operations
 	void identity();
@@ -51,10 +51,10 @@ public:
 	NRPerm operator*(const NRPerm q) const; //q is rhs and applied first, this applied second
 	NRPerm conjugate_by(const NRPerm q) const; //q^-1 p q
 	int parity() const;
+	void randomize(void); //uniformly random by Fisher-Yates shuffle
 
 
 	//TODO:
-	//@@@permutation matrix
 	//@@@permgener
 	//@@@next permutation
 	//@@@lex rank
@@ -67,17 +67,25 @@ template <typename T>
 class CyclePerm : public NRVec_from1<NRVec_from1<T> > {
 public:
 	CyclePerm() :  NRVec_from1<NRVec_from1<T> >() {};
-	CyclePerm(const NRPerm<T> &rhs);
+	explicit CyclePerm(const NRPerm<T> &rhs);
 
 	bool is_valid() const; //is it really a permutation
 	bool is_identity() const; //no cycles of length > 1
 	CyclePerm inverse() const; //reverse all cycles
 	int parity() const; //negative if having odd number of even-length cycles
+	T max() const {T m=0; for(int i=1; i<=this->size(); ++i) {T mm= (*this)[i].max(); if(mm>m) m=mm;} return m;}
 	Partition<T> cycles(const T n) const;
-	//@@@efficient algorithm for multiplication?
-	//@@@operator >> and <<
-	//@@@operation in place on matrix and vector
+	void readfrom(const std::string &line);
+	CyclePerm operator*(const CyclePerm q) const; //q is rhs and applied first, this applied second
 };
+
+
+template <typename T>
+std::istream & operator>>(std::istream &s, CyclePerm<T> &x);
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x);
+
 
 
 //partitions stored as #of 1s, #of 2s, etc.
@@ -94,8 +102,8 @@ public:
 //@@@generate all partitions, 
 //@@@enumerator of partitions of n to r parts and total
 //@@@adjoint partition, 
-//@@@ output as in the group character table
-//@@@Sn character table
+//@@@output formatted as in the group character table
+//@@@Sn character table computation
 };
 
 

@@ -17,6 +17,10 @@
 */
 
 #include "permutation.h"
+#include <stdio.h>
+#include <string.h>
+
+
 namespace LA {
 
 template <typename T>
@@ -27,6 +31,7 @@ T n=this->size();
         if(n<0) laerror("invalid permutation size");
 #endif
 if(n==0) return;
+this->copyonwrite();
 for(T i=1; i<=n; ++i) (*this)[i]=i;
 }
 
@@ -118,12 +123,14 @@ return (count&1)? -1:1;
 }
 
 template <typename T>
-NRPerm<T>::NRPerm(const CyclePerm<T> &rhs, int n)
-: NRVec_from1<T>(n)
+NRPerm<T>::NRPerm(const CyclePerm<T> &rhs, const int n)
 {
 #ifdef DEBUG
         if(!rhs.is_valid()) laerror("invalid cycle permutation");
 #endif
+int m;
+if(n) m=n; else m=rhs.max();
+this->resize(m);
 
 identity();
 T ncycles=rhs.size();
@@ -135,6 +142,22 @@ for(T j=1; j<=ncycles; ++j)
 #ifdef DEBUG
 if(!is_valid()) laerror("internal error in NRPerm constructor from CyclePerm");
 #endif
+}
+
+template <typename T>
+void NRPerm<T>::randomize(void)
+{
+int n=this->size();
+if(n<=0) laerror("cannot randomize empty permutation");
+this->copyonwrite();
+this->identity();
+for(int i=n-1; i>=1; --i)
+	{
+	int j= random()%(i+1);
+	T tmp = (*this)[i+1];
+	(*this)[i+1]=(*this)[j+1];
+	(*this)[j+1]=tmp;
+	}
 }
 
 
@@ -150,7 +173,7 @@ T n=p.size();
 NRVec_from1<T> used(0,n),tmp(n);
 T firstunused=1;
 T currentcycle=0;
-std::list<NRVec<T> > cyclelist={};
+std::list<NRVec_from1<T> > cyclelist={};
 do
         {
         //find a cycle starting with first unused element
@@ -196,7 +219,7 @@ for(T i=1; i<=this->size(); ++i)
 		for(T ii=i; ii<=this->size(); ++ii)
 			{
 			T nn=(*this)[ii].size();
-			for(T jj=1; jj<=nn; ++jj)
+			for(T jj=(ii==i?j+1:1); jj<=nn; ++jj)
 				{
 				T xx=(*this)[ii][jj];
 				if(x==xx) return false;
@@ -233,11 +256,24 @@ for(T i=1; i<=ncycles; ++i)
 	{
 	T length=(*this)[i].size();
 	r[i].resize(length);
+	//reverse order in cycles (does not matter in cycle lengths 1 and 2 anyway)
 	for(T j=1; j<=length; ++j) r[i][j] = (*this)[i][length-j+1];
 	}
 return r;
 }
 
+//multiplication via NRPerm - could there be a more efficient direct algorithm?
+template <typename T>
+CyclePerm<T> CyclePerm<T>::operator*(const CyclePerm q) const
+{
+int m=this->max();
+int mm=q.max();
+if(mm>m) mm=m;
+NRPerm<T> qq(q,m);
+NRPerm<T> pp(*this,m);
+NRPerm<T> rr=pp*qq;
+return CyclePerm<T>(rr);
+}
 
 template <typename T>
 int CyclePerm<T>::parity() const
@@ -271,10 +307,103 @@ for(T i=1; i<=ncycles; ++i)
 	r[length]++;
 	}
 //fill in trivial cycles of length one
-r[1] = n - r.sum();
+r[1] += n - r.sum();
 if(r[1]<0) laerror("inconsistent cycle lengths in CyclePerm::cycles");
 return r;
 }
+
+
+//auxiliary function for input of a permutation in cycle format
+//returns pointer after closing bracket or NULL if no cycle found
+//or input error
+template <typename T>
+const char *read1cycle(NRVec_from1<T> &c, const char *p)
+{
+if(*p==0) return NULL;
+const char *openbracket = strchr(p,'(');
+if(!openbracket) return NULL;
+const char *closebracket = strchr(openbracket+1,')');
+if(!closebracket) return NULL;
+const char *s = openbracket+1;
+int r;
+int length=0;
+std::list<T> cycle;
+do      {
+	long int tmp;
+        int nchar;
+        if(*s==',') ++s;
+        r = sscanf(s,"%ld%n",&tmp,&nchar);
+        if(r==1)
+                {
+                ++length;
+                s += nchar;
+		cycle.push_back((T)tmp);
+                }
+        }
+        while(r==1 && s<closebracket);
+
+//make vector from list
+c.resize(length);
+int i=0;
+for(auto l=cycle.begin(); l!=cycle.end(); ++l) c[++i] = *l;
+
+return closebracket+1;
+}
+
+template <typename T>
+void CyclePerm<T>::readfrom(const std::string &line)
+{
+const char *p=line.c_str();
+std::list<NRVec<T> > cyclelist={};
+int ncycles=0;
+int count=0;
+NRVec_from1<T> c;
+while(p=read1cycle(c,p))
+        {
+        //printf("cycle %d of length %d read\n",count,c.size());
+        if(c.size()!=0) //store a nonempty cycle
+                {
+                ++count;
+		cyclelist.push_back(c);
+                }
+        }
+
+
+//convert list to vector
+this->resize(count);
+T i=0;
+for(auto l=cyclelist.begin(); l!=cyclelist.end(); ++l) (*this)[++i] = *l;
+#ifdef DEBUG
+if(!this->is_valid()) laerror("readfrom received input of invalid CyclePerm");
+#endif
+}
+
+
+template <typename T>
+std::istream & operator>>(std::istream &s, CyclePerm<T> &x)
+{
+std::string l;
+getline(s,l);
+x.readfrom(l);
+return s;
+}
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x)
+{
+for(int i=1; i<=x.size(); ++i)
+	{
+	s<<"(";
+	for(int j=1; j<=x[i].size(); ++j)
+		{
+		s<<x[i][j];
+		if(j<x[i].size()) s<<" ";
+		}
+	s<<")";
+	}
+return s;
+}
+
 
 
 ///////////////////////////////////////////////////////
@@ -286,4 +415,16 @@ return r;
 template class NRPerm<int>;
 template class CyclePerm<int>;
 template class Partition<int>;
-}
+
+#define INSTANTIZE(T) \
+template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
+template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
+
+
+
+INSTANTIZE(int)
+
+
+
+
+}//namespace

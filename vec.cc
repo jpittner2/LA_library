@@ -815,6 +815,15 @@ int NRVec<T>::sort(int direction, int from, int to, int *perm) {
 	else return memqsort<0, NRVec<T>, int, int>(*this, perm, from, to);
 }
 
+template<typename T>
+int NRVec<T>::sort(int direction, NRPerm<int> &perm)
+{
+if(nn!=perm.size()) laerror("incompatible vector and permutation");
+perm.identity();
+int r=sort(direction,0,nn-1,&perm[1]);
+return r;
+}
+
 template<>
 NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
 	NRVec<std::complex<double> > r(rhs.size(), rhs.getlocation());
@@ -834,7 +843,7 @@ NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
 }
 
 template<typename T>
-const NRVec<T> NRVec<T>::permute(const NRPerm<int> &p) const
+const NRVec<T> NRVec<T>::permuted(const NRPerm<int> &p, const bool inverse) const
 {
 #ifdef DEBUG
 if(!p.is_valid()) laerror("invalid permutation of vector");
@@ -845,9 +854,33 @@ if(n!=(*this).size()) laerror("incompatible permutation and vector");
         if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
 #endif
 NRVec<T> r(n);
-for(int i=1; i<=n; ++i) r[i-1] = v[p[i]-1];
+if(inverse) for(int i=1; i<=n; ++i) r[i-1] = v[p[i]-1];
+else for(int i=1; i<=n; ++i) r[p[i]-1] = v[i-1];
 return r;
 }
+
+
+template<typename T>
+void NRVec<T>::permuteme(const CyclePerm<int> &p)
+{
+#ifdef DEBUG
+if(!p.is_valid()) laerror("invalid permutation of vector");
+#endif
+if(p.max()>nn) laerror("incompatible permutation and vector");
+#ifdef CUDALA
+        if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
+#endif
+copyonwrite();
+for(int cycle=1; cycle<=p.size(); ++cycle)
+	{
+	int length= p[cycle].size();
+	if(length<=1) continue; //trivial cycle
+	T tmp = v[p[cycle][length]-1];
+	for(int i=length; i>1; --i) v[p[cycle][i]-1] = v[p[cycle][i-1]-1];
+	v[p[cycle][1]-1] = tmp;
+	}
+}
+
 
 /***************************************************************************//**
  * forced instantization in the corespoding object file
@@ -910,6 +943,38 @@ INSTANTIZE_DUMMY(std::complex<unsigned long>)
 INSTANTIZE_DUMMY(std::complex<unsigned long long>)
 INSTANTIZE_DUMMY(std::complex<std::complex<double> >)
 INSTANTIZE_DUMMY(std::complex<std::complex<float> >)
+
+
+
+//also not supported on gpu
+#define INSTANTIZE_NONCOMPLEX(T) \
+template<>\
+const T NRVec<T>::max() const\
+{\
+if(nn==0) return 0;\
+T m=v[0];\
+for(int i=1; i<nn; ++i) if(v[i]>m) m=v[i];\
+return m;\
+}\
+\
+template<>\
+const T NRVec<T>::min() const\
+{\
+if(nn==0) return 0;\
+T m=v[0];\
+for(int i=1; i<nn; ++i) if(v[i]<m) m=v[i];\
+return m;\
+}\
+
+
+
+INSTANTIZE_NONCOMPLEX(char)
+INSTANTIZE_NONCOMPLEX(short)
+INSTANTIZE_NONCOMPLEX(int)
+INSTANTIZE_NONCOMPLEX(long)
+INSTANTIZE_NONCOMPLEX(long long)
+INSTANTIZE_NONCOMPLEX(float)
+INSTANTIZE_NONCOMPLEX(double)
 
 template class NRVec<double>;
 template class NRVec<std::complex<double> >;

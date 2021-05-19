@@ -271,7 +271,8 @@ public:
         };
 
 	//! permute vector elements
-	const NRVec permute(const NRPerm<int> &p) const;
+	const NRVec permuted(const NRPerm<int> &p, const bool inverse=false) const;
+	void permuteme(const CyclePerm<int> &p); //in place
 
 	//! compute the sum of the absolute values of the elements of this vector 
 	inline const typename LA_traits<T>::normtype asum() const;
@@ -318,6 +319,12 @@ public:
 	//! determine the minimal element (in the absolute value) of this vector 
 	inline const T amin() const;
 
+        //! determine the maximal element of this vector
+        const T max() const;
+        //! determine the minimal element of this vector
+        const T min() const;
+
+
 	//! routine for formatted output 
 	void fprintf(FILE *f, const char *format, const int modulo) const;
 	//! routine for unformatted output 
@@ -355,6 +362,7 @@ public:
 
 	//! sort by default in ascending order and return the parity of corresponding permutation resulting to this order
 	int sort(int direction = 0, int from = 0, int to = -1, int *perm = NULL);
+	int sort(int direction, NRPerm<int> &perm);
 
 	//! apply given function to each element
 	NRVec& call_on_me(T (*_F)(const T &) ){
@@ -1081,6 +1089,8 @@ void NRVec<T>::moveto(const GPUID dest) {
 	}
 }
 #endif
+
+
 
 /***************************************************************************//**
  * adds a real scalar value \f$\alpha\f$ to all elements of this real vector \f$\vec{x}\f$

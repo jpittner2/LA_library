@@ -93,7 +93,7 @@ public:
 	NRSMat & operator=(const T &a);
 
 	//! permute matrix elements
-        const NRSMat permute(const NRPerm<int> &p) const;
+        const NRSMat permuted(const NRPerm<int> &p, const bool inverse=false) const;
 
 	inline int getcount() const {return count?*count:0;}
 

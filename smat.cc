@@ -305,7 +305,7 @@ void NRSMat<T>::fscanf(FILE *f, const char *format) {
 
 //apply permutation
 template <typename T>
-const NRSMat<T> NRSMat<T>::permute(const NRPerm<int> &p) const
+const NRSMat<T> NRSMat<T>::permuted(const NRPerm<int> &p, const bool inverse) const
 {
 #ifdef DEBUG
 if(!p.is_valid()) laerror("invalid permutation of smatrix");
@@ -316,7 +316,8 @@ if(n!=(*this).size()) laerror("incompatible permutation and smatrix");
         if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
 #endif
 NRSMat<T> r(n);
-for(int i=1; i<=n; ++i) {int pi = p[i]-1; r(i-1,i-1) = (*this)(pi,pi);}
+if(inverse) for(int i=1; i<=n; ++i) {int pi = p[i]-1; r(i-1,i-1) = (*this)(pi,pi);}
+else for(int i=1; i<=n; ++i) {int pi = p[i]-1; r(pi,pi) = (*this)(i-1,i-1);}
 return r;
 }
 

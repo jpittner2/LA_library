@@ -117,9 +117,14 @@ public:
 	void copyonwrite(bool detachonly=false);
 
 	//! permute matrix elements
-        const NRMat permute_rows(const NRPerm<int> &p) const;
-        const NRMat permute_cols(const NRPerm<int> &p) const;
-        const NRMat permute_both(const NRPerm<int> &p, const NRPerm<int> &q) const;
+        const NRMat permuted_rows(const NRPerm<int> &p, const bool inverse=false) const;
+        const NRMat permuted_cols(const NRPerm<int> &p, const bool inverse=false) const;
+        const NRMat permuted_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false) const;
+	void permuteme_rows(const CyclePerm<int> &p); //in place
+	void permuteme_cols(const CyclePerm<int> &p); //in place
+	void scale_row(const int i, const T f); //in place
+	void scale_col(const int i, const T f); //in place
+	explicit NRMat(const NRPerm<int> &p, const bool direction); //permutation matrix
 
 
 	/***************************************************************************//**
@@ -348,6 +353,11 @@ public:
 	NRMat & swap_cols(const int i, const int j);
 	// LV - swapping of rows i and j
 	NRMat & swap_rows(const int i, const int j);
+
+	//rotate rows or columns through an angle
+	NRMat & rotate_cols(const int i, const int j, const T phi);
+        NRMat & rotate_rows(const int i, const int j, const T phi);
+
 
 	//! multiply by sparse matrix
 	SparseSMat<T> operator*(const SparseSMat<T> &rhs) const;
