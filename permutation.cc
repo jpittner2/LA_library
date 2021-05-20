@@ -173,7 +173,7 @@ T n=p.size();
 NRVec_from1<T> used(0,n),tmp(n);
 T firstunused=1;
 T currentcycle=0;
-std::list<NRVec_from1<T> > cyclelist={};
+std::list<NRVec_from1<T> > cyclelist;
 do
         {
         //find a cycle starting with first unused element
@@ -199,7 +199,7 @@ while(firstunused<=n);
 //convert list to NRVec
 this->resize(currentcycle);
 T i=1;
-for(auto l=cyclelist.begin(); l!=cyclelist.end(); ++l) (*this)[i++] = *l;
+for(typename std::list<NRVec_from1<T> >::iterator l=cyclelist.begin(); l!=cyclelist.end(); ++l) (*this)[i++] = *l;
 }
 
 
@@ -345,7 +345,7 @@ do      {
 //make vector from list
 c.resize(length);
 int i=0;
-for(auto l=cycle.begin(); l!=cycle.end(); ++l) c[++i] = *l;
+for(typename std::list<T>::iterator l=cycle.begin(); l!=cycle.end(); ++l) c[++i] = *l;
 
 return closebracket+1;
 }
@@ -354,7 +354,7 @@ template <typename T>
 void CyclePerm<T>::readfrom(const std::string &line)
 {
 const char *p=line.c_str();
-std::list<NRVec<T> > cyclelist={};
+std::list<NRVec<T> > cyclelist;
 int ncycles=0;
 int count=0;
 NRVec_from1<T> c;
@@ -372,7 +372,7 @@ while(p=read1cycle(c,p))
 //convert list to vector
 this->resize(count);
 T i=0;
-for(auto l=cyclelist.begin(); l!=cyclelist.end(); ++l) (*this)[++i] = *l;
+for(typename std::list<NRVec<T> >::iterator l=cyclelist.begin(); l!=cyclelist.end(); ++l) (*this)[++i] = *l;
 #ifdef DEBUG
 if(!this->is_valid()) laerror("readfrom received input of invalid CyclePerm");
 #endif
