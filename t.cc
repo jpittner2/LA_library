@@ -53,6 +53,21 @@ inline int randind(const int n)
 
 complex<double> mycident (const complex<double>&x) {return x;}
 
+void printme(const NRPerm<int> &p)
+{
+PERM_RANK_TYPE rank=p.rank();
+int n=p.size();
+cout<<p.rank()<<" "<<p;
+NRPerm<int> qq(n,rank);
+if(qq!=p)  laerror("error in rank algorithm");
+for(int i=0; i<4; ++i)
+	{
+	NRVec_from1<int>  inv=p.inversions(i);
+	NRPerm<int> q(i,inv);
+	if(q!=p) laerror("error in inversions algorithm");
+	}
+}
+
 
 int main()
 {
@@ -2038,7 +2053,7 @@ cout<<vvv;
 cout<<"error "<<(v-vvv).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int seed;
 int f=open("/dev/random",O_RDONLY);
@@ -2057,7 +2072,26 @@ NRVec<double> v4=vv.permuted(p,false);
 cout<<v<<vv;
 cout<<vvv<<v4<<p;
 cout <<"error "<<(vv-vvv).norm() <<" "<<(v-v4).norm()<<endl;
+}
 
+if(0)
+{
+int n;
+cin >>n;
+NRPerm<int> p(n);
+p.identity();
+do{
+cout <<p;
+}while(p.next());
+}
+
+if(1)
+{
+int n;
+cin >>n;
+NRPerm<int> p(n);
+int tot=p.generate_all_lex(printme);
+cout <<"generated "<<tot<<endl;
 }
 
 }

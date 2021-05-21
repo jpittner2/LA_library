@@ -161,6 +161,316 @@ for(int i=n-1; i>=1; --i)
 }
 
 
+template <typename T>
+bool NRPerm<T>::next(void)
+{
+this->copyonwrite();
+int n=this->size();
+// Find longest non-increasing suffix and the pivot
+int i = n;
+while (i > 1 && (*this)[i-1] >= (*this)[i]) --i;
+if (i<=1) return false;
+T piv=(*this)[i-1];
+
+// Find rightmost element greater than the pivot
+int j = n;
+while ((*this)[j] <= piv) --j;
+// Now the value array[j] will become the new pivot, Assertion: j >= i
+    
+// Swap the pivot with j
+(*this)[i - 1] = (*this)[j];
+(*this)[j] = piv;
+    
+// Reverse the suffix
+j = n;
+while (i < j) {
+        T temp = (*this)[i];
+        (*this)[i] = (*this)[j];
+        (*this)[j] = temp;
+        i++;
+        j--;
+    }
+
+return true;
+}
+
+//Algorithm L from Knuth's volume 4
+template <typename T>
+PERM_RANK_TYPE NRPerm<T>::generate_all(void (*callback)(const NRPerm<T>&), int select)
+{
+int n=this->size();
+NRVec_from1<T> c(0,n);
+NRVec_from1<T> d(1,n);
+int j,k,s;
+T q;
+T t;
+
+this->identity();
+PERM_RANK_TYPE sumperm=0;
+
+p2:
+        sumperm++;
+        if(!select || (select&1) == (sumperm&1)) (*callback)(*this);
+        j=n; s=0;
+p4:
+        q=c[j]+d[j];
+        if(q<0) goto p7;
+        if(q==j) goto p6;
+
+        t=(*this)[j-c[j]+s]; (*this)[j-c[j]+s]=(*this)[j-q+s]; (*this)[j-q+s]=t;
+        c[j]=q;
+        goto p2;
+p6:
+        if(j==1) goto end;
+        s++;
+p7:
+        d[j]= -d[j];
+        j--;
+        goto p4;
+
+end:
+return select? sumperm/2:sumperm;
+}
+
+
+template <typename T>
+static T _n;
+
+template <typename T>
+static void (*_callback)(const NRPerm<T>& ); 
+
+PERM_RANK_TYPE _sumperm;
+
+template <typename T>
+NRPerm<T> *_perm;
+
+template <typename T>
+void permg(T n)
+{
+if(n<= _n<T>)
+        {
+        for(T i=1;i<= _n<T>;i++)
+                {
+                if(!(*_perm<T>)[i]) //place not occupied
+			{
+                	(*_perm<T>)[i]=n;
+                	permg(n+1);
+                	(*_perm<T>)[i]=0;
+			}
+                }
+        }
+else
+        {
+        _sumperm++;
+	(*_callback<T>)(*_perm<T>);
+        }
+}
+
+
+template <typename T>
+PERM_RANK_TYPE NRPerm<T>::generate_all2(void (*callback)(const NRPerm<T>&))
+{
+this->copyonwrite();
+this->clear();
+_n<T> = this->size();
+_callback<T> =callback;
+_sumperm=0;
+_perm<T> = this;
+permg(1);
+return _sumperm;
+}
+
+
+template <typename T>
+PERM_RANK_TYPE NRPerm<T>::generate_all_lex(void (*callback)(const NRPerm<T>&))
+{
+PERM_RANK_TYPE np=0;
+this->identity();
+do{
+++np;
+(*callback)(*this);
+}while(this->next());
+return np;
+}
+
+template <typename T>
+PERM_RANK_TYPE NRPerm<T>::rank() const
+{
+int c,i,k;
+PERM_RANK_TYPE r;
+int n= this->size();
+
+r=0;
+for (k=1; k<=n; ++k)
+        {
+        T l=(*this)[k];
+        c=0;
+        for(i=k+1;i<=n;++i) if((*this)[i]<l) ++c;
+        r+= c;
+	i=n-k;
+        if(i) r*= i;
+        }
+return r;
+}
+
+
+template <typename T>
+NRVec_from1<T> NRPerm<T>::inversions(const int type, PERM_RANK_TYPE *prank) const
+{
+PERM_RANK_TYPE s=0;
+int n=this->size();
+int j,k;
+T l;
+
+NRVec_from1<T> i(n);
+i.clear();
+
+switch(type) {
+case 3:  /*number of elements right from p[j] smaller < p[j]*/
+for(j=1;j<n;++j) /*number of elements right from j smaller <j*/
+        {
+        l=(*this)[j];
+        for(k=n;k>j;--k)
+                {
+                if((*this)[k]<l) ++i[j];
+                }
+        }
+        break;
+case 2: /*number of elements left from p[j] bigger >p[j]*/
+for(j=2;j<=n;++j) /*number of elements left from j bigger >j*/
+        {
+        l=(*this)[j];
+        for(k=1;k<j;++k)
+                {
+                if((*this)[k]>l) ++i[j];
+                }
+        }
+        break;
+case 1:
+for(j=1;j<=n;++j) /*number of elements right from j smaller <j*/
+        {
+        for(k=n;k>=1;--k)
+                {
+                if((*this)[k]==j) break;
+                if((*this)[k]<j) ++i[j];
+                }
+        }
+        break;
+case 0:
+for(j=1;j<=n;++j) /*number of elements left from j bigger >j*/
+        {
+        for(k=1;k<=n;++k)
+                {
+                if((*this)[k]==j) break;
+                if((*this)[k]>j) ++i[j];
+                }
+        }
+        break;
+default: laerror("illegal type in inversions");
+
+if(prank)
+	{
+	if(type!=3) laerror("rank can be computed from inversions only for type 3");
+	l=1;
+	for(j=1;j<n;++j)
+                {
+                l*= j;
+                *prank += l*i[n-j];
+                }
+	}
+}
+
+return i;
+}
+
+template <typename T>
+NRPerm<T>::NRPerm(const int type, const NRVec_from1<T> &i)
+{
+int n=i.size();
+this->resize(n);
+
+int k,l;
+T j;
+
+switch(type) {
+case 2:
+case 1:
+        for(l=0,j=1; j<=n; ++j,++l)
+                {
+                /*shift left and place*/
+                for(k=n-l+1; k<=n-i[j]; ++k) (*this)[k-1]=(*this)[k];
+                (*this)[n-i[j]]=j;
+                }
+        break;
+case 3:
+case 0:
+        for(l=0,j=n; j>0; --j,++l)
+                {
+                /*shift right and place*/
+                for(k=l; k>=i[j]+1; --k) (*this)[k+1]=(*this)[k];
+                (*this)[i[j]+1]=j;
+                }
+        break;
+default: laerror("illegal type in nrperm from inversions");
+}
+
+if(type>=2) (*this) = this->inverse();
+}
+
+
+
+template <typename T>
+NRPerm<T>::NRPerm(const int n, const PERM_RANK_TYPE rank)
+{
+this->resize(n);
+NRVec_from1<T> inv(n) ;
+#ifdef DEBUG
+if(rank>=factorial(n)) laerror("illegal rank for this n");
+#endif
+inv[n]=0;
+int k;
+PERM_RANK_TYPE r=rank;
+for(k=n-1; k>=0; --k)
+        {
+        PERM_RANK_TYPE t;
+        t=factorial(k);
+        inv[n-k]=r/t;
+        r=r%t;
+        }
+
+*this =  NRPerm(3,inv);
+}
+
+#define MAXFACT 20
+PERM_RANK_TYPE factorial(const int n)
+{
+static int ntop=20;
+static  PERM_RANK_TYPE a[MAXFACT+1]={1,1,2,6,24,120,720,5040,
+40320,
+362880,
+3628800,
+39916800ULL,
+479001600ULL,
+6227020800ULL,
+87178291200ULL,
+1307674368000ULL,
+20922789888000ULL,
+355687428096000ULL,
+6402373705728000ULL,
+121645100408832000ULL,
+2432902008176640000ULL};
+
+int j;
+if (n < 0) laerror("negative argument of factorial");
+if (n > MAXFACT) laerror("overflow in factorial");
+        while (ntop<n) {
+                j=ntop++;
+                a[ntop]=a[j]*ntop;
+                }
+return a[n];
+}
+
+
 ////////////////////////////////////////////////////////
 
 template <typename T>

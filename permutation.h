@@ -23,6 +23,8 @@
 #include "la_traits.h"
 #include "vec.h"
 
+typedef   unsigned long long PERM_RANK_TYPE;
+
 //permutations are always numbered from 1; offset is employed when applied to vectors and matrices
 
 namespace LA {
@@ -39,7 +41,6 @@ public:
 	NRPerm(): NRVec_from1<T>() {};
 	NRPerm(const int n) : NRVec_from1<T>(n) {};
 	NRPerm(const NRVec_from1<T> &rhs): NRVec_from1<T>(rhs) {};
-	NRPerm(const T &a, const int n): NRVec_from1<T>(a, n) {};
         NRPerm(const T *a, const int n): NRVec_from1<T>(a, n) {};
 	explicit NRPerm(const CyclePerm<T> &rhs, const int n=0); 
 
@@ -52,15 +53,17 @@ public:
 	NRPerm conjugate_by(const NRPerm q) const; //q^-1 p q
 	int parity() const;
 	void randomize(void); //uniformly random by Fisher-Yates shuffle
-
-
-	//TODO:
-	//@@@permgener
-	//@@@next permutation
-	//@@@lex rank
-	//@@@inversion tables
+	bool next(); //generate next permutation in lex order
+	PERM_RANK_TYPE generate_all(void (*callback)(const NRPerm<T>&), int parity_select=0); //Algorithm from Knuth's vol.4, efficient but not in lex order!
+	PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&)); //recursive method, also not lexicographic
+	PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&)); //generate in lex order using next()
+	PERM_RANK_TYPE rank() const; //counted from 0 to n!-1
+	NRVec_from1<T> inversions(const int type, PERM_RANK_TYPE *prank=NULL) const; //inversion tables
+	explicit NRPerm(const int type, const NRVec_from1<T> &inversions); //compute permutation from inversions
+	explicit NRPerm(const int n, const PERM_RANK_TYPE rank); //compute permutation from its rank
 };
 
+extern PERM_RANK_TYPE factorial(const int n);
 
 //permutations represented in the cycle format
 template <typename T>
@@ -71,6 +74,7 @@ public:
 
 	bool is_valid() const; //is it really a permutation
 	bool is_identity() const; //no cycles of length > 1
+	void identity() {this->resize(0);};
 	CyclePerm inverse() const; //reverse all cycles
 	int parity() const; //negative if having odd number of even-length cycles
 	T max() const {T m=0; for(int i=1; i<=this->size(); ++i) {T mm= (*this)[i].max(); if(mm>m) m=mm;} return m;}
