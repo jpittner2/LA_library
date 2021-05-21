@@ -33,6 +33,7 @@ namespace LA {
 template <typename T> class NRVec_from1;
 template <typename T> class CyclePerm;
 template <typename T> class Partition;
+template <typename T> class CompressedPartition;
 
 template <typename T>
 class NRPerm : public NRVec_from1<T> {
@@ -64,6 +65,7 @@ public:
 };
 
 extern PERM_RANK_TYPE factorial(const int n);
+extern PERM_RANK_TYPE ipow(PERM_RANK_TYPE x, int i);
 
 //permutations represented in the cycle format
 template <typename T>
@@ -78,9 +80,10 @@ public:
 	CyclePerm inverse() const; //reverse all cycles
 	int parity() const; //negative if having odd number of even-length cycles
 	T max() const {T m=0; for(int i=1; i<=this->size(); ++i) {T mm= (*this)[i].max(); if(mm>m) m=mm;} return m;}
-	Partition<T> cycles(const T n) const;
+	CompressedPartition<T> cycles(const T n) const;
 	void readfrom(const std::string &line);
 	CyclePerm operator*(const CyclePerm q) const; //q is rhs and applied first, this applied second
+	//@@@order = lcm of cycle lengths
 };
 
 
@@ -92,24 +95,54 @@ std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x);
 
 
 
-//partitions stored as #of 1s, #of 2s, etc.
+//compressed partitions stored as #of 1s, #of 2s, etc.
+template <typename T>
+class CompressedPartition : public NRVec_from1<T> {
+public:
+	CompressedPartition(): NRVec_from1<T>() {};
+	CompressedPartition(const int n) : NRVec_from1<T>(n) {};
+	T sum() const {T s=0; for(int i=1; i<=this->size(); ++i) s += i*(*this)[i]; return s;}
+	T nparts() const {T s=0; for(int i=1; i<=this->size(); ++i) s += (*this)[i]; return s;}
+	T nclasses() const {T s=0; for(int i=1; i<=this->size(); ++i) if((*this)[i]) ++s; return s;}
+	bool is_valid() const {return this->size() == this->sum();}
+	explicit CompressedPartition(const Partition<T> &rhs) : NRVec_from1<T>(rhs.size()) {this->clear(); for(int i=1; i<=rhs.size(); ++i) if(!rhs[i]) break; else (*this)[rhs[i]]++; }
+	PERM_RANK_TYPE Sn_class_size() const; 
+
+//@@@output formatted as in the group character table
+
+};
+
 template <typename T>
 class Partition : public NRVec_from1<T> {
 public:
-	Partition(): NRVec_from1<T>() {};
-	Partition(const int n) : NRVec_from1<T>(n) {};
-	T sum() const {T s=0; for(T i=1; i<=this->size(); ++i) s += i*(*this)[i]; return s;}
-	T nparts() const {T s=0; for(T i=1; i<=this->size(); ++i) s += (*this)[i]; return s;}
-	T nclasses() const {T s=0; for(T i=1; i<=this->size(); ++i) if((*this)[i]) ++s; return s;}
-	bool is_valid() const {return this->size() == this->sum();}
+        Partition(): NRVec_from1<T>() {};
+        Partition(const int n) : NRVec_from1<T>(n) {};
+        T nparts() const {T s=0; for(int i=1; i<=this->size(); ++i) if((*this)[i]) ++s; return s;}
+        bool is_valid() const {if(this->size() != this->sum()) return false; for(int i=2; i<=this->size(); ++i) if((*this)[i]>(*this)[i-1]) return false; return true; }
+	explicit Partition(const CompressedPartition<T>  &rhs) : NRVec_from1<T>(rhs.size()) {this->clear(); int ithru=0; for(int i=rhs.size(); i>=1; --i) for(int j=0; j<rhs[i]; ++j) (*this)[++ithru]=i; }
+	Partition adjoint() const;
+	PERM_RANK_TYPE Sn_irrep_dim() const;
+	PERM_RANK_TYPE generate_all(void (*callback)(const Partition<T>&), int nparts=0); //nparts <0 means at most to -nparts
 
-//@@@generate all partitions, 
-//@@@enumerator of partitions of n to r parts and total
-//@@@adjoint partition, 
-//@@@output formatted as in the group character table
-//@@@Sn character table computation
+
+//@@@yamanouchi symbol
 };
 
+
+template <typename T>
+class YoungTableaux : public NRVec_from1<NRVec_from1<T> > {
+public:
+        YoungTableaux() :  NRVec_from1<NRVec_from1<T> >() {};
+        explicit YoungTableaux(const Partition<T> &frame);
+
+	bool is_valid() const; //@@@shape forms a partition
+        bool filled_correctly() const; //is it filled correctly
+};
+
+
+
+//@@@enumerator of partitions of n to r parts and total from expr
+//@@@Sn character table computation from young - young frame filling
 
 }//namespace
 #endif

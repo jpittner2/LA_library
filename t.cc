@@ -68,6 +68,17 @@ for(int i=0; i<4; ++i)
 	}
 }
 
+void pprintme(const Partition<int> &p)
+{
+cout<<p;
+Partition<int> q=p.adjoint();
+cout<<"IR dim "<<p.Sn_irrep_dim()<<endl;
+cout <<q;
+CompressedPartition qc(q);
+cout<<"Class size "<<qc.Sn_class_size()<<endl;
+}
+
+
 
 int main()
 {
@@ -2085,7 +2096,7 @@ cout <<p;
 }while(p.next());
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n;
@@ -2093,5 +2104,16 @@ NRPerm<int> p(n);
 int tot=p.generate_all_lex(printme);
 cout <<"generated "<<tot<<endl;
 }
+
+if(1)
+{
+int n;
+cin >>n;
+Partition<int> p(n);
+int tot=p.generate_all(pprintme,0);
+cout <<"generated "<<tot<<endl;
+}
+
+
 
 }

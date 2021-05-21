@@ -603,12 +603,12 @@ return (n_even_cycles&1)?-1:1;
 
 
 template <typename T>
-Partition<T> CyclePerm<T>::cycles(const T n) const
+CompressedPartition<T> CyclePerm<T>::cycles(const T n) const
 {
 #ifdef DEBUG
 if(!this->is_valid()) laerror("operation with an invalid cycleperm");
 #endif
-Partition<T> r(n); r.clear();
+CompressedPartition<T> r(n); r.clear();
 T ncycles=this->size();
 for(T i=1; i<=ncycles; ++i)
         {
@@ -718,12 +718,133 @@ return s;
 
 ///////////////////////////////////////////////////////
 
+template <typename T>
+PERM_RANK_TYPE CompressedPartition<T>::Sn_class_size() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid partition");
+#endif
+int n=this->size();
+PERM_RANK_TYPE r=factorial(n);
+for(int i=1; i<=n; ++i) 
+	{
+	T m=(*this)[i];
+	if(i>1 && m>0) r/=ipow(i,m);
+	if(m>1) r/=factorial(m);
+	}
+return r;
+}
+
+template <typename T>
+PERM_RANK_TYPE Partition<T>::Sn_irrep_dim() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid partition");
+#endif
+int n=this->size();
+PERM_RANK_TYPE prod=1;
+Partition<T> adj=this->adjoint();
+//hook length formula
+for(int i=1; i<=adj[1]; ++i) //rows
+	for(int j=1; j<= (*this)[i]; ++j) //cols
+		prod *= (*this)[i]-j+adj[j]-i+1;
+
+return factorial(n)/prod;
+}
+
+
+template <typename T>
+Partition<T> Partition<T>::adjoint() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid partition");
+#endif
+int n=this->size();
+Partition<T> r(n);
+r.clear();
+for(int i=1;i<=n;++i)
+                {
+		int j;
+                for(j=1; j<=n&&(*this)[j]>=i; ++j);
+                r[i]=j-1;
+                }
+return r;
+}
+
+PERM_RANK_TYPE ipow(PERM_RANK_TYPE x, int i)
+{
+if(i<0) return 0;
+PERM_RANK_TYPE y=1;
+do
+        {
+        if(i&1) y *= x;
+	i >>= 1;
+        if(i) x *= x;
+        }
+while(i);
+return y ;
+}
+
+
+//aux for the recursive procedure
+static PERM_RANK_TYPE partitioncount;
+template <typename T> static void (*_pcallback)(const Partition<T>&);
+static int partitiontyp;
+static int partitiontypabs;
+template <typename T> static Partition<T> *partition;
+
+template <typename T>
+void partgen(int remain, int pos)
+{
+int hi,lo;
+if(remain==0) {++partitioncount; (*_pcallback<T>)(*partition<T>); return;}
+if(partitiontyp) lo=(remain+partitiontypabs-pos)/(partitiontypabs-pos+1); else lo=1;
+hi=remain;
+if(partitiontyp>0) hi -= partitiontypabs-pos;
+if(pos>1 && (*partition<T>)[pos-1] < hi) hi= (*partition<T>)[pos-1];
+for((*partition<T>)[pos]=hi; (*partition<T>)[pos]>=lo; --(*partition<T>)[pos]) partgen<T>(remain-(*partition<T>)[pos],pos+1);
+(*partition<T>)[pos]=0;
+}
+
+
+
+template <typename T>
+PERM_RANK_TYPE Partition<T>::generate_all(void (*callback)(const Partition<T>&), int nparts) 
+{
+int n=this->size();
+if(n==0) return 0;
+if(nparts>0 && n<nparts) return 0;
+
+this->copyonwrite();
+this->clear();
+partitioncount=0;
+_pcallback<T> =callback;
+partitiontyp=nparts;
+partition<T> = this;
+partitiontypabs= nparts>=0?nparts:-nparts;
+partgen<T>(n,1);
+return partitioncount;
+}
+
+template <typename T>
+YoungTableaux<T>::YoungTableaux(const Partition<T> &frame)
+: NRVec_from1<NRVec_from1<T> >()
+{
+#ifdef DEBUG
+if(!frame.is_valid()) laerror("invalid partition used as young frame");
+#endif
+int nlines=frame.nparts();
+this->resize(nlines);
+for(int i=1; i<=nlines; ++i) (*this)[i].resize(frame[i]);
+}
+
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
 template class NRPerm<int>;
 template class CyclePerm<int>;
+template class CompressedPartition<int>;
 template class Partition<int>;
 
 #define INSTANTIZE(T) \
