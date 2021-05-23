@@ -73,6 +73,7 @@ extern bool _LA_count_check;
 
 //forward declarations
 template<typename C> class NRVec;
+template<typename C> class NRVec_from1;
 template<typename C> class NRMat;
 template<typename C> class NRMat_from1;
 template<typename C> class NRSMat;
@@ -270,6 +271,7 @@ static void multiput(size_t n, int fd, const std::complex<C> *x, bool dimensions
 static void copy(std::complex<C> *dest, std::complex<C> *src, size_t n) {memcpy(dest,src,n*sizeof(std::complex<C>));}
 static void clear(std::complex<C> *dest, size_t n) {memset(dest,0,n*sizeof(std::complex<C>));}
 static void copyonwrite(std::complex<C> &x) {};
+static bool is_plaindata() {return true;}
 static void clearme(std::complex<C> &x) {x=0;};
 static void deallocate(std::complex<C> &x) {};
 static inline std::complex<C> conjugate(const std::complex<C> &x) {return std::complex<C>(x.real(),-x.imag());};
@@ -325,6 +327,7 @@ static void multiput(size_t n, int fd, const C *x, bool dimensions=0)
 static void copy(C *dest, C *src, size_t n) {memcpy(dest,src,n*sizeof(C));}
 static void clear(C *dest, size_t n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
+static bool is_plaindata() {return true;}
 static void clearme(C &x) {x=0;};
 static void deallocate(C &x) {};
 static inline C conjugate(const C &x) {return x;};
@@ -358,6 +361,7 @@ static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=
 static void copy(C *dest, C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];} \
 static void clear(C *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
+static bool is_plaindata() {return false;}\
 static void clearme(X<C> &x) {x.clear();}\
 static void deallocate(X<C> &x) {x.dealloc();}\
 };
@@ -367,6 +371,7 @@ static void deallocate(X<C> &x) {x.dealloc();}\
 generate_traits(NRMat)
 generate_traits(NRMat_from1)
 generate_traits(NRVec)
+generate_traits(NRVec_from1)
 generate_traits(SparseMat)
 generate_traits(SparseSMat) //product leading to non-symmetric result not implemented
 generate_traits(CSRMat) 
@@ -394,6 +399,7 @@ static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=
 static void copy(C *dest, C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];}  \
 static void clear(C *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \
+static bool is_plaindata() {return false;}\
 static void clearme(X<C> &x) {x.clear();} \
 static void deallocate(X<C> &x) {x.dealloc();} \
 };

@@ -937,9 +937,17 @@ void NRSMat<T>::copyonwrite(bool detachonly) {
 		if(location == cpu) {
 #endif
 			newv = new T[NN2];
-			if(!detachonly) memcpy(newv, v, NN2*sizeof(T));
+			if(!detachonly) 
+				{
+				if(LA_traits<T>::is_plaindata()) memcpy(newv, v, NN2*sizeof(T));
+				else
+                                        {
+                                        for(int i=0; i<NN2; ++i) {newv[i]=v[i]; LA_traits<T>::copyonwrite(newv[i]);}
+                                        }
+				}
 #ifdef CUDALA
 		}else{
+			f(!LA_traits<T>::is_plaindata()) laerror("nested types not supported on gpu memory");
 			newv = (T *) gpualloc(NN2*sizeof(T));
 			if(sizeof(T)%sizeof(float) != 0) laerror("memory alignment problem in NRSMat<T>::copyonwrite()");
 			if(!detachonly) cublasScopy(NN2*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);

@@ -152,7 +152,20 @@ void SparseMat<T>::copyonwrite(bool detachonly)
                 count = new int; *count=1;
 		if(!list) laerror("empty list with count>1");
 		unsort();
-		if(!detachonly) copylist(list);
+		if(!detachonly) 
+			{
+			copylist(list);
+			if(!LA_traits<T>::is_plaindata()) //nested copyonwrite
+				{
+				matel<T> *l =list;
+				while(l)
+        				{
+				        LA_traits<T>::copyonwrite(l->elem);
+				        l=l->next;
+       					}
+
+				}
+			}
                 }
 }
 

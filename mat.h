@@ -1036,16 +1036,31 @@ void NRMat<T>::copyonwrite(bool detachonly) {
 		#ifdef MATPTR
 			T **newv = new T*[nn];
 			newv[0] = new T[(size_t)mm*nn];
-			if(!detachonly) memcpy(newv[0], v[0], (size_t)mm*nn*sizeof(T));
+			if(!detachonly) 
+				{
+				if(LA_traits<T>::is_plaindata()) memcpy(newv[0], v[0], (size_t)mm*nn*sizeof(T));
+                                else
+                                        {
+                                        for(int i=0; i<nn*mm; ++i) {newv[i]=v[i]; LA_traits<T>::copyonwrite(newv[i]);}
+                                        }
+				}
 			v = newv;
 			for(register int i=1; i<nn; i++) v[i] = v[i-1] + mm;
 		#else
 			T *newv = new T[(size_t)mm*nn];
-			if(!detachonly) memcpy(newv, v, (size_t)mm*nn*sizeof(T));
+			if(!detachonly) 
+				{
+				if(LA_traits<T>::is_plaindata()) memcpy(newv, v, (size_t)mm*nn*sizeof(T));
+				else
+                                        {
+                                        for(int i=0; i<nn*mm; ++i) {newv[i]=v[i]; LA_traits<T>::copyonwrite(newv[i]);}
+                                        }
+				}
 			v = newv;
 		#endif
 #ifdef CUDALA
 		}else{ //matrix is in GPU memory
+			if(!LA_traits<T>::is_plaindata()) laerror("nested types not supported on gpu memory");
 			T *newv = (T *) gpualloc((size_t)mm*nn*sizeof(T));
 			if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem");
 			if(!detachonly) cublasScopy(nn*mm*sizeof(T)/sizeof(float), (const float *) v, 1, (float *)newv, 1);
