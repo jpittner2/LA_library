@@ -826,6 +826,28 @@ partgen<T>(n,1);
 return partitioncount;
 }
 
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x)
+{
+int n=x.size();
+T sum=0;
+for(int i=n; i>0;--i)
+	if(x[i])
+		{
+		s<<i;
+		if(x[i]>1) s<<'^'<<x[i];
+		sum+= i*x[i];
+		if(sum<n) s<<',';
+		}
+return s;
+}
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+
 template <typename T>
 YoungTableaux<T>::YoungTableaux(const Partition<T> &frame)
 : NRVec_from1<NRVec_from1<T> >()
@@ -839,6 +861,8 @@ for(int i=1; i<=nlines; ++i) (*this)[i].resize(frame[i]);
 }
 
 
+
+
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
@@ -846,10 +870,12 @@ template class NRPerm<int>;
 template class CyclePerm<int>;
 template class CompressedPartition<int>;
 template class Partition<int>;
+template class YoungTableaux<int>;
 
 #define INSTANTIZE(T) \
 template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
+template std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x); \
 
 
 

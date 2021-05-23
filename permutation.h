@@ -108,9 +108,12 @@ public:
 	explicit CompressedPartition(const Partition<T> &rhs) : NRVec_from1<T>(rhs.size()) {this->clear(); for(int i=1; i<=rhs.size(); ++i) if(!rhs[i]) break; else (*this)[rhs[i]]++; }
 	PERM_RANK_TYPE Sn_class_size() const; 
 
-//@@@output formatted as in the group character table
 
 };
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x);
+
 
 template <typename T>
 class Partition : public NRVec_from1<T> {
@@ -120,7 +123,7 @@ public:
         T nparts() const {T s=0; for(int i=1; i<=this->size(); ++i) if((*this)[i]) ++s; return s;}
         bool is_valid() const {if(this->size() != this->sum()) return false; for(int i=2; i<=this->size(); ++i) if((*this)[i]>(*this)[i-1]) return false; return true; }
 	explicit Partition(const CompressedPartition<T>  &rhs) : NRVec_from1<T>(rhs.size()) {this->clear(); int ithru=0; for(int i=rhs.size(); i>=1; --i) for(int j=0; j<rhs[i]; ++j) (*this)[++ithru]=i; }
-	Partition adjoint() const;
+	Partition adjoint() const; //also called conjugate partition
 	PERM_RANK_TYPE Sn_irrep_dim() const;
 	PERM_RANK_TYPE generate_all(void (*callback)(const Partition<T>&), int nparts=0); //nparts <0 means at most to -nparts
 
@@ -136,7 +139,7 @@ public:
         explicit YoungTableaux(const Partition<T> &frame);
 
 	bool is_valid() const; //@@@shape forms a partition
-        bool filled_correctly() const; //is it filled correctly
+        bool filled_correctly() const; //is it filled correctly@@@
 };
 
 

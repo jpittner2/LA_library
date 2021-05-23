@@ -70,12 +70,13 @@ for(int i=0; i<4; ++i)
 
 void pprintme(const Partition<int> &p)
 {
-cout<<p;
+CompressedPartition pc(p);
+cout<<'['<<pc<<"] ";
 Partition<int> q=p.adjoint();
 cout<<"IR dim "<<p.Sn_irrep_dim()<<endl;
-cout <<q;
 CompressedPartition qc(q);
-cout<<"Class size "<<qc.Sn_class_size()<<endl;
+cout <<"("<<qc<<')';
+cout<<" Class size "<<qc.Sn_class_size()<<endl;
 }
 
 
