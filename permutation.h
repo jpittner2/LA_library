@@ -30,10 +30,10 @@ typedef   unsigned long long PERM_RANK_TYPE;
 namespace LA {
 
 //forward declaration
-template <typename T> class NRVec_from1;
 template <typename T> class CyclePerm;
 template <typename T> class Partition;
 template <typename T> class CompressedPartition;
+template <typename T> class YoungTableaux;
 
 template <typename T>
 class NRPerm : public NRVec_from1<T> {
@@ -83,8 +83,38 @@ public:
 	CompressedPartition<T> cycles(const T n) const;
 	void readfrom(const std::string &line);
 	CyclePerm operator*(const CyclePerm q) const; //q is rhs and applied first, this applied second
-	//@@@order = lcm of cycle lengths
+	PERM_RANK_TYPE order() const; //lcm of cycle lengths
 };
+
+
+template <typename T>
+T gcd(T big, T small)
+{
+if(big==0)
+        {
+        if(small==0) laerror("bad arguments in gcd");
+        return small;
+        }
+if(small==0) return big;
+if(small==1||big==1) return 1;
+
+T help;
+if(small>big) {help=big; big=small; small=help;}
+do      {
+        help=small;
+        small= big%small;
+        big=help;
+        }
+while(small != 0);
+return big;
+}
+
+
+template <typename T> 
+inline T lcm(T a, T b)
+{
+return (a*b)/gcd(a,b);
+}
 
 
 template <typename T>
@@ -123,12 +153,12 @@ public:
         T nparts() const {T s=0; for(int i=1; i<=this->size(); ++i) if((*this)[i]) ++s; return s;}
         bool is_valid() const {if(this->size() != this->sum()) return false; for(int i=2; i<=this->size(); ++i) if((*this)[i]>(*this)[i-1]) return false; return true; }
 	explicit Partition(const CompressedPartition<T>  &rhs) : NRVec_from1<T>(rhs.size()) {this->clear(); int ithru=0; for(int i=rhs.size(); i>=1; --i) for(int j=0; j<rhs[i]; ++j) (*this)[++ithru]=i; }
+	explicit Partition(const YoungTableaux<T> &x); //extract a partition  as a shape of Young tableaux
 	Partition adjoint() const; //also called conjugate partition
 	PERM_RANK_TYPE Sn_irrep_dim() const;
 	PERM_RANK_TYPE generate_all(void (*callback)(const Partition<T>&), int nparts=0); //nparts <0 means at most to -nparts
 
 
-//@@@yamanouchi symbol
 };
 
 
@@ -138,14 +168,27 @@ public:
         YoungTableaux() :  NRVec_from1<NRVec_from1<T> >() {};
         explicit YoungTableaux(const Partition<T> &frame);
 
-	bool is_valid() const; //@@@shape forms a partition
-        bool filled_correctly() const; //is it filled correctly@@@
+	bool is_valid() const; //check whether its shape forms a partition
+	int nrows() const {return this->size();}
+	int ncols() const {return (*this)[1].size();}
+        bool is_standard() const; //is it filled in standard way (possibly with repeated numbers)
+	//@@@???void clear(); //clear the numbers but keep shape (different than inherited clear())
+	int sum() const; //get back sum of the partition
+	NRVec_from1<T> yamanouchi() const; //@@@yamanouchi symbol
+		//@@@ ??>young operator as a linear comb of permutations - maybe a class for itself, i.e. element of the Sn group algebra? or maybe as a vector with index being the rank of the permutation(n! length) or as a sparsemat thereof or maybe a list???
+		//@@@???action of group algebra elements on vectors and matrices
 };
 
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x);
 
 
-//@@@enumerator of partitions of n to r parts and total from expr
-//@@@Sn character table computation from young - young frame filling
+extern PERM_RANK_TYPE partitions(int n, int k= -1); //enumerate partitions to k parts; k== -1 for total # of partitions
+
+
+//@@@Sn character table computation from young - young frame filling - routine for one character of one irrep and another for generation of the whole group table (maybe class for a group table too)
+//
+//@@@@Un irrep dimensions from gelfand
 
 }//namespace
 #endif

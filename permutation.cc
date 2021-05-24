@@ -603,6 +603,23 @@ return (n_even_cycles&1)?-1:1;
 
 
 template <typename T>
+PERM_RANK_TYPE  CyclePerm<T>::order() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid cycleperm");
+#endif
+PERM_RANK_TYPE r=1;
+T ncycles=this->size();
+for(T i=1; i<=ncycles; ++i)
+        {
+        T length=(*this)[i].size();
+	r=lcm(r,(PERM_RANK_TYPE)length);
+        }
+return r;
+}
+
+
+template <typename T>
 CompressedPartition<T> CyclePerm<T>::cycles(const T n) const
 {
 #ifdef DEBUG
@@ -771,6 +788,20 @@ for(int i=1;i<=n;++i)
 return r;
 }
 
+template <typename T>
+Partition<T>::Partition(const YoungTableaux<T> &x)
+{
+#ifdef DEBUG
+if(x.is_valid()) laerror("operation with an invalid tableaux");
+#endif
+int nparts=x.size();
+int n=0;
+for(int i=1; i<=nparts; ++i) n+= x[i].size();
+this->resize(n);
+this->clear();
+for(int i=1; i<=nparts; ++i) (*this)[i]=x[i].size();
+}
+
 PERM_RANK_TYPE ipow(PERM_RANK_TYPE x, int i)
 {
 if(i<0) return 0;
@@ -846,6 +877,58 @@ return s;
 
 
 
+/*see M. Aigner - Combinatorial Theory - number of partitions of number n*/
+#define MAXPART 260
+#define MIN(x,y) ((x)<(y)?(x):(y))
+/* here even few more columns more could be saved, and also the property part(n,k>=n/2)=part(n-k) could be used */
+#define partind(n,k) (((n)-3)*((n)-2)/2+(k)-2)
+#define getpart(n,k) (((k)>(n) || (k)<=0 )?0:(((k)==(n) || (k)==1)?1:(part[partind((n),(k))])))
+
+PERM_RANK_TYPE partitions(int n, int k)
+{
+static PERM_RANK_TYPE part[partind(MAXPART+1,1)]={1};
+static PERM_RANK_TYPE npart[MAXPART+1]={0,1,2,3};
+static int ntop=3;
+int i,j,l;
+PERM_RANK_TYPE s;
+
+if( n<=0 || k<-1 ) laerror("Partitions are available only for positive numbers");
+if(k== -1) /* total partitions */
+	{
+	if(n>ntop)(void)partitions(n,3); /* make sure that table is calculated */
+	return npart[n];
+	}
+
+if(n==k||k==1) return 1;
+if(k==0||k>n) return 0;
+if(k==2) return n/2;
+if(n>MAXPART && k>=n/2) return(partitions(n-k,-1)); 
+if( n>MAXPART) laerror("sorry, too big argument to partition enumerator");
+if(n<=ntop) return(getpart(n,k));
+
+/*calculate, if necessary, few next rows*/
+for(i=4;i<=n;i++)
+    {
+    npart[i]=2;
+    for(j=2;j<=i-1;j++)
+	{
+	s=0;
+	for(l=1; l<=MIN(i-j,j);l++) s+=getpart(i-j,l);
+	npart[i]+=(part[partind(i,j)]=s);
+	}
+    }
+
+ntop=n;
+return(part[partind(n,k)]);
+
+}
+
+#undef getpart
+#undef partind
+#undef MIN
+
+
+
 //////////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
@@ -860,6 +943,65 @@ this->resize(nlines);
 for(int i=1; i<=nlines; ++i) (*this)[i].resize(frame[i]);
 }
 
+template <typename T>
+bool YoungTableaux<T>::is_valid() const
+{
+int nrows=this->size();
+for(int i=1; i<=nrows; ++i)
+	{
+	if((*this)[i].size()<=0) return false;
+	if(i>1 && (*this)[i].size()> (*this)[i-1].size()) return false;
+	}
+return true; 
+}
+
+
+template <typename T>
+int YoungTableaux<T>::sum() const
+{
+#ifdef DEBUG
+if(is_valid()) laerror("invalid young frame");
+#endif
+int sum=0;
+int nrows=this->size();
+for(int i=1; i<=nrows; ++i) sum += (*this)[i].size();
+return sum;
+}
+
+template <typename T>
+bool YoungTableaux<T>::is_standard() const
+{
+#ifdef DEBUG
+if(!is_valid()) laerror("invalid young frame");
+#endif
+int nrows=this->size();
+//check numbers monotonous in rows and columns
+for(int i=1; i<=nrows; ++i)
+	{
+	for(int j=1; j<=(*this)[i].size(); ++j) 
+		{
+		if(j>1 && (*this)[i][j] < (*this)[i][j-1]) return false;
+		if(i>1 && (*this)[i][j] < (*this)[i-1][j]) return false;
+		}
+	}
+return true;
+}
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x)
+{
+int nrows=x.size();
+for(int i=1; i<=nrows; ++i)
+        {
+	for(int j=1; j<=x[i].size(); ++j)
+		{
+		s.width(4);
+		s<<x[i][j]<<' ';
+		}
+	s<<std::endl;
+	}
+return s;
+}
 
 
 
@@ -876,6 +1018,7 @@ template class YoungTableaux<int>;
 template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x); \
+template std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x); \
 
 
 

@@ -77,6 +77,18 @@ cout<<"IR dim "<<p.Sn_irrep_dim()<<endl;
 CompressedPartition qc(q);
 cout <<"("<<qc<<')';
 cout<<" Class size "<<qc.Sn_class_size()<<endl;
+
+int nn=p.size();
+YoungTableaux<int> y(p);
+for(int i=1; i<=y.nrows(); ++i)
+        {
+        for(int j=1; j<=y[i].size(); ++j) y[i][j]= nn--;
+	}
+cout <<y;
+YoungTableaux<int> yy(y);
+yy.clear();
+cout<<yy;
+cout <<y;
 }
 
 
@@ -2113,7 +2125,9 @@ cin >>n;
 Partition<int> p(n);
 int tot=p.generate_all(pprintme,0);
 cout <<"generated "<<tot<<endl;
+if(tot!=partitions(n)) laerror("internal error in partition generation or enumerations");
 }
+
 
 
 
