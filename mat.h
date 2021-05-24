@@ -292,7 +292,7 @@ public:
 	//! set all matrix elements equal to zero
         void clear(){
 		if(nn&&mm){
-			copyonwrite(true);
+			copyonwrite(LA_traits<T>::is_plaindata());
 			LA_traits<T>::clear((*this)[0], (size_t)nn*mm);
 		}
 	};

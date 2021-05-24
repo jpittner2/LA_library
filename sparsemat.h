@@ -133,7 +133,7 @@ public:
 	inline bool issymmetric() const {return symmetric;}
 	unsigned int length() const;
 	void copyonwrite(bool detachonly=false);
-	void clear() {copyonwrite(true); if(count) {delete count; count=NULL;}}
+	void clear() {copyonwrite(LA_traits<T>::is_plaindata()); if(count) {delete count; count=NULL;}}
 	void simplify();
 	const T trace() const;
 	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first

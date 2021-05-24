@@ -162,7 +162,7 @@ public:
 
 	void copyonwrite(bool detachonly=false);
 
-	void clear() {copyonwrite(true); LA_traits<T>::clear(v,NN2);}; //zero out
+	void clear() {copyonwrite(LA_traits<T>::is_plaindata()); LA_traits<T>::clear(v,NN2);}; //zero out
 	void resize(const int n);
 	void dealloc(void) {resize(0);}
 

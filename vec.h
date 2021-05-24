@@ -155,7 +155,7 @@ public:
 	void copyonwrite(bool detachonly=false);
 
 	//! purge this vector 
-	void clear() { copyonwrite(true); LA_traits<T>::clear(v, nn); };
+	void clear() { copyonwrite(LA_traits<T>::is_plaindata()); LA_traits<T>::clear(v, nn); };
 
 	//! assignment operator assigns given vector
 	NRVec& operator=(const NRVec &rhs);
