@@ -746,7 +746,7 @@ PERM_RANK_TYPE r=factorial(n);
 for(int i=1; i<=n; ++i) 
 	{
 	T m=(*this)[i];
-	if(i>1 && m>0) r/=ipow(i,m);
+	if(i>1 && m>0) r/=longpow(i,m);
 	if(m>1) r/=factorial(m);
 	}
 return r;
@@ -768,6 +768,33 @@ for(int i=1; i<=adj[1]; ++i) //rows
 
 return factorial(n)/prod;
 }
+
+
+/*hammermesh eq 10-25, highest weight == generalized partition of r into n parts*/
+template <typename T>
+PERM_RANK_TYPE Partition<T>::Un_irrep_dim(const int n) const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid partition");
+#endif
+std::cout<<"TEST "<<nparts()<<" "<<n<<std::endl;
+if(nparts()>n) return 0; //too antisymmetric partition
+int i,j;
+double prod;
+int r=this->size();
+NRVec_from1<int> p(n);
+for(i=1;i<=n;i++) p[i]= (i<=r?(*this)[i]:0)+n-i;
+std::cout<<"TEST "<<p<<std::endl;
+prod=1;
+for(j=n;j>=2;j--)
+        {
+        for(i=1;i<j;i++) prod*= (p[i]-p[j]);
+	prod /= factorial(j-1); //can be fractional in the intermediate steps - needs double
+	}
+
+return (PERM_RANK_TYPE) (prod+0.2);
+}
+
 
 
 template <typename T>
@@ -802,7 +829,7 @@ this->clear();
 for(int i=1; i<=nparts; ++i) (*this)[i]=x[i].size();
 }
 
-PERM_RANK_TYPE ipow(PERM_RANK_TYPE x, int i)
+PERM_RANK_TYPE longpow(PERM_RANK_TYPE x, int i)
 {
 if(i<0) return 0;
 PERM_RANK_TYPE y=1;

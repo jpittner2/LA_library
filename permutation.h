@@ -65,7 +65,7 @@ public:
 };
 
 extern PERM_RANK_TYPE factorial(const int n);
-extern PERM_RANK_TYPE ipow(PERM_RANK_TYPE x, int i);
+extern PERM_RANK_TYPE longpow(PERM_RANK_TYPE x, int i);
 
 //permutations represented in the cycle format
 template <typename T>
@@ -156,6 +156,7 @@ public:
 	explicit Partition(const YoungTableaux<T> &x); //extract a partition  as a shape of Young tableaux
 	Partition adjoint() const; //also called conjugate partition
 	PERM_RANK_TYPE Sn_irrep_dim() const;
+	PERM_RANK_TYPE Un_irrep_dim(const int n) const;
 	PERM_RANK_TYPE generate_all(void (*callback)(const Partition<T>&), int nparts=0); //nparts <0 means at most to -nparts
 
 
@@ -172,7 +173,6 @@ public:
 	int nrows() const {return this->size();}
 	int ncols() const {return (*this)[1].size();}
         bool is_standard() const; //is it filled in standard way (possibly with repeated numbers)
-	//@@@???void clear(); //clear the numbers but keep shape (different than inherited clear())
 	int sum() const; //get back sum of the partition
 	NRVec_from1<T> yamanouchi() const; //@@@yamanouchi symbol
 		//@@@ ??>young operator as a linear comb of permutations - maybe a class for itself, i.e. element of the Sn group algebra? or maybe as a vector with index being the rank of the permutation(n! length) or as a sparsemat thereof or maybe a list???
@@ -188,7 +188,6 @@ extern PERM_RANK_TYPE partitions(int n, int k= -1); //enumerate partitions to k 
 
 //@@@Sn character table computation from young - young frame filling - routine for one character of one irrep and another for generation of the whole group table (maybe class for a group table too)
 //
-//@@@@Un irrep dimensions from gelfand
 
 }//namespace
 #endif

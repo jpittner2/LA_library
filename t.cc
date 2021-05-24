@@ -68,16 +68,24 @@ for(int i=0; i<4; ++i)
 	}
 }
 
+static int unitary_n;
+static PERM_RANK_TYPE space_dim;
+
 void pprintme(const Partition<int> &p)
 {
 CompressedPartition pc(p);
 cout<<'['<<pc<<"] ";
 Partition<int> q=p.adjoint();
-cout<<"IR dim "<<p.Sn_irrep_dim()<<endl;
+PERM_RANK_TYPE snd=p.Sn_irrep_dim();
+cout<<"IR dim "<<snd<<endl;
+PERM_RANK_TYPE und=p.Un_irrep_dim(unitary_n);
+cout<<"U("<<unitary_n<<") ir dim "<<und<<endl;
+space_dim += und*snd;
 CompressedPartition qc(q);
 cout <<"("<<qc<<')';
 cout<<" Class size "<<qc.Sn_class_size()<<endl;
 
+/*
 int nn=p.size();
 YoungTableaux<int> y(p);
 for(int i=1; i<=y.nrows(); ++i)
@@ -89,6 +97,7 @@ YoungTableaux<int> yy(y);
 yy.clear();
 cout<<yy;
 cout <<y;
+*/
 }
 
 
@@ -2121,11 +2130,13 @@ cout <<"generated "<<tot<<endl;
 if(1)
 {
 int n;
-cin >>n;
+cin >>n >>unitary_n;
 Partition<int> p(n);
+space_dim=0;
 int tot=p.generate_all(pprintme,0);
 cout <<"generated "<<tot<<endl;
 if(tot!=partitions(n)) laerror("internal error in partition generation or enumerations");
+if(space_dim!=longpow(unitary_n,n)) {cout<<space_dim<<" "<<ipow(unitary_n,n)<<endl;laerror("integer overflow or internal error in space dimensions");}
 }
 
 
