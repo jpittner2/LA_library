@@ -27,6 +27,7 @@ namespace LA {
 //forward declaration
 template<typename T> class NRPerm;
 template<typename T> class CyclePerm;
+template<typename T> class NRMat_from1;
 
 
 /***************************************************************************//**
@@ -124,6 +125,7 @@ public:
 	void permuteme_cols(const CyclePerm<int> &p); //in place
 	void scale_row(const int i, const T f); //in place
 	void scale_col(const int i, const T f); //in place
+	void axpy(const T alpha, const NRPerm<int> &p, const bool direction);
 	explicit NRMat(const NRPerm<int> &p, const bool direction); //permutation matrix
 
 

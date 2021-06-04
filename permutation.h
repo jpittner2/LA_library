@@ -137,7 +137,7 @@ public:
 	bool is_valid() const {return this->size() == this->sum();}
 	explicit CompressedPartition(const Partition<T> &rhs) : NRVec_from1<T>(rhs.size()) {this->clear(); for(int i=1; i<=rhs.size(); ++i) if(!rhs[i]) break; else (*this)[rhs[i]]++; }
 	PERM_RANK_TYPE Sn_class_size() const; 
-
+	int parity() const; //of a permutation with given cycle lengths
 
 };
 
@@ -158,7 +158,7 @@ public:
 	PERM_RANK_TYPE Sn_irrep_dim() const;
 	PERM_RANK_TYPE Un_irrep_dim(const int n) const;
 	PERM_RANK_TYPE generate_all(void (*callback)(const Partition<T>&), int nparts=0); //nparts <0 means at most to -nparts
-
+	int parity() const; //of a permutation with given cycle lengths
 
 };
 
@@ -173,10 +173,12 @@ public:
 	int nrows() const {return this->size();}
 	int ncols() const {return (*this)[1].size();}
         bool is_standard() const; //is it filled in standard way (possibly with repeated numbers)
-	int sum() const; //get back sum of the partition
-	NRVec_from1<T> yamanouchi() const; //@@@yamanouchi symbol
+	T sum() const; //get back sum of the partition
+	T max() const; //get back highest number filled in
+	NRVec_from1<T> yamanouchi() const; //yamanouchi symbol
+	T character_contribution(int ncyc=0) const; //contribution of filled tableaux to Sn character
+
 		//@@@ ??>young operator as a linear comb of permutations - maybe a class for itself, i.e. element of the Sn group algebra? or maybe as a vector with index being the rank of the permutation(n! length) or as a sparsemat thereof or maybe a list???
-		//@@@???action of group algebra elements on vectors and matrices
 };
 
 template <typename T>
@@ -185,9 +187,33 @@ std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x);
 
 extern PERM_RANK_TYPE partitions(int n, int k= -1); //enumerate partitions to k parts; k== -1 for total # of partitions
 
+template <typename T>
+extern T Sn_character(const Partition<T> &irrep, const  Partition<T> &cclass);
 
-//@@@Sn character table computation from young - young frame filling - routine for one character of one irrep and another for generation of the whole group table (maybe class for a group table too)
-//
+template <typename T>
+inline T Sn_character(const CompressedPartition<T> &irrep, const  CompressedPartition<T> &cclass)
+{
+return Sn_character(Partition<T>(irrep),Partition<T>(cclass));
+}
+
+
+//Sn character table
+template <typename T>
+class Sn_characters {
+public:
+T n;
+NRVec_from1<CompressedPartition<T> > classes;
+NRVec_from1<CompressedPartition<T> > irreps; //can be in different order than classes
+NRVec_from1<PERM_RANK_TYPE> classsizes;
+NRMat_from1<T> chi; //characters
+
+	Sn_characters(const int n0); //compute the table
+	bool is_valid() const; //check internal consistency
+};
+
+template <typename T>
+extern std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &c);
+
 
 }//namespace
 #endif

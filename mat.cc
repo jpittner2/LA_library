@@ -3134,17 +3134,26 @@ NRMat<T>& NRMat<T>::swap_rows_cols(){
 
 //permutation matrix
 template<typename T>
+void NRMat<T>::axpy(const T alpha, const NRPerm<int> &p, const bool direction)
+{
+int n=p.size();
+for(int i=0; i<n; ++i)
+	{
+	if(direction) (*this)(i,p[i+1]-1) +=alpha;
+	else (*this)(p[i+1]-1,i) += alpha;
+	}
+}
+
+template<typename T>
 NRMat<T>::NRMat(const NRPerm<int> &p, const bool direction)
 {
 int n=p.size();
 resize(n,n);
 clear();
-for(int i=0; i<n; ++i)
-	{
-	if(direction) (*this)(i,p[i+1]-1)=1;
-	else (*this)(p[i+1]-1,i)=1;
-	}
+axpy((T)1,p,direction);
 }
+
+
 
 //apply permutations
 template<typename T>

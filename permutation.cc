@@ -777,14 +777,12 @@ PERM_RANK_TYPE Partition<T>::Un_irrep_dim(const int n) const
 #ifdef DEBUG
 if(!this->is_valid()) laerror("operation with an invalid partition");
 #endif
-std::cout<<"TEST "<<nparts()<<" "<<n<<std::endl;
 if(nparts()>n) return 0; //too antisymmetric partition
 int i,j;
 double prod;
 int r=this->size();
 NRVec_from1<int> p(n);
 for(i=1;i<=n;i++) p[i]= (i<=r?(*this)[i]:0)+n-i;
-std::cout<<"TEST "<<p<<std::endl;
 prod=1;
 for(j=n;j>=2;j--)
         {
@@ -903,6 +901,36 @@ return s;
 
 
 
+template <typename T>
+int Partition<T>::parity() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid partition");
+#endif
+T n_even_cycles=0;
+T n=this->size();
+for(T i=1; i<=n; ++i)
+        {
+	if((*this)[i]!=0 && ((*this)[i] &1 ) ==0) ++n_even_cycles;
+	}
+return (n_even_cycles&1)?-1:1;
+}
+
+template <typename T>
+int CompressedPartition<T>::parity() const
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("operation with an invalid partition");
+#endif
+T n_even_cycles=0;
+T n=this->size();
+for(T i=2; i<=n; i+=2) n_even_cycles += (*this)[i];
+return (n_even_cycles&1)?-1:1;
+}
+
+
+
+
 
 /*see M. Aigner - Combinatorial Theory - number of partitions of number n*/
 #define MAXPART 260
@@ -967,7 +995,7 @@ if(!frame.is_valid()) laerror("invalid partition used as young frame");
 #endif
 int nlines=frame.nparts();
 this->resize(nlines);
-for(int i=1; i<=nlines; ++i) (*this)[i].resize(frame[i]);
+for(int i=1; i<=nlines; ++i) {(*this)[i].resize(frame[i]); (*this)[i].clear();}
 }
 
 template <typename T>
@@ -984,16 +1012,30 @@ return true;
 
 
 template <typename T>
-int YoungTableaux<T>::sum() const
+T YoungTableaux<T>::sum() const
 {
 #ifdef DEBUG
-if(is_valid()) laerror("invalid young frame");
+if(!is_valid()) laerror("invalid young frame");
 #endif
 int sum=0;
 int nrows=this->size();
 for(int i=1; i<=nrows; ++i) sum += (*this)[i].size();
 return sum;
 }
+
+template <typename T>
+T YoungTableaux<T>::max() const
+{
+#ifdef DEBUG
+if(!is_valid()) laerror("invalid young frame");
+#endif
+int m= -1;
+int nrows=this->size();
+for(int i=1; i<=nrows; ++i) for(int j=1; j<= (*this)[i].size(); ++j) if((*this)[i][j]>m) m=(*this)[i][j];
+return m;
+}
+
+
 
 template <typename T>
 bool YoungTableaux<T>::is_standard() const
@@ -1031,6 +1073,348 @@ return s;
 }
 
 
+template <typename T>
+NRVec_from1<T>  YoungTableaux<T>::yamanouchi() const
+{
+#ifdef DEBUG
+if(!is_valid()) laerror("invalid young frame");
+#endif
+int n=sum();
+NRVec_from1<T> yama(n);
+int i,j;
+for (i=1;i<=this->size();i++) for (j=1;j<=(*this)[i].size();j++) yama[n-(*this)[i][j]+1]=i;
+return yama;
+}
+
+
+template <typename T>
+T  YoungTableaux<T>::character_contribution(int ncyc) const
+{
+#ifdef DEBUG
+if(!is_valid()) laerror("invalid young frame");
+if(!is_standard()) laerror("nonstandardly filled young frame");
+#endif
+
+if(!ncyc) ncyc=max(); //number of types of applied points
+NRVec_from1<T> onxlines(0,ncyc);
+
+for(int i=1;i<=(*this).size();i++) //rows
+        {
+	NRVec_from1<T> wasfound(0,ncyc);
+        for(int j=1;j<=(*this)[i].size();j++) //columns
+                {
+                T k = (*this)[i][j];
+                onxlines[k] += (1-wasfound[k]);
+                wasfound[k]=1;
+                }
+        }
+
+/*now sum the number of odd applications for all cycles*/
+T contrib=0;
+for(int i=1;i<=ncyc;i++) contrib += ((onxlines[i]&1)^1);
+
+return (1-2*(contrib&1)); //add it to the character +1 for even no. of odd apl., -1 for odd no. of odd apl.
+}
+
+
+template <typename T>
+static T _character;
+
+template <typename T>
+static YoungTableaux<T> *_tchi;
+
+template <typename T>
+static T _nowapplying;
+
+template <typename T>
+static T _ncycles;
+
+template <typename T>
+static NRVec_from1<T> *_aplnumbers;
+
+template <typename T>
+static NRVec_from1<T> *_oclin;
+
+template <typename T>
+static NRVec_from1<T> *_occol;
+
+template <typename T>
+static T _nn;
+
+template <typename T>
+static inline T mymin(T i,T j)
+{
+  return(i<j?i:j);
+}
+
+
+template <typename T>
+void placedot(T l, T c)
+{
+(*_tchi<T>)[l][c]= _nowapplying<T>;
+(*_oclin<T>)[l]++;
+(*_occol<T>)[c]++;
+}
+
+//forward declaration for recursion
+template <typename T>
+extern void nextapply(T ncyc);
+
+template <typename T>
+void regulapply(T ncyc, T napl) //ncyc is number of cycles; napl is the size of now processed cycle 
+{
+
+/*the main idea is that only the first point of each set can be placed
+in several independent ways; the other points (if present) must be placed in
+a given fixed way depending on the first one; than it is also necessary to test
+if the application was successfull at all and return back or call nextapply, respectively*/
+
+Partition<T> usedcols(_nn<T>),usedlines(_nn<T>); //stores the positions where points were placed, is necessary for later cleanup
+
+/*try to place first point*/
+for(usedlines[1]=mymin(_tchi<T>->nrows(),(*_occol<T>)[1]+napl); usedlines[1]>0; usedlines[1]--)
+   {
+   if((*_oclin<T>)[usedlines[1]]<=(*_tchi<T>)[usedlines[1]].size()) /*line is not fully occupied*/
+	{
+	int i;
+
+	usedcols[1]= (*_oclin<T>)[usedlines[1]]; /*in the line there is only one possible column*/
+	/* place first point */
+	placedot(usedlines[1],usedcols[1]);
+
+	for(i=2;i<=napl;i++) usedlines[i]=usedcols[i]= 0; /* flag for cleaning that they were not placed*/
+	/*now place other ones, if not possible go to irregular*/
+	for(i=2;i<=napl;i++)
+		{
+		T thisrow;
+		thisrow=usedlines[i-1];
+		if (thisrow==1)
+			{
+			if((*_oclin<T>)[1]> (*_tchi<T>)[1].size()) goto irregular; /*no place remained*/ 
+			placedot((usedlines[i]=1),(usedcols[i]= (*_oclin<T>)[1]));
+			}
+		else
+			{
+			T thiscol;
+			thiscol=usedcols[i-1];
+			if(!(*_tchi<T>)[thisrow-1][thiscol]) /*the box at the top of last placed is free*/
+				{
+				placedot((usedlines[i]=thisrow-1),(usedcols[i]=thiscol));
+				}
+			else if((*_oclin<T>)[thisrow] <= (*_tchi<T>)[thisrow].size()) /*the position at the right exists*/
+				{
+#ifdef DEBUG
+				if((*_tchi<T>)[thisrow][thiscol+1]) laerror("error in regulapply!!!");
+#endif
+				placedot((usedlines[i]=thisrow),(usedcols[i]=thiscol+1));
+				}
+			else goto irregular;
+			}
+		}
+
+	/*test if it is regular*/
+	for(i=1;i<=napl;i++)
+		{
+		/*test if the box left and up from actual position is full (provided it exists)*/
+		if(usedlines[i]>1) if(!(*_tchi<T>)[usedlines[i]-1][usedcols[i]]) goto irregular;
+		if(usedcols[i]>1)  if(!(*_tchi<T>)[usedlines[i]][usedcols[i]-1]) goto irregular;
+		}
+
+	nextapply(ncyc+1);
+	
+	irregular:
+
+	/* clear all points */
+	for(i=napl;i>0;i--)
+	    if(usedlines[i]>0 && usedcols[i]>0)
+		{
+		(*_tchi<T>)[usedlines[i]][usedcols[i]]=0;
+		(*_oclin<T>)[usedlines[i]]--;
+		(*_occol<T>)[usedcols[i]]--;
+		}
+
+	}
+   /*end of loop for nonfull lines of first point*/
+   }
+}
+
+
+template <typename T>
+void nextapply(T ncyc)
+{
+_nowapplying<T>++;
+if(ncyc> _ncycles<T>) _character<T> += _tchi<T>->character_contribution(_ncycles<T>);
+else regulapply(ncyc,(*_aplnumbers<T>)[ncyc]);
+_nowapplying<T>--;
+}
+
+
+
+template <typename T>
+T Sn_character(const Partition<T> &irrep, const  Partition<T> &cclass)
+{
+#ifdef DEBUG
+if(!irrep.is_valid()||!cclass.is_valid()) laerror("invalid input to Sn_character");
+#endif
+
+//prepare numbers to apply to the tableaux
+int n=irrep.sum();
+if(cclass.sum()!=n) laerror("irrep and class partitions do not match");
+T ncycles=cclass.nparts();
+
+NRVec_from1<T> aplnumbers(ncycles);
+CompressedPartition<T> ccclass(cclass);
+T k=0;
+for(int j=n;j>0;j--) for(T l=1;l<=ccclass[j];l++) aplnumbers[++k]=j;
+if(aplnumbers[k]==1)
+        {
+        /*rotate to the right*/
+        for(T l=k;l>1;l--) aplnumbers[l]=aplnumbers[l-1];
+        aplnumbers[1]=1;
+        }
+
+//applying aplnumbers[i] pieces of "i"
+//std::cout<<"TEST aplnumbers "<<aplnumbers<<std::endl;
+
+//prepare static variables for the recursive procedure and generate all regular applications
+YoungTableaux<T> y(irrep);
+//y.clear(); //already done in the constructor
+_ncycles<T> =ncycles;
+_tchi<T> = &y;
+_nn<T> = n;
+_nowapplying<T> =0;
+_aplnumbers<T> = &aplnumbers;
+_character<T> =0;
+_oclin<T> = new Partition<T>(n);
+_occol<T>  = new Partition<T>(n);
+for(int i=1; i<=n; ++i) (*_oclin<T>)[i]= (*_occol<T>)[i]= 1;
+nextapply<T>(1);
+delete _occol<T>;
+delete _oclin<T>;
+
+return _character<T>;
+}
+
+template <typename T>
+static NRVec_from1<CompressedPartition<T> > *_irreps;
+
+template <typename T>
+static NRVec_from1<CompressedPartition<T> > *_classes;
+
+template <typename T>
+static PERM_RANK_TYPE _ithrough;
+
+
+template <typename T>
+static void _process_partition(const Partition<T> &p)
+{
+++_ithrough<T>;
+(*_irreps<T>)[_ithrough<T>] = CompressedPartition<T>(p);
+Partition<T> q=p.adjoint();
+(*_classes<T>)[_ithrough<T>] = CompressedPartition<T>(q);
+}
+
+template <typename T>
+Sn_characters<T>::Sn_characters(const int n0)
+:n(n0)
+{
+Partition<T> p(n);
+PERM_RANK_TYPE np = partitions(n);
+irreps.resize(np);
+classes.resize(np);
+classsizes.resize(np);
+chi.resize(np,np);
+_irreps<T> = &irreps;
+_classes<T> = &classes;
+_ithrough<T> = 0;
+//generate partitions for classes and irreps
+PERM_RANK_TYPE tot=p.generate_all(_process_partition<T>);
+//compute class sizes
+for(int i=1; i<=np; ++i) classsizes[i]= classes[i].Sn_class_size();
+//compute characters
+for(int i=1; i<=np; ++i) 
+	{
+	for(int j=1; j<=np; ++j)
+		{
+		chi(i,j) = Sn_character<T>(irreps[i],classes[j]);
+		}
+	}
+}
+
+
+template <typename T>
+bool Sn_characters<T>::is_valid() const
+{
+//consistency of n and partition number
+PERM_RANK_TYPE np = partitions(n);
+if(np!=classes.size() || np!=irreps.size() || np!=classsizes.size() ||np!=chi.nrows() ||np!=chi.ncols()) return false;
+
+//consistency of sum = n in all partitions
+for(int i=1; i<=np; ++i) 
+	{
+	if(irreps[i].sum()!=n) return false;
+	if(classes[i].sum()!=n) return false;
+	}
+
+//consistency of irrep dim squared to n!
+//consistency of irrep dimensions by hook length formula to character of identity (asserted as class no. 1)
+if(classes[1][1]!=n) laerror("assetion failed on class no. 1 being identity");
+PERM_RANK_TYPE nf = factorial(n);
+PERM_RANK_TYPE s=0;
+for(int i=1; i<=np; ++i)
+        {
+	T d=chi(i,1);
+	s += d*d;
+	T dd=Partition<T>(irreps[i]).Sn_irrep_dim();
+	if(d!=dd) return false;
+	}
+if(s!=nf) return false;
+
+//consistency of class sizes sum to n! 
+s=0; for(int i=1; i<=np; ++i) s+= classsizes[i];
+if(s!=nf) return false;
+
+//check that irrep [n] is totally symmetric
+if(irreps[1][n]!=1)  laerror("assetion failed on first irrep being [n]");
+for(int i=1; i<=np; ++i) if(chi(1,i)!=1) return false;
+
+//check that irrep[1^n] is totally antisymmetric
+if(irreps[np][1]!=n) laerror("assetion failed on last irrep being [1^n]");
+for(int i=1; i<=np; ++i) if(chi(np,i)!=classes[i].parity()) return false;
+
+//check character orthonormality between irreps
+for(int i=1; i<=np; ++i) for(int j=1; j<=i; ++j)
+	{
+	s=0;
+	for(int k=1; k<=np; ++k) s+= classsizes[k]*chi(i,k)*chi(j,k);
+	if(i==j)
+		{
+		if(s!=nf) return false;
+		}
+	else
+		{
+		if(s!=0) return false;
+		}
+	}
+
+return true;
+}
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &c)
+{
+//@@@improve formatting
+s<<"S"<<c.n<<" "<<c.classsizes;
+for(int i=1; i<=c.classes.size(); ++i) s<<"("<<c.classes[i]<<") "; s<<std::endl;
+for(int i=1; i<=c.chi.nrows(); ++i)
+	{
+	s<<"["<<c.irreps[i]<<"] ";
+	for(int j=1; j<=c.chi.ncols(); ++j) s<<c.chi(i,j)<<" ";
+	s<<std::endl;
+	}
+
+return s;
+}
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file
@@ -1040,13 +1424,15 @@ template class CyclePerm<int>;
 template class CompressedPartition<int>;
 template class Partition<int>;
 template class YoungTableaux<int>;
+template class Sn_characters<int>;
 
 #define INSTANTIZE(T) \
 template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x); \
-
+template T Sn_character(const Partition<T> &irrep, const  Partition<T> &cclass); \
+template std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &x); \
 
 
 INSTANTIZE(int)

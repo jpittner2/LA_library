@@ -85,6 +85,8 @@ CompressedPartition qc(q);
 cout <<"("<<qc<<')';
 cout<<" Class size "<<qc.Sn_class_size()<<endl;
 
+cout <<"Chi= "<<Sn_character(p,q)<<endl;
+
 /*
 int nn=p.size();
 YoungTableaux<int> y(p);
@@ -2127,7 +2129,7 @@ int tot=p.generate_all_lex(printme);
 cout <<"generated "<<tot<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n >>unitary_n;
@@ -2137,6 +2139,15 @@ int tot=p.generate_all(pprintme,0);
 cout <<"generated "<<tot<<endl;
 if(tot!=partitions(n)) laerror("internal error in partition generation or enumerations");
 if(space_dim!=longpow(unitary_n,n)) {cout<<space_dim<<" "<<ipow(unitary_n,n)<<endl;laerror("integer overflow or internal error in space dimensions");}
+}
+
+if(1)
+{
+int n;
+cin >>n ;
+Sn_characters<int> Sn(n);
+cout <<Sn;
+if(!Sn.is_valid()) laerror("internal error in Sn character calculation");
 }
 
 

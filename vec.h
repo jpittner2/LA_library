@@ -374,16 +374,7 @@ public:
 	};
 };
 
-}//namespace
 
-//due to mutual includes this has to be after full class declaration
-#include "mat.h"
-#include "smat.h"
-#include "sparsemat.h"
-#include "sparsesmat.h"
-
-
-namespace LA {
 
 
 /***************************************************************************//**
@@ -403,7 +394,18 @@ public:
         inline T& operator[] (const int i);
 };
 
+
 }//namespace
+
+//due to mutual includes this has to be after full class declaration
+#include "mat.h"
+#include "smat.h"
+#include "sparsemat.h"
+#include "sparsesmat.h"
+
+
+
+
 //needs NRVec_from1
 #include "permutation.h"
 namespace LA {

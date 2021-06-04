@@ -29,6 +29,7 @@ namespace LA {
 
 //forward declaration
 template<typename T> class NRPerm;
+template<typename T> class NRSMat_from1;
 
 
 /***************************************************************************//**
