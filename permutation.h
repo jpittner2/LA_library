@@ -162,6 +162,15 @@ public:
 
 };
 
+template <typename T>
+extern T Sn_character(const Partition<T> &irrep, const  Partition<T> &cclass);
+
+template <typename T>
+inline T Sn_character(const CompressedPartition<T> &irrep, const  CompressedPartition<T> &cclass)
+{
+return Sn_character(Partition<T>(irrep),Partition<T>(cclass));
+}
+
 
 template <typename T>
 class YoungTableaux : public NRVec_from1<NRVec_from1<T> > {
@@ -177,8 +186,9 @@ public:
 	T max() const; //get back highest number filled in
 	NRVec_from1<T> yamanouchi() const; //yamanouchi symbol
 	T character_contribution(int ncyc=0) const; //contribution of filled tableaux to Sn character
+	PERM_RANK_TYPE generate_all_standard(void (*callback)(const YoungTableaux<T>&));
+	PERM_RANK_TYPE young_operator(void (*callback)(const NRPerm<T>&p, const T parity, const PERM_RANK_TYPE nterms)) const; //generate young operator for a standard tableaux
 
-		//@@@ ??>young operator as a linear comb of permutations - maybe a class for itself, i.e. element of the Sn group algebra? or maybe as a vector with index being the rank of the permutation(n! length) or as a sparsemat thereof or maybe a list???
 };
 
 template <typename T>
@@ -186,15 +196,6 @@ std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x);
 
 
 extern PERM_RANK_TYPE partitions(int n, int k= -1); //enumerate partitions to k parts; k== -1 for total # of partitions
-
-template <typename T>
-extern T Sn_character(const Partition<T> &irrep, const  Partition<T> &cclass);
-
-template <typename T>
-inline T Sn_character(const CompressedPartition<T> &irrep, const  CompressedPartition<T> &cclass)
-{
-return Sn_character(Partition<T>(irrep),Partition<T>(cclass));
-}
 
 
 //Sn character table

@@ -817,7 +817,7 @@ template <typename T>
 Partition<T>::Partition(const YoungTableaux<T> &x)
 {
 #ifdef DEBUG
-if(x.is_valid()) laerror("operation with an invalid tableaux");
+if(!x.is_valid()) laerror("operation with an invalid tableaux");
 #endif
 int nparts=x.size();
 int n=0;
@@ -1095,6 +1095,7 @@ if(!is_valid()) laerror("invalid young frame");
 if(!is_standard()) laerror("nonstandardly filled young frame");
 #endif
 
+
 if(!ncyc) ncyc=max(); //number of types of applied points
 NRVec_from1<T> onxlines(0,ncyc);
 
@@ -1116,6 +1117,10 @@ for(int i=1;i<=ncyc;i++) contrib += ((onxlines[i]&1)^1);
 return (1-2*(contrib&1)); //add it to the character +1 for even no. of odd apl., -1 for odd no. of odd apl.
 }
 
+static bool _callyoung;
+
+template <typename T>
+static void (*_young_callback)(const YoungTableaux<T>&);
 
 template <typename T>
 static T _character;
@@ -1243,7 +1248,15 @@ template <typename T>
 void nextapply(T ncyc)
 {
 _nowapplying<T>++;
-if(ncyc> _ncycles<T>) _character<T> += _tchi<T>->character_contribution(_ncycles<T>);
+if(ncyc> _ncycles<T>) 
+	{
+	if(_callyoung)
+		{
+		_young_callback<T>(*_tchi<T>);
+		_character<T> ++;
+		}
+	else _character<T> += _tchi<T>->character_contribution(_ncycles<T>);
+	}
 else regulapply(ncyc,(*_aplnumbers<T>)[ncyc]);
 _nowapplying<T>--;
 }
@@ -1279,21 +1292,174 @@ if(aplnumbers[k]==1)
 //prepare static variables for the recursive procedure and generate all regular applications
 YoungTableaux<T> y(irrep);
 //y.clear(); //already done in the constructor
+_callyoung=false;
 _ncycles<T> =ncycles;
 _tchi<T> = &y;
 _nn<T> = n;
 _nowapplying<T> =0;
 _aplnumbers<T> = &aplnumbers;
 _character<T> =0;
-_oclin<T> = new Partition<T>(n);
-_occol<T>  = new Partition<T>(n);
+Partition<T> oclin(n);
+_oclin<T> = &oclin;
+Partition<T> occol(n);
+_occol<T>  = &occol;
 for(int i=1; i<=n; ++i) (*_oclin<T>)[i]= (*_occol<T>)[i]= 1;
 nextapply<T>(1);
-delete _occol<T>;
-delete _oclin<T>;
 
 return _character<T>;
 }
+
+
+
+template <typename T>
+PERM_RANK_TYPE YoungTableaux<T>::generate_all_standard(void (*callback)(const YoungTableaux<T>&))
+{
+#ifdef DEBUG
+if(!this->is_valid()) laerror("invalid young frame");
+#endif
+
+//prepare numbers to apply to the tableaux
+T n=this->sum();
+T ncycles=n;
+NRVec_from1<T> aplnumbers(n);
+for(T i=1; i<=n; ++i) aplnumbers[i]=1;
+
+//prepare static variables for the recursive procedure and generate all regular applications
+this->clear(); 
+_callyoung=true;
+_young_callback<T> =callback;
+_ncycles<T> =ncycles;
+_tchi<T> = this;
+_nn<T> = n;
+_nowapplying<T> =0;
+_aplnumbers<T> = &aplnumbers;
+_character<T> =0;
+Partition<T> oclin(n);
+_oclin<T> = &oclin;
+Partition<T> occol(n);
+_occol<T>  = &occol;
+for(int i=1; i<=n; ++i) (*_oclin<T>)[i]= (*_occol<T>)[i]= 1;
+nextapply<T>(1);
+return _character<T>;
+}
+
+
+////generation of the young operator
+template <typename T>
+void (*_young_operator_callback)(const NRPerm<T>&p, const T parity, const PERM_RANK_TYPE nterms);
+
+template <typename T>
+static NRPerm<T> _aperm;
+
+template <typename T>
+static NRPerm<T> _sperm;
+
+template <typename T>
+static const YoungTableaux<T> *_tyou;
+
+template <typename T>
+static const Partition<T> *_tyou_cols;
+
+template <typename T>
+static const Partition<T> *_tyou_rows;
+
+static PERM_RANK_TYPE _nyoungterms, _expectterms;
+
+template <typename T>
+static T _antparity;
+
+
+
+template <typename T>
+void symetr(T ilin, T iel)
+{
+
+if(ilin > (*_tyou_cols<T>)[1])
+	{
+	++_nyoungterms;
+	(*_young_operator_callback<T>)(_aperm<T>*_sperm<T>,_antparity<T>,_expectterms);
+	} 
+else if(iel > (*_tyou_rows<T>)[ilin]) symetr(ilin+1,1);
+else
+	{
+	int i;
+
+	for(i=1;i<=(*_tyou_rows<T>)[ilin];i++)
+	    if(!_sperm<T>[(*_tyou<T>)[ilin][i]])
+		{
+		_sperm<T>[(*_tyou<T>)[ilin][i]]= (*_tyou<T>)[ilin][iel];
+		symetr(ilin,iel+1);
+		_sperm<T>[(*_tyou<T>)[ilin][i]]=0;
+		}
+	}
+}
+
+
+
+
+template <typename T>
+void antisym(T icol,T iel)
+{
+
+if(icol > (*_tyou_rows<T>)[1])
+	{
+	_antparity<T> = _aperm<T>.parity();
+	symetr<T>(1,1);
+	}
+else
+if(iel > (*_tyou_cols<T>)[icol]) antisym(icol+1,1);
+else
+	{
+	int i;
+
+	for(i=1;i<=(*_tyou_cols<T>)[icol];i++)
+	    if(!_aperm<T>[(*_tyou<T>)[i][icol]])
+		{
+		_aperm<T>[(*_tyou<T>)[i][icol]]= (*_tyou<T>)[iel][icol];
+		antisym(icol,iel+1);
+		_aperm<T>[(*_tyou<T>)[i][icol]]=0;
+		}
+	}
+}
+
+
+
+
+
+
+
+
+template <typename T>
+PERM_RANK_TYPE YoungTableaux<T>::young_operator(void (*callback)(const NRPerm<T>&p, const T parity, const PERM_RANK_TYPE nterms)) const
+{
+#ifdef DEBUG
+if(!this->is_standard()) laerror("young_operator called for non-standard tableaux");
+#endif
+_young_operator_callback<T> = callback;
+_nyoungterms =0;
+_tyou<T> = this;
+Partition<T> rows=Partition<T>(*this);
+Partition<T> cols=rows.adjoint();
+_tyou_rows<T> = &rows;
+_tyou_cols<T> = &cols;
+
+T n=rows.sum();
+_aperm<T>.resize(n); _aperm<T>.clear();
+_sperm<T>.resize(n); _sperm<T>.clear();
+
+
+_expectterms=1;
+for(int i=1;i<=cols[1];i++) _expectterms *= factorial(rows[i]);
+for(int i=1;i<=rows[1];i++) _expectterms *= factorial(cols[i]);
+
+antisym<T>(1,1);
+
+if(_nyoungterms!=_expectterms) laerror("youngconstruct: inconsistent number of terms");
+
+return _nyoungterms;
+}
+
+
 
 template <typename T>
 static NRVec_from1<CompressedPartition<T> > *_irreps;
