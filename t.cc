@@ -2146,19 +2146,19 @@ int tot=p.generate_all_lex(printme);
 cout <<"generated "<<tot<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n >>unitary_n;
 Partition<int> p(n);
 space_dim=0;
 int tot=p.generate_all(pprintme,0);
-cout <<"generated "<<tot<<endl;
+cout <<"partitions generated "<<tot<<endl;
 if(tot!=partitions(n)) laerror("internal error in partition generation or enumerations");
 if(space_dim!=longpow(unitary_n,n)) {cout<<space_dim<<" "<<ipow(unitary_n,n)<<endl;laerror("integer overflow or internal error in space dimensions");}
 }
 
-if(0)
+if(1)
 {
 int n;
 cin >>n ;

@@ -1371,7 +1371,7 @@ static T _antparity;
 
 
 template <typename T>
-void symetr(T ilin, T iel)
+static void symetr(T ilin, T iel)
 {
 
 if(ilin > (*_tyou_cols<T>)[1])
@@ -1398,7 +1398,7 @@ else
 
 
 template <typename T>
-void antisym(T icol,T iel)
+static void antisym(T icol,T iel)
 {
 
 if(icol > (*_tyou_rows<T>)[1])
@@ -1569,13 +1569,30 @@ return true;
 template <typename T>
 std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &c)
 {
-//@@@improve formatting
-s<<"S"<<c.n<<" "<<c.classsizes;
-for(int i=1; i<=c.classes.size(); ++i) s<<"("<<c.classes[i]<<") "; s<<std::endl;
+const int w=4+c.n; //some reasonable width
+s<<"S"<<c.n<<" "<<c.classes.size()<<std::endl;
+s.width(w); s<<" ";
+for(int i=1; i<=c.classes.size(); ++i)
+	{
+	s.width(w); 
+        s<<c.classsizes[i]<<" ";
+	}
+s<<std::endl;
+s.width(w); s<<" ";
+for(int i=1; i<=c.classes.size(); ++i) 
+	{
+	std::ostringstream  classlabel;
+	classlabel<<"("<<c.classes[i]<<")";
+	s.width(w); 
+	s<<classlabel.str()<<" ";
+	} 
+s<<std::endl;
 for(int i=1; i<=c.chi.nrows(); ++i)
 	{
-	s<<"["<<c.irreps[i]<<"] ";
-	for(int j=1; j<=c.chi.ncols(); ++j) s<<c.chi(i,j)<<" ";
+	std::ostringstream irrep;
+	irrep<<"["<<c.irreps[i]<<"] ";
+	s.width(w); s<<irrep.str();
+	for(int j=1; j<=c.chi.ncols(); ++j) {s.width(w); s<<c.chi(i,j)<<" ";}
 	s<<std::endl;
 	}
 
