@@ -2146,9 +2146,9 @@ int tot=p.generate_all_lex(printme);
 cout <<"generated "<<tot<<endl;
 }
 
-if(1)
+if(0)
 {
-int n;
+int n,unitary_n;;
 cin >>n >>unitary_n;
 Partition<int> p(n);
 space_dim=0;
@@ -2167,7 +2167,29 @@ cout <<Sn;
 if(!Sn.is_valid()) laerror("internal error in Sn character calculation");
 }
 
-
+if(1)
+{
+int n,m;
+double x;
+cin >>n >>m >>x;
+Polynomial<double> p(n),q(m);
+p.randomize(1.);
+q.randomize(1.);
+p*=10.;
+Polynomial<double> r=p*q;
+Polynomial<double> z=value(p,q); //p(q(x))
+Polynomial<double> y=value(q,p); 
+cout <<p;
+cout <<q;
+cout <<r;
+cout <<z;
+cout << value(p,x)*value(q,x) -value(r,x)<<endl;
+cout << value(p,value(q,x)) -value(z,x)<<endl;
+cout << value(q,value(p,x)) -value(y,x)<<endl;
+NRMat<double> u(5,5);
+u.randomize(1.);
+cout << (value(p,u)*value(q,u) -value(r,u)).norm()<<endl;
+}
 
 
 }

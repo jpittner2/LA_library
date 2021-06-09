@@ -970,7 +970,6 @@ void NRVec<T>::resize(const int n, const bool preserve)
 #ifdef DEBUG
 	if(n < 0) laerror("illegal dimension in NRVec::resize");
 #endif
-if(preserve && n<nn) laerror("cannot resize to smaller vector and preserve data");
 T *vold=0;
 int nnold=0;
 bool preserved=false;
@@ -1054,24 +1053,26 @@ do_preserve:
 if(!preserve || !preserved) laerror("assertion failed in NRVec::resize");
 // omit this check since we would need to have traits for presently unknown user defined classes
 // if(!LA_traits<T>::is_plaindata()) laerror("do not know how to preserve non-plain data");
-if(nnold>=nn)  laerror("assertion2 failed in NRVec::resize");
+
+int nnmin=nnold;
+if(nn<nnmin) nnmin=nn;
 
 #ifdef CUDALA
 if(location == cpu)
         {
 #endif       
-	for(int i=0; i<nnold; ++i) v[i]=vold[i]; //preserve even non-plain data classes
-	memset(v+nnold,0,(nn-nnold)*sizeof(T)); //just zero the new memory
+	for(int i=0; i<nnmin; ++i) v[i]=vold[i]; //preserve even non-plain data classes
+	if(nn>nnold) memset(v+nnold,0,(nn-nnold)*sizeof(T)); //just zero the new memory
 	if(do_delete) delete[] vold;
 #ifdef CUDALA
         }
 else
         {
 	//!!!works only with plain data
-	cublasSetVector(nnold, sizeof(T), vold, 1, v, 1);
+	cublasSetVector(nnmin, sizeof(T), vold, 1, v, 1);
 	TEST_CUBLAS("cublasSetVector"); 
 	T a(0);
-	smart_gpu_set(nn-nnold, a, v+nnold);
+	if(nn>nnold) smart_gpu_set(nn-nnold, a, v+nnold);
 	if(do_delete) gpufree(vold);
         }
 #endif

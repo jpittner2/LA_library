@@ -44,6 +44,7 @@
 #include "sparsesmat.h"
 #include "csrmat.h"
 #include "vec.h"
+#include "polynomial.h"
 
 using namespace LA;
 typedef NRMat<int> NRIMat;
