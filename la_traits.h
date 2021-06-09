@@ -81,6 +81,10 @@ template<typename C> class NRSMat_from1;
 template<typename C> class SparseMat;
 template<typename C> class SparseSMat;
 template<typename C> class CSRMat;
+template<typename C> class NRPerm;
+template<typename C> class CyclePerm;
+template<typename C> class Partition;
+template<typename C> class CompressedPartition;
 
 //trick to allow real and imag part of complex as l-values
 template<typename T>
@@ -375,6 +379,11 @@ generate_traits(NRVec_from1)
 generate_traits(SparseMat)
 generate_traits(SparseSMat) //product leading to non-symmetric result not implemented
 generate_traits(CSRMat) 
+generate_traits(NRPerm)
+generate_traits(CyclePerm)
+generate_traits(Partition)
+generate_traits(CompressedPartition)
+
 
 #undef generate_traits
 

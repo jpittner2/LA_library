@@ -299,8 +299,8 @@ public:
 	//! determine the number of elements
 	inline int size() const;
 
-	//! resize the current vector
-	void resize(const int n);
+	//! resize the current vector, optionally preserving data
+	void resize(const int n, const bool preserve=false);
 
 	//!deallocate the current vector
 	void dealloc(void) {resize(0);}
@@ -965,14 +965,25 @@ NRVec<T> & NRVec<T>::operator=(const NRVec<T> &rhs) {
  * @param[in] n requested size
  ******************************************************************************/
 template <typename T>
-void NRVec<T>::resize(const int n) {
+void NRVec<T>::resize(const int n, const bool preserve) 
+{
 #ifdef DEBUG
-	if(n < 0) laerror("illegal dimension");
+	if(n < 0) laerror("illegal dimension in NRVec::resize");
 #endif
-	if(count){
-		if(n == 0){
-			if(--(*count) <= 0){
-				if(v){
+if(preserve && n<nn) laerror("cannot resize to smaller vector and preserve data");
+T *vold=0;
+int nnold=0;
+bool preserved=false;
+bool do_delete=false;
+
+	if(count) //we are allocated
+		{
+		if(n == 0) //just deallocate
+			{
+			if(--(*count) <= 0)
+				{
+				if(v)
+					{
 #ifdef CUDALA
 					if(location == cpu){
 #endif
@@ -982,22 +993,27 @@ void NRVec<T>::resize(const int n) {
 						gpufree(v);
 					}
 #endif
-				}
+					}
 				delete count;
-			}
+				}
 			count = 0;
 			nn = 0;
 			v = 0;
 			return;
-		}
-		if(*count > 1) {
+			}
+		if(*count > 1) //detach from shared data
+			{
 			(*count)--;
 			count = 0;
+			vold=v;
 			v = 0;
+			nnold=nn;
 			nn = 0;
+			preserved=true;
+			}
 		}
-	}
-	if(!count){
+	if(!count) //we were not allocated or we just detached
+		{
 		count = new int;
 		*count = 1;
 		nn = n;
@@ -1009,25 +1025,58 @@ void NRVec<T>::resize(const int n) {
 		else
 			v = (T*) gpualloc(nn*sizeof(T));
 #endif
+		if(preserved && preserve) goto do_preserve;
 		return;
-	}
-	// *count = 1 in this branch
-	if (n != nn) {
-		nn = n;
+		}
+// *count == 1 in this branch
+if (n == nn)  return; //nothing to do
+nnold=nn;
+nn = n;
 #ifdef CUDALA
-		if(location == cpu){
+		if(location == cpu)
+			{
 #endif
-		
-			delete[] v;
+			if(preserve) {vold=v; do_delete=true;} else delete[] v;
 			v = new T[nn];
 #ifdef CUDALA
-		}else{
-		
-			gpufree(v);
+			}
+		else
+			{
+			 if(preserve) {vold=v; do_delete=true;} else gpufree(v);
 			v = (T*) gpualloc(nn*sizeof(T));
-		}
+			}
 #endif
-	}
+
+if(!preserve) return;
+
+//copy data from old location and zero excess allocated memory
+do_preserve:
+if(!preserve || !preserved) laerror("assertion failed in NRVec::resize");
+// omit this check since we would need to have traits for presently unknown user defined classes
+// if(!LA_traits<T>::is_plaindata()) laerror("do not know how to preserve non-plain data");
+if(nnold>=nn)  laerror("assertion2 failed in NRVec::resize");
+
+#ifdef CUDALA
+if(location == cpu)
+        {
+#endif       
+	for(int i=0; i<nnold; ++i) v[i]=vold[i]; //preserve even non-plain data classes
+	memset(v+nnold,0,(nn-nnold)*sizeof(T)); //just zero the new memory
+	if(do_delete) delete[] vold;
+#ifdef CUDALA
+        }
+else
+        {
+	//!!!works only with plain data
+	cublasSetVector(nnold, sizeof(T), vold, 1, v, 1);
+	TEST_CUBLAS("cublasSetVector"); 
+	T a(0);
+	smart_gpu_set(nn-nnold, a, v+nnold);
+	if(do_delete) gpufree(vold);
+        }
+#endif
+
+return;
 }
 
 
