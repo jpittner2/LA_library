@@ -26,7 +26,7 @@ namespace LA {
 template <typename T>
 void Polynomial<T>::polydiv(const Polynomial &rhs, Polynomial &q, Polynomial &r) const
 {
-if(rhs[rhs.degree()]==0) laerror("division by a polynomial with zero leading coefficient - simplify it first");
+if(rhs[rhs.degree()]==(T)0) laerror("division by a polynomial with zero leading coefficient - simplify it first");
 if(rhs.degree()==0) //scalar division
 	{
 	q= *this/rhs[0];
