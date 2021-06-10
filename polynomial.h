@@ -29,6 +29,7 @@ template <typename T>
 class Polynomial : public NRVec<T> {
 public:
 	Polynomial():  NRVec<T>() {};
+	Polynomial(const NRVec<T> &v) : NRVec<T>(v) {}; //allow implicit conversion from NRVec
 	Polynomial(const int n) : NRVec<T>(n+1) {};
 	Polynomial(const T &a, const int n) : NRVec<T>(n+1) {NRVec<T>::clear(); (*this)[0]=a;};
 
@@ -39,13 +40,16 @@ public:
 	Polynomial& operator-=(const T &a) {NOT_GPU(*this); NRVec<T>::copyonwrite(); (*this)[0]-=a; return *this;}
 	Polynomial operator+(const T &a) const {return Polynomial(*this) += a;};
 	Polynomial operator-(const T &a) const {return Polynomial(*this) -= a;};
-	//operator *= and * by a scalar inherited 
-	//unary- inherited
+	Polynomial operator-() const {return NRVec<T>::operator-();}
+	Polynomial operator*(const T &a) const {return NRVec<T>::operator*(a);}
+	Polynomial operator/(const T &a) const {return NRVec<T>::operator/(a);}
+	Polynomial& operator*=(const T &a) {NRVec<T>::operator*=(a); return *this;}
+	Polynomial& operator/=(const T &a) {NRVec<T>::operator/=(a); return *this;}
 	
 	Polynomial& operator+=(const Polynomial &rhs) 
 		{
 		NOT_GPU(*this); NRVec<T>::copyonwrite(); 
-		if(rhs.degree()>degree()) resize(rhs.degree());
+		if(rhs.degree()>degree()) resize(rhs.degree(),true);
 		for(int i=0; i<=rhs.degree(); ++i) (*this)[i] += rhs[i];
 		return *this;
 		}
@@ -53,7 +57,7 @@ public:
 	Polynomial& operator-=(const Polynomial &rhs) 
                 {
                 NOT_GPU(*this); NRVec<T>::copyonwrite(); 
-                if(rhs.degree()>degree()) resize(rhs.degree());
+                if(rhs.degree()>degree()) resize(rhs.degree(),true);
                 for(int i=0; i<=rhs.degree(); ++i) (*this)[i] -= rhs[i];
                 return *this;
                 }
@@ -61,16 +65,69 @@ public:
 	Polynomial operator-(const Polynomial &rhs) const {return Polynomial(*this) -= rhs;};
 	Polynomial operator*(const Polynomial &rhs) const //for very long polynomials FFT should be used
 		{
+		NOT_GPU(*this); 
 		Polynomial r(degree()+rhs.degree());
 		r.clear();
 		for(int i=0; i<=rhs.degree(); ++i) for(int j=0; j<=degree(); ++j) r[i+j] += rhs[i]*(*this)[j];
 		return r;
 		};
+	void simplify(const typename LA_traits<T>::normtype thr)
+		{
+		NOT_GPU(*this); 
+		int n=degree();
+		while(n>0 && abs((*this)[n])<thr) --n;
+		resize(n,true);
+		};
+	Polynomial shifted(const int shift) const
+		{
+		if(shift==0) return *this;
+		if(shift>0)
+			{
+			Polynomial r(degree()+shift);
+			for(int i=0; i<shift; ++i) r[i]=0;
+			for(int i=0; i<=degree(); ++i) r[shift+i] = (*this)[i];
+			return r;
+			}
+		else
+			{
+			if(shift+degree()<0)
+				{
+				Polynomial r(0);
+				r[0]=0;
+				return r;
+				}
+			Polynomial r(shift+degree());
+			for(int i= -shift; i<=degree(); ++i) r[shift+i] = (*this)[i];
+			return r;
+			}
+		}
+	Polynomial derivative() const
+		{
+		NOT_GPU(*this); 
+		int n=degree();
+		if(n==0)
+			{
+			Polynomial r(0);
+			r[0]=0;
+			return r;
+			}
+		Polynomial r(n-1);
+		for(int i=1; i<=n; ++i) r[i-1] = (*this)[i]* ((T)i);
+		return r;
+		};
+	Polynomial integral() const
+		{
+		NOT_GPU(*this); 
+		int n=degree();
+		Polynomial r(n+1);
+		r[0]=0;
+		for(int i=0; i<=n; ++i) r[i+1] = (*this)[i]/((T)(i+1));
+		return r;
+		}
+	void polydiv(const Polynomial &rhs, Polynomial &q, Polynomial &r) const;
+	Polynomial operator/(const Polynomial &rhs) const {Polynomial q,r; polydiv(rhs,q,r); return q;};
+	Polynomial operator%(const Polynomial &rhs) const {Polynomial q,r; polydiv(rhs,q,r); return r;};
 
-	//@@@@
-	//simplify(threshold)
-	//derivative,integral
-	//division remainder 
 	//gcd, lcm
 	//roots, interpolation ... special only for real->complex - declare only and implent only template specialization  in .cc
 

@@ -153,10 +153,10 @@ const NRVec<double> NRVec<double>::operator-() const {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_dscal(nn, -1.0, v, 1);
+		cblas_dscal(nn, -1.0, result.v, 1);
 #ifdef CUDALA
 	}else{
-		cublasDscal(nn, -1.0, v, 1);
+		cublasDscal(nn, -1.0, result.v, 1);
 		TEST_CUBLAS("cublasDscal");
 	}
 #endif
@@ -174,10 +174,10 @@ const NRVec<std::complex<double> > NRVec<std::complex<double> >::operator-() con
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zdscal(nn, -1.0, v, 1);
+		cblas_zdscal(nn, -1.0, result.v, 1);
 #ifdef CUDALA
 	}else{
-		cublasZdscal(nn, -1.0, (cuDoubleComplex*)v, 1);
+		cublasZdscal(nn, -1.0, (cuDoubleComplex*)result.v, 1);
 		TEST_CUBLAS("cublasZdscal");
 	}
 #endif

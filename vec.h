@@ -193,10 +193,12 @@ public:
 	inline NRVec& operator+=(const T &a);
 	inline NRVec& operator-=(const T &a);
 	inline NRVec& operator*=(const T &a);
+	inline NRVec& operator/=(const T &a);
 
 	inline const NRVec operator+(const T &a) const;
 	inline const NRVec operator-(const T &a) const;
 	inline const NRVec operator*(const T &a) const;
+	inline const NRVec operator/(const T &a) const;
 
 
 	//! determine the actual value of the reference counter 
@@ -753,6 +755,16 @@ inline NRVec<T> & NRVec<T>::operator*=(const T &a) {
 	return *this;
 }
 
+template <typename T>
+inline NRVec<T> & NRVec<T>::operator/=(const T &a) {
+        NOT_GPU(*this);
+        copyonwrite();
+
+        for(register int i=0; i<nn; ++i) v[i] /= a;
+        return *this;
+}
+
+
 /***************************************************************************//**
  * compute scalar product \f$d\f$ of this vector \f$\vec{x}\f$ of general type <code>T</code> 
  * with given vector \f$\vec{y}\f$ of type <code>T</code> and order \f$N\f$
@@ -858,6 +870,7 @@ inline const NRVec<T> NRVec<T>::unitvector() const {
 NRVECMAT_OPER(Vec,+)
 NRVECMAT_OPER(Vec,-)
 NRVECMAT_OPER(Vec,*)
+NRVECMAT_OPER(Vec,/)
 
 /***************************************************************************//**
  * generate operators involving vector and vector
@@ -1035,13 +1048,13 @@ nn = n;
 		if(location == cpu)
 			{
 #endif
-			if(preserve) {vold=v; do_delete=true;} else delete[] v;
+			if(preserve) {vold=v; preserved= do_delete=true;} else delete[] v;
 			v = new T[nn];
 #ifdef CUDALA
 			}
 		else
 			{
-			 if(preserve) {vold=v; do_delete=true;} else gpufree(v);
+			 if(preserve) {vold=v; d preserved= o_delete=true;} else gpufree(v);
 			v = (T*) gpualloc(nn*sizeof(T));
 			}
 #endif
@@ -1374,6 +1387,9 @@ inline NRVec<double>& NRVec<double>::operator*=(const double &a) {
         return *this;
 }
 
+template<>
+inline NRVec<double>& NRVec<double>::operator/=(const double &a) {return *this *= (1./a);}
+
 /***************************************************************************//**
  * multiplies this complex vector \f$\vec{x}\f$ by a complex scalar value \f$\alpha\f$
  * \f[\vec{x}_i\leftarrow\alpha\vec{x}_i\f]
@@ -1396,6 +1412,9 @@ inline NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator*=(co
 #endif
         return *this;
 }
+
+template<>
+inline NRVec<std::complex<double> >& NRVec<std::complex<double> >::operator/=(const std::complex<double> &a) {return *this *= (1./a);}
 
 /***************************************************************************//**
  * computes the inner product of this real vector \f$\vec{x}\f$ with given real vector \f$\vec{y]\f$

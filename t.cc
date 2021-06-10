@@ -2172,23 +2172,33 @@ if(1)
 int n,m;
 double x;
 cin >>n >>m >>x;
+if(n<m) {int t=n; n=m; m=t;}
 Polynomial<double> p(n),q(m);
 p.randomize(1.);
 q.randomize(1.);
+NRVec<double> qq(q);
+Polynomial<double> qqq(qq);
+Polynomial<double> pp(n); pp.randomize(1.); 
 p*=10.;
+Polynomial<double> a,b;
+p.polydiv(q,a,b);
 Polynomial<double> r=p*q;
 Polynomial<double> z=value(p,q); //p(q(x))
 Polynomial<double> y=value(q,p); 
 cout <<p;
 cout <<q;
+cout <<a;
+cout <<b;
 cout <<r;
 cout <<z;
+cout << "polydiv test "<<(a*q+b -p).norm()<<endl;
 cout << value(p,x)*value(q,x) -value(r,x)<<endl;
 cout << value(p,value(q,x)) -value(z,x)<<endl;
 cout << value(q,value(p,x)) -value(y,x)<<endl;
 NRMat<double> u(5,5);
 u.randomize(1.);
 cout << (value(p,u)*value(q,u) -value(r,u)).norm()<<endl;
+
 }
 
 

@@ -23,19 +23,49 @@
 
 namespace LA {
 
+template <typename T>
+void Polynomial<T>::polydiv(const Polynomial &rhs, Polynomial &q, Polynomial &r) const
+{
+if(rhs[rhs.degree()]==0) laerror("division by a polynomial with zero leading coefficient - simplify it first");
+if(rhs.degree()==0) //scalar division
+	{
+	q= *this/rhs[0];
+	r.resize(0,false);
+	r[0]=0;
+	return;
+	}
+int rdegree= rhs.degree();
+int qdegree= degree()-rdegree;
+if(qdegree<0)
+	{
+	q.resize(0,false);
+	q[0]=0;
+	r= *this;
+	return;
+	}
+//general case
+q.resize(qdegree,false);
+r= *this; r.copyonwrite();
+for(int i=degree(); i>=rdegree; --i)
+	{
+	T tmp= r[i]/rhs[rdegree];
+	q[i-rdegree]= tmp;
+	r -= rhs.shifted(i-rdegree)*tmp;
+	}
+r.resize(rhs.degree()-1,true);
+}
 
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
 template class Polynomial<int>;
-template class Polynomial<float>;
 template class Polynomial<double>;
+template class Polynomial<std::complex<double> >;
 
 #define INSTANTIZE(T) \
 
 
-//INSTANTIZE(float)
 
 //INSTANTIZE(double)
 
