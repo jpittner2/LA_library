@@ -22,6 +22,7 @@
 
 #include "la_traits.h"
 #include "vec.h"
+#include "nonclass.h"
 
 namespace LA {
 
@@ -78,6 +79,7 @@ public:
 		while(n>0 && abs((*this)[n])<thr) --n;
 		resize(n,true);
 		};
+	void normalize() {if((*this)[degree()]==(T)0) laerror("zero coefficient at highest degree - simplify first"); *this /= (*this)[degree()];};
 	Polynomial shifted(const int shift) const
 		{
 		if(shift==0) return *this;
@@ -127,9 +129,11 @@ public:
 	void polydiv(const Polynomial &rhs, Polynomial &q, Polynomial &r) const;
 	Polynomial operator/(const Polynomial &rhs) const {Polynomial q,r; polydiv(rhs,q,r); return q;};
 	Polynomial operator%(const Polynomial &rhs) const {Polynomial q,r; polydiv(rhs,q,r); return r;};
+	NRMat<T> companion() const; //matrix which has this characteristic polynomial
+	NRVec<typename LA_traits<T>::complextype> roots() const; //implemented for complex<double> and double only
+	NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const;
 
-	//gcd, lcm
-	//roots, interpolation ... special only for real->complex - declare only and implent only template specialization  in .cc
+	//@@@gcd, lcm  euler and svd  
 
 };
 
@@ -148,11 +152,42 @@ sum += p[0];
 return sum;
 }
 
+template <typename T, typename C>
+NRVec<C> values(const Polynomial<T> &p, const NRVec<C> &x)
+{
+NRVec<C> r(x.size());
+for(int i=0; i<x.size(); ++i) r[i]=value(p,x[i]);
+return r;
+}
+
+
 //scalar+-polynomial
 template <typename T>
 inline Polynomial<T> operator+(const T &a, const Polynomial<T> &rhs) {return Polynomial<T>(rhs)+=a;}
 template <typename T>
 inline Polynomial<T> operator-(const T &a, const Polynomial<T> &rhs) {return Polynomial<T>(rhs)-=a;}
+
+//Sylvester matrix
+template <typename T>
+extern NRMat<T> Sylvester(const Polynomial<T> &p, const Polynomial<T> &q);
+
+//polynomial from given roots
+template <typename T>
+Polynomial<T> polyfromroots(const NRVec<T> &roots, const int skip= -1)
+{
+Polynomial<T> p(0);
+p[0]=(T)1;
+for(int i=0; i<roots.size(); ++i) 
+    if(i!=skip)
+	p = p.shifted(1) - p * roots[i];
+return p;
+}
+
+
+template <typename T>
+extern Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y);
+
+
 
 
 }//namespace

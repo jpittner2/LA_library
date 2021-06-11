@@ -56,6 +56,94 @@ r.resize(rhs.degree()-1,true);
 }
 
 
+template <typename T>
+NRMat<T> Sylvester(const Polynomial<T> &p, const Polynomial<T> &q)
+{
+int nm=p.degree()+q.degree();
+NRMat<T> a(nm,nm);
+a.clear();
+for(int i=0; i<q.degree(); ++i)
+	for(int j=p.degree(); j>=0; --j)
+		a(i,i+p.degree()-j)=p[j];
+for(int i=0; i<p.degree(); ++i)
+	for(int j=q.degree(); j>=0; --j)
+		a(q.degree()+i,i+q.degree()-j)=q[j];
+return a;
+}
+
+template <typename T>
+NRMat<T> Polynomial<T>::companion() const
+{
+if((*this)[degree()]==(T)0) laerror("zero coefficient at highest degree - simplify first");
+NRMat<T> a(degree(),degree());
+a.clear();
+for(int i=0; i<degree(); ++i) a(degree()-1,i) = -(*this)[i];
+for(int i=0; i<degree()-1; ++i) a(i,i+1) = (*this)[degree()];
+return a;
+}
+
+template<>
+NRVec<typename LA_traits<int>::complextype> Polynomial<int>::roots() const
+{
+laerror("roots not implemented for integer polynomials");
+return NRVec<typename LA_traits<int>::complextype>(1);
+}
+
+template <typename T>
+NRVec<typename LA_traits<T>::complextype> Polynomial<T>::roots() const
+{
+NRMat<T> a=this->companion();
+NRVec<typename LA_traits<T>::complextype> r(degree());
+gdiagonalize(a,r,NULL,NULL);
+return r;
+}
+
+template <typename T>
+NRVec<T> Polynomial<T>::realroots(const typename LA_traits<T>::normtype thr) const
+{
+NRVec<typename LA_traits<T>::complextype> r = roots();
+NRVec<T> rr(degree());
+int nr=0;
+for(int i=0; i<degree(); ++i)
+	{
+	if(abs(r[i].imag())<thr)
+		{
+		rr[nr++] = r[i].real();
+		}
+	}
+rr.resize(nr,true);
+rr.sort();
+return rr;
+}
+
+template <typename T>
+Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y)
+{
+if(x.size()!=y.size()) laerror("vectors of different length in lagrange_interpolation");
+if(x.size()<1) laerror("empty vector in lagrange_interpolation");
+if(x.size()==1)
+        {
+        Polynomial<T> p(0);
+        p[0]=y[0];
+        return p;
+        }
+int n=x.size()-1;
+Polynomial<T> p(n);
+p.clear();
+for(int i=0; i<=n; ++i)
+        {
+	T prod=(T)1;
+	for(int j=0; j<=n; ++j) if(j!=i) prod *= (x[i]-x[j]);
+	if(prod==(T)0) laerror("repeated x-value in lagrange_interpolation");
+	Polynomial<T> tmp=polyfromroots(x,i);
+	p += tmp * y[i] / prod;
+        }
+return p;
+}
+
+
+
+
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
@@ -64,10 +152,13 @@ template class Polynomial<double>;
 template class Polynomial<std::complex<double> >;
 
 #define INSTANTIZE(T) \
+template NRMat<T> Sylvester(const Polynomial<T> &p, const Polynomial<T> &q); \
+template Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y); \
 
 
-
-//INSTANTIZE(double)
+INSTANTIZE(int)
+INSTANTIZE(double)
+INSTANTIZE(std::complex<double>)
 
 
 

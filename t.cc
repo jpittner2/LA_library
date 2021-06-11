@@ -2167,7 +2167,7 @@ cout <<Sn;
 if(!Sn.is_valid()) laerror("internal error in Sn character calculation");
 }
 
-if(1)
+if(0)
 {
 int n,m;
 double x;
@@ -2187,6 +2187,8 @@ Polynomial<double> z=value(p,q); //p(q(x))
 Polynomial<double> y=value(q,p); 
 cout <<p;
 cout <<q;
+cout <<q.companion();
+cout<<Sylvester(p,q);
 cout <<a;
 cout <<b;
 cout <<r;
@@ -2201,5 +2203,30 @@ cout << (value(p,u)*value(q,u) -value(r,u)).norm()<<endl;
 
 }
 
+if(0)
+{
+int n;
+cin >>n ;
+NRVec<double> r(n);
+r.randomize(1.);
+r.sort(0);
+Polynomial<double> p=polyfromroots(r);
+cout <<p;
+cout <<r;
+cout <<p.realroots(1e-10);
+}
+
+if(1)
+{
+int n;
+cin >>n ;
+NRVec<double> x(n+1),y(n+1);
+x.randomize(1.);
+y.randomize(1.);
+Polynomial<double> p=lagrange_interpolation(x,y);
+cout <<x<<y<<p;
+NRVec<double> yy=values(p,x);
+cout<<"interpolation error= "<<(y-yy).norm()<<endl;
+}
 
 }
