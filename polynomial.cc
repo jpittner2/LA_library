@@ -19,6 +19,7 @@
 #include "polynomial.h"
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 
 namespace LA {
@@ -77,8 +78,8 @@ NRMat<T> Polynomial<T>::companion() const
 if((*this)[degree()]==(T)0) laerror("zero coefficient at highest degree - simplify first");
 NRMat<T> a(degree(),degree());
 a.clear();
-for(int i=0; i<degree(); ++i) a(degree()-1,i) = -(*this)[i];
-for(int i=0; i<degree()-1; ++i) a(i,i+1) = (*this)[degree()];
+for(int i=0; i<degree(); ++i) a(degree()-1,i) = -(*this)[i]/(*this)[degree()];
+for(int i=0; i<degree()-1; ++i) a(i,i+1) = (T)1; 
 return a;
 }
 
@@ -158,6 +159,49 @@ return x;
 }
 
 
+template <typename T>
+Polynomial<T> poly_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr, const int d)
+{
+Polynomial<T> big,small;
+if(p.degree() < q.degree()) {big=q; small=p;} else {big=p; small=q;}
+small.simplify(thr);
+if(small.degree()==0) return small;
+Polynomial<T> help;
+do      {
+        help=small;
+        small= big%small;
+        big=help;
+	small.simplify(thr);
+        }
+while((d<0 && small.degree() != 0) || (d>=0 && small.degree()>=d));
+return big;
+}
+
+
+template <>
+Polynomial<int> svd_gcd(const Polynomial<int> &p, const Polynomial<int> &q, const typename LA_traits<int>::normtype thr)
+{
+laerror("SVD gcd only for floating point numbers");
+return p;
+}
+
+template <typename T>
+Polynomial<T> svd_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr)
+{
+Polynomial<T> big,small;
+if(p.degree() < q.degree()) {big=q; small=p;} else {big=p; small=q;}
+small.simplify(thr);
+if(small.degree()==0) return small;
+NRMat<T> s = Sylvester(p,q);
+NRMat<T> u(s.nrows(),s.nrows()),v(s.ncols(),s.ncols());
+NRVec<typename LA_traits<T>::normtype> w(s.nrows());
+singular_decomposition(s,&u,w,&v,0);
+int rank=0;
+for(int i=0; i<w.size(); ++i) if(w[i]>thr*::sqrt((double)big.degree()*small.degree())) ++rank;
+int d=big.degree()+small.degree()-rank;
+return poly_gcd(big,small,thr,d);
+}
+
 
 
 /***************************************************************************//**
@@ -170,6 +214,9 @@ template class Polynomial<std::complex<double> >;
 #define INSTANTIZE(T) \
 template NRMat<T> Sylvester(const Polynomial<T> &p, const Polynomial<T> &q); \
 template Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y); \
+template Polynomial<T> poly_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr,const int d); \
+template Polynomial<T> svd_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr); \
+
 
 
 INSTANTIZE(int)

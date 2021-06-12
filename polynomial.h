@@ -75,6 +75,7 @@ public:
 	void simplify(const typename LA_traits<T>::normtype thr=0)
 		{
 		NOT_GPU(*this); 
+		this->copyonwrite();
 		int n=degree();
 		while(n>0 && abs((*this)[n])<=thr) --n;
 		resize(n,true);
@@ -148,8 +149,6 @@ public:
 	NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const;
 	T newton(const T x0, const typename LA_traits<T>::normtype thr=1e-14, const int maxit=1000) const; //solve root from the guess
 
-	//@@@gcd, lcm  euler and svd  
-
 };
 
 //this is very general, can be used also for nesting polynomials
@@ -203,6 +202,17 @@ template <typename T>
 extern Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y);
 
 
+template <typename T>
+extern Polynomial<T> poly_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr=0, const int d= -1);
+
+template <typename T>
+extern Polynomial<T> svd_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr=0);
+
+template <typename T>
+Polynomial<T> poly_lcm(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr=0)
+{
+return p*q/poly_gcd(p,q,thr);
+}
 
 
 }//namespace

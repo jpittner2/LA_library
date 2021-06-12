@@ -2203,18 +2203,23 @@ cout << (value(p,u)*value(q,u) -value(r,u)).norm()<<endl;
 
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n ;
 NRVec<double> r(n);
-r.randomize(1.);
+//r.randomize(1.);
+//wilkinson's ill-conditionel polynomial
+for(int i=0; i<n;++i) r[i]=i+1;
 double x0=r[0]*0.8+r[1]*0.2;
 r.sort(0);
 Polynomial<double> p=polyfromroots(r);
 cout <<p;
 cout <<r;
-cout <<p.realroots(1e-10);
+NRVec<double> rr= p.realroots(1e-10);
+rr.resize(n,true);
+cout <<rr;
+cout <<"root error = "<<(r-rr).norm()<<endl;
 double x=p.newton(x0);
 double xdif=1e10;
 for(int i=0; i<n; ++i) if(abs(x-r[i])<xdif) xdif=abs(x-r[i]);
@@ -2236,5 +2241,32 @@ Polynomial<double>q=p.integral(2);
 Polynomial<double>pp=q.derivative(2);
 cout<<"test deriv. "<<(pp-p).norm()<<endl;
 }
+
+if(1)
+{
+int n;
+cin >>n;
+NRVec<double> rr(n);
+rr.randomize(1.);
+rr.sort(0);
+if(rr.size()>2) rr[1]=rr[0];//make a degenerate root
+NRVec<double> pr(2*n);
+NRVec<double> qr(2*n);
+pr.randomize(1.);
+qr.randomize(1.);
+for(int i=0; i<n; ++i) {pr[i]=qr[i]=rr[i];}
+Polynomial<double> p=polyfromroots(pr);
+Polynomial<double> q=polyfromroots(qr);
+Polynomial<double> g=poly_gcd(p,q,1e-8);
+cout <<"GCD ="<<g;
+Polynomial<double> gg=svd_gcd(p,q,1e-13);
+cout <<"SVDGCD ="<<gg;
+NRVec<double> rrr=g.realroots(1e-5);
+NRVec<double> rrrr=gg.realroots(1e-5);
+cout <<rr<<rrr<<rrrr;
+cout <<"test gcd "<<(rr-rrr).norm()<<endl;
+cout <<"test svdgcd "<<(rr-rrrr).norm()<<endl;
+}
+
 
 }
