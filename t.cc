@@ -2203,20 +2203,25 @@ cout << (value(p,u)*value(q,u) -value(r,u)).norm()<<endl;
 
 }
 
-if(0)
+if(1)
 {
 int n;
 cin >>n ;
 NRVec<double> r(n);
 r.randomize(1.);
+double x0=r[0]*0.8+r[1]*0.2;
 r.sort(0);
 Polynomial<double> p=polyfromroots(r);
 cout <<p;
 cout <<r;
 cout <<p.realroots(1e-10);
+double x=p.newton(x0);
+double xdif=1e10;
+for(int i=0; i<n; ++i) if(abs(x-r[i])<xdif) xdif=abs(x-r[i]);
+cout<<"test newton "<<xdif<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n ;
@@ -2227,6 +2232,9 @@ Polynomial<double> p=lagrange_interpolation(x,y);
 cout <<x<<y<<p;
 NRVec<double> yy=values(p,x);
 cout<<"interpolation error= "<<(y-yy).norm()<<endl;
+Polynomial<double>q=p.integral(2);
+Polynomial<double>pp=q.derivative(2);
+cout<<"test deriv. "<<(pp-p).norm()<<endl;
 }
 
 }

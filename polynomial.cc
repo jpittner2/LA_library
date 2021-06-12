@@ -142,6 +142,22 @@ return p;
 }
 
 
+template <typename T>
+T Polynomial<T>::newton(const T x0, const typename LA_traits<T>::normtype thr, const int maxit) const
+{
+Polynomial<T> d=derivative(1);
+T x=x0;
+for(int i=0; i<maxit; ++i)
+	{
+	T v=value(*this,x);
+	if(abs(v)<thr) break;
+	x -= v/value(d,x);
+	}
+
+return x;
+}
+
+
 
 
 /***************************************************************************//**

@@ -72,11 +72,11 @@ public:
 		for(int i=0; i<=rhs.degree(); ++i) for(int j=0; j<=degree(); ++j) r[i+j] += rhs[i]*(*this)[j];
 		return r;
 		};
-	void simplify(const typename LA_traits<T>::normtype thr)
+	void simplify(const typename LA_traits<T>::normtype thr=0)
 		{
 		NOT_GPU(*this); 
 		int n=degree();
-		while(n>0 && abs((*this)[n])<thr) --n;
+		while(n>0 && abs((*this)[n])<=thr) --n;
 		resize(n,true);
 		};
 	void normalize() {if((*this)[degree()]==(T)0) laerror("zero coefficient at highest degree - simplify first"); *this /= (*this)[degree()];};
@@ -103,27 +103,41 @@ public:
 			return r;
 			}
 		}
-	Polynomial derivative() const
+	Polynomial derivative(const int d=1) const
 		{
+		if(d==0) return *this;
+		if(d<0) return integral(-d);
 		NOT_GPU(*this); 
 		int n=degree();
-		if(n==0)
+		if(n-d<0)
 			{
 			Polynomial r(0);
 			r[0]=0;
 			return r;
 			}
-		Polynomial r(n-1);
-		for(int i=1; i<=n; ++i) r[i-1] = (*this)[i]* ((T)i);
+		Polynomial r(n-d);
+		for(int i=d; i<=n; ++i) 
+			{
+			int prod=1;
+			for(int j=i; j>=i-d+1; --j) prod *= j;
+			r[i-d] = (*this)[i]* ((T)prod);
+			}
 		return r;
 		};
-	Polynomial integral() const
+	Polynomial integral(const int d=1) const
 		{
+		if(d==0) return *this;
+                if(d<0) return derivative(-d);
 		NOT_GPU(*this); 
 		int n=degree();
-		Polynomial r(n+1);
-		r[0]=0;
-		for(int i=0; i<=n; ++i) r[i+1] = (*this)[i]/((T)(i+1));
+		Polynomial r(n+d);
+		for(int i=0; i<d; ++i) r[i]=0;
+		for(int i=0; i<=n; ++i) 
+			{
+			int prod=1;
+			for(int j=i+1; j<=i+d;++j) prod *= j;
+			r[i+d] = (*this)[i]/((T)prod);
+			}
 		return r;
 		}
 	void polydiv(const Polynomial &rhs, Polynomial &q, Polynomial &r) const;
@@ -132,6 +146,7 @@ public:
 	NRMat<T> companion() const; //matrix which has this characteristic polynomial
 	NRVec<typename LA_traits<T>::complextype> roots() const; //implemented for complex<double> and double only
 	NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const;
+	T newton(const T x0, const typename LA_traits<T>::normtype thr=1e-14, const int maxit=1000) const; //solve root from the guess
 
 	//@@@gcd, lcm  euler and svd  
 
