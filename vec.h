@@ -170,7 +170,16 @@ public:
 	NRVec& operator|=(const NRVec &rhs);
 
 	//! relational operators 
-	const bool operator!=(const NRVec &rhs) const {if(nn!=rhs.nn) return 1; return LA_traits<T>::gencmp(v,rhs.v,nn);}
+	const bool operator!=(const NRVec &rhs) const 
+		{
+		if(nn!=rhs.nn) return 1; 
+		if(LA_traits<T>::is_plaindata()) return LA_traits<T>::gencmp(v,rhs.v,nn);
+		else
+			{
+			for(int i=0; i<nn; ++i) if(v[i]!=rhs.v[i]) return 1;
+			return 0;
+			}
+		}
 	const bool operator==(const NRVec &rhs) const {return !(*this != rhs);};
 	const bool operator>(const NRVec &rhs) const;
 	const bool operator<(const NRVec &rhs) const;
