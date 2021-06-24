@@ -199,8 +199,8 @@ template <typename T>
 PERM_RANK_TYPE NRPerm<T>::generate_all(void (*callback)(const NRPerm<T>&), int select)
 {
 int n=this->size();
-NRVec_from1<T> c(0,n);
-NRVec_from1<T> d(1,n);
+NRVec_from1<T> c((T)0,n);
+NRVec_from1<T> d((T)1,n);
 int j,k,s;
 T q;
 T t;
@@ -480,7 +480,7 @@ CyclePerm<T>:: CyclePerm(const NRPerm<T> &p)
         if(!p.is_valid()) laerror("invalid permutation");
 #endif
 T n=p.size();
-NRVec_from1<T> used(0,n),tmp(n);
+NRVec_from1<T> used((T)0,n),tmp(n);
 T firstunused=1;
 T currentcycle=0;
 std::list<NRVec_from1<T> > cyclelist;
@@ -1097,11 +1097,11 @@ if(!is_standard()) laerror("nonstandardly filled young frame");
 
 
 if(!ncyc) ncyc=max(); //number of types of applied points
-NRVec_from1<T> onxlines(0,ncyc);
+NRVec_from1<T> onxlines((T)0,ncyc);
 
 for(int i=1;i<=(*this).size();i++) //rows
         {
-	NRVec_from1<T> wasfound(0,ncyc);
+	NRVec_from1<T> wasfound((T)0,ncyc);
         for(int j=1;j<=(*this)[i].size();j++) //columns
                 {
                 T k = (*this)[i][j];
@@ -1177,7 +1177,7 @@ if the application was successfull at all and return back or call nextapply, res
 Partition<T> usedcols(_nn<T>),usedlines(_nn<T>); //stores the positions where points were placed, is necessary for later cleanup
 
 /*try to place first point*/
-for(usedlines[1]=mymin(_tchi<T>->nrows(),(*_occol<T>)[1]+napl); usedlines[1]>0; usedlines[1]--)
+for(usedlines[1]=mymin((T)_tchi<T>->nrows(),(*_occol<T>)[1]+napl); usedlines[1]>0; usedlines[1]--)
    {
    if((*_oclin<T>)[usedlines[1]]<=(*_tchi<T>)[usedlines[1]].size()) /*line is not fully occupied*/
 	{
@@ -1379,7 +1379,7 @@ if(ilin > (*_tyou_cols<T>)[1])
 	++_nyoungterms;
 	(*_young_operator_callback<T>)(_aperm<T>*_sperm<T>,_antparity<T>,_expectterms);
 	} 
-else if(iel > (*_tyou_rows<T>)[ilin]) symetr(ilin+1,1);
+else if(iel > (*_tyou_rows<T>)[ilin]) symetr(ilin+1,(T)1);
 else
 	{
 	int i;
@@ -1407,7 +1407,7 @@ if(icol > (*_tyou_rows<T>)[1])
 	symetr<T>(1,1);
 	}
 else
-if(iel > (*_tyou_cols<T>)[icol]) antisym(icol+1,1);
+if(iel > (*_tyou_cols<T>)[icol]) antisym(icol+1,(T)1);
 else
 	{
 	int i;
@@ -1602,14 +1602,14 @@ return s;
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
-template class NRPerm<int>;
-template class CyclePerm<int>;
-template class CompressedPartition<int>;
-template class Partition<int>;
-template class YoungTableaux<int>;
-template class Sn_characters<int>;
 
 #define INSTANTIZE(T) \
+template class NRPerm<T>; \
+template class CyclePerm<T>; \
+template class CompressedPartition<T>; \
+template class Partition<T>; \
+template class YoungTableaux<T>; \
+template class Sn_characters<T>; \
 template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x); \
@@ -1619,6 +1619,7 @@ template std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &x); 
 
 
 INSTANTIZE(int)
+INSTANTIZE(unsigned int)
 
 
 

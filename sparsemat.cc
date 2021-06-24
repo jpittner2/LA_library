@@ -1060,6 +1060,8 @@ void SparseMat<T>::permuterows(const NRVec<SPMatindex> &p)
 {
 if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuterows");
 
+copyonwrite();
+
 matel<T> *l=list;
 
 while(l)
@@ -1074,7 +1076,9 @@ while(l)
 template<class T>
 void SparseMat<T>::permutecolumns(const NRVec<SPMatindex> &p)
 {
-if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuterows");
+if((SPMatindex)p.size()!=mm) laerror("inconsistent dimension in permuterows");
+
+copyonwrite();
 
 matel<T> *l=list;
 
@@ -1089,7 +1093,9 @@ while(l)
 template<class T>
 void SparseMat<T>::permuteindices(const NRVec<SPMatindex> &p)
 {
-if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuterows");
+if((SPMatindex)p.size()!=nn||(SPMatindex)p.size()!=mm) laerror("inconsistent dimension in permuterows");
+
+copyonwrite();
 
 matel<T> *l=list;
 
@@ -1101,6 +1107,68 @@ while(l)
         }
 }
 
+
+//these assume both matrix and permutation indexed from 1
+template<class T>
+void SparseMat<T>::permuteme_rows(const NRPerm<int> &p, const bool inverse)
+{
+if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuteme_rows");
+
+copyonwrite();
+
+matel<T> *l=list;
+
+NRPerm<int> pp;
+if(inverse) pp=p.inverse(); else pp=p;
+
+while(l)
+	{
+	l->row = (SPMatindex) pp[(int)l->row];
+	if(symmetric) l->col= (SPMatindex) pp[(int)l->col];
+	l=l->next;
+	}
+}
+
+template<class T>
+void SparseMat<T>::permuteme_cols(const NRPerm<int> &p, const bool inverse)
+{
+if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuteme_cols");
+
+copyonwrite();
+
+matel<T> *l=list;
+
+NRPerm<int> pp;
+if(inverse) pp=p.inverse(); else pp=p;
+
+while(l)
+	{
+	l->col = (SPMatindex) pp[(int)l->col];
+	if(symmetric) l->row= (SPMatindex) pp[(int)l->row];
+	l=l->next;
+	}
+}
+
+template<class T>
+void SparseMat<T>::permuteme_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse)
+{
+if((SPMatindex)p.size()!=nn || (SPMatindex)q.size()!=mm) laerror("inconsistent dimension in permuteme_both");
+
+copyonwrite();
+
+matel<T> *l=list;
+
+NRPerm<int> pp, qq;
+if(inverse) pp=p.inverse(); else pp=p;
+if(inverse) qq=q.inverse(); else qq=q;
+
+while(l)
+        {
+        l->row= (SPMatindex) pp[(int)l->row];
+        l->col= (SPMatindex) qq[(int)l->col];
+        l=l->next;
+        }
+}
 
 
 

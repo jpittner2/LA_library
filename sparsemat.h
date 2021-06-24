@@ -124,9 +124,15 @@ public:
 	void incsize(const SPMatindex n, const SPMatindex m); //increase size without destroying the data
 	void transposeme();
 	const SparseMat transpose() const;
-	void permuteindices(const NRVec<SPMatindex> &p);
-	void permuterows(const NRVec<SPMatindex> &p);
-	void permutecolumns(const NRVec<SPMatindex> &p);
+	void permuteindices(const NRVec<SPMatindex> &p); //for backward compatibility, indices from 0
+	void permuterows(const NRVec<SPMatindex> &p); //for backward compatibility, indices from 0
+	void permutecolumns(const NRVec<SPMatindex> &p); //for backward compatibility, indices from 0
+	void permuteme_rows(const NRPerm<int> &p, const bool inverse=false); //indexed from 1
+	void permuteme_cols(const NRPerm<int> &p, const bool inverse=false); //indexed from 1
+	void permuteme_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false); //indexed from 1
+	const SparseMat permuted_rows(const NRPerm<int> &p, const bool inverse=false) const {SparseMat a(*this); a.permuteme_rows(p,inverse); return a;};
+	const SparseMat permuted_cols(const NRPerm<int> &p, const bool inverse=false) const {SparseMat a(*this); a.permuteme_cols(p,inverse); return a;};
+	const SparseMat permuted_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false) const {SparseMat a(*this); a.permuteme_both(p,q,inverse); return a;};
 	inline void setsymmetric() {if(nn!=mm) laerror("non-square cannot be symmetric"); symmetric=1;}
 	inline void defineunsymmetric() {symmetric=0;} //just define and do nothing with it
 	void setunsymmetric();//unwind the matrix assuming it was indeed symmetric
