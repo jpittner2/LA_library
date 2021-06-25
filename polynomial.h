@@ -152,6 +152,7 @@ public:
 };
 
 //this is very general, can be used also for nesting polynomials
+//for an alternative algorithm which minimizes number of multiplications cf. also matexp.h
 template <typename T, typename C>
 C value(const Polynomial<T> &p, const C &x)
 {
