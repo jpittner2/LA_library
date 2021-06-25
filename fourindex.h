@@ -284,7 +284,7 @@ public:
 	unsigned long get(int fd,bool withattr=true);
 	void fscanf(FILE *f); //C-style formatted IO
 	void fprintf(FILE *f, char *format) const;
-	void permuteme(const NRPerm<int> &p, const bool inverse)// index permutation
+	void permuteme(const NRPerm<int> &p, const bool inverse=false)// index permutation
 		{
 		if(p.size()!=nn)  laerror("inconsistent dimension in fourindex::permuteme");
 		copyonwrite();
