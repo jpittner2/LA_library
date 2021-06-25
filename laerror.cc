@@ -88,7 +88,9 @@ extern "C" void ATL_xerbla(int p, char *rout, char *form, ...){
 }
 
 #ifndef NONCBLAS
+extern "C" {
 #include "cblas.h"
+}
 #include <stdarg.h>
 extern "C" void cblas_xerbla(int p, const char *rout, const char *form, ...)
 {
