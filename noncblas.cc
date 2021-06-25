@@ -470,6 +470,7 @@ int clapack_dgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
 
 #endif
 
+#ifdef NONCBLAS
 
 extern "C" void FORNAME(dswap)(const FINT *N, double *X, const FINT *incX, double *Y, const FINT *incY);
 void cblas_dswap(const int N, double *X, const int incX, double *Y, const int incY){
@@ -494,3 +495,5 @@ void cblas_zswap(const int N, void *X, const int incX, void *Y, const int incY){
 	FORNAME(zswap)(&N, X, &incX, Y, &incY);
 #endif
 }
+
+#endif
