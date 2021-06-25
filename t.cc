@@ -98,7 +98,7 @@ if(dim!=snd) laerror("inconsistency in standard tableaux generation");
 PERM_RANK_TYPE und=p.Un_irrep_dim(unitary_n);
 cout<<"U("<<unitary_n<<") ir dim "<<und<<endl;
 space_dim += und*snd;
-CompressedPartition qc(q);
+CompressedPartition qc<int>(q);
 cout <<"("<<qc<<')';
 cout<<" Class size "<<qc.Sn_class_size()<<endl;
 

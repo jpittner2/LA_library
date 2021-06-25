@@ -63,7 +63,7 @@ extern "C" {
 #include "noncblas.h"
 #else
 extern "C" {
-#include "atlas/clapack.h"
+#include "clapack.h"
 }
 #endif
 
