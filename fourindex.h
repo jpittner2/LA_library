@@ -284,6 +284,21 @@ public:
 	unsigned long get(int fd,bool withattr=true);
 	void fscanf(FILE *f); //C-style formatted IO
 	void fprintf(FILE *f, char *format) const;
+	void permuteme(const NRPerm<int> &p, const bool inverse)// index permutation
+		{
+		if(p.size()!=nn)  laerror("inconsistent dimension in fourindex::permuteme");
+		copyonwrite();
+		matel4<I,T> *l=list;
+		NRPerm<int> pp; if(inverse) pp=p.inverse(); else pp=p;
+		while(l)
+        		{
+        		l->index.indiv.i = (I) pp[(int)l->index.indiv.i];
+        		l->index.indiv.j = (I) pp[(int)l->index.indiv.j];
+        		l->index.indiv.k = (I) pp[(int)l->index.indiv.k];
+        		l->index.indiv.l = (I) pp[(int)l->index.indiv.l];
+        		l=l->next;
+        		}
+		}
 };
 
 
