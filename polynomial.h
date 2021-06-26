@@ -27,6 +27,13 @@
 namespace LA {
 
 template <typename T>
+inline  typename LA_traits<T>::normtype  MYABS(const T &x) {return abs(x);}
+
+template <>
+inline unsigned int MYABS(const  unsigned int &x) {return x;}
+
+
+template <typename T>
 class Polynomial : public NRVec<T> {
 public:
 	Polynomial():  NRVec<T>() {};
@@ -72,12 +79,13 @@ public:
 		for(int i=0; i<=rhs.degree(); ++i) for(int j=0; j<=degree(); ++j) r[i+j] += rhs[i]*(*this)[j];
 		return r;
 		};
+	Polynomial& operator*=(const Polynomial &rhs) {*this = (*this)*rhs; return *this;};
 	void simplify(const typename LA_traits<T>::normtype thr=0)
 		{
 		NOT_GPU(*this); 
 		this->copyonwrite();
 		int n=degree();
-		while(n>0 && abs((*this)[n])<=thr) --n;
+		while(n>0 && MYABS((*this)[n])<=thr) --n;
 		resize(n,true);
 		};
 	void normalize() {if((*this)[degree()]==(T)0) laerror("zero coefficient at highest degree - simplify first"); *this /= (*this)[degree()];};
@@ -148,10 +156,13 @@ public:
 	NRVec<typename LA_traits<T>::complextype> roots() const; //implemented for complex<double> and double only
 	NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const;
 	T newton(const T x0, const typename LA_traits<T>::normtype thr=1e-14, const int maxit=1000) const; //solve root from the guess
+	Polynomial pow(const int i) const; //integer power
+	Polynomial powx(const int i) const; //substitute x^i for x in the polynomial
+	void binomial(const int n); //(1+x)^n
 
 };
 
-//this is very general, can be used also for nesting polynomials
+//this is very general, can be used also for composition (nesting) of polynomials
 //for an alternative algorithm which minimizes number of multiplications cf. also matexp.h
 template <typename T, typename C>
 C value(const Polynomial<T> &p, const C &x)
@@ -197,6 +208,8 @@ for(int i=0; i<roots.size(); ++i)
 	p = p.shifted(1) - p * roots[i];
 return p;
 }
+
+
 
 
 template <typename T>

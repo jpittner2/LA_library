@@ -22,6 +22,7 @@
 
 #include "la_traits.h"
 #include "vec.h"
+#include "polynomial.h"
 
 typedef   unsigned long long PERM_RANK_TYPE;
 
@@ -65,6 +66,7 @@ public:
 };
 
 extern PERM_RANK_TYPE factorial(const int n);
+extern PERM_RANK_TYPE binom(int n, int k);
 extern PERM_RANK_TYPE longpow(PERM_RANK_TYPE x, int i);
 
 //permutations represented in the cycle format
@@ -210,6 +212,20 @@ NRMat_from1<T> chi; //characters
 
 	Sn_characters(const int n0); //compute the table
 	bool is_valid() const; //check internal consistency
+};
+
+template <typename T>  class Polynomial; //forward declaration
+
+template <typename T>
+class CycleIndex {
+public:
+NRVec_from1<CompressedPartition<T> > classes;
+NRVec_from1<PERM_RANK_TYPE> classsizes;
+
+	CycleIndex(const Sn_characters<T> &rhs): classes(rhs.classes),classsizes(rhs.classsizes) {};
+	bool is_valid() const; //check internal consistency
+	Polynomial<T> substitute(const Polynomial<T> &p, PERM_RANK_TYPE *denom) const;
+
 };
 
 template <typename T>

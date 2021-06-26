@@ -471,6 +471,48 @@ return a[n];
 }
 
 
+#define MAXBINOM 100
+#define ibidxmaxeven(n) ((n-2)*(n-2)/4)
+#define ibidx(n,k) (k-2+(n&1?(n-3)*(n-3)/4:(n/2-1)*(n/2-2)))
+PERM_RANK_TYPE binom(int n, int k)
+{
+PERM_RANK_TYPE p,value;
+register int d;
+static PERM_RANK_TYPE ibitab[ibidxmaxeven(MAXBINOM)]= /*only nontrivial are stored,
+                                            zero initialization by compiler assumed*/
+{
+6,
+10,
+15,20,
+21,35,
+28,56,70
+};
+
+
+if(k>n||k<0) return(0);
+if(k>n/2) k=n-k;
+if(k==0) return(1);
+if(k==1) return(n);
+int ind=0;
+if(n<=MAXBINOM)
+        {
+        ind=ibidx(n,k);
+        if (ibitab[ind]) return ibitab[ind];
+        }
+/* nonrecurent method used anyway */
+d=n-k;
+p=1;
+for(;n>d;n--) p *= n;
+value=p/factorial(k);
+if(n<=MAXBINOM) ibitab[ind]=value;
+return value;
+}
+#undef ibidx
+#undef ibidxmaxeven
+#undef MAXBINOM
+
+
+
 ////////////////////////////////////////////////////////
 
 template <typename T>
@@ -1599,6 +1641,40 @@ for(int i=1; i<=c.chi.nrows(); ++i)
 return s;
 }
 
+
+template <typename T>
+bool CycleIndex<T>::is_valid() const
+{
+if(classes.size()!=classsizes.size()) return false;
+T n=classes[1].sum();
+for(int i=2; i<=classes.size(); ++i) 
+	{
+	if(classes[i].sum()!=n) return false;
+	}
+return true;
+}
+
+template <typename T>
+Polynomial<T> CycleIndex<T>::substitute(const Polynomial<T> &p, PERM_RANK_TYPE *denom) const
+{
+Polynomial<T> r(0);
+r[0]=(T)0;
+*denom =0;
+
+for(int i=1; i<=classes.size(); ++i)
+	{
+	Polynomial<T> term(0);
+	term[0]=(T)1;
+	for(int j=1; j<=classes[i].size(); ++j) if(classes[i][j]) term *= (p.powx(j)).pow((int)classes[i][j]);
+	r += term*classsizes[i];
+	*denom += classsizes[i];
+	}
+
+return r;
+}
+
+
+
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
@@ -1610,6 +1686,7 @@ template class CompressedPartition<T>; \
 template class Partition<T>; \
 template class YoungTableaux<T>; \
 template class Sn_characters<T>; \
+template class CycleIndex<T>; \
 template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x); \

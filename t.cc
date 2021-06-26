@@ -2158,13 +2158,19 @@ if(tot!=partitions(n)) laerror("internal error in partition generation or enumer
 if(space_dim!=longpow(unitary_n,n)) {cout<<space_dim<<" "<<ipow(unitary_n,n)<<endl;laerror("integer overflow or internal error in space dimensions");}
 }
 
-if(0)
+if(1)
 {
 int n;
 cin >>n ;
 Sn_characters<int> Sn(n);
 cout <<Sn;
 if(!Sn.is_valid()) laerror("internal error in Sn character calculation");
+Polynomial<int> p(1);
+p[0]=p[1]=1;
+CycleIndex<int> c(Sn);
+PERM_RANK_TYPE d;
+Polynomial<int> pp=c.substitute(p,&d);
+for(int i=0; i<=p.size(); ++i) if(d!=pp[i]) laerror("error in cycle index");
 }
 
 if(0)
@@ -2242,7 +2248,7 @@ Polynomial<double>pp=q.derivative(2);
 cout<<"test deriv. "<<(pp-p).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n;
@@ -2266,6 +2272,18 @@ NRVec<double> rrrr=gg.realroots(1e-5);
 cout <<rr<<rrr<<rrrr;
 cout <<"test gcd "<<(rr-rrr).norm()<<endl;
 cout <<"test svdgcd "<<(rr-rrrr).norm()<<endl;
+}
+
+if(0)
+{
+int n;
+cin >>n;
+Polynomial<double> p;
+p.binomial(n);
+Polynomial<double> q(1);
+q[0]=q[1]=1.;
+Polynomial<double> qq=q.pow(n);
+cout <<"test binom "<<(p-qq).norm()<<endl;
 }
 
 

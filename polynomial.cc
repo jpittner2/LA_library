@@ -90,6 +90,16 @@ laerror("roots not implemented for integer polynomials");
 return NRVec<typename LA_traits<int>::complextype>(1);
 }
 
+template<>
+NRVec<typename LA_traits<unsigned int>::complextype> Polynomial<unsigned int>::roots() const
+{
+laerror("roots not implemented for integer polynomials");
+return NRVec<typename LA_traits<unsigned int>::complextype>(1);
+}
+
+
+
+
 template <typename T>
 NRVec<typename LA_traits<T>::complextype> Polynomial<T>::roots() const
 {
@@ -107,7 +117,7 @@ NRVec<T> rr(degree());
 int nr=0;
 for(int i=0; i<degree(); ++i)
 	{
-	if(abs(r[i].imag())<thr)
+	if(MYABS(r[i].imag())<thr)
 		{
 		rr[nr++] = r[i].real();
 		}
@@ -151,7 +161,7 @@ T x=x0;
 for(int i=0; i<maxit; ++i)
 	{
 	T v=value(*this,x);
-	if(abs(v)<thr) break;
+	if(MYABS(v)<thr) break;
 	x -= v/value(d,x);
 	}
 
@@ -185,6 +195,15 @@ laerror("SVD gcd only for floating point numbers");
 return p;
 }
 
+template <>
+Polynomial<unsigned int> svd_gcd(const Polynomial<unsigned int> &p, const Polynomial<unsigned int> &q, const typename LA_traits<unsigned int>::normtype thr)
+{
+laerror("SVD gcd only for floating point numbers");
+return p;
+}
+
+
+
 template <typename T>
 Polynomial<T> svd_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr)
 {
@@ -202,12 +221,54 @@ int d=big.degree()+small.degree()-rank;
 return poly_gcd(big,small,thr,d);
 }
 
+template <typename T>
+Polynomial<T> Polynomial<T>::pow(const int n) const
+{
+int i=n;
+if(i<0) laerror("negative exponent in polynomial::pow");
+if(i==0) {Polynomial<T> r(0); r[0]=(T)1; return r;}
+if(i==1) return *this;
+Polynomial<T>y,z;
+z= *this;
+while(!(i&1))
+        {
+        z = z*z;
+        i >>= 1;
+        }
+y=z;
+while((i >>= 1)/*!=0*/)
+                {
+                z = z*z;
+                if(i&1) y = y*z;
+                }
+return y;
+}
+
+template <typename T>
+Polynomial<T> Polynomial<T>::powx(const int i) const
+{
+if(i<0) laerror("negative exponent in polynomial::pow");
+if(i==0) {Polynomial<T> r(0); r[0]= this->sum(); return r;}
+if(i==1) return *this;
+Polynomial<T> r(i*this->degree());
+r.clear();
+for(int j=0; j<=this->degree(); ++j) r[j*i] = (*this)[j];
+return r;
+}
+
+template <typename T>
+void Polynomial<T>::binomial(const int n)
+{
+resize(n,false);
+for(int i=0; i<=n; ++i) (*this)[i] = (T) binom(n,i);
+}
 
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
 template class Polynomial<int>;
+template class Polynomial<unsigned int>;
 template class Polynomial<double>;
 template class Polynomial<std::complex<double> >;
 
@@ -220,6 +281,7 @@ template Polynomial<T> svd_gcd(const Polynomial<T> &p, const Polynomial<T> &q, c
 
 
 INSTANTIZE(int)
+INSTANTIZE(unsigned int)
 INSTANTIZE(double)
 INSTANTIZE(std::complex<double>)
 
