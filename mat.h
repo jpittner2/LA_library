@@ -390,6 +390,22 @@ public:
 	void strassen(const T beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T alpha);
 	void s_cutoff(const int,const int,const int,const int) const;
 #endif
+	void swap(NRMat &rhs) //more efficient swap than via tmp and constructors and operator=
+		{
+		int tmpnn=nn; nn=rhs.nn; rhs.nn=tmpnn;
+		int tmpmm=mm; mm=rhs.mm; rhs.mm=tmpmm;
+#ifdef MATPTR
+		T **
+#else
+		T *
+#endif
+			tmpv=v; v=rhs.v; rhs.v=tmpv;
+		int *tmpcount=count; count=rhs.count; rhs.count=tmpcount;
+#ifdef CUDALA
+		GPUID tmplocation=location; location=rhs.location; rhs.location=tmplocation;
+#endif
+
+		}
 };
 
 }//namespace

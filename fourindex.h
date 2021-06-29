@@ -299,6 +299,15 @@ public:
         		l=l->next;
         		}
 		}
+	void swap(fourindex &rhs) //more efficient swap than via tmp and constructors and operator=
+		{
+		I tmpnn=nn; nn=rhs.nn; rhs.nn=tmpnn;
+		I tmpterminator=terminator; terminator=rhs.terminator; rhs.terminator=tmpterminator;
+		int *tmpcount=count; count=rhs.count; rhs.count=tmpcount;
+		matel4<I,T> *tmplist=list; list=rhs.list; rhs.list=tmplist;
+		bool tmpdoscaling=doscaling; doscaling=rhs.doscaling; rhs.doscaling=tmpdoscaling;
+		fourindexsymtype tmpsymmetry=symmetry; symmetry=rhs.symmetry; rhs.symmetry=tmpsymmetry;
+		}
 };
 
 

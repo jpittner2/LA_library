@@ -146,6 +146,17 @@ public:
 	unsigned int sort(int type) const;
 	inline void add(const SPMatindex n, const SPMatindex m, const T elem) {matel<T> *ltmp= new matel<T>; ltmp->next=list; list=ltmp; list->row=n; list->col=m; list->elem=elem;}
 	void addsafe(const SPMatindex n, const SPMatindex m, const T elem);
+	void swap(SparseMat &rhs) //more efficient swap than via tmp and constructors and operator=
+		{
+		SPMatindex tmpnn=nn; nn=rhs.nn; rhs.nn=tmpnn;
+		SPMatindex tmpmm=mm; mm=rhs.mm; rhs.mm=tmpmm;
+		int *tmpcount=count; count=rhs.count; rhs.count=tmpcount;
+		bool tmpsymmetric=symmetric; symmetric=rhs.symmetric; rhs.symmetric=tmpsymmetric;
+		int tmpnonzero=nonzero; nonzero=rhs.nonzero; rhs.nonzero=tmpnonzero;
+		matel<T> *tmplist=list; list=rhs.list; rhs.list=tmplist;
+		matel<T> **tmprowsorted=rowsorted; rowsorted=rhs.rowsorted; rhs.rowsorted=tmprowsorted;
+		matel<T> **tmpcolsorted=colsorted; colsorted=rhs.colsorted; rhs.colsorted=tmpcolsorted;
+		}
 };
 
 }//namespace

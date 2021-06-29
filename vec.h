@@ -383,6 +383,17 @@ public:
 		for(int i=0; i<nn; ++i) v[i] = _F(v[i]);
 		return *this;
 	};
+
+	void swap(NRVec &rhs) //more efficient swap than via tmp and constructors and operator=
+		{
+		int tmpnn=nn; nn=rhs.nn; rhs.nn=tmpnn;
+		T *tmpv=v; v=rhs.v; rhs.v=tmpv;
+		int *tmpcount=count; count=rhs.count; rhs.count=tmpcount;
+#ifdef CUDALA
+		GPUID tmplocation=location; location=rhs.location; rhs.location=tmplocation;
+#endif
+
+		}
 };
 
 

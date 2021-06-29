@@ -176,6 +176,16 @@ public:
 	explicit NRSMat(const SparseSMat<T> &rhs);               // dense from sparse
 	inline void simplify() {}; //just for compatibility with sparse ones
 	bool issymmetric() const {return 1;}
+	void swap(NRSMat &rhs) //more efficient swap than via tmp and constructors and operator=
+		{
+		int tmpnn=nn; nn=rhs.nn; rhs.nn=tmpnn;
+		T *tmpv=v; v=rhs.v; rhs.v=tmpv;
+		int *tmpcount=count; count=rhs.count; rhs.count=tmpcount;
+#ifdef CUDALA
+		GPUID tmplocation=location; location=rhs.location; rhs.location=tmplocation;
+#endif
+
+		}
 };
 
 }//namespace
