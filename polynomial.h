@@ -26,12 +26,6 @@
 
 namespace LA {
 
-template <typename T>
-inline  typename LA_traits<T>::normtype  MYABS(const T &x) {return abs(x);}
-
-template <>
-inline unsigned int MYABS(const  unsigned int &x) {return x;}
-
 
 template <typename T>
 class Polynomial : public NRVec<T> {

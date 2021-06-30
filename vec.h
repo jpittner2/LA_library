@@ -34,6 +34,20 @@ template <typename T> class NRPerm;
 template <typename T> class CyclePerm;
 
 /***************************************************************************//**
+ * auxiliary macro to avoid compilation errors for some types
+ ******************************************************************************/
+template <typename T>
+inline  typename LA_traits<T>::normtype  MYABS(const T &x) {return abs(x);}
+
+template <> inline unsigned char MYABS(const  unsigned char &x) {return x;}
+template <> inline unsigned short MYABS(const  unsigned short &x) {return x;}
+template <> inline unsigned int MYABS(const  unsigned int &x) {return x;}
+template <> inline unsigned long MYABS(const  unsigned long &x) {return x;}
+template <> inline unsigned long long MYABS(const  unsigned long long &x) {return x;}
+
+
+
+/***************************************************************************//**
  * static constants used in several cblas-routines
  ******************************************************************************/
 const static std::complex<double> CONE = 1.0, CMONE = -1.0, CZERO = 0.0;
@@ -394,6 +408,8 @@ public:
 #endif
 
 		}
+
+	NRVec diffabs(const NRVec &rhs) const; //difference of absolute values
 };
 
 
@@ -757,6 +773,25 @@ inline NRVec<T> & NRVec<T>::operator-=(const NRVec<T> &rhs) {
 
 	for(register int i=0; i<nn; ++i) v[i] -= rhs.v[i];
         return *this;
+}
+
+/***************************************************************************//**
+ * difference of elements of two vectors in absolute values
+ * \f[\vec{z}_i = \vec{x}_i-\vec{y}_i\f]
+ * @param[in] rhs vector \f$\vec{y}\f$
+ * @return reference to the modified vector
+ ******************************************************************************/
+template <typename T>
+NRVec<T>  NRVec<T>::diffabs(const NRVec<T> &rhs) const {
+#ifdef DEBUG
+	if (nn != rhs.nn) laerror("incompatible dimensions");
+#endif
+	NOT_GPU(*this);
+	NOT_GPU(rhs);
+
+NRVec<T> r(nn);
+	for(int i=0; i<nn; ++i) r[i] = MYABS(v[i]) - MYABS(rhs.v[i]);
+        return r;
 }
 
 

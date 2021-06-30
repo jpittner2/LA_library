@@ -186,6 +186,7 @@ public:
 #endif
 
 		}
+	NRSMat diffabs(const NRSMat &rhs) const; //difference of absolute values
 };
 
 }//namespace
@@ -388,6 +389,21 @@ inline NRSMat<T> & NRSMat<T>::operator-=(const T &a) {
 	for(register int i = 0; i<nn; i++) v[i*(size_t)(i+1)/2+i] -= a;
 	return *this;
 }
+
+/*difference of absolute values*/
+template <typename T>
+NRSMat<T>  NRSMat<T>::diffabs(const NRSMat<T> &rhs) const {
+#ifdef DEBUG
+        if (nn != rhs.nn) laerror("incompatible dimensions");
+#endif
+        NOT_GPU(*this);
+        NOT_GPU(rhs);
+
+NRSMat<T> r(nn);
+        for(int i=0; i<NN2; ++i) r.v[i] = MYABS(v[i]) - MYABS(rhs.v[i]);
+        return r;
+}
+
 
 /***************************************************************************//**
  * add up this real symmetric matrix with given symmetric matrix

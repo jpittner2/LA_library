@@ -1429,29 +1429,6 @@ NRMat<std::complex<double> >::operator+=(const NRMat< std::complex<double> >  &r
 	return *this;
 }
 
-/***************************************************************************//**
- * add a given general matrix (type T) \f$A\f$ to the current complex matrix
- * @param[in] rhs matrix \f$A\f$ of type T
- * @return reference to the modified matrix
- ******************************************************************************/
-template <typename T>
-NRMat<T> & NRMat<T>::operator+=(const NRMat<T>  &rhs) {
-#ifdef DEBUG
-	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
-#endif
-	SAME_LOC(*this, rhs);
-	NOT_GPU(*this);
-
-	copyonwrite();
-
-	#ifdef MATPTR
-		for(size_t i=0; i< (size_t)nn*mm; i++) v[0][i] += rhs.v[0][i];
-	#else
-		for(size_t i=0; i< (size_t)nn*mm; i++) v[i] += rhs.v[i];
-	#endif
-        return *this;
-}
-
 
 /***************************************************************************//**
  * subtract a given real matrix \f$A\f$ from the current real matrix
@@ -1504,29 +1481,6 @@ NRMat< std::complex<double> >::operator-=(const NRMat< std::complex<double> >  &
 	return *this;
 }
 
-
-/***************************************************************************//**
- * subtract a given general matrix (type T) \f$A\f$ from the current matrix
- * @param[in] rhs matrix \f$A\f$ of type T
- * @return reference to the modified matrix
- ******************************************************************************/
-template <typename T>
-NRMat<T> & NRMat<T>::operator-=(const NRMat<T>  &rhs) {
-#ifdef DEBUG
-	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
-#endif
-	SAME_LOC(*this, rhs);
-	NOT_GPU(*this);
-
-	copyonwrite();
-
-	#ifdef MATPTR
-		for(size_t i=0; i< (size_t)nn*mm; i++) v[0][i] += rhs.v[0][i];
-	#else
-		for(size_t i=0; i<(size_t) nn*mm; i++) v[i] += rhs.v[i];
-	#endif
-        return *this;
-}
 
 
 /***************************************************************************//**

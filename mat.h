@@ -406,6 +406,7 @@ public:
 #endif
 
 		}
+	NRMat diffabs(const NRMat &rhs) const; //difference of absolute values
 };
 
 }//namespace
@@ -1400,6 +1401,75 @@ void NRMat<T>::moveto(const GPUID dest) {
 	}
 }
 #endif
+
+
+/***************************************************************************//**
+ * add a given general matrix (type T) \f$A\f$ to the current complex matrix
+ * @param[in] rhs matrix \f$A\f$ of type T
+ * @return reference to the modified matrix
+ ******************************************************************************/
+template <typename T>
+NRMat<T> & NRMat<T>::operator+=(const NRMat<T>  &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
+#endif
+	SAME_LOC(*this, rhs);
+	NOT_GPU(*this);
+
+	copyonwrite();
+
+	#ifdef MATPTR
+		for(size_t i=0; i< (size_t)nn*mm; i++) v[0][i] += rhs.v[0][i];
+	#else
+		for(size_t i=0; i< (size_t)nn*mm; i++) v[i] += rhs.v[i];
+	#endif
+        return *this;
+}
+
+
+/***************************************************************************//**
+ * subtract a given general matrix (type T) \f$A\f$ from the current matrix
+ * @param[in] rhs matrix \f$A\f$ of type T
+ * @return reference to the modified matrix
+ ******************************************************************************/
+template <typename T>
+NRMat<T> & NRMat<T>::operator-=(const NRMat<T>  &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
+#endif
+	SAME_LOC(*this, rhs);
+	NOT_GPU(*this);
+
+	copyonwrite();
+
+	#ifdef MATPTR
+		for(size_t i=0; i< (size_t)nn*mm; i++) v[0][i] -= rhs.v[0][i];
+	#else
+		for(size_t i=0; i<(size_t) nn*mm; i++) v[i] -= rhs.v[i];
+	#endif
+        return *this;
+}
+
+
+/*difference of absolute values*/
+template <typename T>
+NRMat<T>  NRMat<T>::diffabs(const NRMat<T> &rhs) const {
+#ifdef DEBUG
+        if (nn != rhs.nn ||mm!=rhs.mm) laerror("incompatible dimensions");
+#endif
+        NOT_GPU(*this);
+        NOT_GPU(rhs);
+
+NRMat<T> r(nn,mm);
+        #ifdef MATPTR
+                for(size_t i=0; i< (size_t)nn*mm; i++) r.v[0][i] = MYABS(v[0][i]) - MYABS(rhs.v[0][i]);
+        #else
+                for(size_t i=0; i<(size_t) nn*mm; i++) r.v[i] = MYABS(v[i]) - MYABS(rhs.v[i]);
+        #endif
+        return r;
+}
+
+
 
 
 
