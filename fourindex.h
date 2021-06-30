@@ -770,6 +770,9 @@ typedef typename LA_traits<T>::normtype normtype;
 
 
 //make it as a derived class in order to be able to use it in a base class context - "supermatrix" operations
+//note - loops for the twoelectronrealmullikanAB integral to be unique and in canonical order
+// i=1..n, j=1..i, k=1..n, l=1..k
+
 template<class T, class I> 
 class fourindex_dense<twoelectronrealmullikanAB,T,I> : public NRMat<T> {
 public:
