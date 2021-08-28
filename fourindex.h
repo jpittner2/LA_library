@@ -74,15 +74,28 @@ return (i/hcd0(i,j)*j);
 //when patient enough, make const_casts for piterators to have pbegin() const
 
 template<class I>
-union packed_index {
-                I packed[4];
-                struct {
+  struct indiv_index {
                         I i;
                         I j;
                         I k;
                         I l;
-                        } indiv;
-                };
+                        }
+#ifdef __GNUC__
+__attribute__((packed))
+#endif
+;
+
+
+
+template<class I>
+union packed_index {
+                I packed[4];
+                struct  indiv_index<I> indiv;
+                }
+#ifdef __GNUC__
+__attribute__((packed))
+#endif
+;
 
 template<class I, class T>
 struct matel4
@@ -91,6 +104,7 @@ struct matel4
         matel4 *next;
 	union packed_index<I> index;
         };
+//should not be packed
 
 
 template<class I, class T>
