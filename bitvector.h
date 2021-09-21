@@ -83,5 +83,19 @@ public:
 extern std::ostream & operator<<(std::ostream &s, const bitvector &x);
 extern std::istream & operator>>(std::istream  &s, bitvector &x);
 
+class bitvector_from1 : public bitvector
+	{
+public:
+	bitvector_from1() : bitvector() {};
+	bitvector_from1(const bitvector &rhs) :bitvector(rhs) {};
+	explicit bitvector_from1(const unsigned int n) : bitvector(n) {};
+	const bool operator[](const unsigned int i) {return bitvector::operator[](i-1);};
+	void set(const unsigned int i) {bitvector::set(i-1);};
+	void reset(const unsigned int i) {bitvector::reset(i-1);};
+	const bool get(const unsigned int i) {return bitvector::get(i-1);};
+	const bool assign(const unsigned int i, const bool r) {return bitvector::assign(i-1,r);};
+	unsigned int population(const unsigned int before=0) const {return bitvector::population(before?before-1:0);};
+	};
+
 }//namespace
 #endif
