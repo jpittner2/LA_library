@@ -19,7 +19,14 @@
 #define _LAERROR_H_
 #include <iostream>
 
+#include <signal.h>
+
 namespace LA {
+
+extern "C" {
+extern int traceback(int flags);
+extern void sigtraceback(int sig,int flags);
+}
 
 //exception class for laerror
 class LAerror

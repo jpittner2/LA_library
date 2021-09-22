@@ -123,12 +123,10 @@ cout <<y;
 
 int main()
 {
-#ifdef USE_TRACEBACK
 sigtraceback(SIGSEGV,1);
 sigtraceback(SIGABRT,1);
 sigtraceback(SIGBUS,1);
 sigtraceback(SIGFPE,1);
-#endif
 
 
 NRVec<double> x(1.,10);

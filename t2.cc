@@ -24,9 +24,6 @@
 #include "fourindex.h"
 #include "bitvector.h"
 
-#ifdef USE_TRACEBACK
-#include "traceback.h"
-#endif
 
 using namespace LA;
 

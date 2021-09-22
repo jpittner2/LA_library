@@ -20,9 +20,6 @@
 
 //this should be the single include file for the end user
 //
-#ifdef USE_TRACEBACK
-#include "traceback.h"
-#endif
 #include "la_traits.h"
 #include "laerror.h"
 #include "auxstorage.h"

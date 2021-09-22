@@ -105,12 +105,6 @@ AC_SUBST([NVCCFLAGS])
 AC_SUBST([MATPTROPT])
 
 
-#the check for traceback needs bfd to be linked into
-AC_CHECK_LIB([bfd], [bfd_fprintf_vma])
-AC_CHECK_LIB([traceback], [sigtraceback], [TRACEBACKLIB="-ltraceback -lbfd" TRACEBACKOPT="-DUSE_TRACEBACK -fno-omit-frame-pointer"])
-AC_SUBST([TRACEBACKOPT])
-AC_SUBST([TRACEBACKLIB])
-
 #process options
 FORINTOPT=""
 AC_ARG_ENABLE([fotran64int],[  --enable-fotran64int to link with 64-bit-integer-BLAS+LAPACK ],

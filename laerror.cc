@@ -24,12 +24,17 @@
 #include <string.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <setjmp.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/prctl.h>
+
 
 #include "cuda_la.h"
 
-#ifdef USE_TRACEBACK
-#include "traceback.h"
-#endif
 
 namespace LA {
 
@@ -42,8 +47,60 @@ bool _LA_count_check=true;
 
 extern "C" void _findme(void) {}; //for autoconf test we need a function with C linkage
 
+//traceback routines
+extern "C" {
+
+
+//simple traceback by calling gdb on ourselves 
+int traceback(int flags)
+{
+    char pid_buf[256];
+    sprintf(pid_buf, "%d", getpid());
+    char name_buf[512];
+    name_buf[readlink("/proc/self/exe", name_buf, 511)]=0;
+    prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);
+    int child_pid = fork();
+    if (!child_pid) {
+        dup2(2,1); // redirect output to stderr - edit: unnecessary?
+        execl("/usr/bin/gdb", "gdb", "--batch", "-n", "-ex", "thread", "-ex", "bt", name_buf, pid_buf, NULL);
+        abort(); /* If gdb failed to start */
+    } else {
+        waitpid(child_pid,NULL,0);
+    }
+return 0;
+}
+
+static int tracebackflags;
+static int washere=0;
+
+void tracebackhandler(int i, siginfo_t *info, void *x)
+{
+fflush(stdout);
+
+traceback(tracebackflags);
+
+if(!washere) {washere=1; raise(i);} /*generate core*/
+else _exit(1); /*prevent endless loop if something goes very wrong*/
+}
+
+void sigtraceback(int sig,int flags)
+{
+struct sigaction action;
+action.sa_sigaction=tracebackhandler;
+action.sa_flags=SA_ONESHOT|SA_SIGINFO;
+memset(&action.sa_mask,0,sizeof(sigset_t));
+tracebackflags=flags;
+if(sigaction(sig,&action,NULL)) perror("cannot install signal handler");
+}
+
+
+
+}//extern C
+
 void laerror2(const char *s1, const char *s2)
 {
+  std::cout.flush();
+  std::cerr.flush();
   std::cerr << "LA:ERROR - ";
   std::cout << "LA:ERROR - ";
   if(s1)
