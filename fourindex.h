@@ -814,7 +814,9 @@ void fourindex_dense<twoelectronrealmullikanAB,T,I>::putext(int f, T thr)
 T y;
 for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
         for(int k=1; k<=nbas(); ++k) for(int l=1; l<=k; ++l)
-		if((y=abs((*this)(i,j,k,l))) > thr)
+		{
+		y=(*this)(i,j,k,l);
+		if(abs(y)>thr)
 			{
 			matel4stored<I,T> x;
 			x.elem= y;
@@ -825,6 +827,7 @@ for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
 			if(sizeof(matel4stored<I,T>) != write(f,&x,sizeof(matel4stored<I,T>)) )
 				laerror("write error in putext");
 			}
+		}
 }
 
 
@@ -916,7 +919,9 @@ void fourindex_dense<twoelectronrealmullikan,T,I>::putext(int f, T thr)
 T y;
 for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
         for(int k=1; k<=i; ++k) for(int l=1; l<=(i==k?j:k); ++l)
-		if((y=abs((*this)(i,j,k,l))) > thr)
+		{
+		y=(*this)(i,j,k,l);
+		if(abs(y) > thr)
 			{
 			matel4stored<I,T> x;
 			x.elem= y;
@@ -927,6 +932,7 @@ for(int i=1; i<=nbas(); ++i) for(int j=1; j<=i; ++j)
 			if(sizeof(matel4stored<I,T>) != write(f,&x,sizeof(matel4stored<I,T>)) )
 				laerror("write error in putext");
 			}
+		}
 }
 
 
