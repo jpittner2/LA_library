@@ -159,6 +159,7 @@ return s;
 
 unsigned int bitvector::population(const unsigned int before) const
 {
+if(before) laerror("before parameter in population() not implemented yet");
 int i;
 unsigned int s=0;
 for(i=0; i<nn-1; ++i) s+=word_popul(v[i]);
