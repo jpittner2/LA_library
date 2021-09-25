@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/prctl.h>
+#include <fcntl.h>
 
 
 #include "cuda_la.h"
@@ -99,15 +100,20 @@ if(sigaction(sig,&action,NULL)) perror("cannot install signal handler");
 
 void laerror2(const char *s1, const char *s2)
 {
+  std::cout<<"\n";
+  std::cerr<<"\n";
   std::cout.flush();
   std::cerr.flush();
-  std::cerr << "LA:ERROR - ";
-  std::cout << "LA:ERROR - ";
   if(s1)
   {
-    std::cerr << s2 << ": " << s1 << "\n";
-    std::cout << s2 << ": " << s1 << "\n";
+    std::cerr <<"LA:ERROR - "<< s2 << ": " << s1 << "\n";
+    std::cout <<"LA:ERROR - "<< s2 << ": " << s1 << "\n";
   }
+  else 
+	{
+	std::cerr <<"LA:ERROR - unspecified\n";
+	std::cout <<"LA:ERROR - unspecified\n";
+	}
 #ifdef CUDALA
 {
 cublasStatus s = cublasGetError();
@@ -116,6 +122,22 @@ std::cout << "CUBLAS status = " << s << std::endl;
 }
 #endif
   if(errno) perror("system error");
+
+int f=open("/proc/self/cmdline",O_RDONLY);
+if(f)
+	{
+	std::string line;
+	char z;
+	while(1==read(f,&z,1))
+		{
+		line+= z?z:' ';
+		}
+	close(f);
+	std::cout<<"Command LINE: "<<line <<"\n";
+  	std::cerr<<"Command LINE: "<<line <<"\n";
+  	std::cout.flush();
+  	std::cerr.flush();
+	}
 
 throw LAerror(s1); 
 }
