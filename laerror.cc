@@ -139,6 +139,8 @@ if(f)
   	std::cerr.flush();
 	}
 
+int r=system("echo INFO:; whoami; hostname; pwd; ls -l -t .;");
+
 throw LAerror(s1); 
 }
 
