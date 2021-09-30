@@ -132,14 +132,15 @@ typedef enum {
 	twoelectronrealmullikanAB=6, 
 	T2ijab_unitary=7, 
 	T2IjAb_unitary=8, 
-	antisymtwoelectronrealdiracAB=9,rdm2AB=9,
+	antisymtwoelectronrealdiracAB=9,rdm2AB=9,twoelectroncomplexmullikan_without_conjugation=9,
 	twoelectronrealmullikanreducedsymAA=10,
 	twoelectronrealmullikanreducedsymAB=11,
+	twoelectroncomplexmullikan=12,
 } fourindexsymtype; //only permutation-nonequivalent elements are stored
 
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
-static const int fourindex_n_symmetrytypes=12;
-static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,8,1,4,8,2,2,4,2};
+static const int fourindex_n_symmetrytypes=13;
+static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,8,1,4,8,2,2,4,2,4};
 static const int fourindex_permutations[fourindex_n_symmetrytypes][9][5]=
 		{
 		{{0,1,2,3,1}}, //nosymmetry
@@ -154,6 +155,7 @@ static const int fourindex_permutations[fourindex_n_symmetrytypes][9][5]=
 		{{0,1,2,3,1},{2,3,0,1,1}}, //antisymtwoelectronrealdiracAB
 		{{0,1,2,3,1},{2,3,0,1,1},{1,0,3,2,1},{3,2,1,0,1}}, //twoelectronrealmullikanreducedsymAA (e.g. unitary downfolded CC eff. integrals)
 		{{0,1,2,3,1},{1,0,3,2,1}}, //twoelectronrealmullikanreducedsymAB (e.g. unitary downfolded CC eff. integrals)
+		{{0,1,2,3,1},{2,3,0,1,1},{1,0,3,2,2},{3,2,1,0,2}}, //twoelectroncomplexmullikan ... 2 means complex conjugation
 		};
 
 
