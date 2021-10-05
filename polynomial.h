@@ -23,6 +23,7 @@
 #include "la_traits.h"
 #include "vec.h"
 #include "nonclass.h"
+#include "matexp.h"
 
 namespace LA {
 
@@ -220,6 +221,21 @@ template <typename T>
 Polynomial<T> poly_lcm(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr=0)
 {
 return p*q/poly_gcd(p,q,thr);
+}
+
+
+template <typename T>
+Polynomial<T> hermite_polynomial(int n) //physicists definition
+{
+Polynomial<T> h(n);
+h.clear();
+h[n]=ipow((T)2,n);
+for(int m=1; n-2*m>=0; m+=1)
+	{
+	int i=n-2*m;
+	h[i] = (-h[i+2] *(i+2)*(i+1)) /(4*m);
+	}
+return h;
 }
 
 

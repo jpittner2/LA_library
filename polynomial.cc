@@ -285,6 +285,12 @@ INSTANTIZE(unsigned int)
 INSTANTIZE(double)
 INSTANTIZE(std::complex<double>)
 
+#define INSTANTIZE2(T) \
+template Polynomial<T> hermite_polynomial(int); \
+
+INSTANTIZE2(int)
+INSTANTIZE2(double)
+
 
 
 }//namespace

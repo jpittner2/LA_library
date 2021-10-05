@@ -2156,7 +2156,7 @@ if(tot!=partitions(n)) laerror("internal error in partition generation or enumer
 if(space_dim!=longpow(unitary_n,n)) {cout<<space_dim<<" "<<ipow(unitary_n,n)<<endl;laerror("integer overflow or internal error in space dimensions");}
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n ;
@@ -2282,6 +2282,13 @@ Polynomial<double> q(1);
 q[0]=q[1]=1.;
 Polynomial<double> qq=q.pow(n);
 cout <<"test binom "<<(p-qq).norm()<<endl;
+}
+
+if(1)
+{
+int n;
+cin >>n ;
+cout <<"Hermite = "<<hermite_polynomial<int>(n);
 }
 
 
