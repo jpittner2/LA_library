@@ -175,6 +175,45 @@ sum += p[0];
 return sum;
 }
 
+//evaluate only even powers
+template <typename T, typename C>
+C even_value(const Polynomial<T> &p, const C &x)
+{
+C sum(x); 
+sum=0; //get matrix dimension if C is a matrix
+int d=p.degree();
+if(d&1) --d;
+C x2 = x*x;
+for(int i=d; i>0; i-=2)
+  		 {
+       		 sum+= p[i];
+       		 sum= sum*x2; //not *= for matrices
+       		 }
+sum += p[0];
+return sum;
+}
+
+//evaluate only odd powers
+template <typename T, typename C>
+C odd_value(const Polynomial<T> &p, const C &x)
+{
+C sum(x);
+sum=0; //get matrix dimension if C is a matrix
+int d=p.degree();
+if(d==0) return sum;
+if((d&1)==0) --d;
+C x2 = x*x;
+for(int i=d; i>2; i-=2)
+                 {
+                 sum+= p[i];
+                 sum= sum*x2; //not *= for matrices
+                 }
+sum += p[1];
+sum *= x;
+return sum;
+}
+
+
 template <typename T, typename C>
 NRVec<C> values(const Polynomial<T> &p, const NRVec<C> &x)
 {

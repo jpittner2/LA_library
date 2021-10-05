@@ -2288,9 +2288,10 @@ if(1)
 {
 int n;
 cin >>n ;
-Polynomial<int> p=hermite_polynomial<int>(n);
+Polynomial<double> p=hermite_polynomial<double>(n);
 cout <<"Hermite = "<<p<<std::endl;
 cout <<"non-zero = "<< ((n&1)?p.odd_powers():p.even_powers())<<std::endl;
+cout <<"value = "<<value(p,1.23456789)<<" "<<odd_value(p,1.23456789)+even_value(p,1.23456789)<<endl;
 }
 
 
