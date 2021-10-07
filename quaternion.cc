@@ -19,9 +19,9 @@
 #include "quaternion.h"
 #include "vecmat3.h"
 
-using namespace LA_Quaternion;
 using namespace LA_Vecmat3;
 
+namespace LA_Quaternion {
 
 //do not replicate this code in each object file, therefore not in .h
 //and instantize the templates for the types needed
@@ -357,7 +357,7 @@ axis[2]= q[3]*s;
 
 
 template<typename T>
-Quaternion<T> LA_Quaternion::exp(const Quaternion<T> &x) 
+Quaternion<T> exp(const Quaternion<T> &x) 
 {
 Quaternion<T> r;
 T vnorm = sqrt(x[1]*x[1]+x[2]*x[2]+x[3]*x[3]);
@@ -374,7 +374,7 @@ return r;
 //NOTE: log(exp(x))  need not be always = x ... log is not unique!
 //NOTE2: log(x*y) != log(y*x) != log(x)+log(y)
 template<typename T>
-Quaternion<T> LA_Quaternion::log(const Quaternion<T> &x) 
+Quaternion<T> log(const Quaternion<T> &x) 
 {
 Quaternion<T> r;
 T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
@@ -391,7 +391,7 @@ return r;
 
 
 template<typename T>
-Quaternion<T> LA_Quaternion::pow(const Quaternion<T> &x, const T &y)
+Quaternion<T> pow(const Quaternion<T> &x, const T &y)
 {
 Quaternion<T> r;
 T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
@@ -411,9 +411,9 @@ return r;
 //force instantization
 #define INSTANTIZE(T) \
 template class Quaternion<T>; \
-template Quaternion<T> LA_Quaternion::pow(const Quaternion<T> &x, const T &y); \
-template Quaternion<T> LA_Quaternion::log(const Quaternion<T> &x); \
-template Quaternion<T> LA_Quaternion::exp(const Quaternion<T> &x); \
+template Quaternion<T> pow(const Quaternion<T> &x, const T &y); \
+template Quaternion<T> log(const Quaternion<T> &x); \
+template Quaternion<T> exp(const Quaternion<T> &x); \
 
 
 
@@ -422,4 +422,4 @@ INSTANTIZE(float)
 INSTANTIZE(double)
 #endif
 
-
+} //namespace
