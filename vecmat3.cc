@@ -18,11 +18,11 @@
 
 #include "vecmat3.h"
 
-using namespace LA_Vecmat3;
+namespace LA_Vecmat3 {
 
 
 //http://en.wikipedia.org/wiki/Fast_inverse_square_root
-float LA_Vecmat3::fast_sqrtinv(float number )
+float fast_sqrtinv(float number )
 {
  long i;
  float x2, y;
@@ -518,3 +518,5 @@ INSTANTIZE2(float)
 INSTANTIZE2(double)
 #endif
 #endif
+
+}//namespace
