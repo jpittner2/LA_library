@@ -37,7 +37,7 @@ template <typename T> class CyclePerm;
  * auxiliary macro to avoid compilation errors for some types
  ******************************************************************************/
 template <typename T>
-inline  typename LA_traits<T>::normtype  MYABS(const T &x) {return abs(x);}
+inline  typename LA_traits<T>::normtype  MYABS(const T &x) {return std::abs(x);}
 
 template <> inline unsigned char MYABS(const  unsigned char &x) {return x;}
 template <> inline unsigned short MYABS(const  unsigned short &x) {return x;}
