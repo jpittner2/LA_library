@@ -129,7 +129,7 @@ const Vec3<T> Mat3<T>::operator*(const Vec3<T> &rhs) const
 
 //cf. https://en.wikipedia.org/wiki/Euler_angles and NASA paper cited therein
 template<typename T>
-void LA_Vecmat3::euler2rotmat(const T *eul, Mat3<T> &a, const char *type, bool transpose, bool direction, bool reverse)
+void euler2rotmat(const T *eul, Mat3<T> &a, const char *type, bool transpose, bool direction, bool reverse)
 {
 T c2=cos(eul[1]); 
 T s2=sin(eul[1]);
@@ -316,7 +316,7 @@ if(transpose) a.transposeme();
 
 
 template<typename T>
-void LA_Vecmat3::rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose, bool direction, bool reverse)
+void rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose, bool direction, bool reverse)
 {
 T m11=a[0][0];
 T m22=a[1][1];
@@ -445,7 +445,7 @@ if(direction)
 //stream I/O
 #ifndef AVOID_STDSTREAM
 template <typename T>
-std::istream& LA_Vecmat3::operator>>(std::istream  &s, Vec3<T> &x)
+std::istream& operator>>(std::istream  &s, Vec3<T> &x)
 {
 s >> x.q[0];
 s >> x.q[1];
@@ -454,7 +454,7 @@ return s;
 }
 
 template <typename T>
-std::ostream& LA_Vecmat3::operator<<(std::ostream &s, const Vec3<T> &x) {
+std::ostream& operator<<(std::ostream &s, const Vec3<T> &x) {
 s << x.q[0]<<" ";
 s << x.q[1]<<" ";
 s << x.q[2];
@@ -462,7 +462,7 @@ return s;
 }
 
 template <typename T>
-std::istream& LA_Vecmat3::operator>>(std::istream  &s, Mat3<T> &x)
+std::istream& operator>>(std::istream  &s, Mat3<T> &x)
 {
 s >> x.q[0][0];
 s >> x.q[0][1];
@@ -477,7 +477,7 @@ return s;
 }
 
 template <typename T>
-std::ostream& LA_Vecmat3::operator<<(std::ostream &s, const Mat3<T> &x) {
+std::ostream& operator<<(std::ostream &s, const Mat3<T> &x) {
 s << x.q[0][0]<<" "<< x.q[0][1]<<" " << x.q[0][2]<<std::endl;
 s << x.q[1][0]<<" "<< x.q[1][1]<<" " << x.q[1][2]<<std::endl;
 s << x.q[2][0]<<" "<< x.q[2][1]<<" " << x.q[2][2]<<std::endl;
@@ -492,16 +492,16 @@ return s;
 #define INSTANTIZE(T) \
 template class Vec3<T>; \
 template class Mat3<T>; \
-template void LA_Vecmat3::euler2rotmat(const T *eul, Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0); \
-template void LA_Vecmat3::rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0); \
+template void euler2rotmat(const T *eul, Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0); \
+template void rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0); \
 
 
 #ifndef AVOID_STDSTREAM
 #define INSTANTIZE2(T) \
-template std::istream& LA_Vecmat3::operator>>(std::istream  &s, Vec3<T> &x); \
-template std::ostream& LA_Vecmat3::operator<<(std::ostream &s, const Vec3<T> &x); \
-template std::istream& LA_Vecmat3::operator>>(std::istream  &s, Mat3<T> &x); \
-template std::ostream& LA_Vecmat3::operator<<(std::ostream &s, const Mat3<T> &x); \
+template std::istream& operator>>(std::istream  &s, Vec3<T> &x); \
+template std::ostream& operator<<(std::ostream &s, const Vec3<T> &x); \
+template std::istream& operator>>(std::istream  &s, Mat3<T> &x); \
+template std::ostream& operator<<(std::ostream &s, const Mat3<T> &x); \
 
 #endif
 
