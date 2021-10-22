@@ -211,7 +211,7 @@ SCALAR(float)
 SCALAR(double)
 SCALAR(void *)
 
-#undef SCALAR
+//#undef SCALAR
 
 
 //declare this generically as traits for any unknown class
@@ -345,7 +345,7 @@ static inline C imagpart(const C &x) {return 0;}
 template<typename C>
 struct LA_traits; //forward declaration needed for template recursion
 
-#define generate_traits(X) \
+#define generate_traits_nonscalar(X) \
 template<typename C> \
 struct LA_traits_aux<X<C>, scalar_false> { \
 typedef C elementtype; \
@@ -372,20 +372,19 @@ static void deallocate(X<C> &x) {x.dealloc();}\
 
 
 //non-scalar types defined in this library
-generate_traits(NRMat)
-generate_traits(NRMat_from1)
-generate_traits(NRVec)
-generate_traits(NRVec_from1)
-generate_traits(SparseMat)
-generate_traits(SparseSMat) //product leading to non-symmetric result not implemented
-generate_traits(CSRMat) 
-generate_traits(NRPerm)
-generate_traits(CyclePerm)
-generate_traits(Partition)
-generate_traits(CompressedPartition)
+generate_traits_nonscalar(NRMat)
+generate_traits_nonscalar(NRMat_from1)
+generate_traits_nonscalar(NRVec)
+generate_traits_nonscalar(NRVec_from1)
+generate_traits_nonscalar(SparseMat)
+generate_traits_nonscalar(SparseSMat) //product leading to non-symmetric result not implemented
+generate_traits_nonscalar(CSRMat) 
+generate_traits_nonscalar(NRPerm)
+generate_traits_nonscalar(CyclePerm)
+generate_traits_nonscalar(Partition)
+generate_traits_nonscalar(CompressedPartition)
 
 
-#undef generate_traits
 
 //smat
 #define generate_traits_smat(X) \
