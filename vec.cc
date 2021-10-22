@@ -163,6 +163,8 @@ const NRVec<double> NRVec<double>::operator-() const {
 	return result;
 }
 
+
+
 /***************************************************************************//**
  * unary minus operator in case of complex double-precision vector
  * @return the modified vector by value
@@ -980,6 +982,46 @@ INSTANTIZE_NONCOMPLEX(long long)
 INSTANTIZE_NONCOMPLEX(unsigned long long)
 INSTANTIZE_NONCOMPLEX(float)
 INSTANTIZE_NONCOMPLEX(double)
+
+
+
+
+/***************************************************************************
+ *some efficient specializations of concatenations for plain data types
+ ******************************************************************************/
+
+#define INSTANTIZE_CONCAT(T) \
+template<> \
+NRVec<T> NRVec<T>::concat(const NRVec<T> &rhs) const \
+{ \
+if(nn==0) return rhs; \
+if(rhs.nn==0) return *this; \
+NOT_GPU(*this); \
+NOT_GPU(rhs); \
+NRVec<T> r(nn+rhs.nn); \
+memcpy(r.v,v,nn*sizeof(T)); \
+memcpy(r.v+nn,rhs.v,rhs.nn*sizeof(T)); \
+return r; \
+} \
+
+
+INSTANTIZE_CONCAT(char)
+INSTANTIZE_CONCAT(unsigned char)
+INSTANTIZE_CONCAT(short)
+INSTANTIZE_CONCAT(unsigned short)
+INSTANTIZE_CONCAT(int)
+INSTANTIZE_CONCAT(unsigned int)
+INSTANTIZE_CONCAT(long)
+INSTANTIZE_CONCAT(unsigned long)
+INSTANTIZE_CONCAT(long long)
+INSTANTIZE_CONCAT(unsigned long long)
+INSTANTIZE_CONCAT(float)
+INSTANTIZE_CONCAT(double)
+INSTANTIZE_CONCAT(std::complex<float>)
+INSTANTIZE_CONCAT(std::complex<double>)
+
+
+
 
 template class NRVec<double>;
 template class NRVec<std::complex<double> >;

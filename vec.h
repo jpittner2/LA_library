@@ -222,7 +222,17 @@ public:
 	inline const NRVec operator-(const T &a) const;
 	inline const NRVec operator*(const T &a) const;
 	inline const NRVec operator/(const T &a) const;
-
+	
+	//!concatenate vectors
+	NRVec concat(const NRVec &rhs) const 
+		{
+		if(nn==0) return rhs;
+		if(rhs.nn==0) return *this;
+		NRVec r(nn+rhs.nn);
+		for(int i=0; i<nn; ++i) r[i] = (*this)[i];
+		for(int i=0; i<rhs.nn; ++i) r[nn+i] = rhs[i];
+		return r;
+		}
 
 	//! determine the actual value of the reference counter 
 	inline int getcount() const {return count?*count:0;}
