@@ -127,6 +127,9 @@ public:
 	
 	//! inlined constructor creating vector of given size filled with prescribed value 
 	inline NRVec(const T &a, const int n);
+
+	//! inlined constructor creating vector froman array
+	template<int SIZE> inline NRVec(const T (&a)[SIZE]);
 	
 	//! inlined constructor creating vector of given size filled with data located at given memory location 
         inline NRVec(const T *a, const int n);
@@ -579,6 +582,35 @@ inline NRVec<T>::NRVec(const T& a, const int n): nn(n), count(new int) {
 	}
 #endif
 }
+
+/***************************************************************************//**
+ * inline constructor creating vector from an array
+ ******************************************************************************/
+
+
+template <typename T> template<int SIZE>
+inline NRVec<T>::NRVec(const T (&a)[SIZE]) : count(new int) {
+	nn = SIZE;
+        *count = 1;
+#ifdef CUDALA
+        location = DEFAULT_LOC;
+        if(location == cpu){
+#endif
+                v = new T[nn];
+                if(LA_traits<T>::is_plaindata()) memcpy(v, a, nn*sizeof(T));
+		else for( int i=0; i<nn; i++) v[i] = a[i];
+#ifdef CUDALA
+        }else{
+                v = (T*) gpualloc(nn*sizeof(T));
+		if!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+		cublasSetVector(nn, sizeof(T), a, 1, v, 1);
+                TEST_CUBLAS("cublasSetVector");
+        }
+#endif
+}
+
+
+
 
 
 /***************************************************************************//**

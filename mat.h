@@ -83,6 +83,9 @@ public:
 	//! inlined constructor creating matrix of given size filled with data located at given memory location 
 	NRMat(const T *a, const int n, const int m);
 
+	//! inlined constructor creating matrix of given size from an array
+	template<int R, int C> inline NRMat(const T (&a)[R][C]);
+
 	//! inlined copy-constructor
 	inline NRMat(const NRMat &rhs);
 
@@ -489,6 +492,43 @@ NRMat<T>::NRMat(const T &a, const int n, const int m, const GPUID loc) : nn(n), 
 	}
 #endif
 }
+
+
+/***************************************************************************//**
+ * inline constructor creating vector from an array
+ ******************************************************************************/
+
+
+template <typename T> template<int R, int C>
+inline NRMat<T>::NRMat(const T (&a)[R][C]) : count(new int) {
+        nn = R;
+	mm = C;
+        *count = 1;
+
+
+#ifdef CUDALA
+	if(location==cpu){
+#endif
+	#ifdef MATPTR
+		v = new T*[nn];
+		v[0] = new T[nn*mm];
+		for (register int i=1; i<n; i++) v[i] = v[i-1] + m;
+		if(LA_traits<T>::is_plaindata()) memcpy(v[0], a, nn*mm*sizeof(T));
+		else for( int i=0; i<nn; i++) for(int j=0; j<mm; ++j) v[i][j]=a[i][j];
+	#else
+		v = new T[nn*mm];
+		if(LA_traits<T>::is_plaindata()) memcpy(v, a, nn*mm*sizeof(T));
+		else for( int i=0; i<nn; i++) for(int j=0; j<mm; ++j)  v[i*mm+j] = a[i][j];
+	#endif
+#ifdef CUDALA
+	}else{
+		if!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+		v = (T*) gpualloc(nn*mm*sizeof(T));
+		cublasSetVector(nm, sizeof(T), a, 1, v, 1);
+	}
+#endif
+}
+
 
 /***************************************************************************//**
  * matrix constructor

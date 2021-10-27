@@ -2284,7 +2284,7 @@ Polynomial<double> qq=q.pow(n);
 cout <<"test binom "<<(p-qq).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n ;
@@ -2292,6 +2292,14 @@ Polynomial<double> p=hermite_polynomial<double>(n);
 cout <<"Hermite = "<<p<<std::endl;
 cout <<"non-zero = "<< ((n&1)?p.odd_powers():p.even_powers())<<std::endl;
 cout <<"value = "<<value(p,1.23456789)<<" "<<odd_value(p,1.23456789)+even_value(p,1.23456789)<<endl;
+}
+
+if(1)
+{
+NRVec<int> v({1,2,3,4});
+cout <<v;
+NRMat<int> m({{1,2,3},{4,5,6}});
+cout<<m;
 }
 
 
