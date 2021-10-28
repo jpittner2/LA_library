@@ -2298,8 +2298,16 @@ if(1)
 {
 NRVec<int> v({1,2,3,4});
 cout <<v;
+v.resize(0);
+cout<<v;
 NRMat<int> m({{1,2,3},{4,5,6}});
 cout<<m;
+Vec3<double> x({1,2,3});
+cout<<x<<endl;
+Mat3<double> y({{1,2,3},{4,5,6},{7,8,9}});
+cout <<y<<endl;
+Quaternion<double> q({1,2,3,4});
+cout<<q<<endl;
 }
 
 

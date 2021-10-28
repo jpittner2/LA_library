@@ -40,6 +40,7 @@ public:
 	T q[4];
 	//methods
 	Quaternion(void) {};
+	Quaternion(const T (&a)[4]) {memcpy(q,a,4*sizeof(T));};
 	Quaternion(const T x, const T u=0, const T v=0, const T w=0) {q[0]=x; q[1]=u; q[2]=v; q[3]=w;}; //quaternion from real(s)
 	Quaternion(const std::complex<T> &rhs) {q[0]=rhs.real(); q[1]=rhs.imag(); q[2]=0; q[3]=0;} //quaternion from complex
 	explicit Quaternion(const T* x, const int shift=1) {q[0]=0; memcpy(q+shift,x,(4-shift)*sizeof(T));} //for shift=1 quaternion from xyz vector

@@ -50,6 +50,7 @@ public:
 	Vec3(void) {};
 	Vec3(const T x, const T u=0, const T v=0) {q[0]=x; q[1]=u; q[2]=v;}; //Vec3 from real(s)
 	Vec3(const T* x) {memcpy(q,x,3*sizeof(T));} 
+	Vec3(const T (&a)[3]) {memcpy(q,a,3*sizeof(T));};
 	
 	//get pointer to data transparently
 	inline operator const T*() const {return q;};
@@ -98,6 +99,7 @@ public:
 	T q[3][3];
 	//
 	Mat3(void) {};
+	Mat3(const T (&a)[3][3]) {memcpy(q,a,3*3*sizeof(T));}
 	Mat3(const T x) {memset(q,0,9*sizeof(T)); q[0][0]=q[1][1]=q[2][2]=x;}; //scalar matrix
 	Mat3(const T* x) {memcpy(q,x,9*sizeof(T));} 
 	Mat3(const T x00, const T x01,const T x02,const T x10,const T x11,const T x12,const T x20,const T x21,const T x22) 
