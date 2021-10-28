@@ -443,7 +443,7 @@ NRVec<T>& NRVec<T>::operator=(const T &a){
 	NOT_GPU(*this);
 	copyonwrite();
 
-	if(a != (T)0){
+	if(!LA_traits<T>::is_plaindata() || a != (T)0){
 		for(register int i=0; i<nn; i++) v[i] = a;
 	}else{
 		memset(v, 0, nn*sizeof(T));
@@ -882,6 +882,22 @@ for(int cycle=1; cycle<=p.size(); ++cycle)
 	v[p[cycle][1]-1] = tmp;
 	}
 }
+
+template<typename T>
+const int NRVec<T>::find(const T &val) const
+{
+for(int i=0; i<nn; ++i) if(val==v[i]) return i;
+return -1;
+}
+
+template<typename T>
+const int NRVec<T>::findthr(const T &val, const  typename LA_traits<T>::normtype &thr) const
+{
+for(int i=0; i<nn; ++i) if(MYABS(val-v[i])<thr) return i;
+return -1;
+}
+
+
 
 
 /***************************************************************************//**

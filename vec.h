@@ -352,6 +352,10 @@ public:
 	//! get normalized copy of this vector 
 	inline const NRVec unitvector() const;
 
+	//! find an element by value with threshold, first from left 
+	const int find(const T &val) const;
+	const int findthr(const T &val, const  typename LA_traits<T>::normtype &thr=0) const;
+
 	//! determine the maximal element (in the absolute value) of this vector 
 	inline const T amax() const;
 	//! determine the minimal element (in the absolute value) of this vector 
@@ -570,14 +574,15 @@ inline NRVec<T>::NRVec(const T& a, const int n): nn(n), count(new int) {
 	if(location == cpu){
 #endif
 		v = new T[n];
-		if(a != (T)0){
-			for(register int i=0; i<n; i++) v[i] = a;
-		}else{
-			memset(v, 0, nn*sizeof(T));
-		}
+                if(!LA_traits<T>::is_plaindata() || a != (T)0){
+                        for(register int i=0; i<n; i++) v[i] = a;
+                }else{
+                        memset(v, 0, nn*sizeof(T));
+               }
 #ifdef CUDALA
 	}else{
 		v = (T*) gpualloc(n*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		smart_gpu_set(n, a, v);
 	}
 #endif
@@ -602,7 +607,7 @@ inline NRVec<T>::NRVec(const T (&a)[SIZE]) : count(new int) {
 #ifdef CUDALA
         }else{
                 v = (T*) gpualloc(nn*sizeof(T));
-		if!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		cublasSetVector(nn, sizeof(T), a, 1, v, 1);
                 TEST_CUBLAS("cublasSetVector");
         }
@@ -626,10 +631,12 @@ inline NRVec<T>::NRVec(const T *a, const int n): nn(n), count(new int) {
 #endif
 		v = new T[n];
 		*count = 1;
-		memcpy(v, a, n*sizeof(T));
+		if(LA_traits<T>::is_plaindata()) memcpy(v, a, n*sizeof(T));
+		else for( int i=0; i<n; i++) v[i] = a[i];
 #ifdef CUDALA
 	}else{
 		v = (T*) gpualloc(n*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		cublasSetVector(n, sizeof(T), a, 1, v, 1);
 		TEST_CUBLAS("cublasSetVector");
 	}
@@ -653,10 +660,12 @@ inline NRVec<T>::NRVec(T *a, const int n, bool skeleton) : nn(n), count(new int)
 #endif
 			v = new T[n];
 			*count = 1;
-			memcpy(v, a, n*sizeof(T));
+			if(LA_traits<T>::is_plaindata()) memcpy(v, a, n*sizeof(T));
+			else for( int i=0; i<n; i++) v[i] = a[i];
 #ifdef CUDALA
 		}else{
 			v= (T*) gpualloc(n*sizeof(T));
+			if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 			cublasSetVector(n, sizeof(T), a, 1, v, 1);
 			TEST_CUBLAS("cublasSetVector");
 		}

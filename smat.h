@@ -230,12 +230,13 @@ inline NRSMat<T>::NRSMat(const T& a, const int n) : nn(n), count(new int(1)) {
 	if(location == cpu){
 #endif
 		v = new T[NN2];
-		if(a != (T)0) for(register size_t i = 0; i<NN2; i++) v[i] = a;
+		if(!LA_traits<T>::is_plaindata() || a != (T)0) for(register size_t i = 0; i<NN2; i++) v[i] = a;
 		else memset(v, 0, NN2*sizeof(T));
 
 #ifdef CUDALA
 	}else{
 		v = (T*) gpualloc(NN2*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		cublasSetVector(NN2, sizeof(T), &a, 0, v, 1);
 	}
 #endif
@@ -253,10 +254,12 @@ inline NRSMat<T>::NRSMat(const T *a, const int n) : nn(n), count(new int(1)) {
         location = DEFAULT_LOC;
         if(location == cpu){
 #endif
-		memcpy(v, a, NN2*sizeof(T));
+		if(LA_traits<T>::is_plaindata()) memcpy(v, a, NN2*sizeof(T));
+		else for( int i=0; i<NN2; i++) v[i] = a[i];
 #ifdef CUDALA
 	}else{
 		v = (T*) gpualloc(NN2*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		cublasSetVector(NN2, sizeof(T), a, 1, v, 1);
 	}
 #endif

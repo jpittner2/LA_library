@@ -478,7 +478,7 @@ NRMat<T>::NRMat(const T &a, const int n, const int m, const GPUID loc) : nn(n), 
 	#else
 		p = v = new T[nm];
 	#endif
-		if (a != (T)0){
+		if (!LA_traits<T>::is_plaindata() || a != (T)0){
 			for (register int i=0; i<nm; i++) *p++ = a;
 		}else{
 			memset(p, 0, nm*sizeof(T));
@@ -488,6 +488,7 @@ NRMat<T>::NRMat(const T &a, const int n, const int m, const GPUID loc) : nn(n), 
 		if(sizeof(T)%sizeof(float) != 0)laerror("memory alignment error");
 
 		v = (T*)gpualloc(nm*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		smart_gpu_set(nm, a, v);
 	}
 #endif
@@ -522,7 +523,7 @@ inline NRMat<T>::NRMat(const T (&a)[R][C]) : count(new int) {
 	#endif
 #ifdef CUDALA
 	}else{
-		if!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		v = (T*) gpualloc(nn*mm*sizeof(T));
 		cublasSetVector(nm, sizeof(T), a, 1, v, 1);
 	}
@@ -554,13 +555,14 @@ NRMat<T>::NRMat(const T &a, const int n, const int m) : nn(n), mm(m), count(new 
 	#else
 		p = v = new T[nm];
 	#endif
-	if (a != (T)0)
+	if (!LA_traits<T>::is_plaindata() || a != (T)0)
 		for (register int i=0; i<nm; i++) *p++ = a;
 	else
 		memset(p, 0, nm*sizeof(T));
 #ifdef CUDALA
 	}else{
 		v = (T*)gpualloc(nm*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		smart_gpu_set(nm, a, v);
 	}
 #endif
@@ -588,14 +590,17 @@ NRMat<T>::NRMat(const T *a, const int n, const int m) : nn(n), mm(m), count(new 
 		v = new T*[n];
 		v[0] = new T[nm];
 		for (register int i=1; i<n; i++) v[i] = v[i-1] + m;
-		memcpy(v[0], a, nm*sizeof(T));
+		if(LA_traits<T>::is_plaindata()) memcpy(v[0], a, nm*sizeof(T));
+		else for(int i=0; i<nm; ++i) v[0][i] = a[i];
 	#else
 		v = new T[nm];
-		memcpy(v, a, nm*sizeof(T));
+		if(LA_traits<T>::is_plaindata()) memcpy(v, a, nm*sizeof(T));
+		else for(int i=0; i<nm; ++i) v[i] = a[i];
 	#endif
 #ifdef CUDALA
 	}else{
 		v = (T*) gpualloc(nm*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		cublasSetVector(nm, sizeof(T), a, 1, v, 1);
 	}
 #endif

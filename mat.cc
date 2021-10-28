@@ -550,6 +550,7 @@ template <typename T>
 const NRMat<T> NRMat<T>::operator&(const NRMat<T> &b) const {
 	SAME_LOC(*this, b);
 	NRMat<T> result((T)0, nn + b.nn, mm + b.mm, getlocation());
+	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 #ifdef CUDALA
 	if(location == cpu){
 #endif
@@ -738,6 +739,7 @@ const NRMat<T> NRMat<T>::submatrix(const int fromrow, const int torow, const int
 	const int n = torow - fromrow + 1;
 	const int m = tocol - fromcol + 1;
 	NRMat<T> r(n, m, getlocation());
+	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 
 #ifdef CUDALA
 	if(location == cpu){
@@ -775,6 +777,7 @@ void NRMat<T>::storesubmatrix(const int fromrow, const int fromcol, const NRMat 
 	if(fromrow<0 || fromrow>=nn || torow>=nn || fromcol<0 || fromcol>=mm || tocol>=mm) laerror("bad indices in storesubmatrix");
 #endif
 	SAME_LOC(*this, rhs);
+	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 
 	const int m = tocol - fromcol + 1;
 	for(register int i = fromrow; i <= torow; ++i){
