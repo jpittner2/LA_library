@@ -441,6 +441,7 @@ template<typename T>
 class NRVec_from1 : public NRVec<T> {
 public:
 	NRVec_from1(): NRVec<T>() {};
+	template<int SIZE>  NRVec_from1(const T (&a)[SIZE]) : NRVec<T>(a) {};
 	explicit NRVec_from1(const int n): NRVec<T>(n) {};
 	NRVec_from1(const NRVec<T> &rhs): NRVec<T>(rhs) {};//!< be able to convert the parent class transparently to this
 	NRVec_from1(const T &a, const int n): NRVec<T>(a, n) {};

@@ -1325,6 +1325,7 @@ template<typename T>
 class NRMat_from1 : public NRMat<T> {
 public:
 	NRMat_from1(): NRMat<T>() {};
+	template<int R, int C> explicit NRMat_from1(const T (&a)[R][C]) : NRMat<T>(a) {};
 	explicit NRMat_from1(const int n): NRMat<T>(n) {};
 	explicit NRMat_from1(const NRSMat_from1<T> &rhs) : NRMat<T>(rhs) {};
 	NRMat_from1(const NRMat<T> &rhs): NRMat<T>(rhs) {};//!< be able to convert the parent class transparently to this

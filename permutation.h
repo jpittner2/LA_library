@@ -41,6 +41,7 @@ class NRPerm : public NRVec_from1<T> {
 public:
 	//basic constructors
 	NRPerm(): NRVec_from1<T>() {};
+	template<int SIZE> explicit NRPerm(const T (&a)[SIZE]) : NRVec_from1<T>(a) {};
 	NRPerm(const int n) : NRVec_from1<T>(n) {};
 	NRPerm(const NRVec_from1<T> &rhs): NRVec_from1<T>(rhs) {};
         NRPerm(const T *a, const int n): NRVec_from1<T>(a, n) {};
@@ -74,6 +75,8 @@ template <typename T>
 class CyclePerm : public NRVec_from1<NRVec_from1<T> > {
 public:
 	CyclePerm() :  NRVec_from1<NRVec_from1<T> >() {};
+	template<int SIZE> explicit CyclePerm(const NRVec_from1<T> (&a)[SIZE]) : NRVec_from1<NRVec_from1<T> >(a) {};
+//NOTE - how to do it so that direct nested brace initializer would work?
 	explicit CyclePerm(const NRPerm<T> &rhs);
 
 	bool is_valid() const; //is it really a permutation
@@ -132,6 +135,7 @@ template <typename T>
 class CompressedPartition : public NRVec_from1<T> {
 public:
 	CompressedPartition(): NRVec_from1<T>() {};
+	template<int SIZE> explicit CompressedPartition(const T (&a)[SIZE]) : NRVec_from1<T>(a) {};
 	CompressedPartition(const int n) : NRVec_from1<T>(n) {};
 	T sum() const {T s=0; for(int i=1; i<=this->size(); ++i) s += i*(*this)[i]; return s;}
 	T nparts() const {T s=0; for(int i=1; i<=this->size(); ++i) s += (*this)[i]; return s;}
@@ -151,6 +155,7 @@ template <typename T>
 class Partition : public NRVec_from1<T> {
 public:
         Partition(): NRVec_from1<T>() {};
+	template<int SIZE> explicit Partition(const T (&a)[SIZE]) : NRVec_from1<T>(a) {};
         Partition(const int n) : NRVec_from1<T>(n) {};
         T nparts() const {T s=0; for(int i=1; i<=this->size(); ++i) if((*this)[i]) ++s; return s;}
         bool is_valid() const {if(this->size() != this->sum()) return false; for(int i=2; i<=this->size(); ++i) if((*this)[i]>(*this)[i-1]) return false; return true; }
@@ -179,6 +184,8 @@ class YoungTableaux : public NRVec_from1<NRVec_from1<T> > {
 public:
         YoungTableaux() :  NRVec_from1<NRVec_from1<T> >() {};
         explicit YoungTableaux(const Partition<T> &frame);
+        template<int SIZE> explicit YoungTableaux(const NRVec_from1<T> (&a)[SIZE]) : NRVec_from1<NRVec_from1<T> >(a) {};
+//NOTE - how to do it so that direct nested brace initializer would work?
 
 	bool is_valid() const; //check whether its shape forms a partition
 	int nrows() const {return this->size();}

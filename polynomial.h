@@ -32,6 +32,7 @@ template <typename T>
 class Polynomial : public NRVec<T> {
 public:
 	Polynomial():  NRVec<T>() {};
+	template<int SIZE>  Polynomial(const T (&a)[SIZE]) : NRVec<T>(a) {};
 	Polynomial(const NRVec<T> &v) : NRVec<T>(v) {}; //allow implicit conversion from NRVec
 	Polynomial(const int n) : NRVec<T>(n+1) {};
 	Polynomial(const T &a, const int n) : NRVec<T>(n+1) {NRVec<T>::clear(); (*this)[0]=a;};

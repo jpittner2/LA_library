@@ -23,6 +23,7 @@
 #include "vecmat3.h"
 #include "quaternion.h"
 #include "permutation.h"
+#include "polynomial.h"
 
 using namespace std;
 using namespace LA_Vecmat3;
@@ -2298,16 +2299,26 @@ if(1)
 {
 NRVec<int> v({1,2,3,4});
 cout <<v;
+NRVec_from1<int> vv({1,2});
+cout <<vv;
 v.resize(0);
 cout<<v;
 NRMat<int> m({{1,2,3},{4,5,6}});
 cout<<m;
+NRMat_from1<int> mm({{1,2,3},{4,5,6}});
+cout<<mm;
 Vec3<double> x({1,2,3});
 cout<<x<<endl;
 Mat3<double> y({{1,2,3},{4,5,6},{7,8,9}});
 cout <<y<<endl;
 Quaternion<double> q({1,2,3,4});
 cout<<q<<endl;
+NRPerm<int> p({1,4,2,3});
+cout <<p<<endl;
+CyclePerm<int> c({NRVec_from1({1,2}),NRVec_from1({3,4,5})});
+cout <<c;
+Polynomial<double> pp({1,2,3,4,5});
+cout<<pp;
 }
 
 
