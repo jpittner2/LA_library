@@ -957,7 +957,12 @@ NRSMat<T> & NRSMat<T>::operator=(const NRSMat<T> & rhs) {
  ******************************************************************************/
 template <typename T>
 void NRSMat<T>::copyonwrite(bool detachonly) {
-	if(!count) laerror("calling NRSMat<T>::copyonwrite() for undefined NRSMat<T> object");
+	if(!count) 
+                { 
+                if(nn) laerror("nonempty smat without reference count encountered");
+                if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty smat\n";
+                return;
+                }
 	if(*count > 1){
 		(*count)--;
 		count = new int;

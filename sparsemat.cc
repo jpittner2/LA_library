@@ -145,7 +145,13 @@ while(l)
 template <class T>
 void SparseMat<T>::copyonwrite(bool detachonly)
 {
-        if(!count) laerror("probably an assignment to undefined sparse matrix");
+	if(!count) 
+                { 
+                if(nn||mm) laerror("nonempty sparsemat without reference count encountered");
+                if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty sparsemat\n";
+                return;
+                }
+
         if(*count > 1)
                 {
                 (*count)--;

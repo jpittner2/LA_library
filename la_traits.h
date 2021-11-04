@@ -69,7 +69,6 @@ extern "C" {
 
 namespace LA {
 
-extern bool _LA_count_check;
 
 //forward declarations
 template<typename C> class NRVec;

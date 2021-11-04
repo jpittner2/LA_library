@@ -1089,7 +1089,13 @@ NRMat<T> & NRMat<T>::operator|=(const NRMat<T> &rhs) {
  ******************************************************************************/
 template <typename T>
 void NRMat<T>::copyonwrite(bool detachonly) {
-	if(!count) laerror("attempt to call copyonwrite() for a matrix with count == 0");
+	if(!count) 
+                { 
+                if(nn||mm) laerror("nonempty matrix without reference count encountered");
+                if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty matrix\n";
+                return;
+                }
+
 	if(*count > 1){
 		(*count)--;
 		count = new int;

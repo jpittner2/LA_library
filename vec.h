@@ -1011,7 +1011,12 @@ NRVec<T>::~NRVec() {
  ******************************************************************************/
 template <typename T>
 void NRVec<T>::copyonwrite(bool detachonly) {
-	if(!count) laerror("copyonwrite of an undefined vector");
+	if(!count)
+		{
+		if(nn) laerror("nonempty vector without reference count encountered");
+		if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty vector\n";
+		return;
+		}
 	if(*count > 1) {
 		(*count)--;
 		 count = new int;

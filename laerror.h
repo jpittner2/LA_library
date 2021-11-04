@@ -28,6 +28,10 @@ extern int traceback(int flags);
 extern void sigtraceback(int sig,int flags);
 }
 
+extern const bool _LA_warn_empty_copyonwrite;
+extern const bool _LA_count_check;
+
+
 //exception class for laerror
 class LAerror
 	{
