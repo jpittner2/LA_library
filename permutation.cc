@@ -79,6 +79,18 @@ for(T i=1; i<=this->size(); ++i) q[(*this)[i]]=i;
 return q;
 }
 
+template <typename T>
+NRPerm<T> NRPerm<T>::reverse() const
+{
+#ifdef DEBUG
+        if(!this->is_valid()) laerror("reverse of invalid permutation");
+#endif
+
+NRPerm<T> q(this->size());
+for(T i=1; i<=this->size(); ++i) q[i]=(*this)[this->size()-i+1];
+return q;
+}
+
 
 template <typename T>
 NRPerm<T> NRPerm<T>::operator*(const NRPerm<T> q) const

@@ -52,6 +52,7 @@ public:
 	bool is_valid() const; //is it really a permutation
 	bool is_identity() const;
 	NRPerm inverse() const;
+	NRPerm reverse() const; //backward order
 	NRPerm operator*(const NRPerm q) const; //q is rhs and applied first, this applied second
 	NRPerm conjugate_by(const NRPerm q) const; //q^-1 p q
 	int parity() const;
