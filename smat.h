@@ -186,7 +186,8 @@ public:
 #endif
 
 		}
-	NRSMat diffabs(const NRSMat &rhs) const; //difference of absolute values
+	NRSMat<typename LA_traits<T>::normtype> diffabs(const NRSMat &rhs) const; //difference of absolute values
+	NRSMat<typename LA_traits<T>::normtype> abs() const; //elementwise absolute values
 };
 
 }//namespace
@@ -395,17 +396,28 @@ inline NRSMat<T> & NRSMat<T>::operator-=(const T &a) {
 
 /*difference of absolute values*/
 template <typename T>
-NRSMat<T>  NRSMat<T>::diffabs(const NRSMat<T> &rhs) const {
+NRSMat<typename LA_traits<T>::normtype>  NRSMat<T>::diffabs(const NRSMat<T> &rhs) const {
 #ifdef DEBUG
         if (nn != rhs.nn) laerror("incompatible dimensions");
 #endif
         NOT_GPU(*this);
         NOT_GPU(rhs);
 
-NRSMat<T> r(nn);
-        for(int i=0; i<NN2; ++i) r.v[i] = MYABS(v[i]) - MYABS(rhs.v[i]);
+NRSMat<typename LA_traits<T>::normtype> r(nn);
+        for(int i=0; i<nn; ++i) for(int j=0; j<=i; ++j) r(i,j) = MYABS((*this)(i,j)) - MYABS(rhs(i,j));
         return r;
 }
+
+/*elementwise absolute values*/
+template <typename T>
+NRSMat<typename LA_traits<T>::normtype>  NRSMat<T>::abs() const {
+        NOT_GPU(*this);
+
+NRSMat<typename LA_traits<T>::normtype> r(nn);
+        for(int i=0; i<nn; ++i) for(int j=0; j<=i; ++j) r(i,j) = MYABS((*this)(i,j));
+        return r;
+}
+
 
 
 /***************************************************************************//**

@@ -426,7 +426,8 @@ public:
 
 		}
 
-	NRVec diffabs(const NRVec &rhs) const; //difference of absolute values
+	NRVec<typename LA_traits<T>::normtype> diffabs(const NRVec &rhs) const; //difference of absolute values
+	NRVec<typename LA_traits<T>::normtype> abs() const; //element-wise absolute values
 };
 
 
@@ -834,15 +835,24 @@ inline NRVec<T> & NRVec<T>::operator-=(const NRVec<T> &rhs) {
  * @return reference to the modified vector
  ******************************************************************************/
 template <typename T>
-NRVec<T>  NRVec<T>::diffabs(const NRVec<T> &rhs) const {
+NRVec<typename LA_traits<T>::normtype>  NRVec<T>::diffabs(const NRVec<T> &rhs) const {
 #ifdef DEBUG
 	if (nn != rhs.nn) laerror("incompatible dimensions");
 #endif
 	NOT_GPU(*this);
 	NOT_GPU(rhs);
 
-NRVec<T> r(nn);
+NRVec<typename LA_traits<T>::normtype> r(nn);
 	for(int i=0; i<nn; ++i) r[i] = MYABS(v[i]) - MYABS(rhs.v[i]);
+        return r;
+}
+
+template <typename T>
+NRVec<typename LA_traits<T>::normtype>  NRVec<T>::abs() const {
+        NOT_GPU(*this);
+
+NRVec<typename LA_traits<T>::normtype> r(nn);
+        for(int i=0; i<nn; ++i) r[i] = MYABS(v[i]);
         return r;
 }
 
