@@ -29,7 +29,7 @@ extern void sigtraceback(int sig,int flags);
 }
 
 extern const bool _LA_warn_empty_copyonwrite;
-extern const bool _LA_count_check;
+extern  bool _LA_count_check; //intentionally not const
 
 
 //exception class for laerror

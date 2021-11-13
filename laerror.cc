@@ -44,7 +44,7 @@ namespace LA {
 GPU_START gpu_start_instant;
 #endif
 
-const bool _LA_count_check=true;
+bool _LA_count_check=true; //intentionally not const
 const bool _LA_warn_empty_copyonwrite=false;
 
 extern "C" void _findme(void) {}; //for autoconf test we need a function with C linkage
