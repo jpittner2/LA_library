@@ -522,7 +522,7 @@ q[2][1]=q[1][2]=tmp;
 //
 
 //numeric_limits not available on some crosscompilers for small MCUs
-#ifdef ARM_SOURCE37
+#ifdef QUAT_NO_DOUBLE
 #define DBL_EPSILON 1.19209290e-07f
 #else
 #define  DBL_EPSILON std::numeric_limits<T>::epsilon()
@@ -784,6 +784,19 @@ Mat3<T> A(*this); //scratch copy
 #undef SQR
 //end eigensolver for 3x3 matrix
 /////////////////////////////////////////////////////////////////////////////////////////////
+
+template<typename T>
+T Mat3<T>::norm(const T scalar) const
+{
+        T sum(0);
+        for(int i=0; i<3; i++)
+                for(int j=0; j<3; j++) {
+                        T tmp = q[i][j];
+                        if(i == j) tmp -= scalar;
+                        sum += tmp*tmp;
+                }
+return sqrt(sum);
+}
 
 //force instantization
 #define INSTANTIZE(T) \

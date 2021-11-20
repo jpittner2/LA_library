@@ -1,6 +1,6 @@
 /*
     LA: linear algebra C++ interface library
-    Copyright (C) 2020 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    Copyright (C) 2020-2021 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,6 +46,9 @@ class Vec3
 public:
 	//just plain old data
 	T q[3];
+	T (&elements())[3] {return q;};
+        const T (&elements()const)[3]  {return q;};
+
 	//
 	Vec3(void) {};
 	Vec3(const T x, const T u=0, const T v=0) {q[0]=x; q[1]=u; q[2]=v;}; //Vec3 from real(s)
@@ -98,6 +101,8 @@ public:
 	//just plain old data
 	T q[3][3];
 	//
+	T (&elements())[3][3] {return q;};
+	const T (&elements()const)[3][3]  {return q;};
 	Mat3(void) {};
 	Mat3(const T (&a)[3][3]) {memcpy(q,a,3*3*sizeof(T));}
 	Mat3(const T x) {memset(q,0,9*sizeof(T)); q[0][0]=q[1][1]=q[2][2]=x;}; //scalar matrix
@@ -148,7 +153,68 @@ public:
 	void symmetrize(); //average offdiagonal elements
 	void eival_sym(Vec3<T> &w) const; //only for real symmetric matrix, symmetry is not checked
 	void eivec_sym(Vec3<T> &w, Mat3 &v) const; //only for real symmetric matrix, symmetry is not checked
+	T norm(const T scalar = 0) const;
 };
+
+
+//a simple gauss elimination as a template also for larger-size matrices in form of C-style arrays
+#define SWAP(a,b) {T temp=(a);(a)=(b);(b)=temp;}
+
+template<typename T, int n, int m>
+T simple_gaussj(T (&a)[n][n],T (&b)[m][n]) //returns determinant, m is number of rhs to solve
+{
+	int indxc[n],indxr[n],ipiv[n];
+	int i,icol,irow,j,k,l,ll;
+	T det,big,dum,pivinv;
+
+	det=1;
+	for (j=0;j<n;j++) ipiv[j]=0;
+	for (i=0;i<n;i++) {
+		big=0.0;
+		for (j=0;j<n;j++)
+			if (ipiv[j] != 1)
+				for (k=0;k<n;k++) {
+					if (ipiv[k] == 0) {
+						if (abs(a[j][k]) >= big) {
+							big=abs(a[j][k]);
+							irow=j;
+							icol=k;
+						}
+					} else if (ipiv[k] > 1) {return 0;}
+				}
+		++(ipiv[icol]);
+		if (irow != icol) {
+			det = (-det);
+			for (l=0;l<n;l++) SWAP(a[irow][l],a[icol][l])
+			for (l=0;l<m;l++) SWAP(b[l][irow],b[l][icol])
+		}
+		indxr[i]=irow;
+		indxc[i]=icol;
+		if (a[icol][icol] == 0) {return 0;}
+		pivinv=1/a[icol][icol];
+		det *= a[icol][icol];
+		a[icol][icol]=1.0;
+		for (l=0;l<n;l++) a[icol][l] *= pivinv;
+		for (l=0;l<m;l++) b[l][icol] *= pivinv;
+		for (ll=0;ll<n;ll++)
+			if (ll != icol) {
+				dum=a[ll][icol];
+				a[ll][icol]=0.0;
+				for (l=0;l<n;l++) a[ll][l] -= a[icol][l]*dum;
+				for (l=0;l<m;l++) b[l][ll] -= b[l][icol]*dum;
+			}
+	}
+	for (l=n-1;l>=0;l--) {
+		if (indxr[l] != indxc[l])
+			for (k=0;k<n;k++)
+				SWAP(a[k][indxr[l]],a[k][indxc[l]]);
+	}
+return det;
+}
+
+#undef SWAP
+
+
 
 
 	

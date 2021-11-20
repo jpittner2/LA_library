@@ -2321,7 +2321,7 @@ Polynomial<double> pp({1,2,3,4,5});
 cout<<pp;
 }
 
-if(1)
+if(0)
 {
 //prepare random symmetric mat3
 int seed;
@@ -2350,6 +2350,41 @@ NRVec<double> www(&ww[0],3);
 NRMat<double> vvv(&vv[0][0],3,3);
 cout<<"eival error = "<<(w-www).norm()<<endl;
 cout<<"eivec error = "<<(m.diffabs(vvv)).norm()<<endl; //just ignore signs due to arb. phases (not full check)
+}
+
+if(1)
+{
+//prepare random  mat3
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+NRMat<double> tmp(3,3);
+tmp.randomize(2.);
+Mat3<double> mm(tmp);
+NRMat<double> m(&mm[0][0],3,3);
+cout <<m<<"3 3\n"<<mm<<endl;
+
+double rr[2][3]={{1,2,3},{4,5,6}};
+NRMat r(rr);
+cout<<r;
+
+double d;
+linear_solve(m,&r,&d);
+
+Mat3<double> mmi=mm.inverse();
+double dd=simple_gaussj(mm.elements(),rr);
+cout <<"det="<<dd<<endl;
+cout <<"error of inverse = "<<(mmi-mm).norm()<<endl;
+cout <<"3 3\n"<<mm<<NRMat<double>(rr);
+
+cout<<"linear solve det="<<d<<endl;
+cout <<r;
+cout <<"det error="<<d-dd<<endl;
+cout <<"solution error="<<(r-rr).norm()<<endl;
+
 }
 
 }
