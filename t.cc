@@ -2295,7 +2295,7 @@ cout <<"non-zero = "<< ((n&1)?p.odd_powers():p.even_powers())<<std::endl;
 cout <<"value = "<<value(p,1.23456789)<<" "<<odd_value(p,1.23456789)+even_value(p,1.23456789)<<endl;
 }
 
-if(1)
+if(0)
 {
 NRVec<int> v({1,2,3,4});
 cout <<v;
@@ -2321,5 +2321,35 @@ Polynomial<double> pp({1,2,3,4,5});
 cout<<pp;
 }
 
+if(1)
+{
+//prepare random symmetric mat3
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+NRMat<double> tmp(3,3);
+tmp.randomize(2.);
+Mat3<double> mm(tmp);
+mm.symmetrize();
+NRMat<double> m(&mm[0][0],3,3);
+cout <<m<<"3 3\n"<<mm<<endl;
+
+NRVec<double> w(3);
+diagonalize(m,w);
+cout << w<<m;
+
+Vec3<double> ww;
+Mat3<double> vv;
+mm.eivec_sym(ww,vv);
+cout <<"3\n"<<ww<<"\n3 3\n"<<vv<<endl;
+
+NRVec<double> www(&ww[0],3);
+NRMat<double> vvv(&vv[0][0],3,3);
+cout<<"eival error = "<<(w-www).norm()<<endl;
+cout<<"eivec error = "<<(m.diffabs(vvv)).norm()<<endl; //just ignore signs due to arb. phases (not full check)
+}
 
 }

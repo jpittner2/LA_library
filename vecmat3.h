@@ -145,7 +145,9 @@ public:
 	//C-style IO
         int fprintf(FILE *f, const char *format) const {int n= ::fprintf(f,format,q[0][0],q[0][1],q[0][2]); n+=::fprintf(f,format,q[1][0],q[1][1],q[1][2]); n+=::fprintf(f,format,q[2][0],q[2][1],q[2][2]); return n;};
         int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
-
+	void symmetrize(); //average offdiagonal elements
+	void eival_sym(Vec3<T> &w) const; //only for real symmetric matrix, symmetry is not checked
+	void eivec_sym(Vec3<T> &w, Mat3 &v) const; //only for real symmetric matrix, symmetry is not checked
 };
 
 
