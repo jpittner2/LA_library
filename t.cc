@@ -24,10 +24,12 @@
 #include "quaternion.h"
 #include "permutation.h"
 #include "polynomial.h"
+#include "simple.h"
 
 using namespace std;
 using namespace LA_Vecmat3;
 using namespace LA_Quaternion;
+using namespace LA_Simple;
 using namespace LA;
 
 
