@@ -41,7 +41,8 @@ template<typename T, int n, int m>
 T simple_gaussj(T (&a)[n][n],T (&b)[m][n]) //returns determinant, m is number of rhs to solve, inverse in a, solution in b
 {
 	int indxc[n],indxr[n],ipiv[n];
-	int i,icol,irow,j,k,l,ll;
+	int i,j,k,l,ll;
+	int irow=0,icol=0;
 	T det,big,dum,pivinv;
 
 	det=1;
