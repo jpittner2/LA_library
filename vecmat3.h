@@ -80,6 +80,7 @@ public:
 	const Vec3 operator-(const Vec3 &rhs) const {return Vec3(*this) -= rhs;};
 	const Vec3 operator*(const Vec3 &rhs) const {Vec3 x; x[0] = q[1]*rhs.q[2]-q[2]*rhs.q[1]; x[1] = q[2]*rhs.q[0]-q[0]*rhs.q[2]; x[2] = q[0]*rhs.q[1]-q[1]*rhs.q[0]; return x;}; //vector product
 	T dot(const Vec3 &rhs) const  {return q[0]*rhs.q[0] + q[1]*rhs.q[1] + q[2]*rhs.q[2];};
+	const Vec3 elementwise_product(const Vec3 &rhs) const {Vec3 x; x[0]=q[0]*rhs.q[0];  x[1]=q[1]*rhs.q[1];  x[2]=q[2]*rhs.q[2]; return x;};
 	T normsqr(void) const {return dot(*this);};
 	T norm(void) const {return sqrt(normsqr());};
 	Vec3& normalize(void) {*this /= norm(); return *this;};
