@@ -17,6 +17,7 @@
 */
 
 //this header defines some simple algorithms independent of external libraries
+//using small runtime-constant size matrices and vectors
 //particularly intended to embedded computers
 //it should be compilable separately from LA as well as being a part of LA
 
@@ -37,7 +38,7 @@ namespace LA_Simple {
 #define SWAP(a,b) {T temp=(a);(a)=(b);(b)=temp;}
 
 template<typename T, int n, int m>
-T simple_gaussj(T (&a)[n][n],T (&b)[m][n]) //returns determinant, m is number of rhs to solve
+T simple_gaussj(T (&a)[n][n],T (&b)[m][n]) //returns determinant, m is number of rhs to solve, inverse in a, solution in b
 {
 	int indxc[n],indxr[n],ipiv[n];
 	int i,icol,irow,j,k,l,ll;
@@ -93,14 +94,57 @@ return det;
 
 template<typename T, int n>
 class simple_linfit {
-T mata[n][n];
-T matb[1][n];
 public:
+T fitmat[n][n];
+T rhsmat[1][n];
+T fitcoef[n];
+int npoints;
+	void clear() {npoints=0; memset(&fitmat[0][0],0,n*n*sizeof(T)); memset(&rhsmat[0][0],0,1*n*sizeof(T)); memset(&fitcoef[0],0,n*sizeof(T));};
+	simple_linfit()  {clear();}
+	void input(const T (&funcs)[n], const T y)
+		{
+		++npoints;
+		for(int i=0; i<n; ++i) 
+			{
+			for(int j=0; j<=i; ++j) 
+				{
+				T tmp=funcs[i]*funcs[j];
+				fitmat[i][j] += tmp;
+				if(i!=j) fitmat[j][i] += tmp;
+				}
+			rhsmat[0][i] += funcs[i]*y;
+			}
+		}
+	T solve(bool preserve=false)
+		{
+		//for(int i=0; i<n; ++i)  {for(int j=0; j<n; ++j) std::cout <<fitmat[i][j]<<" "; std::cout<<std::endl;}
+		//for(int j=0; j<n; ++j) std::cout <<rhsmat[0][j]<<" "; std::cout<<std::endl;
+		if(npoints<n) return 0;
+		if(preserve)
+			{
+			T fitwork[n][n];memcpy(fitwork,fitmat,n*n*sizeof(T));
+			T rhswork[1][n];memcpy(rhswork,rhsmat,1*n*sizeof(T));
+			T det = simple_gaussj(fitwork,rhswork);
+                	memcpy(&fitcoef[0],&rhswork[0][0],n*sizeof(T));
+                	return det;
+			}
+		T det = simple_gaussj(fitmat,rhsmat);
+		memcpy(&fitcoef[0],&rhsmat[0][0],n*sizeof(T));
+		return det;	
+		}
+
 };
 
 	
 //stream I/O
 #ifndef AVOID_STDSTREAM
+
+template <typename T, int n>
+std::ostream& operator<<(std::ostream &o, const simple_linfit<T,n> &f)
+{
+for(int i=0; i<n; ++i) o<<f.fitcoef[i]<<" ";
+return o;
+}
 #endif
 
 

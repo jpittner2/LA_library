@@ -2354,7 +2354,7 @@ cout<<"eival error = "<<(w-www).norm()<<endl;
 cout<<"eivec error = "<<(m.diffabs(vvv)).norm()<<endl; //just ignore signs due to arb. phases (not full check)
 }
 
-if(1)
+if(0)
 {
 //prepare random  mat3
 int seed;
@@ -2386,7 +2386,31 @@ cout<<"linear solve det="<<d<<endl;
 cout <<r;
 cout <<"det error="<<d-dd<<endl;
 cout <<"solution error="<<(r-rr).norm()<<endl;
+}
 
+if(1)
+{
+//prepare random  mat3
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+simple_linfit<double,3> fit;
+double funcs[3];
+for(int i=0; i<100; ++i) 
+	{
+	double x = 10*(2.*random()/(1. + RAND_MAX) - 1.);
+	funcs[0]=1;
+	funcs[1]=x;
+	funcs[2]=x*x;
+	double y = 2*funcs[2] -3*funcs[1] + funcs[0];
+	//cout <<"test "<<x<<" "<<y<<endl;
+	fit.input(funcs,y);
+	}
+double det = fit.solve();
+cout <<"det= "<<det<<" fit "<<fit<<endl;
 }
 
 }
