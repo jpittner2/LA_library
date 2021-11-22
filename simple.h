@@ -117,7 +117,7 @@ int npoints;
 			rhsmat[0][i] += funcs[i]*y;
 			}
 		}
-	T solve(bool preserve=false)
+	T solve(const T preserve=0)
 		{
 		//for(int i=0; i<n; ++i)  {for(int j=0; j<n; ++j) std::cout <<fitmat[i][j]<<" "; std::cout<<std::endl;}
 		//for(int j=0; j<n; ++j) std::cout <<rhsmat[0][j]<<" "; std::cout<<std::endl;
@@ -128,6 +128,11 @@ int npoints;
 			T rhswork[1][n];memcpy(rhswork,rhsmat,1*n*sizeof(T));
 			T det = simple_gaussj(fitwork,rhswork);
                 	memcpy(&fitcoef[0],&rhswork[0][0],n*sizeof(T));
+			if(preserve!=(T)1) //scale weight of old data points
+				{
+				for(int i=0; i<n; ++i)  for(int j=0; j<n; ++j) fitmat[i][j] *= preserve;
+				for(int i=0; i<n; ++i) rhsmat[0][i] *= preserve;
+				}
                 	return det;
 			}
 		T det = simple_gaussj(fitmat,rhsmat);
