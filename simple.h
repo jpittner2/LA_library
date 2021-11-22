@@ -99,8 +99,8 @@ T fitmat[n][n];
 T rhsmat[1][n];
 T fitcoef[n];
 int npoints;
-	void clear() {npoints=0; memset(&fitmat[0][0],0,n*n*sizeof(T)); memset(&rhsmat[0][0],0,1*n*sizeof(T)); memset(&fitcoef[0],0,n*sizeof(T));};
-	simple_linfit()  {clear();}
+	void clear(bool keepresults=false) {npoints=0; memset(&fitmat[0][0],0,n*n*sizeof(T)); memset(&rhsmat[0][0],0,1*n*sizeof(T)); if(!keepresults) memset(&fitcoef[0],0,n*sizeof(T));};
+	simple_linfit()  {clear(false);}
 	void input(const T (&funcs)[n], const T y)
 		{
 		++npoints;
@@ -130,6 +130,7 @@ int npoints;
 			}
 		T det = simple_gaussj(fitmat,rhsmat);
 		memcpy(&fitcoef[0],&rhsmat[0][0],n*sizeof(T));
+		clear(true);
 		return det;	
 		}
 
