@@ -2388,7 +2388,7 @@ cout <<"det error="<<d-dd<<endl;
 cout <<"solution error="<<(r-rr).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 //prepare random  mat3
 int seed;
@@ -2411,6 +2411,23 @@ for(int i=0; i<100; ++i)
 	}
 double det = fit.solve();
 cout <<"det= "<<det<<" fit "<<fit<<endl;
+}
+
+if(1)
+{
+NRMat<double> m;
+cin >>m;
+int n=m.nrows();
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+NRPerm<int> p(n);
+p.randomize();
+cout <<p;
+NRMat<double> mm=m.permuted_rows(p);
+cout <<mm;
 }
 
 }
