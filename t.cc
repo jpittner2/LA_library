@@ -24,6 +24,7 @@
 #include "quaternion.h"
 #include "permutation.h"
 #include "polynomial.h"
+#include "contfrac.h"
 #include "simple.h"
 
 using namespace std;
