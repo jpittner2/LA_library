@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <list>
 
 
 namespace LA {
@@ -132,6 +133,67 @@ for(int i=1; i<=n; ++i) //truncate if possible
 }
 
 
+template <typename T>
+ContFrac<T> Homographic<T>::value(const ContFrac<T>&x) const
+{
+Homographic<T> h(*this);
+
+std::list<T> l;
+for(int i=0; i<=x.length()+1; ++i) //scan all input
+	{
+	//digest next input term
+	Homographic<T> hnew;
+	if(i>x.length()||i!=0&&x[i]==0) //input is infinity
+		{
+		hnew.x[0][0]=hnew.x[0][1]=h.x[0][1];
+                hnew.x[1][0]=hnew.x[1][1]=h.x[1][1];
+		}
+	else
+		{
+		hnew.x[0][0]=h.x[0][1];
+		hnew.x[1][0]=h.x[1][1];
+		hnew.x[0][1]=h.x[0][0]+h.x[0][1]*x[i];
+        	hnew.x[1][1]=h.x[1][0]+h.x[1][1]*x[i];
+		}
+
+	//std::cout<<"hnew\n"<< hnew.x[0][0]<<" "<< hnew.x[0][1]<<"\n"<< hnew.x[1][0]<<" "<< hnew.x[1][1]<<"\n";
+
+	//check if we are ready to output
+	bool inf=0;	
+	T q0,q1;
+	if(hnew.x[1][0]==0) inf=1; else q0=hnew.x[0][0]/hnew.x[1][0];
+	if(hnew.x[1][1]==0) inf=1; else q1=hnew.x[0][1]/hnew.x[1][1];
+	while(!inf && q0==q1) //ready to output
+		{
+		l.push_back(q0);
+		//std::cout <<"out "<<q0<<std::endl;	
+		Homographic<T> hnew2;
+		hnew2.x[0][0]=hnew.x[1][0];	
+		hnew2.x[0][1]=hnew.x[1][1];	
+		hnew2.x[1][0]=hnew.x[0][0]-hnew.x[1][0]*q0;
+		hnew2.x[1][1]=hnew.x[0][1]-hnew.x[1][1]*q0;
+		//std::cout<<"hnew2\n"<< hnew2.x[0][0]<<" "<< hnew2.x[0][1]<<"\n"<< hnew2.x[1][0]<<" "<< hnew2.x[1][1]<<"\n";
+		hnew=hnew2;
+		inf=0;
+		if(hnew.x[1][0]==0) inf=1; else q0=hnew.x[0][0]/hnew.x[1][0];
+        	if(hnew.x[1][1]==0) inf=1; else q1=hnew.x[0][1]/hnew.x[1][1];
+		}
+	//termination
+	if(hnew.x[1][0]==0&&hnew.x[1][1]==0) //terminate
+		{
+		//std::cout<<"terminate at "<<i<<"\n";
+		if(i<=x.length()) laerror("unexpected termination in Homographic::value");
+		break;
+		}
+	h=hnew;
+	}
+//std::cout <<"size= "<<l.size()<<std::endl;
+return ContFrac<T>(l);
+}
+
+
+
+
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
@@ -141,6 +203,22 @@ template class ContFrac<long>;
 template class ContFrac<unsigned long>;
 template class ContFrac<long long>;
 template class ContFrac<unsigned long long>;
+
+template class Homographic<int>;
+template class Homographic<unsigned int>;
+template class Homographic<long>;
+template class Homographic<unsigned long>;
+template class Homographic<long long>;
+template class Homographic<unsigned long long>;
+
+template class BiHomographic<int>;
+template class BiHomographic<unsigned int>;
+template class BiHomographic<long>;
+template class BiHomographic<unsigned long>;
+template class BiHomographic<long long>;
+template class BiHomographic<unsigned long long>;
+
+
 
 
 #define INSTANTIZE(T) \

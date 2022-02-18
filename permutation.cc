@@ -19,6 +19,7 @@
 #include "permutation.h"
 #include <stdio.h>
 #include <string.h>
+#include <list>
 
 
 namespace LA {

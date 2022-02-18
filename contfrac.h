@@ -29,7 +29,12 @@ namespace LA {
 //NOTE: 0 on any position >0 means actually infinity; simplify()  shortens the vector
 //presently implements just conversion to/from rationals and floats
 //maybe implement arithmetic by Gosper's method cf. https://perl.plover.com/classes/cftalk/TALK
+//
 
+template <typename T>
+class ContFrac;
+
+//@@@basic rational arithmetics
 template <typename T>
 class Rational {
 public:
@@ -37,7 +42,25 @@ public:
 	T den;
 
 	Rational(const T p, const T q) : num(p),den(q) {};
+	explicit Rational(const T (&a)[2]) :num(a[0]), den(a[1]) {};
+	Rational(const ContFrac<T> &cf) {cf.convergent(&num,&den);};
 };
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const Rational<T> &x) 
+{
+s<<x.num<<"/"<<x.den;
+return s;
+}
+
+template <typename T>
+class Homographic;
+
+template <typename T>
+class BiHomographic;
+
+
+//@@@implement iterator and rewrite  Homographic<T>::value
 
 template <typename T>
 class ContFrac : public NRVec<T> {
@@ -50,7 +73,7 @@ public:
 	ContFrac(const int n) : NRVec<T>(n+1) {};
 	ContFrac(double x, const int n, const T thres=0); //might yield a non-canonical form
 	ContFrac(const T p, const T q); //should yield a canonical form
-	ContFrac(const Rational<T> r) : ContFrac(r.num,r.den) {};
+	ContFrac(const Rational<T> &r) : ContFrac(r.num,r.den) {};
 
 	void canonicalize();
 	void convergent(T *p, T*q, const int trunc= -1) const;
@@ -64,7 +87,37 @@ public:
 		NRVec<T>::resize(n+1,preserve);
 		if(preserve) for(int i=nold+1; i<=n;++i) (*this)[i]=0;
 		} 
+
+	ContFrac operator+(const Rational<T> &rhs) const {Homographic<T> h({{rhs.num,rhs.den},{rhs.den,0}}); return h.value(*this);};
+	ContFrac operator-(const Rational<T> &rhs) const {Homographic<T> h({{-rhs.num,rhs.den},{rhs.den,0}}); return h.value(*this);};
+	ContFrac operator*(const Rational<T> &rhs) const {Homographic<T> h({{0,rhs.num},{rhs.den,0}}); return h.value(*this);};
+	ContFrac operator/(const Rational<T> &rhs) const {Homographic<T> h({{0,rhs.den},{rhs.num,0}}); return h.value(*this);};
+
 	
+};
+
+//for Gosper's arithmetic
+
+template <typename T>
+class Homographic {
+public:
+T x[2][2]; //{{a,b},{c,d}} for (a+b.z)/(c+d.z)
+
+	Homographic(){};
+	explicit Homographic(const T (&a)[2][2]) {memcpy(x,a,2*2*sizeof(T));};
+	ContFrac<T> value(const ContFrac<T>&x) const;
+	
+};
+
+
+template <typename T>
+class BiHomographic {
+public:
+T x[2][2][2];
+	
+	BiHomographic(){};
+	explicit BiHomographic(const T (&a)[2][2][2]) {memcpy(x,a,2*2*2*sizeof(T));};
+	ContFrac<T> value(const ContFrac<T>&x, const ContFrac<T>&y) const;
 };
 
 
