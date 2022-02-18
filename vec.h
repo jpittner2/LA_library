@@ -21,6 +21,7 @@
 #define _LA_VEC_H_
 
 #include "la_traits.h"
+#include <list>
 
 namespace LA {
 
@@ -139,6 +140,9 @@ public:
 
 	//! inlined copy constructor 
 	inline NRVec(const NRVec &rhs);
+
+	//! constructor from std::list
+	NRVec(const std::list<T> l);
 
 	//! complexifying constructor 
 	NRVec(const typename LA_traits_complex<T>::NRVec_Noncomplex_type &rhs, bool imagpart=false);//construct complex from real
