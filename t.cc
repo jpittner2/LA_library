@@ -2172,7 +2172,7 @@ p[0]=p[1]=1;
 CycleIndex<int> c(Sn);
 PERM_RANK_TYPE d;
 Polynomial<int> pp=c.substitute(p,&d);
-for(int i=0; i<=p.size(); ++i) if(d!=pp[i]) laerror("error in cycle index");
+for(int i=0; i<p.degree(); ++i) if(d!=pp[i]) laerror("error in cycle index");
 }
 
 if(0)
@@ -2414,7 +2414,7 @@ double det = fit.solve();
 cout <<"det= "<<det<<" fit "<<fit<<endl;
 }
 
-if(1)
+if(0)
 {
 NRMat<double> m;
 cin >>m;
@@ -2430,5 +2430,38 @@ cout <<p;
 NRMat<double> mm=m.permuted_rows(p);
 cout <<mm;
 }
+
+if(1)
+{
+double x;
+cin >>x;
+ContFrac<long long> xx(x,20,1000000);
+cout<<xx;
+double y=xx.value();
+cout <<y<<endl;
+cout << "CF roundoff error = "<<x-y<<endl;
+}
+
+if(0)
+{
+int p,q;
+cin>>p>>q;
+ContFrac<int> xx(p,q);
+double z=p; z/=q;
+ContFrac<int> zz(z,20,100000);
+ContFrac<int> yy=xx.reciprocal();
+cout<<xx;
+cout<<yy;
+cout<<zz;
+int pp,qq,rr,ss;
+xx.convergent(&pp,&qq);
+yy.convergent(&rr,&ss);
+cout << pp<<" "<<qq<<endl;
+cout << rr<<" "<<ss<<endl;
+if(p!=pp ||q!=qq||qq!=rr||pp!=ss) cout<<"ContFrac error\n";
+double zzz=zz.value();
+cout <<z<<" "<<zzz<<endl;
+}
+
 
 }

@@ -30,6 +30,8 @@ namespace LA {
 
 template <typename T>
 class Polynomial : public NRVec<T> {
+private:
+	int size() const; //prevent confusion with vector size
 public:
 	Polynomial():  NRVec<T>() {};
 	template<int SIZE>  Polynomial(const T (&a)[SIZE]) : NRVec<T>(a) {};
