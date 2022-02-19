@@ -119,7 +119,7 @@ return big;
 template <typename T> 
 inline T lcm(T a, T b)
 {
-return (a*b)/gcd(a,b);
+return (a/gcd(a,b))*b;
 }
 
 

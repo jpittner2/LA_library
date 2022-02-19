@@ -2431,6 +2431,16 @@ NRMat<double> mm=m.permuted_rows(p);
 cout <<mm;
 }
 
+if(1)
+{
+Rational<int> p,q;
+cin>>p>>q;
+cout <<p+q<<endl;
+cout <<p-q<<endl;
+cout <<p*q<<endl;
+cout <<p/q<<endl;
+}
+
 if(0)
 {
 double x;
@@ -2463,7 +2473,7 @@ double zzz=zz.value();
 cout <<z<<" "<<zzz<<endl;
 }
 
-if(1)
+if(0)
 {
 Rational<int> r({11,101});
 ContFrac<int> x(r);

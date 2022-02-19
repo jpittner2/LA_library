@@ -17,6 +17,7 @@
 */
 
 #include "contfrac.h"
+#include "permutation.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -121,6 +122,7 @@ void ContFrac<T>::canonicalize()
 {
 int n=this->length();
 if(n==0) return;
+this->copyonwrite();
 if((*this)[n]==1) {(*this)[n]=0; ++(*this)[n-1];} //avoid deepest 1/1
 for(int i=1; i<=n; ++i) //truncate if possible
 	{
@@ -139,11 +141,13 @@ ContFrac<T> Homographic<T>::value(const ContFrac<T>&x) const
 Homographic<T> h(*this);
 
 std::list<T> l;
-for(int i=0; i<=x.length()+1; ++i) //scan all input
+typename ContFrac<T>::iterator px=x.begin();
+
+do //scan all input
 	{
 	//digest next input term
 	Homographic<T> hnew;
-	if(i>x.length()||i!=0&&x[i]==0) //input is infinity
+	if(px==x.end()|| px!=x.begin()&& *px==0) //input is infinity
 		{
 		hnew.x[0][0]=hnew.x[0][1]=h.x[0][1];
                 hnew.x[1][0]=hnew.x[1][1]=h.x[1][1];
@@ -152,8 +156,8 @@ for(int i=0; i<=x.length()+1; ++i) //scan all input
 		{
 		hnew.x[0][0]=h.x[0][1];
 		hnew.x[1][0]=h.x[1][1];
-		hnew.x[0][1]=h.x[0][0]+h.x[0][1]*x[i];
-        	hnew.x[1][1]=h.x[1][0]+h.x[1][1]*x[i];
+		hnew.x[0][1]=h.x[0][0]+h.x[0][1]* *px;
+        	hnew.x[1][1]=h.x[1][0]+h.x[1][1]* *px;
 		}
 
 	//std::cout<<"hnew\n"<< hnew.x[0][0]<<" "<< hnew.x[0][1]<<"\n"<< hnew.x[1][0]<<" "<< hnew.x[1][1]<<"\n";
@@ -182,13 +186,104 @@ for(int i=0; i<=x.length()+1; ++i) //scan all input
 	if(hnew.x[1][0]==0&&hnew.x[1][1]==0) //terminate
 		{
 		//std::cout<<"terminate at "<<i<<"\n";
-		if(i<=x.length()) laerror("unexpected termination in Homographic::value");
+		if(px!=x.end()) laerror("unexpected termination in Homographic::value");
 		break;
 		}
 	h=hnew;
-	}
+	++px;
+	} while(px!=x.beyondend());
 //std::cout <<"size= "<<l.size()<<std::endl;
 return ContFrac<T>(l);
+}
+
+
+template <typename T>
+void Rational<T>::simplify()
+{
+if(den<0)
+	{
+	num= -num;
+	den= -den;
+	}
+T g=gcd(num,den); 
+if(g>1) 
+	{
+	num/=g; 
+	den/=g;
+	}
+}
+
+template <typename T>
+Rational<T> & Rational<T>::operator*=(const T  &rhs)
+{
+T r=rhs;
+T g=gcd(r,den);
+if(g>1)
+        {
+        r/=g;
+        den/=g;
+        }
+num*=r;
+return *this;
+}
+
+
+template <typename T>
+Rational<T> & Rational<T>::operator/=(const T  &rhs)
+{
+T r=rhs;
+T g=gcd(r,num);
+if(g>1)
+        {
+        r/=g;
+        num/=g;
+        }
+den*=r;
+return *this;
+}
+
+
+template <typename T>
+Rational<T>  Rational<T>::operator+(const Rational &rhs) const
+{
+Rational r;
+r.den = lcm(den,rhs.den);
+r.num = num*(r.den/den) + rhs.num*(r.den/rhs.den);
+r.simplify();
+return r;
+}
+
+template <typename T>
+Rational<T>  Rational<T>::operator-(const Rational &rhs) const
+{
+Rational r;
+r.den = lcm(den,rhs.den);
+r.num = num*(r.den/den) - rhs.num*(r.den/rhs.den);
+r.simplify();
+return r;
+}
+
+
+template <typename T>
+Rational<T> & Rational<T>::operator*=(const Rational &rhs)
+{
+Rational r(rhs);
+T g;
+g=gcd(num,r.den);
+if(g>1)
+	{
+	num/=g;
+	r.den/=g;
+	}
+g=gcd(den,r.num);
+if(g>1)
+        {
+        den/=g;
+        r.num/=g;
+        }
+num*=r.num;
+den*=r.den;
+return *this;
 }
 
 
@@ -197,6 +292,13 @@ return ContFrac<T>(l);
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
+template class Rational<int>;
+template class Rational<unsigned int>;
+template class Rational<long>;
+template class Rational<unsigned long>;
+template class Rational<long long>;
+template class Rational<unsigned long long>;
+
 template class ContFrac<int>;
 template class ContFrac<unsigned int>;
 template class ContFrac<long>;

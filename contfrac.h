@@ -34,16 +34,38 @@ namespace LA {
 template <typename T>
 class ContFrac;
 
-//@@@basic rational arithmetics
 template <typename T>
 class Rational {
 public:
 	T num;
 	T den;
 
+	Rational() {};
 	Rational(const T p, const T q) : num(p),den(q) {};
 	explicit Rational(const T (&a)[2]) :num(a[0]), den(a[1]) {};
 	Rational(const ContFrac<T> &cf) {cf.convergent(&num,&den);};
+	void simplify();
+
+	//basic rational arithmetics 
+	Rational operator-() const {return Rational(-num,den);};
+	Rational & operator+=(const T  &rhs) {num+=den*rhs; return *this;};
+	Rational & operator-=(const T  &rhs) {num-=den*rhs; return *this;};
+	Rational & operator*=(const T  &rhs);
+	Rational & operator/=(const T  &rhs);
+	Rational operator+(const T  &rhs) const {Rational r(*this); return r+=rhs;};
+	Rational operator-(const T  &rhs) const {Rational r(*this); return r-=rhs;};
+	Rational operator*(const T  &rhs) const {Rational r(*this); return r*=rhs;};
+	Rational operator/(const T  &rhs) const {Rational r(*this); return r/=rhs;};
+	Rational & operator*=(const Rational &rhs);
+	Rational & operator/=(const Rational &rhs) {return (*this)*=Rational(rhs.den,rhs.num);};
+	Rational operator+(const Rational  &rhs) const;
+        Rational operator-(const Rational  &rhs) const;
+        Rational operator*(const Rational  &rhs) const {Rational r(*this); return r*=rhs;};
+        Rational operator/(const Rational  &rhs) const {Rational r(*this); return r/=rhs;};
+	Rational & operator+=(const Rational &rhs) {*this = *this+rhs; return *this;};
+	Rational & operator-=(const Rational &rhs) {*this = *this-rhs; return *this;};
+
+	
 };
 
 template <typename T>
@@ -54,13 +76,22 @@ return s;
 }
 
 template <typename T>
+std::istream & operator>>(std::istream &s, Rational<T> &x)
+{
+char c;
+s>>x.num>>c>>x.den;
+return s;
+}
+
+
+
+template <typename T>
 class Homographic;
 
 template <typename T>
 class BiHomographic;
 
 
-//@@@implement iterator and rewrite  Homographic<T>::value
 
 template <typename T>
 class ContFrac : public NRVec<T> {
@@ -71,14 +102,15 @@ public:
 	template<int SIZE>  ContFrac(const T (&a)[SIZE]) : NRVec<T>(a) {};
 	ContFrac(const NRVec<T> &v) : NRVec<T>(v) {}; //allow implicit conversion from NRVec
 	ContFrac(const int n) : NRVec<T>(n+1) {};
-	ContFrac(double x, const int n, const T thres=0); //might yield a non-canonical form
+	ContFrac(double x, const int n, const T thres=0); //might yield a non-canonical form 
+	//we could make a template for analogous conversion from an arbitrary-precision type
 	ContFrac(const T p, const T q); //should yield a canonical form
 	ContFrac(const Rational<T> &r) : ContFrac(r.num,r.den) {};
 
 	void canonicalize();
 	void convergent(T *p, T*q, const int trunc= -1) const;
 	Rational<T> rational(const int trunc= -1) const {T p,q; convergent(&p,&q,trunc); return Rational<T>(p,q);};
-	double value(const int trunc= -1) const;
+	double value(const int trunc= -1) const; //we could make also a template usable with an arbitrary-precision type
 	ContFrac reciprocal() const;
 	int length() const {return NRVec<T>::size()-1;};
 	void resize(const int n, const bool preserve=true) 
@@ -87,13 +119,41 @@ public:
 		NRVec<T>::resize(n+1,preserve);
 		if(preserve) for(int i=nold+1; i<=n;++i) (*this)[i]=0;
 		} 
-
+	//arithmetics with a single ContFrac operand
 	ContFrac operator+(const Rational<T> &rhs) const {Homographic<T> h({{rhs.num,rhs.den},{rhs.den,0}}); return h.value(*this);};
 	ContFrac operator-(const Rational<T> &rhs) const {Homographic<T> h({{-rhs.num,rhs.den},{rhs.den,0}}); return h.value(*this);};
 	ContFrac operator*(const Rational<T> &rhs) const {Homographic<T> h({{0,rhs.num},{rhs.den,0}}); return h.value(*this);};
 	ContFrac operator/(const Rational<T> &rhs) const {Homographic<T> h({{0,rhs.den},{rhs.num,0}}); return h.value(*this);};
 
-	
+	ContFrac & operator+=(const T  &rhs)  {this->copyonwrite(); (*this)[0]+=rhs; return *this;};
+	ContFrac & operator-=(const T  &rhs)  {this->copyonwrite(); (*this)[0]-=rhs; return *this;};
+	ContFrac operator+(const T  &rhs) const {ContFrac r(*this); r+=rhs; return r;};
+	ContFrac operator-(const T  &rhs) const {ContFrac r(*this); r-=rhs; return r;};
+	ContFrac operator*(const T &rhs)  const {Homographic<T> h({{0,rhs},{1,0}}); return h.value(*this);};
+	ContFrac operator/(const T &rhs)  const {Homographic<T> h({{0,1},{rhs,0}}); return h.value(*this);};
+
+	//arithmetics with two ContFrac operands
+	//@@@
+
+	//iterator
+        class iterator {
+        private:
+                T *p;
+        public:
+                iterator() {};
+                ~iterator() {};
+		iterator(T *v): p(v) {};
+                bool operator==(const iterator rhs) const {return p==rhs.p;}
+                bool operator!=(const iterator rhs) const {return p!=rhs.p;}
+                iterator operator++() {return ++p;}
+                iterator operator++(int) {return p++;}
+                T& operator*() const {return *p;}
+                T *operator->() const {return p;}
+        };
+        iterator begin() const {return NRVec<T>::v;}
+        iterator end() const {return NRVec<T>::v+NRVec<T>::nn;}
+        iterator beyondend() const {return NRVec<T>::v+NRVec<T>::nn+1;}
+
 };
 
 //for Gosper's arithmetic
