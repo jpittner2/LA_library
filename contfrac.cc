@@ -136,65 +136,203 @@ for(int i=1; i<=n; ++i) //truncate if possible
 
 
 template <typename T>
+Homographic<T> Homographic<T>::input(const T &z, const bool inf) const
+{
+Homographic<T> hnew;
+if(inf) //effective infinity, end of input
+                {
+                hnew.v[0][0]=hnew.v[0][1]=v[0][1];
+                hnew.v[1][0]=hnew.v[1][1]=v[1][1];
+                }
+else
+                {
+                hnew.v[0][0]=v[0][1];
+                hnew.v[1][0]=v[1][1];
+                hnew.v[0][1]=v[0][0]+v[0][1]* z;
+                hnew.v[1][1]=v[1][0]+v[1][1]* z;
+                }
+return hnew;
+}
+
+template <typename T>
+Homographic<T> Homographic<T>::output(const T &z) const
+{
+Homographic<T> hnew;
+                hnew.v[0][0]=v[1][0];   
+                hnew.v[0][1]=v[1][1];   
+                hnew.v[1][0]=v[0][0]-v[1][0]*z;
+                hnew.v[1][1]=v[0][1]-v[1][1]*z;
+return hnew;
+}
+
+
+template <typename T>
+bool Homographic<T>::outputready(T &z) const
+{
+bool inf=0;
+T q0,q1;
+if(v[1][0]==0) inf=1; else q0=v[0][0]/v[1][0];
+if(v[1][1]==0) inf=1; else q1=v[0][1]/v[1][1];
+if(!inf && q0==q1) {z=q0; return true;}
+return false;
+}
+
+template <typename T>
+bool Homographic<T>::terminate() const
+{
+return v[1][0]==0&&v[1][1]==0;
+}
+
+
+template <typename T>
 ContFrac<T> Homographic<T>::value(const ContFrac<T>&x) const
 {
 Homographic<T> h(*this);
 
 std::list<T> l;
-typename ContFrac<T>::iterator px=x.begin();
-
-do //scan all input
+for(typename ContFrac<T>::iterator px=x.begin(); px!=x.beyondend(); ++px)
 	{
 	//digest next input term
-	Homographic<T> hnew;
-	if(px==x.end()|| px!=x.begin()&& *px==0) //input is infinity
+	h=h.input(*px,px==x.end()|| px!=x.begin()&& *px==0);
+
+	//output as much as possible
+	T out;
+	while(h.outputready(out))
 		{
-		hnew.x[0][0]=hnew.x[0][1]=h.x[0][1];
-                hnew.x[1][0]=hnew.x[1][1]=h.x[1][1];
-		}
-	else
-		{
-		hnew.x[0][0]=h.x[0][1];
-		hnew.x[1][0]=h.x[1][1];
-		hnew.x[0][1]=h.x[0][0]+h.x[0][1]* *px;
-        	hnew.x[1][1]=h.x[1][0]+h.x[1][1]* *px;
+		l.push_back(out);
+		h=h.output(out);
 		}
 
-	//std::cout<<"hnew\n"<< hnew.x[0][0]<<" "<< hnew.x[0][1]<<"\n"<< hnew.x[1][0]<<" "<< hnew.x[1][1]<<"\n";
-
-	//check if we are ready to output
-	bool inf=0;	
-	T q0,q1;
-	if(hnew.x[1][0]==0) inf=1; else q0=hnew.x[0][0]/hnew.x[1][0];
-	if(hnew.x[1][1]==0) inf=1; else q1=hnew.x[0][1]/hnew.x[1][1];
-	while(!inf && q0==q1) //ready to output
+	//terminate if exhausted
+	if(h.terminate())
 		{
-		l.push_back(q0);
-		//std::cout <<"out "<<q0<<std::endl;	
-		Homographic<T> hnew2;
-		hnew2.x[0][0]=hnew.x[1][0];	
-		hnew2.x[0][1]=hnew.x[1][1];	
-		hnew2.x[1][0]=hnew.x[0][0]-hnew.x[1][0]*q0;
-		hnew2.x[1][1]=hnew.x[0][1]-hnew.x[1][1]*q0;
-		//std::cout<<"hnew2\n"<< hnew2.x[0][0]<<" "<< hnew2.x[0][1]<<"\n"<< hnew2.x[1][0]<<" "<< hnew2.x[1][1]<<"\n";
-		hnew=hnew2;
-		inf=0;
-		if(hnew.x[1][0]==0) inf=1; else q0=hnew.x[0][0]/hnew.x[1][0];
-        	if(hnew.x[1][1]==0) inf=1; else q1=hnew.x[0][1]/hnew.x[1][1];
-		}
-	//termination
-	if(hnew.x[1][0]==0&&hnew.x[1][1]==0) //terminate
-		{
-		//std::cout<<"terminate at "<<i<<"\n";
 		if(px!=x.end()) laerror("unexpected termination in Homographic::value");
 		break;
 		}
-	h=hnew;
-	++px;
-	} while(px!=x.beyondend());
-//std::cout <<"size= "<<l.size()<<std::endl;
+	}
 return ContFrac<T>(l);
 }
+
+
+
+template <typename T>
+BiHomographic<T> BiHomographic<T>::inputx(const T &x, const bool inf) const
+{
+BiHomographic<T> hnew;
+for(int i=0; i<2; ++i)
+	{
+	hnew.v[i][0][0]= v[i][0][1];
+	hnew.v[i][0][1]= inf?v[i][0][1] : v[i][0][0]+v[i][0][1]*x;
+	hnew.v[i][1][0]= v[i][1][1];
+	hnew.v[i][1][1]= inf?v[i][1][1] : v[i][1][0]+v[i][1][1]*x;
+	}
+return hnew;
+}
+
+
+template <typename T>
+BiHomographic<T> BiHomographic<T>::inputy(const T &y, const bool inf) const
+{
+BiHomographic<T> hnew;
+for(int i=0; i<2; ++i)
+        {
+        hnew.v[i][0][0]= v[i][1][0];
+        hnew.v[i][0][1]= v[i][1][1];
+        hnew.v[i][1][0]= inf?v[i][1][0] : v[i][0][0]+v[i][1][0]*y;
+        hnew.v[i][1][1]= inf?v[i][1][1] : v[i][0][1]+v[i][1][1]*y;
+        }
+return hnew;
+}
+
+
+template <typename T>
+BiHomographic<T> BiHomographic<T>::output(const T &z) const
+{
+BiHomographic<T> hnew;
+for(int i=0; i<2; ++i) for(int j=0; j<2; ++j)
+	{
+	hnew.v[0][i][j]= v[1][i][j];
+	hnew.v[1][i][j]= v[0][i][j] - v[1][i][j]*z;
+	}
+return hnew;
+}
+
+template <typename T>
+int BiHomographic<T>::inputselect() const
+{
+if(v[1][0][0]==0)
+	{
+	if(v[1][0][1]==0) return 1;
+	else return 0;
+	}
+if(v[1][0][1]==0) return 0;
+if(v[1][1][0]==0) return 1;
+if(MYABS(v[0][0][1]/v[1][0][1] - v[0][0][0]/v[1][0][0]) > MYABS(v[0][1][0]/v[1][1][0] - v[0][0][0]/v[1][0][0])) return 0;
+return 1;
+}
+
+
+template <typename T>
+bool BiHomographic<T>::outputready(T &z) const
+{
+T q[2][2];
+for(int i=0; i<2; ++i) for(int j=0; j<2; ++j)
+        {
+	if(v[1][i][j]==0) return false;
+	else q[i][j]=v[0][i][j]/v[1][i][j];
+	if(q[i][j]!=q[0][0])  return false;
+	}
+z=q[0][0]; 
+return true;
+}
+
+
+template <typename T>
+bool BiHomographic<T>::terminate() const
+{
+return  v[1][0][0]==0&&v[1][0][1]==0&&v[1][1][0]==0&&v[1][1][1]==0;
+}
+
+
+template <typename T>
+ContFrac<T>  BiHomographic<T>::value(const ContFrac<T>&x, const ContFrac<T>&y) const
+{
+BiHomographic<T> h(*this);
+
+std::list<T> l;
+typename ContFrac<T>::iterator px=x.begin();
+typename ContFrac<T>::iterator py=y.begin();
+
+do
+	{
+	//select next input term
+	int which;
+	if(px==x.beyondend()) which=1;
+	else if(py==y.beyondend()) which=0;
+	else which = h.inputselect();
+
+	if(which) {h=h.inputy(*py,py==y.end()|| py!=y.begin()&& *py==0); ++py;}
+	else {h=h.inputx(*px,px==x.end()|| px!=x.begin()&& *px==0); ++px;}
+
+	//output as much as possible
+	T out;
+	while(h.outputready(out))
+		{
+		l.push_back(out);
+		h=h.output(out);
+		}
+
+	//terminate if exhausted
+	if(h.terminate())
+		{
+		if(px!=x.end()&&px!=x.beyondend() || py!=y.end()&&py!=y.beyondend()) laerror("unexpected termination in Homographic::value");
+		break;
+		}
+	}
+	while(px!=x.beyondend() || py!=y.beyondend());
+return ContFrac<T>(l);
+}
+
 
 
 template <typename T>
@@ -206,7 +344,7 @@ if(den<0)
 	den= -den;
 	}
 T g=gcd(num,den); 
-if(g>1) 
+if(MYABS(g)>1) 
 	{
 	num/=g; 
 	den/=g;
@@ -218,7 +356,7 @@ Rational<T> & Rational<T>::operator*=(const T  &rhs)
 {
 T r=rhs;
 T g=gcd(r,den);
-if(g>1)
+if(MYABS(g)>1)
         {
         r/=g;
         den/=g;
@@ -233,7 +371,7 @@ Rational<T> & Rational<T>::operator/=(const T  &rhs)
 {
 T r=rhs;
 T g=gcd(r,num);
-if(g>1)
+if(MYABS(g)>1)
         {
         r/=g;
         num/=g;
@@ -270,19 +408,20 @@ Rational<T> & Rational<T>::operator*=(const Rational &rhs)
 Rational r(rhs);
 T g;
 g=gcd(num,r.den);
-if(g>1)
+if(MYABS(g)>1)
 	{
 	num/=g;
 	r.den/=g;
 	}
 g=gcd(den,r.num);
-if(g>1)
+if(MYABS(g)>1)
         {
         den/=g;
         r.num/=g;
         }
 num*=r.num;
 den*=r.den;
+if(den<0) {den= -den; num= -num;}
 return *this;
 }
 
@@ -293,32 +432,20 @@ return *this;
  * forced instantization in the corresponding object file
  ******************************************************************************/
 template class Rational<int>;
-template class Rational<unsigned int>;
 template class Rational<long>;
-template class Rational<unsigned long>;
 template class Rational<long long>;
-template class Rational<unsigned long long>;
 
 template class ContFrac<int>;
-template class ContFrac<unsigned int>;
 template class ContFrac<long>;
-template class ContFrac<unsigned long>;
 template class ContFrac<long long>;
-template class ContFrac<unsigned long long>;
 
 template class Homographic<int>;
-template class Homographic<unsigned int>;
 template class Homographic<long>;
-template class Homographic<unsigned long>;
 template class Homographic<long long>;
-template class Homographic<unsigned long long>;
 
 template class BiHomographic<int>;
-template class BiHomographic<unsigned int>;
 template class BiHomographic<long>;
-template class BiHomographic<unsigned long>;
 template class BiHomographic<long long>;
-template class BiHomographic<unsigned long long>;
 
 
 

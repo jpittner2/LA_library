@@ -2431,7 +2431,7 @@ NRMat<double> mm=m.permuted_rows(p);
 cout <<mm;
 }
 
-if(1)
+if(0)
 {
 Rational<int> p,q;
 cin>>p>>q;
@@ -2482,6 +2482,21 @@ cout<<Rational<int>(y)<<endl;
 ContFrac<int> z= x*Rational<int>({2,3});
 cout<<Rational<int>(z)<<endl;
 }
+
+if(1)
+{
+ContFrac<int> x(11,101);
+ContFrac<int> v(3,7);
+ContFrac<int> y= x+v;
+cout<<Rational<int>(y)<<endl;
+ContFrac<int> z= x*v;
+cout<<Rational<int>(z)<<endl;
+BiHomographic<int> h({{{12,4},{3,1}},{{0,1},{-1,0}}});
+ContFrac<int> zz=h.value(x,v);
+cout<<Rational<int>(zz)<<endl;
+cout<<(Rational<int>(x)+3)*(Rational<int>(v)+4)/(Rational<int>(x)-Rational<int>(v))<<endl;
+}
+
 
 
 }

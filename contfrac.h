@@ -34,6 +34,8 @@ namespace LA {
 template <typename T>
 class ContFrac;
 
+
+//@@@operator== > >= etc.
 template <typename T>
 class Rational {
 public:
@@ -93,6 +95,8 @@ class BiHomographic;
 
 
 
+
+//@@@operator== > >= etc.
 template <typename T>
 class ContFrac : public NRVec<T> {
 private:
@@ -133,7 +137,10 @@ public:
 	ContFrac operator/(const T &rhs)  const {Homographic<T> h({{0,1},{rhs,0}}); return h.value(*this);};
 
 	//arithmetics with two ContFrac operands
-	//@@@
+	ContFrac operator+(const ContFrac &rhs) const {BiHomographic<T> h({{{0,1},{1,0}},{{1,0},{0,0}}}); return h.value(*this,rhs);};
+	ContFrac operator-(const ContFrac &rhs) const {BiHomographic<T> h({{{0,1},{-1,0}},{{1,0},{0,0}}}); return h.value(*this,rhs);};
+	ContFrac operator*(const ContFrac &rhs) const {BiHomographic<T> h({{{0,0},{0,1}},{{1,0},{0,0}}}); return h.value(*this,rhs);};
+	ContFrac operator/(const ContFrac &rhs) const {BiHomographic<T> h({{{0,1},{0,0}},{{0,0},{1,0}}}); return h.value(*this,rhs);};
 
 	//iterator
         class iterator {
@@ -161,11 +168,16 @@ public:
 template <typename T>
 class Homographic {
 public:
-T x[2][2]; //{{a,b},{c,d}} for (a+b.z)/(c+d.z)
+T v[2][2]; //{{a,b},{c,d}} for (a+b.x)/(c+d.x) i.e. [denominator][power_x]
 
 	Homographic(){};
-	explicit Homographic(const T (&a)[2][2]) {memcpy(x,a,2*2*sizeof(T));};
-	ContFrac<T> value(const ContFrac<T>&x) const;
+	explicit Homographic(const T (&a)[2][2]) {memcpy(v,a,2*2*sizeof(T));};
+	ContFrac<T> value(const ContFrac<T>&z) const;
+
+	Homographic input(const T &x, const bool inf) const; 
+	Homographic output(const T &x) const;
+	bool outputready(T &x) const;
+	bool terminate() const;
 	
 };
 
@@ -173,11 +185,19 @@ T x[2][2]; //{{a,b},{c,d}} for (a+b.z)/(c+d.z)
 template <typename T>
 class BiHomographic {
 public:
-T x[2][2][2];
+T v[2][2][2];  //{{{a,b},{c,d}},{{e,f},{g,h}}} i.e.[denominator][power_y][power_x]
 	
 	BiHomographic(){};
-	explicit BiHomographic(const T (&a)[2][2][2]) {memcpy(x,a,2*2*2*sizeof(T));};
+	explicit BiHomographic(const T (&a)[2][2][2]) {memcpy(v,a,2*2*2*sizeof(T));};
 	ContFrac<T> value(const ContFrac<T>&x, const ContFrac<T>&y) const;
+
+	BiHomographic inputx(const T &x, const bool inf) const;
+	BiHomographic inputy(const T &y, const bool inf) const;
+        BiHomographic output(const T &z) const;
+	int inputselect() const;
+        bool outputready(T &x) const;
+        bool terminate() const;
+
 };
 
 
