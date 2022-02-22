@@ -25,17 +25,16 @@
 
 namespace LA {
 
-//simple finite continued fraction class
+//Support for rationals and a simple finite continued fraction class
 //NOTE: 0 on any position >0 means actually infinity; simplify()  shortens the vector
-//presently implements just conversion to/from rationals and floats
-//maybe implement arithmetic by Gosper's method cf. https://perl.plover.com/classes/cftalk/TALK
-//
+//includes Gosper's arithmetics - cf. https://perl.plover.com/classes/cftalk/TALK
+//maybe implement the self-feeding  Gosper's algorithm for sqrt(int)
+//maybe do not interpret a_i=0 i>0 as termination???
 
 template <typename T>
 class ContFrac;
 
 
-//@@@operator== > >= etc.
 template <typename T>
 class Rational {
 public:
@@ -45,7 +44,7 @@ public:
 	Rational() {};
 	Rational(const T p, const T q) : num(p),den(q) {};
 	explicit Rational(const T (&a)[2]) :num(a[0]), den(a[1]) {};
-	Rational(const ContFrac<T> &cf) {cf.convergent(&num,&den);};
+	explicit Rational(const ContFrac<T> &cf) {cf.convergent(&num,&den);};
 	void simplify();
 
 	//basic rational arithmetics 
@@ -67,7 +66,21 @@ public:
 	Rational & operator+=(const Rational &rhs) {*this = *this+rhs; return *this;};
 	Rational & operator-=(const Rational &rhs) {*this = *this-rhs; return *this;};
 
-	
+	//combination with continued fractions
+	ContFrac<T> operator+(const ContFrac<T> &rhs) const {return rhs + *this;};
+	ContFrac<T> operator-(const ContFrac<T> &rhs) const {return -rhs + *this;};
+	ContFrac<T> operator*(const ContFrac<T> &rhs) const {return rhs * *this;};
+	ContFrac<T> operator/(const ContFrac<T> &rhs) const {return rhs.reciprocal() * *this;};
+
+
+	//relational operators, relying that operator- yields a form with a positive denominator
+	bool operator==(const Rational  &rhs) const {Rational t= *this-rhs; return t.num==0;};
+	bool operator!=(const Rational  &rhs) const {Rational t= *this-rhs; return t.num!=0;};
+	bool operator>=(const Rational  &rhs) const {Rational t= *this-rhs; return t.num>=0;};
+	bool operator<=(const Rational  &rhs) const {Rational t= *this-rhs; return t.num<=0;};
+	bool operator>(const Rational  &rhs) const {Rational t= *this-rhs; return t.num>0;};
+        bool operator<(const Rational  &rhs) const {Rational t= *this-rhs; return t.num<0;};
+
 };
 
 template <typename T>
@@ -96,7 +109,6 @@ class BiHomographic;
 
 
 
-//@@@operator== > >= etc.
 template <typename T>
 class ContFrac : public NRVec<T> {
 private:
@@ -106,16 +118,17 @@ public:
 	template<int SIZE>  ContFrac(const T (&a)[SIZE]) : NRVec<T>(a) {};
 	ContFrac(const NRVec<T> &v) : NRVec<T>(v) {}; //allow implicit conversion from NRVec
 	ContFrac(const int n) : NRVec<T>(n+1) {};
-	ContFrac(double x, const int n, const T thres=0); //might yield a non-canonical form 
+	explicit ContFrac(double x, const int n, const T thres=0); //WARNING: it might yield a non-canonical form 
 	//we could make a template for analogous conversion from an arbitrary-precision type
-	ContFrac(const T p, const T q); //should yield a canonical form
-	ContFrac(const Rational<T> &r) : ContFrac(r.num,r.den) {};
+	ContFrac(T p, T q); //should yield a canonical form
+	explicit ContFrac(const Rational<T> &r) : ContFrac(r.num,r.den) {};
 
 	void canonicalize();
 	void convergent(T *p, T*q, const int trunc= -1) const;
 	Rational<T> rational(const int trunc= -1) const {T p,q; convergent(&p,&q,trunc); return Rational<T>(p,q);};
 	double value(const int trunc= -1) const; //we could make also a template usable with an arbitrary-precision type
 	ContFrac reciprocal() const;
+	ContFrac operator-() const; //unary minus
 	int length() const {return NRVec<T>::size()-1;};
 	void resize(const int n, const bool preserve=true) 
 		{
@@ -123,6 +136,7 @@ public:
 		NRVec<T>::resize(n+1,preserve);
 		if(preserve) for(int i=nold+1; i<=n;++i) (*this)[i]=0;
 		} 
+
 	//arithmetics with a single ContFrac operand
 	ContFrac operator+(const Rational<T> &rhs) const {Homographic<T> h({{rhs.num,rhs.den},{rhs.den,0}}); return h.value(*this);};
 	ContFrac operator-(const Rational<T> &rhs) const {Homographic<T> h({{-rhs.num,rhs.den},{rhs.den,0}}); return h.value(*this);};
@@ -141,6 +155,16 @@ public:
 	ContFrac operator-(const ContFrac &rhs) const {BiHomographic<T> h({{{0,1},{-1,0}},{{1,0},{0,0}}}); return h.value(*this,rhs);};
 	ContFrac operator*(const ContFrac &rhs) const {BiHomographic<T> h({{{0,0},{0,1}},{{1,0},{0,0}}}); return h.value(*this,rhs);};
 	ContFrac operator/(const ContFrac &rhs) const {BiHomographic<T> h({{{0,1},{0,0}},{{0,0},{1,0}}}); return h.value(*this,rhs);};
+
+	
+	//relational operators, guaranteed only to work correctly for canonicalized CF!
+	T compare(const ContFrac  &rhs) const;
+	bool operator==(const ContFrac  &rhs) const {return compare(rhs)==0;};
+	bool operator>(const ContFrac  &rhs) const {return compare(rhs)>0;};
+	bool operator<(const ContFrac  &rhs) const {return rhs.operator>(*this);};
+	bool operator!=(const ContFrac  &rhs) const {return ! this->operator==(rhs) ;}
+	bool operator<=(const ContFrac  &rhs) const {return ! this->operator>(rhs) ;}
+	bool operator>=(const ContFrac  &rhs) const {return ! this->operator<(rhs) ;}
 
 	//iterator
         class iterator {
@@ -176,7 +200,7 @@ T v[2][2]; //{{a,b},{c,d}} for (a+b.x)/(c+d.x) i.e. [denominator][power_x]
 
 	Homographic input(const T &x, const bool inf) const; 
 	Homographic output(const T &x) const;
-	bool outputready(T &x) const;
+	bool outputready(T &x, bool first) const;
 	bool terminate() const;
 	
 };
@@ -195,7 +219,7 @@ T v[2][2][2];  //{{{a,b},{c,d}},{{e,f},{g,h}}} i.e.[denominator][power_y][power_
 	BiHomographic inputy(const T &y, const bool inf) const;
         BiHomographic output(const T &z) const;
 	int inputselect() const;
-        bool outputready(T &x) const;
+        bool outputready(T &x,bool first) const;
         bool terminate() const;
 
 };

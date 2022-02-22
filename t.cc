@@ -2483,7 +2483,7 @@ ContFrac<int> z= x*Rational<int>({2,3});
 cout<<Rational<int>(z)<<endl;
 }
 
-if(1)
+if(0)
 {
 ContFrac<int> x(11,101);
 ContFrac<int> v(3,7);
@@ -2495,6 +2495,49 @@ BiHomographic<int> h({{{12,4},{3,1}},{{0,1},{-1,0}}});
 ContFrac<int> zz=h.value(x,v);
 cout<<Rational<int>(zz)<<endl;
 cout<<(Rational<int>(x)+3)*(Rational<int>(v)+4)/(Rational<int>(x)-Rational<int>(v))<<endl;
+}
+
+if(0)
+{
+double x;
+cin >>x;
+ContFrac<int> xx(x,15,100000);
+cout <<xx<<endl;
+ContFrac<int> xm= -xx;
+cout<< xm<<endl;
+cout<<xx+xm<<endl;
+}
+
+if(0)
+{
+Rational<int> x;
+cin >>x;
+ContFrac<int> xx(x);
+cout<<xx;
+ContFrac<int> xm= -xx;
+cout<< xm;
+ContFrac<int> yy(-x);
+cout<<yy;
+ContFrac<int> ym= -yy;
+cout<< ym;
+cout <<"ZEROs\n"<<xx+xm<<" "<<yy+ym<<" "<<xx+yy<<" "<<xm+ym<<endl;
+}
+
+if(1)
+{
+double x;
+cin >>x;
+ContFrac<int> xx(x,25,100000);
+ContFrac<int> xx1(x+1e-4,25,100000);
+ContFrac<int> xx2(x-1e-4,25,100000);
+xx.canonicalize();
+xx1.canonicalize();
+xx2.canonicalize();
+cout<<"small "<<xx2<<endl;
+cout<<"middle "<<xx<<endl;
+cout<<"big "<<xx1<<endl;
+cout << "TEST "<<(xx<xx1) <<" "<<(xx>xx2) <<endl;
+
 }
 
 

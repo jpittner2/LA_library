@@ -47,15 +47,20 @@ static void cf_helper(ContFrac<T> *me, T p, T q, int level)
 T div=p/q;
 {
 T rem=p%q;
-if(rem) cf_helper(me,q,rem,level+1);
+if(rem) 
+	{
+	if(rem<0) {--div; rem+=q;} //prevent negative a_i i>0
+	cf_helper(me,q,rem,level+1);
+	}
 else me->resize(level);
 }
 (*me)[level]=div;
 }
 
 template <typename T>
-ContFrac<T>::ContFrac(const T p, const T q) : NRVec<T>()
+ContFrac<T>::ContFrac(T p, T q) : NRVec<T>()
 {
+if(q<0) {p= -p; q= -q;}
 cf_helper<T>(this,p,q,0);
 }
 
@@ -117,11 +122,33 @@ return x;
 }
 
 
+//compare assuming they are canonical
+template <typename T>
+T ContFrac<T>::compare(const ContFrac<T> &rhs) const
+{
+int l=length();
+if(rhs.length()<l) l=rhs.length();
+for(int i=0; i<=l; ++i)
+	{
+	T d=(*this)[i]-rhs[i];
+	if(d) return (i&1)? -d :d;
+	}
+if(length()==rhs.length()) return 0;
+else if(length()<rhs.length()) return (length()&1) ? 1 : -1;
+else return (rhs.length()&1) ? -1 : 1;
+}
+
+
 template <typename T>
 void ContFrac<T>::canonicalize()
 {
 int n=this->length();
 if(n==0) return;
+if(n>0 && (*this)[1]<0) //handle negative a_i i>0
+	{
+	for(int i=0; i<=n; ++i) (*this[i]) = -(*this[i]);
+	*this = -(*this);
+	}
 this->copyonwrite();
 if((*this)[n]==1) {(*this)[n]=0; ++(*this)[n-1];} //avoid deepest 1/1
 for(int i=1; i<=n; ++i) //truncate if possible
@@ -167,13 +194,18 @@ return hnew;
 
 
 template <typename T>
-bool Homographic<T>::outputready(T &z) const
+bool Homographic<T>::outputready(T &z,bool first) const
 {
 bool inf=0;
 T q0,q1;
 if(v[1][0]==0) inf=1; else q0=v[0][0]/v[1][0];
 if(v[1][1]==0) inf=1; else q1=v[0][1]/v[1][1];
-if(!inf && q0==q1) {z=q0; return true;}
+if(!inf && q0==q1) 
+	{
+	z=q0; 
+	if(first && q0<0) --z; //prevent negative a1 etc.
+	return true;
+	}
 return false;
 }
 
@@ -190,6 +222,7 @@ ContFrac<T> Homographic<T>::value(const ContFrac<T>&x) const
 Homographic<T> h(*this);
 
 std::list<T> l;
+bool first=true;
 for(typename ContFrac<T>::iterator px=x.begin(); px!=x.beyondend(); ++px)
 	{
 	//digest next input term
@@ -197,10 +230,11 @@ for(typename ContFrac<T>::iterator px=x.begin(); px!=x.beyondend(); ++px)
 
 	//output as much as possible
 	T out;
-	while(h.outputready(out))
+	while(h.outputready(out,first))
 		{
 		l.push_back(out);
 		h=h.output(out);
+		first=false;
 		}
 
 	//terminate if exhausted
@@ -209,6 +243,11 @@ for(typename ContFrac<T>::iterator px=x.begin(); px!=x.beyondend(); ++px)
 		if(px!=x.end()) laerror("unexpected termination in Homographic::value");
 		break;
 		}
+	}
+if(l.back()==1)  //simplify by removing a trailing 1
+	{
+	l.pop_back();
+	l.back()+=1;
 	}
 return ContFrac<T>(l);
 }
@@ -273,7 +312,7 @@ return 1;
 
 
 template <typename T>
-bool BiHomographic<T>::outputready(T &z) const
+bool BiHomographic<T>::outputready(T &z,bool first) const
 {
 T q[2][2];
 for(int i=0; i<2; ++i) for(int j=0; j<2; ++j)
@@ -283,6 +322,7 @@ for(int i=0; i<2; ++i) for(int j=0; j<2; ++j)
 	if(q[i][j]!=q[0][0])  return false;
 	}
 z=q[0][0]; 
+if(first && z<0) --z;
 return true;
 }
 
@@ -303,6 +343,7 @@ std::list<T> l;
 typename ContFrac<T>::iterator px=x.begin();
 typename ContFrac<T>::iterator py=y.begin();
 
+bool first=true;
 do
 	{
 	//select next input term
@@ -316,10 +357,11 @@ do
 
 	//output as much as possible
 	T out;
-	while(h.outputready(out))
+	while(h.outputready(out,first))
 		{
 		l.push_back(out);
 		h=h.output(out);
+		first=false;
 		}
 
 	//terminate if exhausted
@@ -330,6 +372,13 @@ do
 		}
 	}
 	while(px!=x.beyondend() || py!=y.beyondend());
+
+if(l.back()==1)  //simplify by removing a trailing 1
+        {
+        l.pop_back();
+        l.back()+=1;
+        }
+
 return ContFrac<T>(l);
 }
 
@@ -344,7 +393,7 @@ if(den<0)
 	den= -den;
 	}
 T g=gcd(num,den); 
-if(MYABS(g)>1) 
+if(g>1) 
 	{
 	num/=g; 
 	den/=g;
@@ -381,6 +430,7 @@ return *this;
 }
 
 
+//try avoiding overflows at the cost of speed
 template <typename T>
 Rational<T>  Rational<T>::operator+(const Rational &rhs) const
 {
@@ -425,6 +475,45 @@ if(den<0) {den= -den; num= -num;}
 return *this;
 }
 
+
+//unary -
+template <typename T>
+ContFrac<T> ContFrac<T>::operator-() const
+{
+int l=length();
+if(l==0)
+	{
+	ContFrac<T> r(0);
+	r[0]= -(*this)[0];
+	return r;
+	}
+if((*this)[1]!=1)
+	{
+	ContFrac<T> r(l+1);
+	r[0]= -(*this)[0]-1;
+	r[1]= 1;
+	r[2]= (*this)[1]-1;
+	for(int i=2; i<=l; ++i) r[i+1] = (*this)[i];
+	return r;
+	}
+else //a_1-1 == 0
+	{
+	if(l==1) //we have trailing 0, actually the input was not canonical
+		{
+		ContFrac<T> r(0);
+        	r[0]= -(*this)[0]-1;
+		return r;
+		}
+	else
+		{
+		ContFrac<T> r(l-1);
+		r[0]= -(*this)[0]-1;
+		r[1]= 1+(*this)[2];
+		for(int i=3; i<=l; ++i) r[i-1] = (*this)[i];
+		return r;
+		}
+	}
+}
 
 
 
