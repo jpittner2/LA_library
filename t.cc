@@ -2523,7 +2523,7 @@ cout<< ym;
 cout <<"ZEROs\n"<<xx+xm<<" "<<yy+ym<<" "<<xx+yy<<" "<<xm+ym<<endl;
 }
 
-if(1)
+if(0)
 {
 double x;
 cin >>x;
@@ -2537,7 +2537,41 @@ cout<<"small "<<xx2<<endl;
 cout<<"middle "<<xx<<endl;
 cout<<"big "<<xx1<<endl;
 cout << "TEST "<<(xx<xx1) <<" "<<(xx>xx2) <<endl;
+}
 
+if(1)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+double t=random();
+t/=(1L<<30);
+t-=1;
+cout <<"theta = "<<t<<endl;
+NRMat<complex<double> > sz({{1,0},{0,-1}});
+NRMat<complex<double> > szsz=sz.otimes(sz);
+NRMat<complex<double> > c1not0({
+			{1,0,0,0},
+			{0,1,0,0},
+			{0,0,0,1},
+			{0,0,1,0},
+			});
+NRMat<complex<double> > itszsz= szsz * complex<double>(0,t);
+NRMat<complex<double> > expitszsz = exp(itszsz);
+cout <<expitszsz;
+NRMat<complex<double> > id({{1,0},{0,1}});
+NRMat<complex<double> > rz(2,2); rz.clear();
+double c=cos(t);
+double s=sin(t);
+rz(0,0) = complex<double>(c,s);
+rz(1,1) = complex<double>(c,-s);
+NRMat<complex<double> >  idrz = id.otimes(rz);
+NRMat<complex<double> > test = c1not0 * idrz *c1not0;
+cout <<test;
+cout <<"Error = "<<(expitszsz-test).norm()<<endl;
 }
 
 
