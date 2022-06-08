@@ -115,6 +115,11 @@ extern void gdiagonalize(NRMat<T> &a, NRVec< std::complex<double> > &w,
 		 const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
 		NRMat<T> *b=NULL, NRVec<T> *beta=NULL); //eigenvectors are stored in complex matrices for T both double and complex
 
+//for compatibility in davidson
+extern void gdiagonalize(NRMat<std::complex<double> > &a, NRVec<double> &wr, NRVec<double> &wi,
+                NRMat<std::complex<double> > *vl, NRMat<std::complex<double> > *vr, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
+                NRMat<std::complex<double> > *b=NULL, NRVec<std::complex<double> > *beta=NULL);
+
 //complex,real,imaginary parts of various entities
 template<typename T>
 extern const typename LA_traits<T>::realtype realpart(const T&);

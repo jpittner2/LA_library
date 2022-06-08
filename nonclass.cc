@@ -1301,6 +1301,24 @@ void gdiagonalize(NRMat<double> &a, NRVec< std::complex<double> > &w,
 }
 
 
+//for compatibility in davidson
+void gdiagonalize(NRMat<std::complex<double> > &a, NRVec<double> &wr, NRVec<double> &wi,
+                NRMat<std::complex<double> > *vl, NRMat<std::complex<double> > *vr, const bool corder, int n, const int sorttype, const int biorthonormalize,
+                NRMat<std::complex<double> > *b, NRVec<std::complex<double> > *beta)
+{
+if(wr.size()!=wi.size()) laerror("length mismatch in gdiagonalize");
+NRVec<std::complex<double> > w(wr.size());
+gdiagonalize(a,w,vl,vr,corder,n,sorttype,biorthonormalize,b,beta);
+wr.copyonwrite();
+wi.copyonwrite();
+for(int i=0; i<w.size(); ++i)
+	{
+	wr[i]=w[i].real();
+	wi[i]=w[i].imag();
+	}
+}
+
+
 template<>
 const NRMat<double> realpart<NRMat< std::complex<double> > >(const NRMat< std::complex<double> > &a)
 {

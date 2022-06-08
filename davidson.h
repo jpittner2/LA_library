@@ -27,7 +27,7 @@
 namespace LA {
 
 //Davidson diagonalization of real symmetric matrix (modified Lanczos), works also for right eigenvectors on non-symmetric matrix
-
+//should work for complex hermitian-only too, but was not tested yet (maybe somwhere complex conjugation will have to be added)
 //matrix can be any class which has nrows(), ncols(), diagonalof(), issymmetric(), and gemv() available
 //does not even have to be explicitly stored - direct CI
 //therefore the whole implementation must be a template in a header
@@ -57,7 +57,7 @@ if(eivals.size()<nroots) laerror("too small eivals dimension in davidson");
 
 NRVec<T> vec1(n),vec2(n);
 NRMat<T> smallH(maxkrylov,maxkrylov),smallS(maxkrylov,maxkrylov),smallV;
-NRVec<T> r(maxkrylov);
+NRVec<typename LA_traits<T>::normtype> r(maxkrylov);
 NRVec<T> *v0,*v1;
 AuxStorage<T> *s0,*s1;
 
@@ -87,9 +87,9 @@ if(initguess) initguess(vec1);
 else
 	{
 	const T *diagonal = bigmat.diagonalof(vec2,false,true);
-	T t=1e100; int i,j;  
+	typename LA_traits<T>::normtype t=1e100; int i,j;  
 	vec1=0;
-	for(i=0, j= -1; i<n; ++i) if(diagonal[i]<t) {t=diagonal[i]; j=i;}
+	for(i=0, j= -1; i<n; ++i) if(LA_traits<T>::realpart(diagonal[i])<t) {t=LA_traits<T>::realpart(diagonal[i]); j=i;}
 	vec1[j]=1;
 	}
 
@@ -145,14 +145,17 @@ if(bigmat.issymmetric())
 	}
 else 
 	{
-	NRVec<T> ri(krylovsize+1),beta(krylovsize+1);
+	NRVec<typename LA_traits<T>::normtype> ri(krylovsize+1);
+	NRVec<T> beta(krylovsize+1);
 	NRMat<T> scratch;
 	scratch=smallV;
 	gdiagonalize(scratch, r, ri,NULL, &smallV, 1, krylovsize+1, 2, 0, &smallSwork, &beta);
-	for(int i=0; i<=krylovsize; ++i) {r[i]/=beta[i]; ri[i]/=beta[i];}
+	//the following is definitely NOT OK for non-hermitian complex matrices, but we do not support these
+	//it is just to make the code compilable for T both real and complex
+	for(int i=0; i<=krylovsize; ++i) {r[i]/=LA_traits<T>::realpart(beta[i]); ri[i]/=LA_traits<T>::realpart(beta[i]);}
 	}
 
-T eival_n=r[nroot];
+typename LA_traits<T>::normtype eival_n=r[nroot];
 oldnroot=nroot;
 typename LA_traits<T>::normtype test=std::abs(smallV(krylovsize,nroot));
 if(test<eps) nroot++;
@@ -204,7 +207,7 @@ const T *diagonal = bigmat.diagonalof(vec2,false,true);
 eival_n = r[nroot];
 for(i=0; i<n; ++i)
 	{
-	T denom = diagonal[i] - eival_n;
+	typename LA_traits<T>::normtype denom = LA_traits<T>::realpart(diagonal[i]) - eival_n;
         denom = denom<0?-std::max(0.1,std::abs(denom)):std::max(0.1,std::abs(denom));
         vec1[i] /= denom;
 	}
