@@ -241,6 +241,19 @@ public:
 		return r;
 		}
 
+	//!concatenate vector into *this 
+	void concatme(const NRVec &rhs) 
+		{
+		if(rhs.nn==0) return;
+		resize(nn+rhs.nn,true);
+		for(int i=0; i<rhs.nn; ++i) *(this)[nn+i] = rhs[i];
+		}
+	void append(const T &a) //not efficient if done repeatedly
+		{
+                resize(nn+1,true);
+                (*this)[nn] = a;
+                }
+
 	//! determine the actual value of the reference counter 
 	inline int getcount() const {return count?*count:0;}
 
