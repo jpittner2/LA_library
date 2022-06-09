@@ -476,6 +476,7 @@ public:
 #include "smat.h"
 #include "sparsemat.h"
 #include "sparsesmat.h"
+#include "qsort.h"
 
 
 
@@ -483,6 +484,26 @@ public:
 //needs NRVec_from1
 #include "permutation.h"
 namespace LA {
+
+
+template<typename T>
+int NRVec<T>::sort(int direction, int from, int to, int *perm) {
+	NOT_GPU(*this);
+
+	copyonwrite();
+	if(to == -1) to = nn - 1;
+	if(direction) return memqsort<1, NRVec<T>, int, int>(*this, perm, from, to);
+	else return memqsort<0, NRVec<T>, int, int>(*this, perm, from, to);
+}
+
+template<typename T>
+int NRVec<T>::sort(int direction, NRPerm<int> &perm)
+{
+if(nn!=perm.size()) laerror("incompatible vector and permutation");
+perm.identity();
+int r=sort(direction,0,nn-1,&perm[1]);
+return r;
+}
 
 
 /***************************************************************************//**
