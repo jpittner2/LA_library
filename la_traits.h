@@ -349,6 +349,9 @@ template<typename C> \
 struct LA_traits_aux<X<C>, scalar_false> { \
 typedef C elementtype; \
 typedef X<C> producttype; \
+typedef C PAIRTYPE[2]; \
+typedef C QUADRUPLETYPE[4]; \
+typedef X<C> SUBMATRIXTYPE; \
 typedef typename LA_traits<C>::normtype normtype; \
 typedef X<typename LA_traits<C>::realtype> realtype; \
 typedef X<typename LA_traits<C>::complextype> complextype; \
