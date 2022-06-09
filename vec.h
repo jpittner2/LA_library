@@ -142,7 +142,7 @@ public:
 	inline NRVec(const NRVec &rhs);
 
 	//! constructor from std::list
-	NRVec(const std::list<T> l);
+	explicit NRVec(const std::list<T> l);
 
 	//! complexifying constructor 
 	NRVec(const typename LA_traits_complex<T>::NRVec_Noncomplex_type &rhs, bool imagpart=false);//construct complex from real
