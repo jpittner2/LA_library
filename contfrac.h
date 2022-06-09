@@ -115,6 +115,7 @@ private:
 	int size() const; //prevent confusion with vector size
 public:
 	ContFrac():  NRVec<T>() {};
+	explicit ContFrac(const std::list<T> &x) : NRVec<T>(x) {};
 	template<int SIZE>  ContFrac(const T (&a)[SIZE]) : NRVec<T>(a) {};
 	ContFrac(const NRVec<T> &v) : NRVec<T>(v) {}; //allow implicit conversion from NRVec
 	ContFrac(const int n) : NRVec<T>(n+1) {};
