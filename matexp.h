@@ -218,7 +218,7 @@ while((i >>= 1)/*!=0*/)
 return y;
 }
 
-inline int nextpow2(const double n)
+inline int mynextpow2(const double n)
 {
 const double log2=std::log(2.);
 if(n<=.75) return 0; //try to keep the taylor expansion short
@@ -260,7 +260,7 @@ NRVec<C> exp_aux(const T &x, int &power, int maxpower, int maxtaylor, S prescale
 {
 
 double mnorm= x.norm() * std::abs(prescale);
-power=nextpow2(mnorm); 
+power=mynextpow2(mnorm); 
 if(maxpower>=0 && power>maxpower) power=maxpower;
 double scale=std::exp(-std::log(2.)*power);
 
@@ -298,7 +298,7 @@ template<class T, class C, class S>
 void sincos_aux(NRVec<C> &si, NRVec<C> &co, const T &x, int &power,int maxpower, int maxtaylor, const S prescale)
 {
 double mnorm= x.norm() * std::abs(prescale);
-power=nextpow2(mnorm); 
+power=mynextpow2(mnorm); 
 if(maxpower>=0 && power>maxpower) power=maxpower;
 double scale=std::exp(-std::log(2.)*power);
 
