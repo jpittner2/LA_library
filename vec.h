@@ -361,7 +361,7 @@ public:
 	void dealloc(void) {resize(0);}
 
 	//! determine the norm of this vector 
-	inline const typename LA_traits<T>::normtype norm() const;
+	inline const typename LA_traits<T>::normtype norm(int length= -1, int offset=0, int stride=1) const;
 
 	//! normalize this vector and optionally save the norm 
 	NRVec& normalize(typename LA_traits<T>::normtype* norm = 0);
@@ -1701,15 +1701,15 @@ inline const double NRVec<std::complex<double> >::asum() const {
  * @return \f$\sum_{i=1}^N\left|\vec{x}_i\right|^2\f$
  ******************************************************************************/
 template<>
-inline const double  NRVec<double>::norm() const {
+inline const double  NRVec<double>::norm(int length, int offset, int stride) const {
 	double ret(0.);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		ret = cblas_dnrm2(nn, v, 1);
+		ret = cblas_dnrm2((length>=0?length:nn), v+offset, stride);
 #ifdef CUDALA
 	}else{
-		ret = cublasDnrm2(nn, v, 1);
+		ret = cublasDnrm2((length>=0?length:nn), v+offset, stride);
 		TEST_CUBLAS("cublasDnrm2");
 	}
 #endif
@@ -1721,15 +1721,15 @@ inline const double  NRVec<double>::norm() const {
  * @return \f$\sum_{i=1}^N\left|\vec{x}_i\right|^2\f$
  ******************************************************************************/
 template<>
-inline const double NRVec< std::complex<double> >::norm() const {
+inline const double NRVec< std::complex<double> >::norm(int length, int offset, int stride) const {
 	double ret(0.);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		ret = cblas_dznrm2(nn, v, 1);
+		ret = cblas_dznrm2((length>=0?length:nn), v+offset, stride);
 #ifdef CUDALA
 	}else{
-		ret = cublasDznrm2(nn, (cuDoubleComplex*)v, 1);
+		ret = cublasDznrm2((length>=0?length:nn), ((cuDoubleComplex*)v)+offset, stride);
 		TEST_CUBLAS("cublasDzrm2");
 	}
 #endif
