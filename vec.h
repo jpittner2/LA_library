@@ -244,14 +244,18 @@ public:
 	//!concatenate vector into *this 
 	void concatme(const NRVec &rhs) 
 		{
+		NOT_GPU(*this);
 		if(rhs.nn==0) return;
+		int nnold=nn;
 		resize(nn+rhs.nn,true);
-		for(int i=0; i<rhs.nn; ++i) *(this)[nn+i] = rhs[i];
+		for(int i=0; i<rhs.nn; ++i) v[nnold+i] = rhs[i];
 		}
 	void append(const T &a) //not efficient if done repeatedly
 		{
+		NOT_GPU(*this);
+		int nnold=nn;
                 resize(nn+1,true);
-                (*this)[nn] = a;
+                v[nnold] = a;
                 }
 
 	//! determine the actual value of the reference counter 
