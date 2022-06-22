@@ -630,7 +630,6 @@ void diagonalize(NRMat<std::complex<double> > &a, NRVec<double> &w, const bool e
 	FINT LWORK = -1;
 	std::complex<double> WORKX;
 	FINT ldb=0; if(b) ldb=b->ncols();
-std::cout << "test vectors "<<vectors<<std::endl;
 
 	// First call is to determine size of workspace
 	double *RWORK = new double[3*n+2]; 
