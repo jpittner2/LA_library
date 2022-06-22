@@ -51,6 +51,9 @@ public:
 	unsigned int size() const {return (nn*blockbits)-blockbits+(modulo?modulo:blockbits);};
 	//arguments must be unsigned to keep the resulting assembly code simple and efficient
         const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1UL;};
+	bitvector_block getblock(const unsigned int i) const {return v[i];}; //integer interpretation
+	void setblock(const unsigned int i, const bitvector_block b) {v[i]=b;};
+	int getblocksize() const {return 8*sizeof(bitvector_block);};
 	void set(const unsigned int i) {v[i/blockbits] |= (1UL<<(i%blockbits));};
 	void reset(const unsigned int i) {v[i/blockbits] &= ~(1UL<<(i%blockbits));};
 	const bool get(const unsigned int i) {return (v[i/blockbits] >>(i%blockbits))&1UL;};
@@ -79,6 +82,26 @@ public:
 	void read(int fd, bool dimensions=1, bool transp=0);
 	void write(int fd, bool dimensions=1, bool transp=0);
 	};
+
+//expand to separate bytes or ints
+template <typename T>
+void bitvector_expand(const bitvector &v, NRVec<T> &r)
+{
+int n=v.size();
+r.resize(n);
+r.clear();
+for(int i=0; i<n; ++i) if(v[i]) r[i]=1;
+}
+
+template <typename T>
+void bitvector_compress(bitvector &r, const NRVec<T> &v)
+{
+int n=v.size();
+r.resize(n);
+r.clear();
+for(int i=0; i<n; ++i) if(v[i]) r.set(i);
+}
+
 
 extern std::ostream & operator<<(std::ostream &s, const bitvector &x);
 extern std::istream & operator>>(std::istream  &s, bitvector &x);
