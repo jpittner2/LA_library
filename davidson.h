@@ -27,13 +27,13 @@
 namespace LA {
 
 //Davidson diagonalization of real symmetric matrix (modified Lanczos), works also for right eigenvectors on non-symmetric matrix
-//should work for complex hermitian-only too, but was not tested yet (maybe somwhere complex conjugation will have to be added)
 //matrix can be any class which has nrows(), ncols(), diagonalof(), issymmetric(), and gemv() available
 //does not even have to be explicitly stored - direct CI
 //therefore the whole implementation must be a template in a header
 //Note that for efficiency in a direct CI case the diagonalof() should cache its result
 
 
+//@@@should work for complex hermitian-only too, but was not tested yet (maybe somwhere complex conjugation will have to be added)
 //@@@ for large krylov spaces >200 it can occur 'convergence problem in sygv/syev in diagonalize()'
 //@@@options: left eigenvectors by matrix transpose, overridesymmetric (for nrmat)
 //@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
@@ -221,14 +221,15 @@ else
 vec1 *= (1./vnorm);
 for(j=0; j<=krylovsize; ++j)
 	{
-	typename LA_traits<T>::normtype vnorm;
+	typename LA_traits<T>::normtype vnorm2;
         if(!incore) s0->get(vec2,j);
 	do	{
           	T ab = vec1*(incore?v0[j]:vec2) /smallS(j,j);
             	vec1.axpy(-ab,incore?v0[j]:vec2);
-		vnorm = vec1.norm();
-		vec1 *= (1./vnorm);
-		} while (vnorm<0.99);
+		vnorm2 = vec1.norm();
+		if(vnorm2==0) goto converged; //nothing remained after orthogonalization
+		vec1 *= (1./vnorm2);
+		} while (vnorm2<0.99);
 	}
 }
 
