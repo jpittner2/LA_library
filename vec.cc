@@ -887,6 +887,67 @@ for(typename std::list<T>::const_iterator i=l.begin(); i!=l.end(); ++i) (*this)[
 
 
 /***************************************************************************//**
+ * extract block subvector
+ * @param[in] from starting position
+ * @param[in] to final position
+ * @return extracted block subvector
+ ******************************************************************************/
+template <typename T>
+const NRVec<T> NRVec<T>::subvector(const int from, const int to) const 
+{
+#ifdef DEBUG
+	if(from<0 || from>=nn|| to<0 || to>=nn || from>to){
+		laerror("invalid subvector specification");
+	}
+#endif
+	const int n = to - from + 1;
+	NRVec<T> r(n, getlocation());
+	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		memcpy(r.v, v+from, n*sizeof(T));
+#ifdef CUDALA
+	}else{
+		if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem");
+			cublasScopy(n*sizeof(T)/sizeof(float), (const float *)(v+from), 1, (float*)r.v, 1);
+			TEST_CUBLAS("cublasScopy");
+	}
+#endif	
+	return r;
+}
+
+/***************************************************************************//**
+ * places given vector as subvector at given position
+ * @param[in] from coordinate 
+ * @param[in] rhs input vector
+ ******************************************************************************/
+template <typename T>
+void NRVec<T>::storesubvector(const int from, const NRVec &rhs) 
+{
+	const int to = from + rhs.size() - 1;
+#ifdef DEBUG
+	if(from<0 || from>=nn || to>=nn) laerror("bad indices in storesubvector");
+#endif
+	SAME_LOC(*this, rhs);
+	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+
+	#ifdef CUDALA
+		if(location == cpu){
+	#endif
+			memcpy(v+from, rhs.v, rhs.size()*sizeof(T));
+
+	#ifdef CUDALA
+		}else{
+			if(sizeof(T)%sizeof(float) != 0) laerror("cpu memcpy alignment problem");
+			cublasScopy(rhs.size()*sizeof(T)/sizeof(float), (const float *) (rhs.v), 1, (float *)(v + from), 1);
+		}
+	#endif
+}
+
+
+/***************************************************************************//**
  * forced instantization in the corespoding object file
  ******************************************************************************/
 /*

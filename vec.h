@@ -190,6 +190,12 @@ public:
 	//! perform deep-copy of given vector 
 	NRVec& operator|=(const NRVec &rhs);
 
+        //! extract specified subvector
+        const NRVec subvector(const int from, const int to) const;
+
+        //! store given vector at given position into the current vector
+        void storesubvector(const int from, const NRVec &rhs);
+
 	//! relational operators 
 	const bool operator!=(const NRVec &rhs) const 
 		{
