@@ -93,6 +93,24 @@ r.clear();
 for(int i=0; i<n; ++i) if(v[i]) r[i]=1;
 }
 
+//mantissa of a floating number between 0 and 1
+template <typename T>
+bitvector mantissa(const T &x, int nbits)
+{
+if(x<0||x>=1) laerror("number not normalized in bitvector mantissa");
+bitvector b(nbits);
+b.clear();
+T y= x+x;
+for(int i=0; i<nbits; ++i)
+	{
+	int n= (int) y;
+	if(n&1) b.set(i);
+	y += y;
+	}
+return b;
+}
+
+
 template <typename T>
 void bitvector_compress(bitvector &r, const NRVec<T> &v)
 {

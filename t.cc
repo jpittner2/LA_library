@@ -2574,7 +2574,7 @@ cout <<test;
 cout <<"Error = "<<(expitszsz-test).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 NRVec<double> x({1,2,3});
 NRVec<double> y({4,5,6});
@@ -2583,6 +2583,13 @@ x.append(10.);
 cout <<x;
 x.concatme(y);
 cout <<x;
+}
+
+if(1)
+{
+double x;
+cin>>x;
+cout <<mantissa(x,20)<<endl;
 }
 
 }
