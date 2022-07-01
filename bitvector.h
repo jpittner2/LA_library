@@ -110,6 +110,13 @@ for(int i=0; i<nbits; ++i)
 return b;
 }
 
+template <typename T>
+void bitvector_decimal(T &x, const bitvector &b)
+{
+x=0;
+for(int i=0; i<b.size(); ++i) if(b[i]) x += 1./(1ULL<<i);
+}
+
 
 template <typename T>
 void bitvector_compress(bitvector &r, const NRVec<T> &v)
