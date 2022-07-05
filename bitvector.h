@@ -101,10 +101,10 @@ if(x<0||x>=1) laerror("number not normalized in bitvector mantissa");
 bitvector b(nbits);
 b.clear();
 T y= x+x;
-for(int i=0; i<nbits; ++i)
+for(int i=0; i<nbits-1; ++i)
 	{
 	int n= (int) y;
-	if(n&1) b.set(i);
+	if(n&1) b.set(i+1);
 	y += y;
 	}
 return b;

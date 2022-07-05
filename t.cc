@@ -2585,11 +2585,23 @@ x.concatme(y);
 cout <<x;
 }
 
-if(1)
+if(0)
 {
 double x;
 cin>>x;
 cout <<mantissa(x,20)<<endl;
 }
+
+if(1)
+{
+double  t,t2;
+cin>>t;
+bitvector m = mantissa(t,64);
+cout <<m<<std::endl;
+bitvector_decimal(t2,m);
+cout <<t2;
+
+}
+
 
 }
