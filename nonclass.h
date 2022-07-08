@@ -106,18 +106,18 @@ declare_la(std::complex<double>)
 //general nonsymmetric matrix and generalized diagonalization
 //corder =0 ... C rows are eigenvectors, =1 ... C columns are eigenvectors
 extern void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
-		NRMat<double> *vl, NRMat<double> *vr, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
+		NRMat<double> *vl=NULL, NRMat<double> *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
 		NRMat<double> *b=NULL, NRVec<double> *beta=NULL); //this used real storage of eigenvectors like dgeev
 
 template<typename T>
 extern void gdiagonalize(NRMat<T> &a, NRVec< std::complex<double> > &w,
-		 NRMat< std::complex<double> >*vl, NRMat< std::complex<double> > *vr,
+		 NRMat< std::complex<double> >*vl=NULL, NRMat< std::complex<double> > *vr=NULL,
 		 const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
 		NRMat<T> *b=NULL, NRVec<T> *beta=NULL); //eigenvectors are stored in complex matrices for T both double and complex
 
 //for compatibility in davidson
 extern void gdiagonalize(NRMat<std::complex<double> > &a, NRVec<double> &wr, NRVec<double> &wi,
-                NRMat<std::complex<double> > *vl, NRMat<std::complex<double> > *vr, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
+                NRMat<std::complex<double> > *vl=NULL, NRMat<std::complex<double> > *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
                 NRMat<std::complex<double> > *b=NULL, NRVec<std::complex<double> > *beta=NULL);
 
 //complex,real,imaginary parts of various entities
