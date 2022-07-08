@@ -215,7 +215,7 @@ for(i=0; i<n; ++i)
 
 //orthogonalise to previous vectors
 typename LA_traits<T>::normtype vnorm= vec1.norm();
-if(vnorm==0.) laerror("Zero Krylov vector in Davidson - perhaps try different initial guess");
+if(vnorm==0.) goto converged; //Zero Krylov vector - for tiny matrices probably means converged
 else
 {
 vec1 *= (1./vnorm);
