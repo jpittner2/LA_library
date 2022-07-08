@@ -322,7 +322,7 @@ public:
 	//! transpose this matrix and return the result by value
 	const NRMat transpose(bool conj = false) const;
 	//! conjugate this matrix and return the result by value
-	const NRMat conjugate() const;
+	const NRMat conjugate() const {NRMat r(*this); r.conjugateme(); return r;};
 
 	//! extract specified submatrix
         const NRMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const;
@@ -1254,6 +1254,19 @@ NRMat<std::complex<T> > complexify(const NRMat<T> &rhs) {
 	NRMat<std::complex<T> > r(rhs.nrows(), rhs.ncols(), rhs.getlocation());
 	for(register int i=0; i<rhs.nrows(); ++i){ 
 		for(register int j=0; j<rhs.ncols(); ++j) r(i,j) = rhs(i,j);
+	}
+	return r;
+}
+
+//this is general for any type, complexmatrix() uses blas for doubles
+template<typename T>
+NRMat<std::complex<T> > complexify(const NRMat<T> &rhsr, const NRMat<T> &rhsi) {
+	NOT_GPU(rhsr);
+	NOT_GPU(rhsi);
+	if(rhsr.nrows()!=rhsi.nrows() || rhsr.ncols()!=rhsi.ncols()) laerror("inconsistent dimensions in complexify");
+	NRMat<std::complex<T> > r(rhsr.nrows(), rhsr.ncols(), rhsr.getlocation());
+	for(register int i=0; i<rhsr.nrows(); ++i){ 
+		for(register int j=0; j<rhsr.ncols(); ++j) r(i,j) = std::complex<T>(rhsr(i,j),rhsi(i,j));
 	}
 	return r;
 }
