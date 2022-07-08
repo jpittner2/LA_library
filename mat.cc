@@ -2013,11 +2013,11 @@ NRMat< std::complex<double> >::operator*(const NRSMat< std::complex<double> > &r
 
 
 /***************************************************************************//**
- * conjugate this real matrix \f$A\f$, i.e. do nothing :-)
+ * conjugate this non-complex matrix \f$A\f$, i.e. do nothing :-)
  * @return reference to the (unmodified) matrix
  ******************************************************************************/
-template<>
-NRMat<double>& NRMat<double>::conjugateme() {
+template<typename T>
+NRMat<T>& NRMat<T>::conjugateme() {
 	return *this;
 }
 
@@ -2039,6 +2039,22 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::conjugateme() {
 #endif
 	return *this;
 }
+
+template<>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::conjugateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_sscal((size_t)mm*nn, -1.0, (float *)((*this)[0]) + 1, 2);
+#ifdef CUDALA
+        }else{
+                cublasSscal((size_t)mm*nn, -1.0, (float *)(this->v) + 1, 2);
+        }
+#endif
+        return *this;
+}
+
 
 /***************************************************************************//**
  * compute transpose (optionally conjugated) of this real matrix \f$A\f$
