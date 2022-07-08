@@ -215,7 +215,12 @@ for(i=0; i<n; ++i)
 
 //orthogonalise to previous vectors
 typename LA_traits<T>::normtype vnorm= vec1.norm();
-if(vnorm==0.) goto converged; //Zero Krylov vector - for tiny matrices probably means converged
+if(vnorm==0.) 
+	{
+	std::cout<<"Davidson: warning: zero Krylov vector encountered\n";
+	std::cout.flush();
+	goto converged; //Zero Krylov vector - for tiny matrices probably means converged
+	}
 else
 {
 vec1 *= (1./vnorm);
@@ -227,7 +232,12 @@ for(j=0; j<=krylovsize; ++j)
           	T ab = vec1*(incore?v0[j]:vec2) /smallS(j,j);
             	vec1.axpy(-ab,incore?v0[j]:vec2);
 		vnorm2 = vec1.norm();
-		if(vnorm2==0) goto converged; //nothing remained after orthogonalization
+		if(vnorm2==0) 
+			{
+			std::cout<<"Davidson: warning: zero residual in orthogonalization\n";
+        		std::cout.flush();
+			goto converged; //nothing remained after orthogonalization
+			}
 		vec1 *= (1./vnorm2);
 		} while (vnorm2<0.99);
 	}
