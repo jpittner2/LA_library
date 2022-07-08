@@ -30,8 +30,31 @@
 #include <complex>
 #include <math.h>
 
-namespace LA_Quaternion {
 
+
+#ifndef AVOID_LA
+#include "la.h"
+#endif
+
+
+
+#ifndef AVOID_LA
+namespace LA_Quaternion {
+template <typename T>
+class Quaternion; //forward declaration
+}
+
+template <typename T>
+class LA::LA_traits<LA_Quaternion::Quaternion<T> > {
+public:
+        static bool is_plaindata() {return true;};
+        static void copyonwrite(LA_Quaternion::Quaternion<T>& x) {};
+        typedef T normtype;
+};
+#endif
+
+
+namespace LA_Quaternion {
 template <typename T>
 class Quaternion 
 	{
