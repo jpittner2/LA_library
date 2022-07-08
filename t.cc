@@ -2592,15 +2592,140 @@ cin>>x;
 cout <<mantissa(x,20)<<endl;
 }
 
-if(1)
+if(0)
 {
 double  t,t2;
-cin>>t;
-bitvector m = mantissa(t,64);
+int s;
+cin>>t>>s;
+bitvector m = mantissa(t,64,s);
 cout <<m<<std::endl;
-bitvector_decimal(t2,m);
-cout <<t2;
+bitvector_decimal(t2,m,-s);
+cout <<t2<<endl;
+}
 
+if(0)
+{
+int n;
+cin >>n;
+NRMat<std::complex<double> > a(n,n);
+a.randomize(1);
+NRMat<std::complex<double> > ah=a.transpose(true);
+NRMat<std::complex<double> > b=a-ah;
+//general non-symmetric unitary matrix
+NRMat<std::complex<double> > u=exp(b);
+NRMat<std::complex<double> > bsym(b),banti(b);
+bsym.copyonwrite();
+banti.copyonwrite();
+for(int i=0; i<n; ++i) for(int j=0; j<n; ++j)
+	{
+	bsym(i,j).real(0);
+	banti(i,j).imag(0);
+	}
+NRMat<std::complex<double> > usym=exp(bsym);
+NRMat<std::complex<double> > uanti=exp(banti);
+cout <<b<<u;
+cout<<bsym<<usym;
+//usym is unitary symmetric complex
+cout<<banti<<uanti;
+//uanti is unitary real
+NRMat<std::complex<double> > uh=u.transpose(true);
+NRMat<std::complex<double> > usymh=usym.transpose(true);
+NRMat<std::complex<double> > uantih=uanti.transpose(true);
+cout <<"error of unitarity of u*uh = "<<(u*uh).norm(1.)<<endl;
+cout <<"error of unitarity of usym*usymh = "<<(usym*usymh).norm(1.)<<endl;
+cout <<"error of unitarity of uanti*uantih = "<<(uanti*uantih).norm(1.)<<endl;
+cout <<"expected nonzero norm of commutator of sym and anti parts = "<<commutator(bsym,banti).norm()<<endl;
+cout <<"expected nonzero norm of difference between u and usym*uanti = "<<(u-usym*uanti).norm()<<endl;
+NRSMat<double> hs(n);
+hs.randomize(1);
+NRMat<double> h(hs);
+NRMat<std::complex<double> > ih=imagmatrix(h);
+NRMat<std::complex<double> > c=commutator(bsym,ih);
+//cout <<"commutator of two sym parts = "<<c<<endl; //is antisymmetric
+NRMat<std::complex<double> > uc=exp(c);
+NRMat<std::complex<double> > usym2=exp(ih);
+cout <<"error of unitarity of uc = "<<(uc*uc.transpose(true)).norm(1.)<<endl;
+cout <<"error of unitarity of usym2 = "<<(usym2*usym2.transpose(true)).norm(1.)<<endl;
+NRMat<std::complex<double> > up = exp(bsym+ih);
+cout <<"error of unitarity of up = "<<(up*up.transpose(true)).norm(1.)<<endl;
+cout <<"expected nonzero norm of difference between up and usym*usym2 = "<<(up-usym*usym2).norm()<<endl;
+NRMat<std::complex<double> > ubch1 = exp(bsym+ih+c*0.5);
+cout <<"error of unitarity of ubch1 = "<<(ubch1*ubch1.transpose(true)).norm(1.)<<endl;
+cout <<"expected nonzero norm of difference between ubch1 and usym*usym2 = "<<(ubch1-usym*usym2).norm()<<endl;
+}
+
+if(0)
+{
+int n;
+cin >>n;
+NRSMat<double> hs(n);
+hs.randomize(1);
+NRMat<double> h(hs);
+//since H is real, the unitary U will be symmetric and its complex conjugation thus equal to hermitian conjugation
+NRMat<std::complex<double> > ih=imagmatrix(h);
+NRMat<std::complex<double> > u=expi(h);
+NRMat<std::complex<double> > uh = u.transpose(true);
+NRMat<std::complex<double> > uc = u.conjugate();
+NRMat<std::complex<double> > ut = u.transpose(false);
+cout <<"error of symmetry of exp(iH) = "<<(u-ut).norm()<<endl;
+NRMat<std::complex<double> > uct = uc.transpose(false);
+cout <<"error of uct - uh = "<<(uct-uh).norm()<<endl;
+//cout <<u << uc<<uh;
+cout <<"nonunitarity of u*uh = "<<(u*uh).norm(1.)<<endl;
+cout <<"nonunitarity of u*uc = "<<(u*uc).norm(1.)<<endl;
+NRMat<std::complex<double> > uu=exp(ih);
+NRMat<std::complex<double> > uuh = uu.transpose(true);
+cout <<"nonunitarity of uu = "<<(uu*uuh).norm(1.)<<endl;
+cout <<"error of complex exponential = "<<(u-uu).norm()<<endl;
+NRMat<double> d(h);
+NRVec<double> e(n);
+diagonalize(d,e);
+
+//now try similarity transformed H
+NRMat<double> a(n,n);
+a.randomize(1);
+NRMat<double> ainv = inverse(a);
+NRMat<double> atr = a.transpose();
+NRMat<double> ainvtr = ainv.transpose();
+cout <<"error of inverse = "<<(a*ainv).norm(1.)<<endl;
+NRMat<double> hbar = ainv * h * a;
+NRVec<double> er(n),ei(n);
+NRMat<double> hwork(hbar);
+gdiagonalize(hwork,er,ei);
+er.sort();
+cout <<"errors of isospectral eigenvalues = "<<(er-e).norm()<<" "<<ei.norm()<<endl;
+NRMat<std::complex<double> > uubar=expi(hbar);
+NRMat<std::complex<double> > ubar = NRMat<std::complex<double> >(ainv) * u * NRMat<std::complex<double> >(a);
+cout <<"error of similarity transformed exponential = "<<(ubar-uubar).norm()<<endl;
+NRMat<std::complex<double> > ubarh = ubar.transpose(true);
+NRMat<std::complex<double> > ubarh2 =  NRMat<std::complex<double> >(atr) * u.transpose(true) * NRMat<std::complex<double> >(ainvtr);
+cout <<"error of ubar hermit conjugation = "<<(ubarh-ubarh2).norm()<<endl;
+NRMat<std::complex<double> > uubarh = uubar.transpose(true);
+//cout <<"H = "<<h;
+//cout <<"Hbar = "<<hbar;
+//cout <<"U = "<<u;
+//cout <<"Ubar = "<<ubar;
+NRMat<std::complex<double> > ubartest2=ubar*ubarh;
+cout <<"expected nonunitarity of ubar = "<<ubartest2.norm(1.)<<endl;
+NRMat<std::complex<double> > uubartest=uubarh*uubar;
+cout <<"expected nonunitarity of uubar = "<<uubartest.norm(1.)<<endl;
+NRMat<std::complex<double> > uubartest2 = NRMat<std::complex<double> >(atr) * u.transpose(true) * NRMat<std::complex<double> >(ainvtr * ainv) * u * NRMat<std::complex<double> >(a);
+cout <<"expected nonunitarity of explicit uubar = "<<uubartest2.norm(1.)<<endl;
+//pseudounitarity
+NRMat<std::complex<double> > ubarc = ubar.conjugate();
+NRMat<std::complex<double> > ubarc2 =  NRMat<std::complex<double> >(ainv) * u.conjugate() * NRMat<std::complex<double> >(a);
+cout <<"error of ubar complex conjugation = "<<(ubarc-ubarc2).norm()<<endl;
+NRMat<std::complex<double> > uubarc = uubar.conjugate();
+NRMat<std::complex<double> > ubartest2c=ubar*ubarc;
+cout <<"nonpseudounitarity of ubar = "<<ubartest2c.norm(1.)<<endl;
+NRMat<std::complex<double> > uubartestc=uubarc*uubar;
+cout <<"nonpseudounitarity of uubar = "<<uubartestc.norm(1.)<<endl;
+NRMat<std::complex<double> > uubartest2c = NRMat<std::complex<double> >(ainv) * u.conjugate() * NRMat<std::complex<double> >(a * ainv) * u * NRMat<std::complex<double> >(a);
+cout <<"nonpseudounitarity of explicit uubar = "<<uubartest2c.norm(1.)<<endl;
+}
+
+if(1)
+{
 }
 
 
