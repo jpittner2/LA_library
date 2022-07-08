@@ -379,6 +379,15 @@ for(int i=0; i<power; i++)
 	}
 }
 
+//exp(iA)
+template<class T>
+NRMat<std::complex<T> > expi(const NRMat<T> &x)
+{
+NRMat<T> r,i;
+sincos(i,r,x);
+return complexify(r,i);
+}
+
 
 
 //this simple implementation seems not to be numerically stable enough
