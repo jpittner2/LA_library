@@ -95,8 +95,10 @@ for(int i=0; i<n; ++i) if(v[i]) r[i]=1;
 
 //mantissa of a floating number between 0 and 1
 template <typename T>
-bitvector mantissa(const T &x, int nbits)
+bitvector mantissa(T x, int nbits, int shift=0)
 {
+while(shift >0) {x+=x; --shift;}
+while(shift <0) {x*=.5; ++shift;}
 if(x<0||x>=1) laerror("number not normalized in bitvector mantissa");
 bitvector b(nbits);
 b.clear();
@@ -111,10 +113,12 @@ return b;
 }
 
 template <typename T>
-void bitvector_decimal(T &x, const bitvector &b)
+void bitvector_decimal(T &x, const bitvector &b, int shift=0) 
 {
 x=0;
-for(int i=0; i<b.size(); ++i) if(b[i]) x += 1./(1ULL<<i);
+for(int i=b.size()-1; i>=0; --i) if(b[i]) x += 1./(1ULL<<i);
+while(shift >0) {x+=x; --shift;}
+while(shift <0) {x*=.5; ++shift;}
 }
 
 
