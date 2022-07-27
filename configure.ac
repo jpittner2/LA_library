@@ -141,6 +141,15 @@ AC_ARG_ENABLE([debug],[  --disable-debug   not to perform some range-checking [[
  ,)
 AC_SUBST([DEBUGOPT])
 
+PROFILEOPT=""
+AC_ARG_ENABLE([profile],[  --enable-profile  to perform performance profiling [[default=no]]],
+    [case "${enableval}" in
+     yes) PROFILEOPT="-pg";;
+     no)  ;;
+     *) AC_MSG_ERROR([bad value ${enableval} for --enable-profile]) ;;
+     esac],
+ ,)
+AC_SUBST([PROFILEOPT])
 
 
 
