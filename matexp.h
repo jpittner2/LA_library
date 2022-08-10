@@ -339,7 +339,7 @@ const T exp(const T &x, bool horner=true, int maxpower= -1, int maxtaylor= -1 )
 int power;
 
 //prepare the polynom of and effectively scale T
-NRVec<typename LA_traits<T>::normtype> taylor2=exp_aux<T,typename LA_traits<T>::normtype,double>(x,power,maxpower,maxtaylor,1.);
+NRVec<typename LA_traits<T>::elementtype> taylor2=exp_aux<T,typename LA_traits<T>::elementtype,double>(x,power,maxpower,maxtaylor,1.);
 
 //std::cerr <<"TEST power "<<power<<std::endl;
 
