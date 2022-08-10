@@ -256,6 +256,15 @@ public:
 		resize(nn+rhs.nn,true);
 		for(int i=0; i<rhs.nn; ++i) v[nnold+i] = rhs[i];
 		}
+	void concatmescaled(const NRVec &rhs, const T alpha=1)
+		{
+                NOT_GPU(*this);
+                if(rhs.nn==0) return;
+                int nnold=nn;
+                resize(nn+rhs.nn,true);
+                for(int i=0; i<rhs.nn; ++i) v[nnold+i] = rhs[i]*alpha;
+                }
+
 	void append(const T &a) //not efficient if done repeatedly
 		{
 		NOT_GPU(*this);
