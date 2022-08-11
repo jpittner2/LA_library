@@ -1317,6 +1317,29 @@ for(int i=0; i<w.size(); ++i)
 	}
 }
 
+template<>
+const SparseMat<double> realpart<SparseMat< std::complex<double> > >(const SparseMat< std::complex<double> > &a)
+{
+SparseMat<double> result(a.nrows(), a.ncols());
+for(SparseMat< std::complex<double> >::iterator p=a.begin(); p!=a.end(); ++p)
+	{
+	result.add(p->row,p->col,p->elem.real());
+	}
+if(a.issymmetric()) result.setsymmetric();
+return result;
+}
+
+template<>
+const SparseMat<double> imagpart<SparseMat< std::complex<double> > >(const SparseMat< std::complex<double> > &a)
+{
+SparseMat<double> result(a.nrows(), a.ncols());
+for(SparseMat< std::complex<double> >::iterator p=a.begin(); p!=a.end(); ++p)
+	{
+	result.add(p->row,p->col,p->elem.imag());
+	}
+if(a.issymmetric()) result.setsymmetric();
+return result;
+}
 
 template<>
 const NRMat<double> realpart<NRMat< std::complex<double> > >(const NRMat< std::complex<double> > &a)
