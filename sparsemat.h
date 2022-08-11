@@ -23,7 +23,7 @@ namespace LA {
 
 //threshold for neglecting elements, if not defined, no tests are done except exact zero test in simplify - might be even faster
 //seems to perform better with a threshold, in spite of abs() tests
-const double SPARSEEPSILON=1e-35;
+const double SPARSEEPSILON=1e-15;
 
 typedef unsigned int SPMatindex;
 typedef int SPMatindexdiff; //more clear would be to use traits
@@ -140,7 +140,7 @@ public:
 	unsigned int length() const;
 	void copyonwrite(bool detachonly=false);
 	void clear() {copyonwrite(LA_traits<T>::is_plaindata()); if(count) {delete count; count=NULL;}}
-	void simplify();
+	void simplify(const double sparseepsilon=SPARSEEPSILON);
 	const T trace() const;
 	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first
 	unsigned int sort(int type) const;

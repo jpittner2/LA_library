@@ -315,7 +315,7 @@ return nonzero; //number of (in principle) nonzero elements
 
 
 template <class T>
-void SparseMat<T>::simplify()
+void SparseMat<T>::simplify(const double sparseepsilon)
 {
 unsigned int n;
 if(!list) return;
@@ -352,7 +352,7 @@ for(i=1; i<n;i++)
 
 //check if  summed to zero
 for(i=0; i<n;i++) if(rowsorted[i] &&
-	std::abs(rowsorted[i]->elem)<=SPARSEEPSILON
+	std::abs(rowsorted[i]->elem)<=sparseepsilon
 	)	 {delete rowsorted[i]; rowsorted[i]=NULL;}
 
 //restore connectivity
