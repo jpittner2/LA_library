@@ -980,10 +980,6 @@ template<> void NRVec<T>::gemv(const  LA_traits_complex<T>::Component_type beta,
 template<> NRVec<T> & NRVec<T>::normalize(LA_traits<T>::normtype *) {laerror("normalize() impossible for integer types"); return *this;} \
 template<> const NRMat<T> NRVec<T>::otimes(const NRVec<T> &b,const bool conj, const T &scale) const {laerror("otimes presently implemented only for double and complex double"); return NRMat<T> ();}
 
-// Roman
-// following gemv are not implemented
-template<> void NRVec<double>::gemv(const double beta, const SparseMat<double> &a, const char trans,  const double alpha, const NRVec<double> &x, bool s) { laerror("gemv on unsupported types"); } 
-template<> void NRVec< std::complex<double> >::gemv(const std::complex<double> beta, const SparseMat< std::complex<double> > &a, const char trans,  const std::complex<double> alpha, const NRVec< std::complex<double> > &x, bool s) { laerror("gemv on unsupported types"); } 
 
 
 INSTANTIZE_DUMMY(char)
