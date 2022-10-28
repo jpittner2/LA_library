@@ -240,5 +240,31 @@ template <typename T>
 extern std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &c);
 
 
+template<typename T>
+const NRVec<T> NRVec<T>::permuted(const NRPerm<int> &p, const bool inverse) const
+{
+#ifdef DEBUG
+if(!p.is_valid()) laerror("invalid permutation of vector");
+#endif
+int n=p.size();
+if(n!=(*this).size()) laerror("incompatible permutation and vector");
+#ifdef CUDALA
+        if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
+#endif
+NRVec<T> r(n);
+if(inverse) for(int i=1; i<=n; ++i) r[i-1] = v[p[i]-1];
+else for(int i=1; i<=n; ++i) r[p[i]-1] = v[i-1];
+return r;
+}
+
+template<typename T> 
+void NRVec<T>::permuteme(const NRPerm<int> &p, bool inverse)
+{
+NRVec<T> tmp=permuted(p,inverse);
+for(int i=0; i<size(); ++i) v[i] = tmp.v[i];
+}
+
+
+
 }//namespace
 #endif
