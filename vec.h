@@ -347,6 +347,7 @@ public:
 	//! permute vector elements
 	const NRVec permuted(const NRPerm<int> &p, const bool inverse=false) const;
 	void permuteme(const CyclePerm<int> &p); //in place
+	void permuteme(const NRPerm<int> &p, const bool inverse=false); //formally in place, but allocates a copy
 
 	//! compute the sum of the absolute values of the elements of this vector 
 	inline const typename LA_traits<T>::normtype asum() const;

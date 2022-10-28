@@ -841,6 +841,12 @@ else for(int i=1; i<=n; ++i) r[p[i]-1] = v[i-1];
 return r;
 }
 
+template<typename T> 
+void NRVec<T>::permuteme(const NRPerm<int> &p, bool inverse)
+{
+NRVec<T> tmp=permuted(p,inverse);
+for(int i=0; i<size(); ++i) v[i] = tmp.v[i];
+}
 
 template<typename T>
 void NRVec<T>::permuteme(const CyclePerm<int> &p)
