@@ -48,6 +48,46 @@ Vec3<T>& Vec3<T>::fast_normalize(void) {normalize(); return *this;};
 
 
 template<typename T>
+Mat3<T> Vec3<T>::outer(const Vec3<T> &rhs) const
+{
+Mat3<T> m;
+m[0][0]=q[0]*rhs.q[0];
+m[0][1]=q[0]*rhs.q[1];
+m[0][2]=q[0]*rhs.q[2];
+
+m[1][0]=q[1]*rhs.q[0];
+m[1][1]=q[1]*rhs.q[1];
+m[1][2]=q[1]*rhs.q[2];
+
+m[2][0]=q[2]*rhs.q[0];
+m[2][1]=q[2]*rhs.q[1];
+m[2][2]=q[2]*rhs.q[2];
+
+return m;
+}
+
+
+template<typename T>
+void Vec3<T>::inertia(Mat3<T> &m, const T weight) const
+{
+T r2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
+
+m[0][0] -= weight*(q[0]*q[0]-r2);
+m[0][1] -= weight*q[0]*q[1];
+m[0][2] -= weight*q[0]*q[2];
+
+m[1][0] -= weight*q[1]*q[0];
+m[1][1] -= weight*(q[1]*q[1]-r2);
+m[1][2] -= weight*q[1]*q[2];
+
+m[2][0] -= weight*q[2]*q[0];
+m[2][1] -= weight*q[2]*q[1];
+m[2][2] -= weight*(q[2]*q[2]-r2);
+}
+
+
+
+template<typename T>
 const Vec3<T> Vec3<T>::operator*(const Mat3<T> &rhs) const
                 {
                 Vec3<T> r;

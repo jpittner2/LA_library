@@ -86,12 +86,19 @@ public:
 	Vec3& normalize(void) {*this /= norm(); return *this;};
 	Vec3& fast_normalize(void);
 	const Vec3 operator*(const Mat3<T> &rhs) const;
+	Mat3<T> outer(const Vec3 &rhs) const; //tensor product
+	void inertia(Mat3<T> &itensor, const T weight) const; //contribution to inertia tensor
+
 	//C-style IO
 	int fprintf(FILE *f, const char *format) const {return ::fprintf(f,format,q[0],q[1],q[2]);};
         int sprintf(char *f, const char *format) const {return ::sprintf(f,format,q[0],q[1],q[2]);};
 	int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0],q[1],q[2]);};
         int sscanf(char *f, const char *format) const {return ::sscanf(f,format,q[0],q[1],q[2]);};
 };
+
+
+template <typename T>
+inline T  hypot3(const Vec3<T> &c, const Vec3<T> &d) {return((c-d).norm());}
 
 
 template <typename T>
