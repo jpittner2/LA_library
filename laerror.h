@@ -33,7 +33,7 @@ extern  bool _LA_count_check; //intentionally not const
 
 
 //exception class for laerror
-class LAerror
+class LAerror : public std::exception
 	{
 	public:
 	const char *msg;

@@ -2726,6 +2726,7 @@ cout <<"nonpseudounitarity of explicit uubar = "<<uubartest2c.norm(1.)<<endl;
 
 if(1)
 {
+laerror("test exception");
 }
 
 
