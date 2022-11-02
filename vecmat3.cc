@@ -563,6 +563,10 @@ q[2][1]=q[1][2]=tmp;
 
 //numeric_limits not available on some crosscompilers for small MCUs
 #ifdef QUAT_NO_DOUBLE
+#define NO_NUMERIC_LIMITS
+#endif
+
+#ifdef NO_NUMERIC_LIMITS
 #define DBL_EPSILON 1.19209290e-07f
 #else
 #define  DBL_EPSILON std::numeric_limits<T>::epsilon()
