@@ -1389,7 +1389,9 @@ template class SparseMat<std::complex<double> >;
 #define INSTANTIZE(T) \
 template NRMat<T>::NRMat(const SparseMat<T> &rhs); \
 template NRSMat<T>::NRSMat(const SparseMat<T> &rhs); \
-template NRVec<T>::NRVec(const SparseMat<T> &rhs);
+template NRVec<T>::NRVec(const SparseMat<T> &rhs); \
+template void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x, const bool treat_as_symmetric); \
+
 
 INSTANTIZE(double)
 INSTANTIZE(std::complex<double>)
