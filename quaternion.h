@@ -124,6 +124,7 @@ public:
 	void axis2normquat(const T *axis, const T &angle);
 	void normquat2axis(T *axis,  T &angle) const;
 	
+	void random_rotation(); //generate uniformly random unit quaternion
 
 	//C-style IO
 	int fprintf(FILE *f, const char *format) const {return ::fprintf(f,format,q[0],q[1],q[2],q[3]);};

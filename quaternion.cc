@@ -408,6 +408,33 @@ r *= ::pow(xnorm,y);
 return r;
 }
 
+
+#ifndef QUAT_NO_RANDOM
+//method to efficiently generate a uniformly random point on a unit 4-sphere by G. Marsaglia, Ann. Math. Stat. 43, 645 (1972)
+template<typename T>
+void Quaternion<T>::random_rotation()
+{
+T  s1,s2,s;
+do
+	{
+	q[0]=2.*random()/(1. + RAND_MAX) - 1.;
+	q[1]=2.*random()/(1. + RAND_MAX) - 1.;
+	s1 = q[0]*q[0] + q[1]*q[1];
+	}
+	while(s1>1);
+do
+        {
+        q[2]=2.*random()/(1. + RAND_MAX) - 1.;
+        q[3]=2.*random()/(1. + RAND_MAX) - 1.;
+        s2 = q[2]*q[2] + q[3]*q[3];
+        }
+        while(s2>1);
+s = sqrt((1-s1)/s2);
+q[2] *= s;
+q[3] *= s;
+}
+#endif
+
 //force instantization
 #define INSTANTIZE(T) \
 template class Quaternion<T>; \
