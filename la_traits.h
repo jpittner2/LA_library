@@ -196,6 +196,7 @@ class isscalar<std::complex<std::complex<X> > > {public: typedef scalar_true sca
 
 
 //declare what is scalar
+SCALAR(bool)
 SCALAR(char)
 SCALAR(short)
 SCALAR(int)
