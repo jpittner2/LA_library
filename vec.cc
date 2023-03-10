@@ -53,62 +53,6 @@ NRVec<T>::NRVec(const NRMat<T> &rhs) {
 #endif
 
 /***************************************************************************//**
- * routine for raw output
- * @param[in] fd file descriptor for output
- * @param[in] dim number of elements intended for output
- * @param[in] transp reserved
- * @see NRMat<T>::put()
- ******************************************************************************/
-template <typename T>
-void NRVec<T>::put(int fd, bool dim, bool transp) const {
-#ifdef CUDALA
-	if(location != cpu){
-		NRVec<T> tmp = *this;
-		tmp.moveto(cpu);
-		tmp.put(fd,dim,transp);
-		return;
-	}
-#endif
-	errno = 0;
-	int pad(1); //align at least 8-byte
-	if(dim){
-		if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("write failed");
-		if(sizeof(int) != write(fd,&pad,sizeof(int))) laerror("write failed");
-	}
-	LA_traits<T>::multiput(nn,fd,v,dim);
-}
-
-/***************************************************************************//**
- * routine for raw input 
- * @param[in] fd file descriptor for input
- * @param[in] dim number of elements intended for input, for dim=0 perform copyonwrite
- * @param[in] transp reserved
- * @see NRMat<T>::get(), copyonwrite()
- ******************************************************************************/
-template <typename T>
-void NRVec<T>::get(int fd, bool dim, bool transp) {
-#ifdef CUDALA
-	if(location != cpu){
-		NRVec<T> tmp;
-		tmp.moveto(cpu);
-		tmp.get(fd,dim,transp);
-		tmp.moveto(location);
-		*this = tmp;
-		return;
-	}
-#endif
-	int nn0[2]; //align at least 8-byte
-	errno = 0;
-	if(dim){
-		if(2*sizeof(int) != read(fd,&nn0,2*sizeof(int))) laerror("read failed");
-		resize(nn0[0]);
-	}else{
-		copyonwrite();
-	}
-	LA_traits<T>::multiget(nn,fd,v,dim);
-}
-
-/***************************************************************************//**
  * routine for formatted output via lawritemat
  * @param[in] file pointer to <tt>FILE</tt> structure representing the output file
  * @param[in] format format specification in standard printf-like form
