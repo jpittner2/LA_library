@@ -273,6 +273,15 @@ public:
                 v[nnold] = a;
                 }
 
+	void prepend(const T &a) //not efficient if done repeatedly
+                {
+		NOT_GPU(*this); 
+                int nnold=nn;
+                resize(nn+1,true,true);
+                v[0] = a;
+                }
+
+
 	//! determine the actual value of the reference counter 
 	inline int getcount() const {return count?*count:0;}
 
@@ -375,7 +384,7 @@ public:
 	inline int size() const;
 
 	//! resize the current vector, optionally preserving data
-	void resize(const int n, const bool preserve=false);
+	void resize(const int n, const bool preserve=false, const bool preserve_at_end=false);
 
 	//!deallocate the current vector
 	void dealloc(void) {resize(0);}
@@ -1158,7 +1167,7 @@ NRVec<T> & NRVec<T>::operator=(const NRVec<T> &rhs) {
  * @param[in] n requested size
  ******************************************************************************/
 template <typename T>
-void NRVec<T>::resize(const int n, const bool preserve) 
+void NRVec<T>::resize(const int n, const bool preserve, const bool preserve_at_end) 
 {
 #ifdef DEBUG
 	if(n < 0) laerror("illegal dimension in NRVec::resize");
@@ -1254,18 +1263,36 @@ if(nn<nnmin) nnmin=nn;
 if(location == cpu)
         {
 #endif       
-	for(int i=0; i<nnmin; ++i) v[i]=vold[i]; //preserve even non-plain data classes
-	if(nn>nnold) memset(v+nnold,0,(nn-nnold)*sizeof(T)); //just zero the new memory
+	if(preserve_at_end)
+		{
+		for(int i=0; i<nnmin; ++i) v[nn-i-1]=vold[nnold-i-1]; //preserve even non-plain data classes
+                if(nn>nnold) memset(v,0,(nn-nnold)*sizeof(T)); //just zero the new memory
+		}
+	else
+		{
+		for(int i=0; i<nnmin; ++i) v[i]=vold[i]; //preserve even non-plain data classes
+		if(nn>nnold) memset(v+nnold,0,(nn-nnold)*sizeof(T)); //just zero the new memory
+		}
 	if(do_delete) delete[] vold;
 #ifdef CUDALA
         }
 else
         {
 	//!!!works only with plain data
-	cublasSetVector(nnmin, sizeof(T), vold, 1, v, 1);
-	TEST_CUBLAS("cublasSetVector"); 
-	T a(0);
-	if(nn>nnold) smart_gpu_set(nn-nnold, a, v+nnold);
+	if(preserve_at_end)
+                {
+		cublasSetVector(nnmin, sizeof(T), vold+nnold-nnmin, 1, v+nn-nnmin, 1);
+                TEST_CUBLAS("cublasSetVector");
+                T a(0);
+                if(nn>nnold) smart_gpu_set(nn-nnold, a, v);
+		}
+	else
+		{
+		cublasSetVector(nnmin, sizeof(T), vold, 1, v, 1);
+		TEST_CUBLAS("cublasSetVector"); 
+		T a(0);
+		if(nn>nnold) smart_gpu_set(nn-nnold, a, v+nnold);
+		}
 	if(do_delete) gpufree(vold);
         }
 #endif

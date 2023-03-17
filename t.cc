@@ -2574,12 +2574,13 @@ cout <<test;
 cout <<"Error = "<<(expitszsz-test).norm()<<endl;
 }
 
-if(0)
+if(1)
 {
 NRVec<double> x({1,2,3});
 NRVec<double> y({4,5,6});
 //cout <<x.concat(y);
 x.append(10.);
+x.prepend(11.);
 cout <<x;
 x.concatme(y);
 cout <<x;
@@ -2724,7 +2725,7 @@ NRMat<std::complex<double> > uubartest2c = NRMat<std::complex<double> >(ainv) * 
 cout <<"nonpseudounitarity of explicit uubar = "<<uubartest2c.norm(1.)<<endl;
 }
 
-if(1)
+if(0)
 {
 laerror("test exception");
 }
