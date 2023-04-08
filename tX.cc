@@ -143,13 +143,13 @@ public:
 
 
 
-void plotobject(Display* display, Pixmap pixmap, GC gc, int width,int height, const NRVec<LINE> &lines, const Mat3<double> &camera_angle, const Vec3<double> &camera, const Vec3<double> &plane_to_camera, double xod,double xdo,double yod,double ydo)
+void plotobject(Display* display, Pixmap pixmap, GC gc, int width,int height, const NRVec<LINE> &lines, const Mat3<double> &rot_angle, const Vec3<double> &camera, const Vec3<double> &plane_to_camera, double xod,double xdo,double yod,double ydo)
 {
 for(int i=0; i<lines.size(); ++i)
 	{
 	double xy0[2],xy1[2];
-	perspective(&xy0[0], lines[i].point0, camera_angle, camera, plane_to_camera);
-	perspective(&xy1[0], lines[i].point1, camera_angle, camera, plane_to_camera);
+	perspective(&xy0[0], lines[i].point0, rot_angle, camera, plane_to_camera);
+	perspective(&xy1[0], lines[i].point1, rot_angle, camera, plane_to_camera);
 	int x0,x1,y0,y1;
         x0=width*(xy0[0]-xod)/(xdo-xod);
         x1=width*(xy1[0]-xod)/(xdo-xod);
@@ -251,30 +251,32 @@ xod = -100; xdo=100;
 yod = -100; xdo=100;
 
 LINE lines0[]= {
-{{0,0,0},{0,0,5}},
-{{0,5,5},{0,0,5}},
-{{0,5,5},{0,5,0}},
-{{0,5,0},{0,0,0}},
-{{5,0,0},{5,0,5}},
-{{5,5,5},{5,0,5}},
-{{5,5,5},{5,5,0}},
-{{5,5,0},{5,0,0}},
-{{0,0,0},{5,0,0}},
-{{0,0,5},{5,0,5}},
-{{0,5,0},{5,5,0}},
-{{0,5,5},{5,5,5}},
+{{-5,-5,-5},{-5,-5,5}},
+{{-5,5,5},{-5,-5,5}},
+{{-5,5,5},{-5,5,-5}},
+{{-5,5,-5},{-5,-5,-5}},
+{{5,-5,-5},{5,-5,5}},
+{{5,5,5},{5,-5,5}},
+{{5,5,5},{5,5,-5}},
+{{5,5,-5},{5,-5,-5}},
+{{-5,-5,-5},{5,-5,-5}},
+{{-5,-5,5},{5,-5,5}},
+{{-5,5,-5},{5,5,-5}},
+{{-5,5,5},{5,5,5}},
 };
 NRVec<LINE> lines(lines0);
 
-Mat3<double> camera_angle;
+Mat3<double> rot_angle;
 double eul[3]={40.*M_PI/180.,40.*M_PI/180.,10.*M_PI/180.};
-euler2rotmat(eul,camera_angle,"xyz");
-Vec3<double> camera={50,30,40};
+euler2rotmat(eul,rot_angle,"zyz");
+double zoom=1;
+rot_angle *= zoom;
+Vec3<double> camera={50,60,40};
 Vec3<double> plane_to_camera={-20,-20,-20};
 
 
 XSetForeground(display,gc,mycolor.pixel);
-plotobject(display, pixmap, gc, width,height, lines,camera_angle,camera,plane_to_camera,xod,xdo,yod,ydo);
+plotobject(display, pixmap, gc, width,height, lines,rot_angle,camera,plane_to_camera,xod,xdo,yod,ydo);
 
 XClearWindow(display,win); //expose the pixmap
 XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));//vratit cernou			   
@@ -289,6 +291,7 @@ int ispressed3=0;
 int x,y,x0,y0;
 while(1) //LOOP ....  process events 
 	{
+	bool redraw=0;
 	XNextEvent(display, &event);
 		switch (event.type)
 			{
@@ -304,31 +307,47 @@ while(1) //LOOP ....  process events
 				if(event.xbutton.button==Button1) ispressed1=1;			
 				if(event.xbutton.button==Button2) ispressed2=1;			
 				if(event.xbutton.button==Button3) ispressed3=1;			
+				if(event.xbutton.button==Button4) 
+					{
+					if(ispressed1) {eul[2]+=0.02; redraw=1;}
+					else if(ispressed2) {camera[2]+=0.2; redraw=1;}
+					else if (ispressed3) {plane_to_camera[2]+=0.5; redraw=1;}
+					else {zoom*=1.01;  redraw=1;}
+					}
+				if(event.xbutton.button==Button5) 
+					{
+					if(ispressed1) {eul[2]-=0.02; redraw=1;}
+					else if(ispressed2) {camera[2]-=0.2; redraw=1;}
+                                        else if (ispressed3) {plane_to_camera[2]-=0.5; redraw=1;}
+                                        else {zoom*=.99; redraw=1;}
+					}
 				break;
 			case MotionNotify:
 				x = event.xbutton.x;
 				y = event.xbutton.y;
 				if(ispressed1) 
 					{
-					if(x0>x) eul[0]+=0.01;
-                                	if(x0<x) eul[0]-=0.01;
-                                	if(y0>y) eul[1]+=0.01;
-                                	if(y0<y) eul[1]-=0.01;
+					if(x0>x) eul[0]+=0.02;
+                                	if(x0<x) eul[0]-=0.02;
+                                	if(y0>y) eul[1]+=0.02;
+                                	if(y0<y) eul[1]-=0.02;
 					}
 				if(ispressed2)
                                         {
+					if(x0>x) camera[0]+=0.2;
+                                        if(x0<x) camera[0]-=0.2;
+                                        if(y0>y) camera[1]-=0.2;
+                                        if(y0<y) camera[1]+=0.2;
                                         }
 				if(ispressed3)
                                         {
+					if(x0>x) plane_to_camera[0]-=0.5;
+                                        if(x0<x) plane_to_camera[0]+=0.5;
+                                        if(y0>y) plane_to_camera[1]+=0.5;
+                                        if(y0<y) plane_to_camera[1]-=0.5;
                                         }
-				if(ispressed1||ispressed2||ispressed3)
+				if(ispressed1||ispressed2||ispressed3) redraw=1;
 					{
-					XSetForeground(display, gc, WhitePixel(display, DefaultScreen(display)));
-					XFillRectangle(display, pixmap, gc, 0, 0, width, height);
-					XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
-
-					euler2rotmat(eul,camera_angle,"xyz");
-					plotobject(display, pixmap, gc, width,height, lines,camera_angle,camera,plane_to_camera,xod,xdo,yod,ydo);
 					}
 				x0=x;
 				y0=y;
@@ -342,8 +361,18 @@ while(1) //LOOP ....  process events
 			default: 
 				break;
 			}
-	XClearWindow(display,win); //expose the pixmap
-	XFlush(display); XSync(display, False);
+	if(redraw)
+		{
+		XSetForeground(display, gc, WhitePixel(display, DefaultScreen(display)));
+		XFillRectangle(display, pixmap, gc, 0, 0, width, height);
+		XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
+
+		euler2rotmat(eul,rot_angle,"zyz");
+		rot_angle*= zoom;
+		plotobject(display, pixmap, gc, width,height, lines,rot_angle,camera,plane_to_camera,xod,xdo,yod,ydo);
+		XClearWindow(display,win); //expose the pixmap
+		XFlush(display); XSync(display, False);
+		}
 	}
 
 done:

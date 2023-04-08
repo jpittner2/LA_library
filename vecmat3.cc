@@ -844,9 +844,9 @@ return sqrt(sum);
 
 //cf. https://en.wikipedia.org/wiki/3D_projection
 template<typename T>
-void perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &camera_angle, const Vec3<T> &camera,  const Vec3<T> &plane_to_camera)
+void perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &rot_angle, const Vec3<T> &camera,  const Vec3<T> &plane_to_camera)
 {
-Vec3<T> d=camera_angle*(point-camera);
+Vec3<T> d=rot_angle*point-camera;
 T scale = plane_to_camera[2]/d[2];
 for(int i=0; i<2; ++i) proj_xy[i]= scale*d[i] + plane_to_camera[i];
 }
@@ -858,7 +858,7 @@ template class Vec3<T>; \
 template class Mat3<T>; \
 template void euler2rotmat(const T *eul, Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0); \
 template void rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0); \
-template void  perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &camera_angle, const Vec3<T> &camera,  const Vec3<T> &plane_to_camera); \
+template void  perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &rot_angle, const Vec3<T> &camera,  const Vec3<T> &plane_to_camera); \
 
 
 #ifndef AVOID_STDSTREAM

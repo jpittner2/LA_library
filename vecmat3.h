@@ -191,7 +191,7 @@ template<typename T>
 void rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0);
 
 template<typename T>
-void perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &camera_angle, const Vec3<T> &camera,  const Vec3<T> &plane_to_camera);
+void perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &rot_angle, const Vec3<T> &camera,  const Vec3<T> &plane_to_camera);
 
 
 }//namespace
