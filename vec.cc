@@ -803,12 +803,6 @@ return -1;
 }
 
 
-template<typename T>
-NRVec<T>::NRVec(const std::list<T> l) : NRVec<T>(l.size())
-{
-int ii=0;
-for(typename std::list<T>::const_iterator i=l.begin(); i!=l.end(); ++i) (*this)[ii++] = *i;
-}
 
 
 /***************************************************************************//**

@@ -1945,6 +1945,17 @@ void NRVec<T>::get(int fd, bool dim, bool transp) {
 }
 
 
+//constructor from a list
+template<typename T>
+NRVec<T>::NRVec(const std::list<T> l) : NRVec<T>(l.size())
+{
+int ii=0;
+for(typename std::list<T>::const_iterator i=l.begin(); i!=l.end(); ++i) (*this)[ii++] = *i;
+}
+
+
+
+
 }//namespace
 
 #endif /* _LA_VEC_H_ */

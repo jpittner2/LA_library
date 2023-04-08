@@ -51,6 +51,7 @@ config.log
 libla.la
 t
 test
+tX
 *.tar.bz2
 .*.swp
 # CVS default ignores end

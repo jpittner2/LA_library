@@ -497,7 +497,7 @@ NRMat<T>::NRMat(const T &a, const int n, const int m, const GPUID loc) : nn(n), 
 
 
 /***************************************************************************//**
- * inline constructor creating vector from an array
+ * inline constructor creating matrix from an array
  ******************************************************************************/
 
 
