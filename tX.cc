@@ -267,8 +267,8 @@ LINE lines0[]= {
 NRVec<LINE> lines(lines0);
 
 Mat3<double> rot_angle;
-double eul[3]={40.*M_PI/180.,40.*M_PI/180.,10.*M_PI/180.};
-euler2rotmat(eul,rot_angle,"zyz");
+double eul[3]={4.*M_PI/180.,3.*M_PI/180.,1.*M_PI/180.};
+euler2rotmat(eul,rot_angle,"xyz");
 double zoom=1;
 rot_angle *= zoom;
 Vec3<double> camera={50,60,40};
@@ -327,10 +327,10 @@ while(1) //LOOP ....  process events
 				y = event.xbutton.y;
 				if(ispressed1) 
 					{
-					if(x0>x) eul[0]+=0.02;
-                                	if(x0<x) eul[0]-=0.02;
-                                	if(y0>y) eul[1]+=0.02;
-                                	if(y0<y) eul[1]-=0.02;
+					if(x0>x) eul[0]+=0.01;
+                                	if(x0<x) eul[0]-=0.01;
+                                	if(y0>y) eul[1]+=0.01;
+                                	if(y0<y) eul[1]-=0.01;
 					}
 				if(ispressed2)
                                         {
@@ -367,7 +367,7 @@ while(1) //LOOP ....  process events
 		XFillRectangle(display, pixmap, gc, 0, 0, width, height);
 		XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
 
-		euler2rotmat(eul,rot_angle,"zyz");
+		euler2rotmat(eul,rot_angle,"xyz");
 		rot_angle*= zoom;
 		plotobject(display, pixmap, gc, width,height, lines,rot_angle,camera,plane_to_camera,xod,xdo,yod,ydo);
 		XClearWindow(display,win); //expose the pixmap
