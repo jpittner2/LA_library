@@ -38,6 +38,20 @@ double cblas_ddot(const int N, const double *X, const int incX, const double *Y,
 #endif
 }
 
+extern "C" float FORNAME(sdot) (const FINT *n, const float *x, const FINT *incx, const float *y, const FINT *incy);
+float cblas_sdot(const int N, const float *X, const int incX, const float *Y, const int incY){
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        const FINT incytmp=incY;
+        return FORNAME(sdot)(&ntmp,X,&incxtmp,Y,&incytmp);
+#else
+        return FORNAME(sdot)(&N,X,&incX,Y,&incY);
+#endif 
+}
+
+
+
 extern "C" void FORNAME(dscal) (const FINT *n, const double *a, double *x, const FINT *incx);
 void cblas_dscal(const int N, const double alpha, double *X, const int incX){
 #ifdef FORINT
@@ -48,6 +62,18 @@ void cblas_dscal(const int N, const double alpha, double *X, const int incX){
 	FORNAME(dscal) (&N,&alpha,X,&incX);
 #endif
 }
+
+extern "C" void FORNAME(sscal) (const FINT *n, const float *a, float *x, const FINT *incx);
+void cblas_sscal(const int N, const float alpha, float *X, const int incX){
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        FORNAME(sscal) (&ntmp,&alpha,X,&incxtmp);
+#else
+        FORNAME(sscal) (&N,&alpha,X,&incX);
+#endif
+}
+
 
 extern "C" void FORNAME(dcopy) (const FINT *n, const double *x, const FINT *incx, double *y, const FINT *incy);
 void cblas_dcopy(const int N, const double *X, const int incX, double *Y, const int incY){
@@ -61,6 +87,19 @@ void cblas_dcopy(const int N, const double *X, const int incX, double *Y, const 
 #endif
 }
 
+extern "C" void FORNAME(scopy) (const FINT *n, const float *x, const FINT *incx, float *y, const FINT *incy);
+void cblas_scopy(const int N, const float *X, const int incX, float *Y, const int incY){
+#ifdef FORINT 
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        const FINT incytmp=incY;
+        FORNAME(scopy) (&ntmp,X,&incxtmp,Y,&incytmp);
+#else   
+        FORNAME(scopy) (&N,X,&incX,Y,&incY);
+#endif
+}
+
+
 extern "C" void FORNAME(daxpy) (const FINT *n, const double *a, const double *x, const FINT *incx, double *y, const FINT *incy);
 void cblas_daxpy(const int N, const double alpha, const double *X, const int incX, double *Y, const int incY){
 #ifdef FORINT
@@ -73,6 +112,19 @@ void cblas_daxpy(const int N, const double alpha, const double *X, const int inc
 #endif
 }
 
+extern "C" void FORNAME(saxpy) (const FINT *n, const float *a, const float *x, const FINT *incx, float *y, const FINT *incy);
+void cblas_saxpy(const int N, const float alpha, const float *X, const int incX, float *Y, const int incY){
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        const FINT incytmp=incY;
+        FORNAME(saxpy) (&ntmp,&alpha,X,&incxtmp,Y,&incytmp);
+#else
+        FORNAME(saxpy) (&N,&alpha,X,&incX,Y,&incY);
+#endif
+}
+
+
 extern "C" double FORNAME(dnrm2) (const FINT *n, const double *x, const FINT *incx);
 double cblas_dnrm2(const int N, const double *X, const int incX){
 #ifdef FORINT
@@ -84,6 +136,20 @@ double cblas_dnrm2(const int N, const double *X, const int incX){
 #endif
 }
 
+extern "C" float FORNAME(snrm2) (const FINT *n, const float *x, const FINT *incx);
+float cblas_snrm2(const int N, const float *X, const int incX){
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        return FORNAME(snrm2) (&ntmp,X,&incxtmp);
+#else
+        return FORNAME(snrm2) (&N,X,&incX);
+#endif
+}
+
+
+
+
 extern "C" double FORNAME(dasum) (const FINT *n, const double *x, const FINT *incx);
 double cblas_dasum(const int N, const double *X, const int incX){
 #ifdef FORINT
@@ -94,6 +160,18 @@ double cblas_dasum(const int N, const double *X, const int incX){
 	return FORNAME(dasum) (&N,X,&incX);
 #endif
 }
+
+extern "C" float FORNAME(sasum) (const FINT *n, const float *x, const FINT *incx);
+float cblas_sasum(const int N, const float *X, const int incX){
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        return FORNAME(sasum) (&ntmp,X,&incxtmp);
+#else
+        return FORNAME(sasum) (&N,X,&incX);
+#endif
+}
+
 
 extern "C" void FORNAME(zcopy) (const FINT *n, const void *x, const FINT *incx, void *y, const FINT *incy);
 void cblas_zcopy(const int N, const void *X, const int incX, void *Y, const int incY){
@@ -153,6 +231,18 @@ double cblas_dznrm2(const int N, const void *X, const int incX){
 #endif
 }
 
+extern "C" float FORNAME(sznrm2) (const FINT *n, const void *x, const FINT *incx);
+float cblas_sznrm2(const int N, const void *X, const int incX){
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        return FORNAME(sznrm2) (&ntmp,X,&incxtmp);
+#else
+        return FORNAME(sznrm2) (&N,X,&incX);
+#endif
+}
+
+
 
 //the following ones are f2c-compatible, but is it truly portable???
 extern "C" void FORNAME(zdotu) (void *retval, const FINT *n, const void *x, const FINT *incx, const void *y, const FINT *incy);
@@ -206,6 +296,27 @@ void cblas_dspmv(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
 #endif
 }
 
+extern "C" void FORNAME(sspmv) (const char *uplo, const FINT *n, const float *alpha, const float *ap, const float *x, const FINT *incx, const float *beta, float *y, const FINT *incy);
+void cblas_sspmv(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
+                const int N, const float alpha, const float *Ap,
+                const float *X, const int incX,
+                const float beta, float *Y, const int incY)
+{
+        if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+        if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+        char U = BLAS_FORTRANCASE('u');
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        const FINT incytmp=incY;
+        FORNAME(sspmv) (&U,&ntmp, &alpha, Ap, X, &incxtmp, &beta, Y, &incytmp);
+#else
+        FORNAME(sspmv) (&U,&N, &alpha, Ap, X, &incX, &beta, Y, &incY);
+#endif
+}
+
+
+
 
 extern "C" void FORNAME(zhpmv) (const char *uplo, const FINT *n, const void *alpha, const void *ap, const void *x, const FINT *incx, const void *beta, void *y, const FINT *incy);
 void cblas_zhpmv(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
@@ -247,6 +358,28 @@ void cblas_dger(const CBLAS_ORDER Order, const int M, const int N,
 	FORNAME(dger) (&N, &M, &alpha, Y, &incY, X, &incX, A, &lda);
 #endif
 }
+
+
+extern "C" void FORNAME(sger) (const FINT *m, const FINT *n, const float *alpha, const float *x, const FINT *incx, const float *y, const FINT *incy, float *a, const FINT *lda);
+void cblas_sger(const CBLAS_ORDER Order, const int M, const int N,
+		const float alpha, const float *X, const int incX,
+		const float *Y, const int incY, float *A, const int lda)
+{
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+	//swap m-n, y-x
+#ifdef FORINT
+	const FINT mtmp=M;
+	const FINT ntmp=N;
+	const FINT incxtmp=incX;
+	const FINT incytmp=incY;
+	const FINT ldatmp=lda;
+	FORNAME(sger) (&ntmp, &mtmp, &alpha, Y, &incytmp, X, &incxtmp, A, &ldatmp);
+#else
+	FORNAME(sger) (&N, &M, &alpha, Y, &incY, X, &incX, A, &lda);
+#endif
+}
+
+
 
 extern "C" void FORNAME(zgerc)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
 void cblas_zgerc(const CBLAS_ORDER Order, const int M, const int N,
@@ -317,6 +450,32 @@ void cblas_dgemm(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
 #endif
 }
 
+extern "C" void FORNAME(sgemm) (const char *transa, const char *transb, const FINT *m, const FINT *n, const FINT *k, const float *alpha, const float *a, const FINT *lda, const float *b, const FINT *ldb, const float *beta, float *c, const FINT *ldc);
+void cblas_sgemm(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
+		const CBLAS_TRANSPOSE TransB, const int M, const int N,
+		const int K, const float alpha, const float *A,
+		const int lda, const float *B, const int ldb,
+		const float beta, float *C, const int ldc)
+{
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+	//swap a-b, m-n
+	char transb = BLAS_FORTRANCASE(TransB==CblasNoTrans?'N':'T');
+	char transa = BLAS_FORTRANCASE(TransA==CblasNoTrans?'N':'T');
+#ifdef FORINT
+	const FINT mtmp=M;
+	const FINT ntmp=N;
+	const FINT ktmp=K;
+	const FINT ldatmp=lda;
+	const FINT ldbtmp=ldb;
+	const FINT ldctmp=ldc;
+	FORNAME(sgemm) (&transb,&transa,
+			&ntmp, &mtmp, &ktmp, &alpha, B, &ldbtmp, A, &ldatmp, &beta, C, &ldctmp);
+#else
+	FORNAME(sgemm) (&transb,&transa,
+			&N, &M, &K, &alpha, B, &ldb, A, &lda, &beta, C, &ldc);
+#endif
+}
+
 extern "C" void FORNAME(zgemm) (const char *transa, const char *transb, const FINT *m, const FINT *n, const FINT *k, const void *alpha, const void *a, const FINT *lda, const void *b, const FINT *ldb, const void *beta, void *c, const FINT *ldc);
 void cblas_zgemm(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
 		const CBLAS_TRANSPOSE TransB, const int M, const int N,
@@ -369,6 +528,31 @@ void cblas_dgemv(const CBLAS_ORDER Order,
 #endif
 }
 
+extern "C" void FORNAME(sgemv)  (const char *TRANS, const FINT *M, const FINT *N, const float *ALPHA, const float *A,  const FINT *LDA,  const float *X,  const FINT *INCX, const float *BETA, float *Y, const FINT *INCY);
+void cblas_sgemv(const CBLAS_ORDER Order,
+		const CBLAS_TRANSPOSE TransA, const int M, const int N,
+		const float alpha, const float *A, const int lda,
+		const float *X, const int incX, const float beta,
+		float *Y, const int incY)
+{
+	char transa =  BLAS_FORTRANCASE(TransA==CblasNoTrans?'N':'T');
+	char transax =  BLAS_FORTRANCASE(TransA==CblasNoTrans?'T':'N');
+#ifdef FORINT
+	const FINT mtmp=M;
+	const FINT ntmp=N;
+	const FINT ldatmp=lda;
+	const FINT incxtmp=incX;
+	const FINT incytmp=incY;
+	if(Order!=CblasRowMajor) FORNAME(sgemv) (&transa, &ntmp, &mtmp, &alpha, A, &ldatmp, X, &incxtmp, &beta, Y, &incytmp );
+	//swap n-m and toggle transposition
+	else FORNAME(sgemv) (&transax, &ntmp, &mtmp, &alpha, A, &ldatmp, X, &incxtmp, &beta, Y, &incytmp );
+#else
+	if(Order!=CblasRowMajor) FORNAME(sgemv) (&transa, &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
+	//swap n-m and toggle transposition
+	else FORNAME(sgemv) (&transax, &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY );
+#endif
+}
+
 
 extern "C" void FORNAME(zgemv)  (const char *TRANS, const FINT *M, const FINT *N, const void *ALPHA, const void *A,  const FINT *LDA,  const void *X,  const FINT *INCX, const void *BETA, void *Y, const FINT *INCY);
 void cblas_zgemv(const CBLAS_ORDER Order,
@@ -415,6 +599,19 @@ CBLAS_INDEX cblas_izamax(const int N, const void *X, const int incX) {
 #endif
 }
 
+extern "C" FINT FORNAME(isamax) (const FINT *N, const float *DX, const FINT *INCX);
+CBLAS_INDEX cblas_isamax(const int N, const float *X, const int incX) {
+#ifdef FORINT
+        const FINT ntmp=N;
+        const FINT incxtmp=incX;
+        return (CBLAS_INDEX)FORNAME(isamax)(&ntmp,X,&incxtmp);
+#else
+        return (CBLAS_INDEX)FORNAME(isamax)(&N,X,&incX);
+#endif
+}
+
+
+
 /*
 extern "C" FINT FORNAME(idamin) (const FINT *N, const double *DX, const FINT *INCX);
 CBLAS_INDEX cblas_idamin(const int N, const double *X, const int incX) {
@@ -426,6 +623,7 @@ CBLAS_INDEX cblas_idamin(const int N, const double *X, const int incX) {
 	return (CBLAS_INDEX)FORNAME(idamin)(&N,X,&incX);
 #endif
 }
+
 
 extern "C" FINT FORNAME(izamin) (const FINT *N, const void *DX, const FINT *INCX);
 CBLAS_INDEX cblas_izamin(const int N, const void *X, const int incX) {
@@ -468,6 +666,30 @@ int clapack_dgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
 	return (int)INFO;
 }
 
+extern "C" void FORNAME(sgesv) (const FINT *N, const FINT *NRHS, float *A, const FINT *LDA, FINT *IPIV, float *B, const FINT *LDB, FINT *INFO);
+
+int clapack_sgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
+		float *A, const int lda, int *ipiv,
+		float *B, const int ldb)
+{
+	FINT INFO=0;
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+	//B should be in the same physical order, just transpose A in place and the LU result on output
+	for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {float t=A[j*lda+i]; A[j*lda+i]=A[i*lda+j]; A[i*lda+j]=t;}
+#ifdef FORINT
+	const FINT ntmp=N;
+	const FINT nrhstmp=NRHS;
+	const FINT ldatmp=lda;
+	const FINT ldbtmp=ldb;
+	FINT ipivtmp=*ipiv;
+	FORNAME(sgesv) (&ntmp,&nrhstmp,A,&ldatmp,&ipivtmp,B,&ldbtmp,&INFO);
+#else
+	FORNAME(sgesv) (&N,&NRHS,A,&lda,ipiv,B,&ldb,&INFO);
+#endif
+	for(int i=1; i<N; ++i) for(int j=0; j<i; ++j)  {float t=A[j*lda+i]; A[j*lda+i]=A[i*lda+j]; A[i*lda+j]=t;}
+	return (int)INFO;
+}
+
 #endif
 
 #ifdef NONCBLAS
@@ -481,6 +703,18 @@ void cblas_dswap(const int N, double *X, const int incX, double *Y, const int in
 	FORNAME(dswap)(&N_tmp, X, &incX_tmp, Y, &incY_tmp);
 #else
 	FORNAME(dswap)(&N, X, &incX, Y, &incY);
+#endif
+}
+
+extern "C" void FORNAME(sswap)(const FINT *N, float *X, const FINT *incX, float *Y, const FINT *incY);
+void cblas_sswap(const int N, float *X, const int incX, float *Y, const int incY){
+#ifdef FORINT
+	const FINT N_tmp = N;
+	const FINT incX_tmp = incX;
+	const FINT incY_tmp = incY;
+	FORNAME(sswap)(&N_tmp, X, &incX_tmp, Y, &incY_tmp);
+#else
+	FORNAME(sswap)(&N, X, &incX, Y, &incY);
 #endif
 }
 
