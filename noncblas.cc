@@ -268,7 +268,7 @@ p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= 
 	FORNAME(zgerc)(&N, &M, alpha, Y, &incY, X, &incX, A, &lda);
 #endif
 //conjugate y back
-p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(--p->imag()); p+= incY;}
+p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incY;}
 }
 
 
