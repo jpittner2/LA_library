@@ -255,8 +255,8 @@ void cblas_zgerc(const CBLAS_ORDER Order, const int M, const int N,
 {
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 //conjugate y
-complex<double> *p;
-p= (complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag() = -p->imag(); p+= incY;}
+std::complex<double> *p;
+p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incY;}
 #ifdef FORINT
 	const FINT mtmp=M;
         const FINT ntmp=N;
@@ -268,7 +268,7 @@ p= (complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag() = -p->imag(); p+= in
 	FORNAME(zgerc)(&N, &M, alpha, Y, &incY, X, &incX, A, &lda);
 #endif
 //conjugate y back
-p= (complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag() = -p->imag(); p+= incY;}
+p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(--p->imag()); p+= incY;}
 }
 
 

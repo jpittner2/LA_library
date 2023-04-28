@@ -48,15 +48,15 @@ double *gpuputdouble(const double &x){
 	return (double *)ptr;
 }
 
-complex<double> *gpuputcomplex(const complex<double> &x){
+std::complex<double> *gpuputcomplex(const std::complex<double> &x){
 	void *ptr = NULL;
-	cublasAlloc(1, sizeof(complex<double>), &ptr);
+	cublasAlloc(1, sizeof(std::complex<double>), &ptr);
 	TEST_CUBLAS("cublasAlloc");
 
-	cublasSetVector(1, sizeof(complex<double>), &x, 1, ptr, 1);
+	cublasSetVector(1, sizeof(std::complex<double>), &x, 1, ptr, 1);
 	TEST_CUBLAS("cublasSetVector");
 
-	return (complex<double> *)ptr;
+	return (std::complex<double> *)ptr;
 }
 
 
