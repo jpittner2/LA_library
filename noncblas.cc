@@ -231,14 +231,14 @@ double cblas_dznrm2(const int N, const void *X, const int incX){
 #endif
 }
 
-extern "C" float FORNAME(sznrm2) (const FINT *n, const void *x, const FINT *incx);
-float cblas_sznrm2(const int N, const void *X, const int incX){
+extern "C" float FORNAME(scnrm2) (const FINT *n, const void *x, const FINT *incx);
+float cblas_scnrm2(const int N, const void *X, const int incX){
 #ifdef FORINT
         const FINT ntmp=N;
         const FINT incxtmp=incX;
-        return FORNAME(sznrm2) (&ntmp,X,&incxtmp);
+        return FORNAME(scnrm2) (&ntmp,X,&incxtmp);
 #else
-        return FORNAME(sznrm2) (&N,X,&incX);
+        return FORNAME(scnrm2) (&N,X,&incX);
 #endif
 }
 
