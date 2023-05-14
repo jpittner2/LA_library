@@ -39,6 +39,6 @@ AM_LDFLAGS += $(CUDALIBS)
 tX_LDFLAGS = $(AM_LDFLAGS) -lX11 -lm 
 
 version.cc: get_git_version
-	./get_git_version >>version.cc
+	./get_git_version >version.cc
 
 include $(top_srcdir)/aminclude.am
