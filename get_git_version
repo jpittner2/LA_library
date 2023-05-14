@@ -10,5 +10,6 @@ set head=`git rev-parse HEAD`
 echo -n $head
 echo -n ' dated '
 echo -n `git show -s --format=%ci $head`
+echo -n ' compiled on ' `date` 'at' `hostname` 'by' `whoami`
 echo -n '"'
 echo ';' 
