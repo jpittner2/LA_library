@@ -132,15 +132,16 @@ sigtraceback(SIGABRT,1);
 sigtraceback(SIGBUS,1);
 sigtraceback(SIGFPE,1);
 
-
-NRVec<double> x(1.,10);
-NRVec<double> y(2.,10);
-NRVec<double> z(-2.,10);
-
 //cout.setf(ios::scientific);
 cc:cout.setf(ios::fixed);
 cout.precision(10);
 cin.exceptions ( ifstream::eofbit | ifstream::failbit | ifstream::badbit );
+
+cout <<"LA version = "<<LA::version<<endl;
+
+NRVec<double> x(1.,10);
+NRVec<double> y(2.,10);
+NRVec<double> z(-2.,10);
 
 
 if(0) test(x);

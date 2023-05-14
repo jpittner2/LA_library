@@ -49,6 +49,7 @@ config.log
 .libs
 *.lo
 libla.la
+version.cc
 t
 test
 tX
