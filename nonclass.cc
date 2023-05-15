@@ -26,7 +26,7 @@
 #include "qsort.h"
 #include "fortran.h"
 
-#define IPIV_DEBUG
+#undef IPIV_DEBUG
 
 
 namespace LA {
@@ -155,7 +155,11 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
 		//find out whether ipiv are numbered from 0 or from 1
 		int shift=1;
-	        for (int i=0; i<n; ++i) if(ipiv[i]==0) shift=0;
+	        for (int i=0; i<n; ++i)
+			{
+			if(ipiv[i]==0) shift=0;
+			if(ipiv[i]<0 || ipiv[i]>n) laerror("problem with ipiv in clapack_dgesv");
+			}
 #ifdef IPIV_DEBUG
        std::cout <<"shift = "<<shift<<std::endl;
 #endif
