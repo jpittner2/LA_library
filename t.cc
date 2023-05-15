@@ -1237,7 +1237,7 @@ cout <<r;
 }
 
 
-if(0)
+if(1)
 {
 int n,m;
 cin>>n >>m;
@@ -1254,10 +1254,12 @@ for(int i=0;i<n;++i) for(int j=0;j<m;++j)
 for(int i=0;i<n;++i) b[i] = i;
 
 NRVec<double> bb=b;
-//cout <<a;
+cout <<a;
 //cout <<b;
 NRMat<double>aa=a;
-linear_solve(aa,bb);
+double d;
+linear_solve(aa,bb,&d);
+cout <<"det = "<<d<<endl;
 //cout <<bb;
 gmres(a,b,x,1,1e-10,100,1,0,1,0);
 //conjgrad(a,b,x,1,1e-10,200,1,0,1);
@@ -2575,7 +2577,7 @@ cout <<test;
 cout <<"Error = "<<(expitszsz-test).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 NRVec<double> x({1,2,3});
 NRVec<double> y({4,5,6});

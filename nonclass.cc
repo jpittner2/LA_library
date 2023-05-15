@@ -26,6 +26,8 @@
 #include "qsort.h"
 #include "fortran.h"
 
+#define IPIV_DEBUG
+
 
 namespace LA {
 
@@ -154,17 +156,20 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 		//find out whether ipiv are numbered from 0 or from 1
 		int shift=1;
 	        for (int i=0; i<n; ++i) if(ipiv[i]==0) shift=0;
+#ifdef IPIV_DEBUG
+       std::cout <<"shift = "<<shift<<std::endl;
+#endif
 		//change sign of det by parity of ipiv permutation
 		if(*det) for (int i=0; i<n; ++i) if(i+shift != ipiv[i]) {*det = -(*det); ++iswap;}
 	}
-/*
-       std::cout <<"iswap = "<<iswap<<std::endl;
 	if(det && r>0) *det = 0;
+#ifdef IPIV_DEBUG
+       std::cout <<"iswap = "<<iswap<<std::endl;
 
 	std::cout <<"ipiv = ";
 	for (int i=0; i<n; ++i) std::cout <<ipiv[i]<<" ";
 	std::cout <<std::endl;
-*/
+#endif
 
 	delete [] ipiv;
 	if (r>0 && B) laerror("singular matrix in lapack_gesv");
