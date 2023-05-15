@@ -38,7 +38,10 @@ AM_LDFLAGS += $(CUDALIBS)
 
 tX_LDFLAGS = $(AM_LDFLAGS) -lX11 -lm 
 
-version.cc: get_git_version
+
+.PHONY: always
+version.cc: always
 	./get_git_version >version.cc
 
-include $(top_srcdir)/aminclude.am
+# commented out since autoreconf complains about duplicit .PHONY
+#include $(top_srcdir)/aminclude.am
