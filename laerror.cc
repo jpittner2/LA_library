@@ -174,6 +174,7 @@ extern "C" {
 #include "cblas.h"
 }
 #include <stdarg.h>
+#ifndef AVOID_DUPLICATE_CBLAS_XERBLA
 extern "C" void cblas_xerbla(int p, const char *rout, const char *form, ...)
 {
    va_list argptr;
@@ -189,6 +190,7 @@ extern "C" void cblas_xerbla(int p, const char *rout, const char *form, ...)
    va_end(argptr);
    laerror("terminating in cblas_xerbla");
 }
+#endif
 
 extern "C" int cblas_errprn(int ierr, int info, char *form, ...) {
 	char msg0[1024], *msg;
