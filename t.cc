@@ -1237,7 +1237,7 @@ cout <<r;
 }
 
 
-if(1)
+if(0)
 {
 int n,m;
 cin>>n >>m;
@@ -1952,6 +1952,19 @@ v.assign(1,1);
 v.assign(2,0);
 cin >>v;
 cout <<v;
+}
+
+if(1)
+{
+Quaternion<double> v,r,tmp,q,q1;
+cin >>q;
+q.normalize();
+q1= q;
+q1.conjugateme();
+cout <<"test "<<q*q1<<endl;
+cin >>v;
+r= q*v*q1;
+cout <<"rotated "<<r<<endl;
 }
 
 if(0)
