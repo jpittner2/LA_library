@@ -52,6 +52,7 @@ libla.la
 version.cc
 t
 test
+fi
 tX
 *.tar.bz2
 .*.swp

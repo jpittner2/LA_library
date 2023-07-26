@@ -26,6 +26,8 @@
 #include "polynomial.h"
 #include "contfrac.h"
 #include "simple.h"
+#include "graph.h"
+
 
 using namespace std;
 using namespace LA_Vecmat3;
@@ -1954,7 +1956,7 @@ cin >>v;
 cout <<v;
 }
 
-if(1)
+if(0)
 {
 Quaternion<double> v,r,tmp,q,q1;
 cin >>q;
@@ -2744,6 +2746,24 @@ cout <<"nonpseudounitarity of explicit uubar = "<<uubartest2c.norm(1.)<<endl;
 if(0)
 {
 laerror("test exception");
+}
+
+if(1)
+{
+NRSMat<char> adj;
+cin >>adj;
+NRVec<int> clique = findclique(adj);
+cout <<"First clique is "<<clique<<endl;
+cout <<"Check adjacency of the clique: "<<adj.submatrix(clique)<<endl;
+NRVec<int> cover = cliquecover(adj);
+cout <<"Clique cover is "<<cover<<endl;
+NRPerm<int> p(cover.size());
+cover.sort(0,p);
+cout<<"permutation to disentabgle the cliques = "<<p<<endl;
+NRVec<int> perm1(p.size());
+for(int i=0; i<p.size(); ++i) perm1[i] = p[i+1]-1;
+NRSMat<char> adjperm = adj.submatrix(perm1);
+cout <<"resorted graph = "<<adjperm<<endl;
 }
 
 

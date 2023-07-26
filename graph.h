@@ -30,6 +30,23 @@
 
 namespace LA {
 
+//presently I am not sure what the best general class for a graph would be, so leave it purely templated algorithms
+//where the class G is adjacency supporting operator() and submatrix() operations
+
+template<typename G>
+NRVec<int> neighbors(const G &adjacency, const int v);
+
+template<typename G>
+NRVec<int> nonneighbors(const G &adjacency, const int v);
+
+template<typename G>
+NRVec<int> findclique(const G &adjacency, const int v=0);
+
+template<typename G>
+NRVec<int> complement(const G &adjacency, const NRVec<int> & vertexlist);
+
+template<typename G>
+NRVec<int> cliquecover(const G &adjacency);
 
 
 
