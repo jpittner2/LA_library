@@ -763,6 +763,30 @@ const NRMat<T> NRMat<T>::submatrix(const int fromrow, const int torow, const int
 	return r;
 }
 
+
+template <typename T>
+const NRMat<T> NRMat<T>::submatrix(const NRVec<int> &rows, const NRVec<int> &cols) const
+{
+	NOT_GPU(*this);
+        const int n = rows.size();
+        const int m = cols.size();
+        NRMat<T> r(n,m);
+
+        for(int i=0; i<n; ++i)
+		{
+		int ii=rows[i];
+		if(ii<0||ii>=nn) laerror("bad row index in submatrix");
+		for(int j=0; j<m; ++j)
+			{
+			int jj=cols[j];
+			if(jj<0||jj>=mm) laerror("bad col index in submatrix");
+			r(i,j) = (*this)(ii,jj);
+			}
+                }
+return r;
+}
+
+
 /***************************************************************************//**
  * places given matrix as submatrix at given position
  * @param[in] fromrow row-coordinate of top left corner
@@ -797,6 +821,27 @@ void NRMat<T>::storesubmatrix(const int fromrow, const int fromcol, const NRMat 
 		}
 	#endif
 	}
+}
+
+template <typename T>
+void NRMat<T>::storesubmatrix(const NRVec<int> &rows, const NRVec<int> &cols, const NRMat &rhs)
+{
+        NOT_GPU(*this);
+        const int n = rows.size();
+        const int m = cols.size();
+	if(rhs.nrows()!=n || rhs.ncols()!=m) laerror("incompatible dimensions in storesubmatrix");
+                
+        for(int i=0; i<n; ++i)
+                {
+                int ii=rows[i];
+                if(ii<0||ii>=nn) laerror("bad row index in storesubmatrix");
+                for(int j=0; j<m; ++j)
+                        {
+                        int jj=cols[j];
+                        if(jj<0||jj>=mm) laerror("bad col index in storesubmatrix");
+                        (*this)(ii,jj) = rhs(i,j);
+                        }
+                }       
 }
 
 /***************************************************************************//**

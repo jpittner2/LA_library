@@ -837,6 +837,24 @@ const NRVec<T> NRVec<T>::subvector(const int from, const int to) const
 	return r;
 }
 
+
+template <typename T>
+const NRVec<T> NRVec<T>::subvector(const NRVec<int> &selection) const
+{
+        NOT_GPU(*this);
+        const int n = selection.size();
+        NRVec<T> r(n);
+
+        for(int i=0; i<n; ++i)
+                {
+                int ii=selection[i];
+                if(ii<0||ii>=nn) laerror("bad row index in subvector");
+                r[i] = (*this)[ii];
+                }
+return r;
+
+}
+
 /***************************************************************************//**
  * places given vector as subvector at given position
  * @param[in] from coordinate 
@@ -863,6 +881,22 @@ void NRVec<T>::storesubvector(const int from, const NRVec &rhs)
 			cublasScopy(rhs.size()*sizeof(T)/sizeof(float), (const float *) (rhs.v), 1, (float *)(v + from), 1);
 		}
 	#endif
+}
+
+
+template <typename T>
+void NRVec<T>::storesubvector(const NRVec<int> &selection, const NRVec &rhs)
+{
+        NOT_GPU(*this);
+        const int n = selection.size();
+	if(n!=rhs.size()) laerror("size mismatch in storesubvector");
+
+        for(int i=0; i<n; ++i)
+                {
+                int ii=selection[i];
+                if(ii<0||ii>=nn) laerror("bad  index in storesubvector");
+                (*this)[ii] = rhs[i];
+                }
 }
 
 

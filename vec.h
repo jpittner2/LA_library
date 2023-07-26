@@ -192,9 +192,11 @@ public:
 
         //! extract specified subvector
         const NRVec subvector(const int from, const int to) const;
+	const NRVec subvector(const NRVec<int> &selection) const;
 
         //! store given vector at given position into the current vector
         void storesubvector(const int from, const NRVec &rhs);
+	void storesubvector(const NRVec<int> &selection, const NRVec &rhs);
 
 	//! relational operators 
 	const bool operator!=(const NRVec &rhs) const 

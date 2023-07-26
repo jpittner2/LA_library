@@ -727,6 +727,118 @@ NRSMat<std::complex<double> >::NRSMat(const NRSMat<double> &rhs, bool imagpart):
 #endif
 }
 
+
+
+/***************************************************************************//**
+ * extract block submatrix
+ * @param[in] from starting position
+ * @param[in] to final position
+ * @return extracted block submatrix
+******************************************************************************/
+template <typename T>
+const NRSMat<T> NRSMat<T>::submatrix(const int from, const int to) const
+{
+#ifdef DEBUG
+        if(from<0 || from>=nn|| to<0 || to>=nn || from>to){
+                laerror("invalid submatrix specification");
+        }
+#endif
+
+NOT_GPU(*this);
+
+        const int n = to - from + 1;
+        NRSMat<T> r(n);
+	
+        for(int i=0; i<n; ++i)
+                {
+                int ii= i+from;
+                if(ii<0||ii>=nn) laerror("bad index in submatrix");
+                for(int j=0; j<=i; ++j)
+                        {
+                        int jj= j+from;
+                        r(i,j) = (*this)(ii,jj);
+                        }
+                }
+        return r;
+}
+
+
+template <typename T>
+const NRSMat<T> NRSMat<T>::submatrix(const NRVec<int> &selection) const
+{
+        NOT_GPU(*this);
+        const int n = selection.size();
+        NRSMat<T> r(n);
+
+        for(int i=0; i<n; ++i)
+                {
+                int ii=selection[i];
+                if(ii<0||ii>=nn) laerror("bad index in submatrix");
+		for(int j=0; j<=i; ++j)
+			{
+			int jj=selection[j];
+			r(i,j) = (*this)(ii,jj);
+			}
+                }
+return r;
+
+}
+
+/***************************************************************************//**
+ * places given matrix as submatrix at given position
+ * @param[in] fromrow row-coordinate of top left corner
+ * @param[in] fromcol col-coordinate of top left corner
+ * @param[in] rhs input matrix
+******************************************************************************/
+
+template <typename T>
+void NRSMat<T>::storesubmatrix(const int from, const NRSMat &rhs)
+{
+#ifdef DEBUG
+        if(from<0 || from>=nn){
+                laerror("invalid submatrix specification");
+        }
+#endif
+
+NOT_GPU(*this);
+
+        const int n = rhs.nrows();
+
+        for(int i=0; i<n; ++i)
+                {
+                int ii= i+from;
+                if(ii<0||ii>=nn) laerror("bad index in storesubmatrix");
+                for(int j=0; j<=i; ++j)
+                        {
+                        int jj= j+from;
+                        (*this)(ii,jj) = rhs(i,j);
+                        }
+                }
+}
+
+
+template <typename T>
+void NRSMat<T>::storesubmatrix(const NRVec<int> &selection, const NRSMat &rhs)
+{
+        NOT_GPU(*this);
+        const int n = selection.size();
+	if(rhs.size()!=n) laerror("size mismatch in storesubmatrix");
+
+        for(int i=0; i<n; ++i)
+                {
+                int ii=selection[i];
+                if(ii<0||ii>=nn) laerror("bad index in storesubmatrix");
+                for(int j=0; j<=i; ++j)
+                        {
+                        int jj=selection[j];
+                        (*this)(ii,jj) = rhs(i,j);
+                        }
+                }
+}
+
+
+
+
 /***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/

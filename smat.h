@@ -167,6 +167,15 @@ public:
 	void resize(const int n);
 	void dealloc(void) {resize(0);}
 
+        //! extract specified submatrix
+        const NRSMat submatrix(const int from, const int to) const;
+        const NRSMat submatrix(const NRVec<int> &selection) const;
+
+        //! store given matrix at given position into the current matrix
+        void storesubmatrix(const int from, const NRSMat &rhs);
+        void storesubmatrix(const NRVec<int> &selection, const NRSMat &rhs);
+
+
 	inline operator T*();
 	inline operator const T*() const;
 	void fprintf(FILE *f, const char *format, const int modulo) const; 

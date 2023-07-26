@@ -326,9 +326,11 @@ public:
 
 	//! extract specified submatrix
         const NRMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const;
+	const NRMat submatrix(const NRVec<int> &rows, const NRVec<int> &cols) const;
 
 	//! store given matrix at given position into the current matrix
 	void storesubmatrix(const int fromrow, const int fromcol, const NRMat &rhs);
+	void storesubmatrix(const NRVec<int> &rows, const NRVec<int> &cols, const NRMat &rhs);
 
 	//! perform the \b gemm operation
 	void gemm(const T &beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T &alpha);
