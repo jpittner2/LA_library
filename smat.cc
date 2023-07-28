@@ -311,13 +311,35 @@ const NRSMat<T> NRSMat<T>::permuted(const NRPerm<int> &p, const bool inverse) co
 if(!p.is_valid()) laerror("invalid permutation of smatrix");
 #endif
 int n=p.size();
-if(n!=(*this).size()) laerror("incompatible permutation and smatrix");
+if(n!=(*this).nrows()) laerror("incompatible permutation and smatrix");
 #ifdef CUDALA
         if(this->getlocation() != cpu || p.getlocation() != cpu ) laerror("permutations can be done only in CPU memory");
 #endif
 NRSMat<T> r(n);
-if(inverse) for(int i=1; i<=n; ++i) {int pi = p[i]-1; r(i-1,i-1) = (*this)(pi,pi);}
-else for(int i=1; i<=n; ++i) {int pi = p[i]-1; r(pi,pi) = (*this)(i-1,i-1);}
+if(inverse) 
+	{
+	for(int i=1; i<=n; ++i) 
+                {
+                int pi = p[i]-1; 
+                for(int j=1; j<=i; ++j)
+                        {
+                        int pj = p[j] - 1;
+                        r(i-1,j-1) = (*this)(pi,pj);
+                        }
+                }
+	}
+else 
+	{
+	for(int i=1; i<=n; ++i) 
+		{
+		int pi = p[i]-1; 
+		for(int j=1; j<=i; ++j)
+			{
+			int pj = p[j] - 1;
+			r(pi,pj) = (*this)(i-1,j-1);
+			}
+		}
+	}
 return r;
 }
 

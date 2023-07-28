@@ -2760,9 +2760,7 @@ cout <<"Clique cover is "<<cover<<endl;
 NRPerm<int> p(cover.size());
 cover.sort(0,p);
 cout<<"permutation to disentabgle the cliques = "<<p<<endl;
-NRVec<int> perm1(p.size());
-for(int i=0; i<p.size(); ++i) perm1[i] = p[i+1]-1;
-NRSMat<char> adjperm = adj.submatrix(perm1);
+NRSMat<char> adjperm = adj.permuted(p);
 cout <<"resorted graph = "<<adjperm<<endl;
 }
 
