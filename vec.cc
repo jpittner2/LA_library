@@ -767,6 +767,10 @@ NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
 #endif
 	return r;
 }
+
+
+
+
 template<typename T>
 void NRVec<T>::permuteme(const CyclePerm<int> &p)
 {
