@@ -46,7 +46,7 @@ template<typename G>
 NRVec<int> complement(const G &adjacency, const NRVec<int> & vertexlist);
 
 template<typename G>
-NRVec<int> cliquecover(const G &adjacency);
+NRVec<int> cliquecover(const G &adjacency, int *ncliques=NULL);
 
 
 

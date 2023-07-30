@@ -112,12 +112,12 @@ return r;
 //found cliques releatedly until the whole graph is covered
 //could be recursive but we made it iterative
 template<typename G>
-NRVec<int> cliquecover(const G &adjacency)
+NRVec<int> cliquecover(const G &adjacency, int *ncliques)
 {
 int n=adjacency.nrows();
 NRVec<int> r(n); r.clear();
 G graph = adjacency;
-int cliquenumber=1;
+int cliquenumber=0;
 int remaining=n;
 NRVec<int> cliques(0);
 NRVec<int> notincliques(n);
@@ -128,8 +128,8 @@ while(remaining)
 	NRVec<int> cliqueorignum(clique.size());
 	for(int i=0; i<clique.size(); ++i)  cliqueorignum[i] = notincliques[clique[i]];
 	cliques.concatme(cliqueorignum);
-	for(int i=0; i<clique.size(); ++i) r[cliqueorignum[i]] = cliquenumber;
 	++cliquenumber;
+	for(int i=0; i<clique.size(); ++i) r[cliqueorignum[i]] = cliquenumber;
 	notincliques = complement(adjacency,cliques);
 	remaining=notincliques.size();
 	if(remaining)
@@ -137,6 +137,7 @@ while(remaining)
 		graph= adjacency.submatrix(notincliques);
 		}
 	}
+if(ncliques) *ncliques = cliquenumber;
 return r;
 }
 
@@ -147,7 +148,7 @@ template NRVec<int> neighbors(const NRSMat<T> &adjacency, const int v); \
 template NRVec<int> nonneighbors(const NRSMat<T> &adjacency, const int v); \
 template NRVec<int> findclique(const NRSMat<T> &adjacency, const int v); \
 template NRVec<int> complement(const NRSMat<T> &adjacency, const NRVec<int> & vertexlist); \
-template NRVec<int> cliquecover(const NRSMat<T> &adjacency); \
+template NRVec<int> cliquecover(const NRSMat<T> &adjacency, int *ncliques); \
 
 
 
