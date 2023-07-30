@@ -2758,7 +2758,7 @@ cout <<"Check adjacency of the clique: "<<adj.submatrix(clique)<<endl;
 NRVec<int> cover = cliquecover(adj);
 cout <<"Clique cover is "<<cover<<endl;
 NRPerm<int> p(cover.size());
-cover.sort(0,p);
+cover.sort(0,p,true);
 cout<<"permutation to disentabgle the cliques = "<<p<<endl;
 NRSMat<char> adjperm = adj.permuted(p);
 cout <<"resorted graph = "<<adjperm<<endl;

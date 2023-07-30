@@ -145,14 +145,28 @@ template<typename T, typename I, int type> struct LA_sort_traits;
 template<typename T, typename I>
 struct LA_sort_traits<T,I,0>
         {
-        static inline bool compare(T object, I i, I j) {return object.bigger(i,j);};
+        static inline bool compare(const T &object, I i, I j) {return object.bigger(i,j);};
+	static inline bool comparestable(const T &object, I i, I j, I *auxkey)
+                {
+                bool r= object.bigger(i,j);
+                if(!r && object[i]==object[j]) r= auxkey[i]>auxkey[j];
+                return r;
+                };
+
         };
 
 template<typename T, typename I>
 struct LA_sort_traits<T,I,1>
         {
-        static inline bool compare(T object, I i, I j) {return object.smaller(i,j);};
+        static inline bool compare(const T &object, I i, I j) {return object.smaller(i,j);};
+	static inline bool comparestable(const T &object, I i, I j, I *auxkey)
+                {
+                bool r= object.smaller(i,j);
+                if(!r && object[i]==object[j]) r= auxkey[i]<auxkey[j];
+                return r;
+                };
         };
+
 
 
 //we will need to treat char and unsigned char as numbers in << and >> I/O operators

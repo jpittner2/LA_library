@@ -104,6 +104,66 @@ return parity;
 }
 
 
+//stabilized version of quicksort employing auxiliary key of the original position
+
+template<int type, typename SORTABLE, typename INDEX, typename PERMINDEX>
+int memqsortaux(SORTABLE &object, PERMINDEX *perm, INDEX l, INDEX r, INDEX *aux)
+{
+INDEX i,j,piv;
+int parity=0;
+
+if(r<=l) return parity; //1 element
+if(LA_sort_traits<SORTABLE,INDEX,type>::comparestable(object,l,r,aux)) {parity^=1; object.swap(l,r); {INDEX tmp=aux[l]; aux[l]=aux[r]; aux[r]=tmp;} if(perm) {PERMINDEX tmp=perm[l]; perm[l]=perm[r]; perm[r]=tmp;}}
+if(r-l==1) return parity; //2 elements and preparation for median
+piv= l+(r-l)/2; //pivoting by median of 3 - safer 
+if(LA_sort_traits<SORTABLE,INDEX,type>::comparestable(object,l,piv,aux)) {parity^=1; object.swap(l,piv); {INDEX tmp=aux[l]; aux[l]=aux[piv]; aux[piv]=tmp;} if(perm) {PERMINDEX tmp=perm[l]; perm[l]=perm[piv]; perm[piv]=tmp;}} //and change the pivot element implicitly
+if(LA_sort_traits<SORTABLE,INDEX,type>::comparestable(object,piv,r,aux)) {parity^=1; object.swap(r,piv); {INDEX tmp=aux[r]; aux[r]=aux[piv]; aux[piv]=tmp;} if(perm) {PERMINDEX tmp=perm[r]; perm[r]=perm[piv]; perm[piv]=tmp;}} //and change the pivot element implicitly
+if(r-l==2) return parity; //in the case of 3 elements we are finished too
+
+//general case , l-th r-th already processed
+i=l+1; j=r-1;
+do{
+  //important sharp inequality - stops at sentinel element for efficiency
+  // this is inefficient if all keys are equal - unnecessary n log n swaps are done, but we assume that it is atypical input
+  while(LA_sort_traits<SORTABLE,INDEX,type>::comparestable(object,piv,i++,aux));
+  i--;
+  while(LA_sort_traits<SORTABLE,INDEX,type>::comparestable(object,j--,piv,aux));
+  j++;
+  if(i<j)
+	{
+	// swap and keep track of position of pivoting element 
+	parity^=1; 
+	object.swap(i,j);  
+	{INDEX tmp =aux[i]; aux[i]=aux[j]; aux[j]=tmp;}
+	if(perm) {PERMINDEX tmp=perm[i]; perm[i]=perm[j]; perm[j]=tmp;}
+	if(i==piv) piv=j; else if(j==piv) piv=i;
+	}
+  if(i<=j) {i++; j--;}
+  }while(i<=j);
+
+if(j-l < r-i)   //because of the stack in bad case process first the shorter subarray
+	{if(l<j) parity ^=memqsortaux<type,SORTABLE,INDEX,PERMINDEX>(object,perm,l,j,aux); if(i<r) parity ^=memqsortaux<type,SORTABLE,INDEX,PERMINDEX>(object,perm,i,r,aux);}
+else
+	{if(i<r) parity ^=memqsortaux<type,SORTABLE,INDEX,PERMINDEX>(object,perm,i,r,aux); if(l<j) parity ^=memqsortaux<type,SORTABLE,INDEX,PERMINDEX>(object,perm,l,j,aux);}
+return parity;
+}
+
+
+template<int type, typename SORTABLE, typename INDEX, typename PERMINDEX>
+int memqsortstable(SORTABLE &object, PERMINDEX *perm, INDEX l, INDEX r)
+{
+if(r<=l) return 0; //1 element
+INDEX *aux= new INDEX[r-l+1];
+if(aux==NULL) laerror("allocation failed in memqsortstable");
+INDEX *auxshifted = aux-l;
+for(INDEX i=l; i<=r; ++i) auxshifted[i]=i;
+int parity=memqsortaux<type,SORTABLE,INDEX,PERMINDEX>(object,perm,l,r,auxshifted);
+delete[] aux;
+return parity;
+}
+
+
+
 template<typename S, typename PERMINDEX>
 int ptrqsortup(S *l, S *r, PERMINDEX *perm=NULL)
 {

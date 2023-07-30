@@ -451,8 +451,8 @@ public:
 	};
 
 	//! sort by default in ascending order and return the parity of corresponding permutation resulting to this order
-	int sort(int direction = 0, int from = 0, int to = -1, int *perm = NULL);
-	int sort(int direction, NRPerm<int> &perm);
+	int sort(int direction = 0, int from = 0, int to = -1, int *perm = NULL, bool stable=false);
+	int sort(int direction, NRPerm<int> &perm, bool stable=false);
 
 	//! apply given function to each element
 	NRVec& call_on_me(T (*_F)(const T &) ){
@@ -518,21 +518,29 @@ namespace LA {
 
 
 template<typename T>
-int NRVec<T>::sort(int direction, int from, int to, int *perm) {
+int NRVec<T>::sort(int direction, int from, int to, int *perm, bool stable) {
 	NOT_GPU(*this);
 
 	copyonwrite();
 	if(to == -1) to = nn - 1;
-	if(direction) return memqsort<1, NRVec<T>, int, int>(*this, perm, from, to);
-	else return memqsort<0, NRVec<T>, int, int>(*this, perm, from, to);
+	if(stable)
+		{
+		if(direction) return memqsortstable<1, NRVec<T>, int, int>(*this, perm, from, to);
+                else return memqsortstable<0, NRVec<T>, int, int>(*this, perm, from, to);
+		}
+	else
+		{	
+		if(direction) return memqsort<1, NRVec<T>, int, int>(*this, perm, from, to);
+		else return memqsort<0, NRVec<T>, int, int>(*this, perm, from, to);
+		}
 }
 
 template<typename T>
-int NRVec<T>::sort(int direction, NRPerm<int> &perm)
+int NRVec<T>::sort(int direction, NRPerm<int> &perm, bool stable)
 {
 if(nn!=perm.size()) laerror("incompatible vector and permutation");
 perm.identity();
-int r=sort(direction,0,nn-1,&perm[1]);
+int r=sort(direction,0,nn-1,&perm[1],stable);
 return r;
 }
 
