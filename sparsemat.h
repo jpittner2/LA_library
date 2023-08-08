@@ -82,6 +82,7 @@ public:
 	explicit SparseMat(const NRSMat<T> &rhs); //construct from a dense symmetric one
 	SparseMat & operator=(const SparseMat &rhs);
 	SparseMat & operator=(const T &a);          //assign a to diagonal
+	void identity() {*this = (T)1;};
     	SparseMat & operator+=(const T &a);         //assign a to diagonal
 	SparseMat & operator-=(const T &a);         //assign a to diagonal
         SparseMat & operator*=(const T &a);         //multiply by a scalar

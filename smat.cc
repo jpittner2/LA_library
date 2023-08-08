@@ -858,6 +858,12 @@ void NRSMat<T>::storesubmatrix(const NRVec<int> &selection, const NRSMat &rhs)
                 }
 }
 
+template<>
+NRSMat<double>  NRSMat<double>::inverse() {return NRSMat<double>(NRMat<double>(*this).inverse());}
+
+template<>
+NRSMat<std::complex<double> >  NRSMat<std::complex<double> >::inverse() {return NRSMat<std::complex<double> >(NRMat<std::complex<double> >(*this).inverse());}
+
 
 
 

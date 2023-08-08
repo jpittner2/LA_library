@@ -23,12 +23,14 @@
 #include "la_traits.h"
 #include "vec.h"
 #include "polynomial.h"
+#include "nonclass.h"
 
 typedef   unsigned long long PERM_RANK_TYPE;
 
 //permutations are always numbered from 1; offset is employed when applied to vectors and matrices
 
 namespace LA {
+
 
 //forward declaration
 template <typename T> class CyclePerm;
@@ -65,6 +67,7 @@ public:
 	NRVec_from1<T> inversions(const int type, PERM_RANK_TYPE *prank=NULL) const; //inversion tables
 	explicit NRPerm(const int type, const NRVec_from1<T> &inversions); //compute permutation from inversions
 	explicit NRPerm(const int n, const PERM_RANK_TYPE rank); //compute permutation from its rank
+	NRPerm pow(const int n) const {return power(*this,n);};
 };
 
 extern PERM_RANK_TYPE factorial(const int n);
@@ -90,6 +93,10 @@ public:
 	void readfrom(const std::string &line);
 	CyclePerm operator*(const CyclePerm q) const; //q is rhs and applied first, this applied second
 	PERM_RANK_TYPE order() const; //lcm of cycle lengths
+	bool operator==(const CyclePerm &rhs) const {return NRPerm<T>(*this) == NRPerm<T>(rhs);}; //cycle representation is not unique, cannot inherit operator== from NRVec
+	void simplify(bool keep1=false); //remove cycles of size 0 or 1
+	CyclePerm pow_simple(const int n) const {return CyclePerm(NRPerm<T>(*this).pow(n));}; //do not call power() with our operator*
+	CyclePerm pow(const int n, const bool keep1=false) const; //a more efficient algorithm
 };
 
 
@@ -144,7 +151,7 @@ public:
 	bool is_valid() const {return this->size() == this->sum();}
 	explicit CompressedPartition(const Partition<T> &rhs) : NRVec_from1<T>(rhs.size()) {this->clear(); for(int i=1; i<=rhs.size(); ++i) if(!rhs[i]) break; else (*this)[rhs[i]]++; }
 	PERM_RANK_TYPE Sn_class_size() const; 
-	int parity() const; //of a permutation with given cycle lengths
+	int parity() const; //of a permutation with given cycle lengths, returns +/- 1
 
 };
 
@@ -166,7 +173,7 @@ public:
 	PERM_RANK_TYPE Sn_irrep_dim() const;
 	PERM_RANK_TYPE Un_irrep_dim(const int n) const;
 	PERM_RANK_TYPE generate_all(void (*callback)(const Partition<T>&), int nparts=0); //nparts <0 means at most to -nparts
-	int parity() const; //of a permutation with given cycle lengths
+	int parity() const; //of a permutation with given cycle lengths, returns +/- 1
 
 };
 

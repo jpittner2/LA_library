@@ -70,6 +70,8 @@ public:
 
 	//compiler generates default copy constructor and assignment operator
 	
+	void identity() {q[0]=(T)1; q[1]=q[2]=q[3]=0;};
+	
 	//formal indexing
 	inline const T operator[](const int i) const {return q[i];};
 	inline T& operator[](const int i) {return q[i];};

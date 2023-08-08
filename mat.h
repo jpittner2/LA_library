@@ -22,6 +22,7 @@
 #define _LA_MAT_H_
 #include "la_traits.h"
 
+
 namespace LA {
 
 //forward declaration
@@ -129,7 +130,7 @@ public:
 	void scale_row(const int i, const T f); //in place
 	void scale_col(const int i, const T f); //in place
 	void axpy(const T alpha, const NRPerm<int> &p, const bool direction);
-	explicit NRMat(const NRPerm<int> &p, const bool direction); //permutation matrix
+	explicit NRMat(const NRPerm<int> &p, const bool direction, const bool parity=false); //permutation matrix
 
 
 	/***************************************************************************//**
@@ -155,6 +156,13 @@ public:
 
 	//! assign scalar value to the diagonal elements
 	NRMat & operator=(const T &a);
+
+	//! unit matrix for general power
+	void identity() {*this = (T)1;}
+
+	//! inverse matrix
+	NRMat inverse();
+
 	//! add scalar value to the diagonal elements
 	NRMat & operator+=(const T &a);
 	//! subtract scalar value to the diagonal elements

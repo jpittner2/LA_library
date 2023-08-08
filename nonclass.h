@@ -25,6 +25,48 @@
 namespace LA {
 
 //MISC
+
+
+//positive power for a general class
+template<typename T>
+T positive_power(const T &x, const int n)
+{
+if(n<=0) laerror("zero or negative n in positive_power");
+int i=n;
+if(i==1) return x;
+T y,z;
+z=x;
+while(!(i&1))
+        {
+        z = z*z;
+        i >>= 1;
+        }
+y=z;
+while((i >>= 1)/*!=0*/)
+                {
+                z = z*z;
+                if(i&1) y = y*z;
+                }
+return y;
+}
+
+
+//general integer power for a class providing identity() and inverse()
+template<typename T>
+T power(const T &x, const int n)
+{
+int i=n;
+if(i==0) {T r(x); r.identity(); return r;}
+T z;
+if(i>0) z=x;
+else {z=x.inverse(); i= -i;}
+if(i==1) return z;
+return positive_power(z,i);
+}
+
+
+
+
 template <class T>
 const NRSMat<T> twoside_transform(const NRSMat<T> &S, const NRMat<T> &C, bool transp=0) //calculate C^dagger S C
 {
@@ -138,7 +180,7 @@ extern void cholesky(NRMat<std::complex<double> > &a, bool upper=1);
 
 //inverse by means of linear solve, preserving rhs intact
 template<typename T>
-const NRMat<T> inverse(NRMat<T> a, T *det=0)
+const NRMat<T> calcinverse(NRMat<T> a, T *det=NULL)
 {
 #ifdef DEBUG
 	if(a.nrows()!=a.ncols()) laerror("inverse() for non-square matrix");

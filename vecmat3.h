@@ -114,6 +114,8 @@ public:
 	Mat3(void) {};
 	Mat3(const T (&a)[3][3]) {memcpy(q,a,3*3*sizeof(T));}
 	Mat3(const T x) {memset(q,0,9*sizeof(T)); q[0][0]=q[1][1]=q[2][2]=x;}; //scalar matrix
+	Mat3& operator=(const T &x) {memset(q,0,9*sizeof(T)); q[0][0]=q[1][1]=q[2][2]=x; return *this;}; //scalar matrix
+	void indentity() {*this = (T)1;};
 	Mat3(const T* x) {memcpy(q,x,9*sizeof(T));} 
 	Mat3(const T x00, const T x01,const T x02,const T x10,const T x11,const T x12,const T x20,const T x21,const T x22) 
 		{q[0][0]=x00; q[0][1]=x01; q[0][2]=x02; q[1][0]=x10; q[1][1]=x11; q[1][2]=x12; q[2][0]=x20; q[2][1]=x21; q[2][2]=x22;};

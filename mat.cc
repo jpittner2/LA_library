@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>
+#include "nonclass.h"
 
 
 namespace LA {
@@ -3163,12 +3164,13 @@ for(int i=0; i<n; ++i)
 }
 
 template<typename T>
-NRMat<T>::NRMat(const NRPerm<int> &p, const bool direction)
+NRMat<T>::NRMat(const NRPerm<int> &p, const bool direction, const bool parity)
 {
 int n=p.size();
 resize(n,n);
 clear();
-axpy((T)1,p,direction);
+T alpha= parity? p.parity():1;
+axpy(alpha,p,direction);
 }
 
 
@@ -3355,6 +3357,22 @@ copyonwrite();
         }
 #endif
 }
+
+
+
+template<>
+NRMat<double> NRMat<double>::inverse()
+{
+NRMat<double> tmp(*this);
+return calcinverse(tmp);
+}
+
+template<>
+NRMat<std::complex<double> > NRMat<std::complex<double> >::inverse()
+{
+NRMat<std::complex<double> >  tmp(*this);
+return calcinverse(tmp);
+}       
 
 
 

@@ -899,7 +899,7 @@ a(2,2)=-4;
 a(0,2)=1;
 cout <<a;
 double d;
-NRMat<double> c=inverse(a,&d);
+NRMat<double> c=calcinverse(a,&d);
 cout <<a<<c;
 }
 
@@ -1442,7 +1442,7 @@ for(int i=0; i<n; ++i) Y(i,i) -= tmp2(i,i);
 
 cout <<"Y matrix \n"<< Y;
 
-NRMat<double> vri = inverse(vr);
+NRMat<double> vri = calcinverse(vr);
 
 NRMat<double> numX = vri * vrd;
 cout <<" numerical X matrix \n"<< numX;
@@ -2087,15 +2087,26 @@ for(i=1; i<=n; ++i) v[i]=10.*i;
 cout <<v.permuted(p);
 }
 
-if(0)
+if(1)
 {
+int n;
 CyclePerm<int> c;
-cin>>c;
+cin>>c >>n;
+c.simplify();
 cout<<c<<endl;
 NRPerm<int> p(c);
 cout <<p;
 CyclePerm<int> cc(p);
 cout <<cc<<endl;
+NRPerm<int> pp(cc);
+cout <<(p == pp)<<endl;
+cout <<(c == cc)<<endl;
+CyclePerm<int> cc1,cc2;
+cc1=cc.pow_simple(n);
+cc2=cc.pow(n);
+cout<<cc<<endl;
+cout<<cc2<<endl;
+cout <<(cc1 == cc2)<<endl;
 }
 
 if(0)
@@ -2703,7 +2714,7 @@ diagonalize(d,e);
 //now try similarity transformed H
 NRMat<double> a(n,n);
 a.randomize(1);
-NRMat<double> ainv = inverse(a);
+NRMat<double> ainv = calcinverse(a);
 NRMat<double> atr = a.transpose();
 NRMat<double> ainvtr = ainv.transpose();
 cout <<"error of inverse = "<<(a*ainv).norm(1.)<<endl;
@@ -2748,7 +2759,7 @@ if(0)
 laerror("test exception");
 }
 
-if(1)
+if(0)
 {
 NRSMat<char> adj;
 cin >>adj;

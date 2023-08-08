@@ -93,6 +93,13 @@ public:
 	//! assign scalar value to diagonal elements
 	NRSMat & operator=(const T &a);
 
+	//! unit matrix for general power
+        void identity() {*this = (T)1;}
+
+	//! inverse matrix
+        NRSMat inverse();
+
+
 	//! permute matrix elements
         const NRSMat permuted(const NRPerm<int> &p, const bool inverse=false) const;
 
@@ -148,7 +155,7 @@ public:
 
 	inline int nrows() const;
 	inline int ncols() const;
-	inline size_t size() const;
+	inline size_t size() const; //NOTE it is the size of data n*(n+1)/2, not nrows 
 
 	inline bool transp(const int i, const int j) const {return i>j;} //this can be used for compact storage of matrices, which are actually not symmetric, but one triangle of them is redundant
 	const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const;

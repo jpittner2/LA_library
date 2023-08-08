@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include "nonclass.h"
 
 
 namespace LA {
@@ -224,24 +225,9 @@ return poly_gcd(big,small,thr,d);
 template <typename T>
 Polynomial<T> Polynomial<T>::pow(const int n) const
 {
-int i=n;
-if(i<0) laerror("negative exponent in polynomial::pow");
-if(i==0) {Polynomial<T> r(0); r[0]=(T)1; return r;}
-if(i==1) return *this;
-Polynomial<T>y,z;
-z= *this;
-while(!(i&1))
-        {
-        z = z*z;
-        i >>= 1;
-        }
-y=z;
-while((i >>= 1)/*!=0*/)
-                {
-                z = z*z;
-                if(i&1) y = y*z;
-                }
-return y;
+if(n<0) laerror("negative exponent in polynomial::pow");
+if(n==0) {Polynomial<T> r(0); r[0]=(T)1; return r;}
+return positive_power(*this,n);
 }
 
 template <typename T>

@@ -569,6 +569,7 @@ for(typename std::list<NRVec_from1<T> >::iterator l=cyclelist.begin(); l!=cyclel
 }
 
 
+
 template <typename T>
 bool CyclePerm<T>::is_valid() const
 {
@@ -640,6 +641,23 @@ NRPerm<T> pp(*this,m);
 NRPerm<T> rr=pp*qq;
 return CyclePerm<T>(rr);
 }
+
+template <typename T>
+void CyclePerm<T>::simplify(bool keep1)
+{
+int j=0;
+for(int i=1; i<=this->size(); ++i)
+	{
+	int il= (*this)[i].size();
+	if(keep1 && il>0 || il>1 )
+		{
+		++j;
+		if(j!=i) (*this)[j] = (*this)[i]; //keep this
+		}
+	}
+this->resize(j,true);
+}
+
 
 template <typename T>
 int CyclePerm<T>::parity() const
@@ -788,6 +806,57 @@ return s;
 }
 
 
+template <typename T>
+CyclePerm<T> CyclePerm<T>::pow(const int n, const bool keep1) const
+{
+#ifdef DEBUG
+        if(!this->is_valid()) laerror("power of invalid permutation");
+#endif
+CyclePerm<T> r;
+if(n==0) {r.identity(); return r;}
+
+//probably negative n will work automatically using the modulo approach
+std::list<NRVec_from1<T> > cyclelist;
+T currentcycle=0;
+
+//go through all our cycles and compute power of each cycle separately
+for(int i=1; i<=this->size(); ++i)
+	{
+	int cyclesize = (*this)[i].size();
+	if(cyclesize>0 && keep1 || cyclesize>1)
+		{
+		int modulo = n%cyclesize;
+		if(modulo<0) modulo += cyclesize;
+		if(modulo==0) 
+			{
+			if(keep1) //keep cycles of length 1 to keep info about the size of the permutation
+				{
+				for(int j=1; j<=cyclesize; ++j) {NRVec_from1<T> c(1); c[1] = (*this)[i][j]; ++currentcycle; cyclelist.push_back(c);}
+				}
+			}
+		else //the nontrivial case
+			{
+			int nsplit=gcd(modulo,cyclesize);
+			int splitsize=cyclesize/nsplit;
+			for(int j=0; j<nsplit; ++j) //loop over split cycles
+				{
+				NRVec_from1<T> c(splitsize);
+				for(int k=1; k<=splitsize; ++k) //fill in the cycle
+					{
+					c[k] = (*this)[i][((k-1)*modulo)%cyclesize + 1 + j];
+					}
+				++currentcycle; cyclelist.push_back(c);	
+				}
+			}
+		}
+	}
+
+//convert list to NRVec
+r.resize(currentcycle);
+int i=1;
+for(typename std::list<NRVec_from1<T> >::iterator l=cyclelist.begin(); l!=cyclelist.end(); ++l) r[i++] = *l;
+return r;
+}
 
 ///////////////////////////////////////////////////////
 
