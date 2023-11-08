@@ -56,6 +56,7 @@ public:
 	NRPerm inverse() const;
 	NRPerm reverse() const; //backward order
 	NRPerm operator*(const NRPerm q) const; //q is rhs and applied first, this applied second
+	NRPerm operator*(const CyclePerm<T> &r) const;
 	NRPerm conjugate_by(const NRPerm q) const; //q^-1 p q
 	int parity() const;
 	void randomize(void); //uniformly random by Fisher-Yates shuffle
@@ -92,6 +93,7 @@ public:
 	CompressedPartition<T> cycles(const T n) const;
 	void readfrom(const std::string &line);
 	CyclePerm operator*(const CyclePerm q) const; //q is rhs and applied first, this applied second
+	NRPerm<T> operator*(const NRPerm<T> &r) const;
 	PERM_RANK_TYPE order() const; //lcm of cycle lengths
 	bool operator==(const CyclePerm &rhs) const {return NRPerm<T>(*this) == NRPerm<T>(rhs);}; //cycle representation is not unique, cannot inherit operator== from NRVec
 	void simplify(bool keep1=false); //remove cycles of size 0 or 1

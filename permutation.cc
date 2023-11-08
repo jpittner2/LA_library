@@ -642,6 +642,22 @@ NRPerm<T> rr=pp*qq;
 return CyclePerm<T>(rr);
 }
 
+
+//mixed type multiplications
+template <typename T>
+NRPerm<T> NRPerm<T>::operator*(const CyclePerm<T> &r) const
+{
+NRPerm<T> rr(r,this->size());
+return *this * rr;
+}
+
+template <typename T>
+NRPerm<T> CyclePerm<T>::operator*(const NRPerm<T> &r) const
+{
+NRPerm<T> tt(*this,r.size());
+return tt*r;
+}
+
 template <typename T>
 void CyclePerm<T>::simplify(bool keep1)
 {
