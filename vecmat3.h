@@ -167,6 +167,7 @@ public:
 };
 
 
+
 //stream I/O
 #ifndef AVOID_STDSTREAM
 template <typename T>
@@ -197,5 +198,32 @@ void perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &rot_angle, con
 
 
 }//namespace
+
+using namespace  LA_Vecmat3;
+namespace LA {
+//forward declaration, needed of this file is used separately from the rest of LA
+template<typename T>
+class LA_traits;
+
+template<typename T>
+class LA_traits<Vec3<T> >
+{
+public:
+       static bool is_plaindata() {return true;};
+       static void copyonwrite(Vec3<T>& x) {};
+       typedef T normtype;
+};
+
+template<typename T>
+class LA_traits<Mat3<T> >
+{
+public:
+       static bool is_plaindata() {return true;};
+       static void copyonwrite(Mat3<T>& x) {};
+       typedef T normtype;
+};
+
+
+}
 #endif /* _VECMAT3_H_ */
 
