@@ -426,11 +426,12 @@ cout <<b;
 cout <<d;
 }
 
-if(0)
+if(1)
 {
 NRMat<double> a;
 cin >>a ;
 NRMat<double> abak=a;
+NRMat<double> abak2=a;
 NRMat<double> u(a.nrows(),a.nrows()),v(a.ncols(),a.ncols());
 NRVec<double>s(a.ncols()<a.nrows()?a.ncols():a.nrows());
 singular_decomposition(a,&u,s,&v,0);
@@ -440,6 +441,14 @@ sdiag.diagonalset(s);
 cout <<sdiag;
 cout <<v;
 cout << "Error "<<(u*sdiag*v-abak).norm()<<endl;
+NRMat<double> ai=calcinverse(abak2);
+cout <<"regular inverse "<<ai;
+NRVec<double>ss(s);ss.copyonwrite();
+for(int i=0; i<ss.size(); ++i) if(ss[i]>1e-12) ss[i]=1./ss[i]; else ss[i]=0;
+sdiag.diagonalset(ss);
+NRMat<double> aii = v.transpose() *sdiag*u.transpose();
+cout <<"svd inverse "<<aii;
+cout << "Error in inverse "<< (aii-ai).norm()<<endl;
 }
 
 if(0)
@@ -2087,7 +2096,7 @@ for(i=1; i<=n; ++i) v[i]=10.*i;
 cout <<v.permuted(p);
 }
 
-if(1)
+if(0)
 {
 int n;
 CyclePerm<int> c;

@@ -97,6 +97,18 @@ const Vec3<T> Vec3<T>::operator*(const Mat3<T> &rhs) const
                 return r;
                 }; 
 
+template<typename T>
+const Vec3<T> Vec3<T>::timesT(const Mat3<T> &rhs) const
+                { 
+                Vec3<T> r;
+                r[0] = q[0]*rhs.q[0][0] + q[1]*rhs.q[0][1] + q[2]*rhs.q[0][2];
+                r[1] = q[0]*rhs.q[1][0] + q[1]*rhs.q[1][1] + q[2]*rhs.q[1][2];
+                r[2] = q[0]*rhs.q[2][0] + q[1]*rhs.q[2][1] + q[2]*rhs.q[2][2];
+                return r;
+                }; 
+
+
+
 
 template<typename T>
 Mat3<T>& Mat3<T>::operator+=(const Mat3 &rhs) 
@@ -128,6 +140,58 @@ const Mat3<T> Mat3<T>::operator*(const Mat3 &rhs) const
                 r[2][2]= q[2][0]*rhs.q[0][2] + q[2][1]*rhs.q[1][2] + q[2][2]*rhs.q[2][2];
                 return r;
                 }  
+
+template<typename T>
+const Mat3<T> Mat3<T>::Ttimes(const Mat3 &rhs) const
+                {
+                Mat3<T> r;
+                r[0][0]= q[0][0]*rhs.q[0][0] + q[1][0]*rhs.q[1][0] + q[2][0]*rhs.q[2][0];
+                r[0][1]= q[0][0]*rhs.q[0][1] + q[1][0]*rhs.q[1][1] + q[2][0]*rhs.q[2][1];
+                r[0][2]= q[0][0]*rhs.q[0][2] + q[1][0]*rhs.q[1][2] + q[2][0]*rhs.q[2][2];
+                r[1][0]= q[0][1]*rhs.q[0][0] + q[1][1]*rhs.q[1][0] + q[2][1]*rhs.q[2][0];
+                r[1][1]= q[0][1]*rhs.q[0][1] + q[1][1]*rhs.q[1][1] + q[2][1]*rhs.q[2][1];
+                r[1][2]= q[0][1]*rhs.q[0][2] + q[1][1]*rhs.q[1][2] + q[2][1]*rhs.q[2][2];
+                r[2][0]= q[0][2]*rhs.q[0][0] + q[1][2]*rhs.q[1][0] + q[2][2]*rhs.q[2][0];
+                r[2][1]= q[0][2]*rhs.q[0][1] + q[1][2]*rhs.q[1][1] + q[2][2]*rhs.q[2][1];
+                r[2][2]= q[0][2]*rhs.q[0][2] + q[1][2]*rhs.q[1][2] + q[2][2]*rhs.q[2][2];
+                return r;
+                }
+
+
+template<typename T>
+const Mat3<T> Mat3<T>::timesT(const Mat3 &rhs) const
+                {
+                Mat3<T> r;
+                r[0][0]= q[0][0]*rhs.q[0][0] + q[0][1]*rhs.q[0][1] + q[0][2]*rhs.q[0][2];
+                r[0][1]= q[0][0]*rhs.q[1][0] + q[0][1]*rhs.q[1][1] + q[0][2]*rhs.q[1][2];
+                r[0][2]= q[0][0]*rhs.q[2][0] + q[0][1]*rhs.q[2][1] + q[0][2]*rhs.q[2][2];
+                r[1][0]= q[1][0]*rhs.q[0][0] + q[1][1]*rhs.q[0][1] + q[1][2]*rhs.q[0][2];
+                r[1][1]= q[1][0]*rhs.q[1][0] + q[1][1]*rhs.q[1][1] + q[1][2]*rhs.q[1][2];
+                r[1][2]= q[1][0]*rhs.q[2][0] + q[1][1]*rhs.q[2][1] + q[1][2]*rhs.q[2][2];
+                r[2][0]= q[2][0]*rhs.q[0][0] + q[2][1]*rhs.q[0][1] + q[2][2]*rhs.q[0][2];
+                r[2][1]= q[2][0]*rhs.q[1][0] + q[2][1]*rhs.q[1][1] + q[2][2]*rhs.q[1][2];
+                r[2][2]= q[2][0]*rhs.q[2][0] + q[2][1]*rhs.q[2][1] + q[2][2]*rhs.q[2][2];
+                return r;
+                }
+
+template<typename T>
+const Mat3<T> Mat3<T>::TtimesT(const Mat3 &rhs) const
+                {
+                Mat3<T> r;
+                r[0][0]= q[0][0]*rhs.q[0][0] + q[1][0]*rhs.q[0][1] + q[2][0]*rhs.q[0][2];
+                r[0][1]= q[0][0]*rhs.q[1][0] + q[1][0]*rhs.q[1][1] + q[2][0]*rhs.q[1][2];
+                r[0][2]= q[0][0]*rhs.q[2][0] + q[1][0]*rhs.q[2][1] + q[2][0]*rhs.q[2][2];
+                r[1][0]= q[0][1]*rhs.q[0][0] + q[1][1]*rhs.q[0][1] + q[2][1]*rhs.q[0][2];
+                r[1][1]= q[0][1]*rhs.q[1][0] + q[1][1]*rhs.q[1][1] + q[2][1]*rhs.q[1][2];
+                r[1][2]= q[0][1]*rhs.q[2][0] + q[1][1]*rhs.q[2][1] + q[2][1]*rhs.q[2][2];
+                r[2][0]= q[0][2]*rhs.q[0][0] + q[1][2]*rhs.q[0][1] + q[2][2]*rhs.q[0][2];
+                r[2][1]= q[0][2]*rhs.q[1][0] + q[1][2]*rhs.q[1][1] + q[2][2]*rhs.q[1][2];
+                r[2][2]= q[0][2]*rhs.q[2][0] + q[1][2]*rhs.q[2][1] + q[2][2]*rhs.q[2][2];
+                return r;
+                }
+
+
+
 
 template<typename T>
 T Mat3<T>::determinant() const 
@@ -164,6 +228,17 @@ const Vec3<T> Mat3<T>::operator*(const Vec3<T> &rhs) const
                 r[2] = q[2][0]*rhs.q[0] + q[2][1]*rhs.q[1] + q[2][2]*rhs.q[2];
                 return r;
                 }
+
+template<typename T>
+const Vec3<T> Mat3<T>::Ttimes(const Vec3<T> &rhs) const
+                {
+                Vec3<T> r;
+                r[0] = q[0][0]*rhs.q[0] + q[1][0]*rhs.q[1] + q[2][0]*rhs.q[2];
+                r[1] = q[0][1]*rhs.q[0] + q[1][1]*rhs.q[1] + q[2][1]*rhs.q[2];
+                r[2] = q[0][2]*rhs.q[0] + q[1][2]*rhs.q[1] + q[2][2]*rhs.q[2];
+                return r;
+                }
+
 
 
 

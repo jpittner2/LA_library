@@ -86,6 +86,7 @@ public:
 	Vec3& normalize(void) {*this /= norm(); return *this;};
 	Vec3& fast_normalize(void);
 	const Vec3 operator*(const Mat3<T> &rhs) const;
+	const Vec3 timesT(const Mat3<T> &rhs) const; //with transpose
 	Mat3<T> outer(const Vec3 &rhs) const; //tensor product
 	void inertia(Mat3<T> &itensor, const T weight) const; //contribution to inertia tensor
 
@@ -151,7 +152,11 @@ public:
 	const Mat3 operator+(const Mat3 &rhs) const {return Mat3(*this) += rhs;};
 	const Mat3 operator-(const Mat3 &rhs) const {return Mat3(*this) -= rhs;};
 	const Mat3 operator*(const Mat3 &rhs) const; //matrix product
+	const Mat3 timesT(const Mat3 &rhs) const; //matrix product with transpose
+	const Mat3 Ttimes(const Mat3 &rhs) const; //matrix product with transpose
+	const Mat3 TtimesT(const Mat3 &rhs) const; //matrix product with transpose
 	const Vec3<T> operator*(const Vec3<T> &rhs) const; //matrix times vector
+	const Vec3<T> Ttimes(const Vec3<T> &rhs) const; //matrix times vector with transpose
 	T trace() const  {return q[0][0]+q[1][1]+q[2][2];};
 	T determinant() const;
 	void transposeme();
