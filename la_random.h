@@ -1,5 +1,5 @@
-#ifndef _RANDOM_H
-#define _RANDOM_H
+#ifndef _LA_RANDOM_H
+#define _LA_RANDOM_H
 
 namespace LA {
 

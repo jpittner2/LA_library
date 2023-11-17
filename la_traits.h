@@ -44,7 +44,7 @@
 //using namespace std;
 
 #include "laerror.h"
-#include "random.h"
+#include "la_random.h"
 
 #include "cuda_la.h"
 

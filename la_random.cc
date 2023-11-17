@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "random.h"
+#include "la_random.h"
 
 namespace LA {
 
