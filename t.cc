@@ -54,7 +54,7 @@ void f2(double *c)
 
 inline int randind(const int n)
 {
-	return int(random()/(1.+RAND_MAX)*n);
+	return int(RANDDOUBLE()*n);
 }
 
 complex<double> mycident (const complex<double>&x) {return x;}
@@ -640,7 +640,7 @@ for(int n=8; n<=1024*1024;n+=n)
 	cout << "\n\n\ntiming for size "<<n<<endl;
 	if(n<=512) {
 	NRMat<double> a(0.,n,n);
-	for(int i=0; i<sparsity;i++) a(randind(n),randind(n))=random()/(1.+RAND_MAX);
+	for(int i=0; i<sparsity;i++) a(randind(n),randind(n))=RANDDOUBLE();
 	double t0=clock()/((double) (CLOCKS_PER_SEC));	
 	//cout <<a;
 	NRMat<double> b(exp(a));
@@ -653,7 +653,7 @@ for(int n=8; n<=1024*1024;n+=n)
 	}
 	else
 	{
-	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),random()/(1.+RAND_MAX));
+	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),RANDDOUBLE());
 	}
 	//cout <<aa;
 	double t2=clock()/((double) (CLOCKS_PER_SEC));        
@@ -672,10 +672,10 @@ if(0)
 int n;
 cin>>n;
 	SparseMat<double> aa(n,n);
-	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),random()/(1.+RAND_MAX));
+	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),RANDDOUBLE());
 	SparseMat<double> bb=exp(aa);
 	NRVec<double> v(n);
-	 for(int i=0; i<n;++i) v[i]=random()/(1.+RAND_MAX);
+	 for(int i=0; i<n;++i) v[i]=RANDDOUBLE();
 	NRVec<double> res1=bb*v;
 	NRVec<double> res2=exptimes(aa,v);
 	cout <<"difference = "<<(res1-res2).norm()<<endl;
@@ -687,8 +687,8 @@ int n,k,m;
 cin >>n>>k>>m;
 {
 NRMat<double> a(n,k),b(k,m),c(n,m),d(n,m);
-for(int i=0;i<n;++i) for(int j=0;j<k;++j) a(i,j)= random()/(1.+RAND_MAX);
-for(int i=0;i<k;++i) for(int j=0;j<m;++j) b(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<n;++i) for(int j=0;j<k;++j) a(i,j)= RANDDOUBLE();
+for(int i=0;i<k;++i) for(int j=0;j<m;++j) b(i,j)= RANDDOUBLE();
 c.gemm(0., a, 'n', b, 'n', .6);
 SparseMat<double> aa(a);
 d.gemm(0., aa, 'n', b, 'n', .6);
@@ -697,8 +697,8 @@ cout  <<"test error = "<<(c-d).norm()<<endl;
 }
 {
 NRMat<double> a(k,n),b(k,m),c(n,m),d(n,m);
-for(int i=0;i<k;++i) for(int j=0;j<n;++j) a(i,j)= random()/(1.+RAND_MAX);
-for(int i=0;i<k;++i) for(int j=0;j<m;++j) b(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<k;++i) for(int j=0;j<n;++j) a(i,j)= RANDDOUBLE();
+for(int i=0;i<k;++i) for(int j=0;j<m;++j) b(i,j)= RANDDOUBLE();
 c.gemm(0., a, 't', b, 'n', .7);
 SparseMat<double> aa(a);
 d.gemm(0., aa, 't', b, 'n', .7);
@@ -707,8 +707,8 @@ cout  <<"test error = "<<(c-d).norm()<<endl;
 }
 {
 NRMat<double> a(n,k),b(m,k),c(n,m),d(n,m);
-for(int i=0;i<n;++i) for(int j=0;j<k;++j) a(i,j)= random()/(1.+RAND_MAX);
-for(int i=0;i<m;++i) for(int j=0;j<k;++j) b(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<n;++i) for(int j=0;j<k;++j) a(i,j)= RANDDOUBLE();
+for(int i=0;i<m;++i) for(int j=0;j<k;++j) b(i,j)= RANDDOUBLE();
 c.gemm(0., a, 'n', b, 't', .8);
 SparseMat<double> aa(a);
 d.gemm(0., aa, 'n', b, 't', .8);
@@ -717,8 +717,8 @@ cout  <<"test error = "<<(c-d).norm()<<endl;
 }
 {
 NRMat<double> a(k,n),b(m,k),c(n,m),d(n,m);
-for(int i=0;i<k;++i) for(int j=0;j<n;++j) a(i,j)= random()/(1.+RAND_MAX);
-for(int i=0;i<m;++i) for(int j=0;j<k;++j) b(i,j)= random()/(1.+RAND_MAX);
+for(int i=0;i<k;++i) for(int j=0;j<n;++j) a(i,j)= RANDDOUBLE();
+for(int i=0;i<m;++i) for(int j=0;j<k;++j) b(i,j)= RANDDOUBLE();
 c.gemm(0., a, 't', b, 't', .9);
 SparseMat<double> aa(a);
 d.gemm(0., aa, 't', b, 't', .9);
@@ -764,8 +764,8 @@ cin >>n;
 NRMat<double> a(n,n);
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
 	{
-	a(i,j)= random()/(1.+RAND_MAX);
-	a(j,i)= random()/(1.+RAND_MAX);
+	a(i,j)= RANDDOUBLE();
+	a(j,i)= RANDDOUBLE();
 	}
 NRMat<double> b; b|=a;
 NRVec<double> er(n),ei(n);
@@ -810,7 +810,7 @@ cin>>n;
 NRMat<double> a(n,n);
 for(int i=0;i<n;++i) for(int j=0;j<i;++j)
         {
-        a(i,j)= random()/(1.+RAND_MAX);
+        a(i,j)= RANDDOUBLE();
         a(j,i)= -a(i,j);
         }
 cout <<"a matrix \n"<<a;
@@ -836,9 +836,9 @@ NRMat<double> a(n,n);
 NRVec<double>u(n),v,w;
 for(int i=0;i<n;++i) 
         {
-	u[i]=f*random()/(1.+RAND_MAX);
+	u[i]=f*RANDDOUBLE();
 	for(int j=0;j<n;++j)
-       		 a(i,j)= f*random()/(1.+RAND_MAX);
+       		 a(i,j)= f*RANDDOUBLE();
         }
 //cout <<"a matrix \n"<<a;
 //cout<<"EXP\n";
@@ -873,7 +873,7 @@ cin>>n;
 NRMat<double> a(n,n);
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         {
-        a(i,j)= .1*random()/(1.+RAND_MAX);
+        a(i,j)= .1*RANDDOUBLE();
         a(j,i)= a(i,j);
         }
 NRMat<double> b=exp(a);
@@ -1029,7 +1029,7 @@ cin >>n;
 SparseMat<double> a(n,n);
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         {
-        a.add(i,j,random()/(1.+RAND_MAX));
+        a.add(i,j,RANDDOUBLE());
         }
 a.setsymmetric();
 NRSMat<double> aa(a); 
@@ -1061,11 +1061,11 @@ cin >>n;
 NRSMat<double> a(n);
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         {
-        a(j,i)=a(i,j)=random()/(1.+RAND_MAX)*(i==j?10.:1.);
+        a(j,i)=a(i,j)=RANDDOUBLE()*(i==j?10.:1.);
         }
 cout <<a;
 NRMat<double> y(1,n);
-for(int i=0;i<n;++i) y(0,i)=random()/(1.+RAND_MAX);
+for(int i=0;i<n;++i) y(0,i)=RANDDOUBLE();
 cout <<y;
 linear_solve(a,&y,&d);
 cout << y;
@@ -1078,7 +1078,7 @@ int n;
 cin >>n;
 SparseMat<double> a(n,n);
 int spars=n*n/3;
-        for(int i=0; i<spars;i++) a.add(randind(n),randind(n),random()/(1.+RAND_MAX));
+        for(int i=0; i<spars;i++) a.add(randind(n),randind(n),RANDDOUBLE());
 
 NRMat<double> aa(a);
 NRVec<double> v(aa[0],n*n);
@@ -1115,7 +1115,7 @@ NRVec<double> rr(n);
 
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         {
-        a(i,j)= random()/(1.+RAND_MAX);
+        a(i,j)= RANDDOUBLE();
 	if(i==j) a(i,i)+= .5*(i-n);
         }
 
@@ -1151,8 +1151,8 @@ NRVec<double> rr(n),ii(n);
 double tmp=0.;
 for(int i=0;i<n;++i) for(int j=0;j<n;++j)
         {
-        a(i,j)= random()/(1.+RAND_MAX);
-        a(j,i)= random()/(1.+RAND_MAX);
+        a(i,j)= RANDDOUBLE();
+        a(j,i)= RANDDOUBLE();
 	if(i==j) a(i,i)+= .5*(i-n);
 	tmp+= (a(i,j)-a(j,i))*(a(i,j)-a(j,i));
         }
@@ -1190,8 +1190,8 @@ int n,m;
 cin >>n>>m;
 	SparseMat<double> aa(n,n);
 	aa.setsymmetric();
-	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),random()/(1.+RAND_MAX));
-	for(int i=0; i<n; ++i) aa.add(i,i,500*random()/(1.+RAND_MAX));
+	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),RANDDOUBLE());
+	for(int i=0; i<n; ++i) aa.add(i,i,500*RANDDOUBLE());
 NRVec<double> r(m);
 davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,0,300,300);
 cout <<r;
@@ -1207,13 +1207,13 @@ int n,m;
 cin >>n>>m;
         SparseMat<double> aa(n,n);
         aa.setsymmetric();
-        for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),random()/(1.+RAND_MAX));
-        for(int i=0; i<n; ++i) aa.add(i,i,500*random()/(1.+RAND_MAX));
+        for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),RANDDOUBLE());
+        for(int i=0; i<n; ++i) aa.add(i,i,500*RANDDOUBLE());
 NRVec<double> r(m);
 NRVec<double> r2(m);
 davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,1,300,300);
  SparseMat<double> bb(n,n);
-for(int i=0; i<sparsity2;i++) bb.add(randind(n),randind(n),random()/(1.+RAND_MAX));
+for(int i=0; i<sparsity2;i++) bb.add(randind(n),randind(n),RANDDOUBLE());
 SparseMat<double> e1,e2,cc;
 e1=exp(bb);
 e2=exp(bb*-1.);
@@ -1236,12 +1236,12 @@ cin >>n>>m;
 		{
 		int k= randind(n);
 		int l= randind(n);
-		double a=random()/(1.+RAND_MAX);
-		double b=random()/(1.+RAND_MAX)-.5;
+		double a=RANDDOUBLE();
+		double b=RANDDOUBLE()-.5;
 		aa.add(k,l,a);
 		aa.add(l,k,a+b/20);
 		}
-        for(int i=0; i<n; ++i) aa.add(i,i,500*random()/(1.+RAND_MAX));
+        for(int i=0; i<n; ++i) aa.add(i,i,500*RANDDOUBLE());
 NRVec<double> r(m);
 davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,0,300,300);
 cout <<r;
@@ -1259,7 +1259,7 @@ NRVec<double> x(m);
 for(int i=0;i<n;++i) for(int j=0;j<m;++j)
         {
         //a(j,i)= 2*i*i*i-5*j+ +9*8*7*6*5*4*3*2/(i+j+1.)+3*(i*i+2*j*j*j);
-	a(i,j)= random()/(1.+RAND_MAX);
+	a(i,j)= RANDDOUBLE();
 	if(i==j) a(i,i)+= .5*(i-n);
         }
 for(int i=0;i<n;++i) b[i] = i;
@@ -1297,9 +1297,9 @@ NRVec<double> b(n);
 NRVec<double> x(m);
 
 //tridiagonal
-        for(int i=0; i<n; ++i) aa.add(i,i,random()/(1.+RAND_MAX));
-	for(int i=0; i<n-1; i+=1) aa.add(i,i+1,.002*random()/(1.+RAND_MAX));
-	for(int i=0; i<n-1; i+=1) aa.add(i+1,i,.002*random()/(1.+RAND_MAX));
+        for(int i=0; i<n; ++i) aa.add(i,i,RANDDOUBLE());
+	for(int i=0; i<n-1; i+=1) aa.add(i,i+1,.002*RANDDOUBLE());
+	for(int i=0; i<n-1; i+=1) aa.add(i+1,i,.002*RANDDOUBLE());
 
 for(int i=0;i<n;++i) b[i] = i+1;
 gmres(aa,b,x,1,1e-20,20,1,1,1,1000,1);
@@ -1323,7 +1323,7 @@ int dim;
 cin>>dim;
 NRVec<double> solution(dim), deviation(dim);
 for(i=0; i<dim; ++i) solution[i]=i&1 ? i/2.:-i-3.;
-for(i=0; i<dim; ++i) deviation[i]= (i&2 ? 1:-1) * random()/(1.+RAND_MAX);
+for(i=0; i<dim; ++i) deviation[i]= (i&2 ? 1:-1) * RANDDOUBLE();
 double norm=1e100;
 for(int iter=1; iter<100 && norm>1e-8 ; ++iter)
 	{
@@ -1400,7 +1400,7 @@ cout  <<"test eigenvalues "<<hlp.norm()<<endl;
 NRMat<double> ader(n,n);
 for(int i=0; i<n; ++i)
 	for(int j=0; j<n; ++j)
-		ader(i,j) = 2.*random()/(1.+RAND_MAX) -1.;
+		ader(i,j) = RANDDOUBLESIGNED();
 
 cout <<"eigenvalues\n"<<wr<<endl;
 
@@ -1722,7 +1722,7 @@ int n;
 cin >>n;
 NRMat<double> bb(0.,n,n);
 int nn=0;
-for(int i=0; i<n; ++i) for(int j=i; j<n; ++j) {if((double)random()/RAND_MAX>0.995 || i==j) {++nn; bb(i,j)=bb(j,i)=(double)random()/RAND_MAX*(i==j?10.:.5/(i+j)*(random()>RAND_MAX/2?1:-1));}}
+for(int i=0; i<n; ++i) for(int j=i; j<n; ++j) {if(RANDDOUBLE()>0.995 || i==j) {++nn; bb(i,j)=bb(j,i)=RANDDOUBLE()*(i==j?10.:.5/(i+j)*(RANDDOUBLE()>.5?1:-1));}}
 bb=bb*bb.transpose();
 //cout <<bb;
 nn=0;
@@ -1786,8 +1786,8 @@ if(0)
 int n;
 cin >>n;
 SparseSMat<double> bh(n,n);
-for(int i=0; i<=n/400; ++i) for(int j=i; j<n; ++j) {if((double)random()/RAND_MAX>0.995 || i==j) 
-	{bh.add(i,j,(double)random()/RAND_MAX*(i==j?10.:(random()>RAND_MAX/2?1:-1)),false);}}
+for(int i=0; i<=n/400; ++i) for(int j=i; j<n; ++j) {if(RANDDOUBLE()>0.995 || i==j) 
+	{bh.add(i,j,RANDDOUBLE()*(i==j?10.:(RANDDOUBLE()>.5?1:-1)),false);}}
 if(n<1000) cout <<"Random matrix\n"<<bh;
 SparseSMat<double> bb(n,n);
 bb.gemm(0.,bh,'c',bh,'n',1.);
@@ -2440,7 +2440,7 @@ simple_linfit<double,3> fit;
 double funcs[3];
 for(int i=0; i<100; ++i) 
 	{
-	double x = 10*(2.*random()/(1. + RAND_MAX) - 1.);
+	double x = 10*RANDDOUBLESIGNED();
 	funcs[0]=1;
 	funcs[1]=x;
 	funcs[2]=x*x;
@@ -2585,7 +2585,7 @@ if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
 close(f);
 srand(seed);
 
-double t=random();
+double t=RANDINT32();
 t/=(1L<<30);
 t-=1;
 cout <<"theta = "<<t<<endl;

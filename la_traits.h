@@ -44,6 +44,7 @@
 //using namespace std;
 
 #include "laerror.h"
+#include "random.h"
 
 #include "cuda_la.h"
 
@@ -68,6 +69,7 @@ extern "C" {
 #endif
 
 namespace LA {
+
 
 
 //forward declarations

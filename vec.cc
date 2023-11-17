@@ -194,7 +194,7 @@ void NRVec<double>::randomize(const double &x){
 	NOT_GPU(*this);
 
 	for(register int i=0; i<nn; ++i){
-		v[i] = x*(2.*random()/(1. + RAND_MAX) - 1.);
+		v[i] = x*RANDDOUBLESIGNED();
 	}
 }
 
@@ -211,7 +211,7 @@ void NRVec<std::complex<double> >::randomize(const double &x) {
 	NOT_GPU(*this);
 
 	for(register int i=0; i<nn; ++i){
-		v[i] = std::complex<double>(x*(2.*random()/(1. + RAND_MAX) - 1.), x*(2.*random()/(1. + RAND_MAX) - 1.));
+		v[i] = std::complex<double>(x*RANDDOUBLESIGNED(), x*RANDDOUBLESIGNED());
 	}
 }
 

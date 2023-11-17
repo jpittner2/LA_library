@@ -167,7 +167,7 @@ this->copyonwrite();
 this->identity();
 for(int i=n-1; i>=1; --i)
 	{
-	int j= random()%(i+1);
+	int j= RANDINT32()%(i+1);
 	T tmp = (*this)[i+1];
 	(*this)[i+1]=(*this)[j+1];
 	(*this)[j+1]=tmp;

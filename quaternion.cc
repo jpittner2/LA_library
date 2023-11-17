@@ -417,15 +417,15 @@ void Quaternion<T>::random_rotation()
 T  s1,s2,s;
 do
 	{
-	q[0]=2.*random()/(1. + RAND_MAX) - 1.;
-	q[1]=2.*random()/(1. + RAND_MAX) - 1.;
+	q[0]= RANDDOUBLESIGNED();
+	q[1]= RANDDOUBLESIGNED();
 	s1 = q[0]*q[0] + q[1]*q[1];
 	}
 	while(s1>1);
 do
         {
-        q[2]=2.*random()/(1. + RAND_MAX) - 1.;
-        q[3]=2.*random()/(1. + RAND_MAX) - 1.;
+        q[2]= RANDDOUBLESIGNED();
+        q[3]= RANDDOUBLESIGNED();
         s2 = q[2]*q[2] + q[3]*q[3];
         }
         while(s2>1);

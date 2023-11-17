@@ -1314,7 +1314,7 @@ void NRMat<double>::randomize(const double &x) {
 #endif
 		for(register int i=0; i<nn; ++i){
 			for(register int j=0; j<mm; ++j){
-				(*this)(i,j) = x*(2.*random()/(1. + RAND_MAX) - 1.);
+				(*this)(i,j) = x*RANDDOUBLESIGNED();
 			}
 		}
 #ifdef CUDALA
@@ -1322,7 +1322,7 @@ void NRMat<double>::randomize(const double &x) {
 		NRMat<double> tmp(nn, mm, cpu);
 		double *tmp_data = tmp;
 		for(register size_t i=0; i<(size_t)nn*mm; ++i){
-			tmp_data[i] = x*(2.*random()/(1. + RAND_MAX) - 1.);
+			tmp_data[i] = x*RANDDOUBLESIGNED();
 		}
 		tmp.moveto(this->location);
 		*this |= tmp;
@@ -1343,8 +1343,8 @@ void NRMat<std::complex<double> >::randomize(const double &x) {
 #endif
 		for(register int i=0; i<nn; ++i){
 			for(register int j=0; j<mm; ++j){
-				const double re = x*(2.*random()/(1. + RAND_MAX) - 1.);
-				const double im = x*(2.*random()/(1. + RAND_MAX) - 1.);
+				const double re = x*RANDDOUBLESIGNED();
+				const double im = x*RANDDOUBLESIGNED();
 				(*this)(i,j) = std::complex<double>(re, im);
 			}
 		}
@@ -1353,8 +1353,8 @@ void NRMat<std::complex<double> >::randomize(const double &x) {
 		NRMat<std::complex<double> > tmp(nn, mm, cpu);
 		std::complex<double> *tmp_data = tmp;
 		for(register size_t i=0; i<(size_t)nn*mm; ++i){
-			const double re = x*(2.*random()/(1. + RAND_MAX) - 1.);
-			const double im = x*(2.*random()/(1. + RAND_MAX) - 1.);
+			const double re = x*RANDDOUBLESIGNED();
+			const double im = x*RANDDOUBLESIGNED();
 			tmp_data[i] = std::complex<double>(re, im);
 		}
 		tmp.moveto(this->location);
