@@ -16,11 +16,9 @@ namespace LA {
 #define RANDINT32 randint32
 #endif
 
-extern "C" {
 extern double randdouble();
 extern double randdoublesigned();
 extern int randint32();
-}
 
 #ifdef __GNUC__
 #define WEAK_SYMBOL __attribute__((weak)) 
