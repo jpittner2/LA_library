@@ -662,12 +662,6 @@ else for(int i=0;i<3;++i) for(int j=0; j<3; ++j) q[i][j]=x*RANDDOUBLESIGNED();
 #define NO_NUMERIC_LIMITS
 #endif
 
-#ifdef NO_NUMERIC_LIMITS
-#define DBL_EPSILON 1.19209290e-07f
-#else
-#define  DBL_EPSILON std::numeric_limits<T>::epsilon()
-#endif
-
 #define M_SQRT3    1.73205080756887729352744634151   // sqrt(3)
 #define SQR(x)      ((x)*(x))                        // x^2
 //
@@ -946,6 +940,150 @@ T Mat3<T>::norm(const T scalar) const
                 }
 return sqrt(sum);
 }
+
+//efficient SVD for 3x3 matrices cf. Mc.Adams et al. UWM technical report 1690 (2011)
+//
+
+
+template<typename T> 
+static inline T ABS(const T a)
+{
+return a<0?-a:a;
+}
+
+template<typename T> 
+static inline T MAX(const T a, const T b)
+{
+return a>b ? a : b;
+}
+
+
+
+template<typename T>
+void QRGivensQuaternion(T a1, T a2, T &ch, T &sh)
+{
+    // a1 = pivot point on diagonal
+    // a2 = lower triangular entry we want to annihilate
+    T rho = sqrt(a1*a1 + a2*a2);
+
+    sh = rho > DBL_EPSILON ? a2 : 0;
+    ch = ABS(a1) + MAX(rho,DBL_EPSILON);
+    if(a1 < 0)
+	{
+	T tmp=sh;
+	sh=ch;
+	ch=tmp;
+	}
+    T w = (T)1/sqrt(ch*ch+sh*sh);
+    ch *= w;
+    sh *= w;
+}
+
+
+template<typename T>
+void Mat3<T>::qrd(Mat3 &Q, Mat3 &R)
+{
+
+T ch1,sh1,ch2,sh2,ch3,sh3;
+T a,b;
+    
+// first givens rotation (ch,0,0,sh)
+QRGivensQuaternion(q[0][0],q[1][0],ch1,sh1);
+a=1-2*sh1*sh1;
+b=2*ch1*sh1;
+// apply B = Q' * B
+R[0][0]= a*q[0][0]+b*q[1][0];  R[0][1]= a*q[0][1]+b*q[1][1];  R[0][2]= a*q[0][2]+b*q[1][2];
+R[1][0]= -b*q[0][0]+a*q[1][0]; R[1][1]= -b*q[0][1]+a*q[1][1]; R[1][2]= -b*q[0][2]+a*q[1][2];
+R[2][0]= q[2][0];          R[2][1]= q[2][1];          R[2][2]= q[2][2];
+  
+// second givens rotation (ch,0,-sh,0)
+QRGivensQuaternion(R[0][0],R[2][0],ch2,sh2);
+a= 1-2*sh2*sh2;
+b= 2*ch2*sh2;
+// apply B = Q' * B;
+q[0][0]= a*R[0][0]+b*R[2][0];  q[0][1]= a*R[0][1]+b*R[2][1];  q[0][2]= a*R[0][2]+b*R[2][2];
+q[1][0]= R[1][0];           q[1][1]= R[1][1];           q[1][2]= R[1][2];
+q[2][0]= -b*R[0][0]+a*R[2][0]; q[2][1]= -b*R[0][1]+a*R[2][1]; q[2][2]= -b*R[0][2]+a*R[2][2];
+
+// third givens rotation (ch,sh,0,0)
+QRGivensQuaternion(q[1][1],q[2][1],ch3,sh3);
+a= 1-2*sh3*sh3;
+b= 2*ch3*sh3;
+// R is now set to desired value
+R[0][0]= q[0][0];             R[0][1]= q[0][1];           R[0][2]= q[0][2];
+R[1][0]= a*q[1][0]+b*q[2][0];     R[1][1]= a*q[1][1]+b*q[2][1];   R[1][2]= a*q[1][2]+b*q[2][2];
+R[2][0]= -b*q[1][0]+a*q[2][0];    R[2][1]= -b*q[1][1]+a*q[2][1];  R[2][2]= -b*q[1][2]+a*q[2][2];
+
+// construct the cumulative rotation Q=Q1 * Q2 * Q3
+// the number of floating point operations for three quaternion multiplications
+// is more or less comparable to the explicit form of the joined matrix.
+// certainly more memory-efficient!
+T sh12= sh1*sh1;
+T sh22= sh2*sh2;
+T sh32= sh3*sh3;
+
+Q[0][0]= (-1+2*sh12)*(-1+2*sh22); 
+Q[0][1]= 4*ch2*ch3*(-1+2*sh12)*sh2*sh3+2*ch1*sh1*(-1+2*sh32); 
+Q[0][2]= 4*ch1*ch3*sh1*sh3-2*ch2*(-1+2*sh12)*sh2*(-1+2*sh32);
+
+Q[1][0]= 2*ch1*sh1*(1-2*sh22); 
+Q[1][1]= -8*ch1*ch2*ch3*sh1*sh2*sh3+(-1+2*sh12)*(-1+2*sh32); 
+Q[1][2]= -2*ch3*sh3+4*sh1*(ch3*sh1*sh3+ch1*ch2*sh2*(-1+2*sh32));
+    
+Q[2][0]= 2*ch2*sh2; 
+Q[2][1]= 2*ch3*(1-2*sh22)*sh3; 
+Q[2][2]= (-1+2*sh22)*(-1+2*sh32);
+}
+
+
+template<typename T>
+void Mat3<T>::svd(Mat3 &u, Vec3<T> &w, Mat3 &v, bool proper_rotations) const
+{
+Mat3 ata= this->Ttimes(*this);
+Vec3<T> ww; //actually not needed squares of singular values
+ata.eivec_sym(ww,v,true);
+Mat3 uw = (*this)*v;
+Mat3 r;
+uw.qrd(u,r);
+w[0]= r[0][0];
+w[1]= r[1][1];
+w[2]= r[2][2];
+
+if(proper_rotations) return;
+if(w[2]<0)
+	{
+	w[2] = -w[2];
+	u[0][2] = -u[0][2];
+	u[1][2] = -u[1][2];
+	u[2][2] = -u[2][2];
+	}
+}
+
+
+template<typename T>
+void  Mat3<T>::diagmultl(const Vec3<T> &rhs)
+{
+for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) q[i][j] *= rhs[i];
+}
+
+template<typename T>
+void  Mat3<T>::diagmultr(const Vec3<T> &rhs)
+{
+for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) q[i][j] *= rhs[j];
+}
+
+
+template<typename T>
+const Mat3<T>   Mat3<T>::svdinverse(const T thr) const
+{
+Mat3 u,v;
+Vec3<T> w;
+svd(u,w,v);
+for(int i=0; i<3; ++i) w[i] = (w[i]<thr)? 0 : 1/w[i];
+v.diagmultr(w);
+return v.timesT(u);
+}
+
 
 //cf. https://en.wikipedia.org/wiki/3D_projection
 template<typename T>

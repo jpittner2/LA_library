@@ -33,6 +33,14 @@
 
 namespace LA_Vecmat3 {
 
+#ifdef NO_NUMERIC_LIMITS                     
+#define DBL_EPSILON 1.19209290e-07f
+#else 
+#define  DBL_EPSILON std::numeric_limits<T>::epsilon()
+#endif
+
+
+
 float fast_sqrtinv(float);
 
 //forward declaration
@@ -172,6 +180,11 @@ public:
 	void eival_sym(Vec3<T> &w, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked
 	void eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked
 	T norm(const T scalar = 0) const;
+	void qrd(Mat3 &q, Mat3 &r); //not const, destroys the matrix
+	void svd(Mat3 &u, Vec3<T> &w, Mat3 &v, bool proper_rotations=false) const;  //if proper_rotations = true, singular value can be negative but u and v are proper rotations
+	void  diagmultl(const Vec3<T> &rhs);
+	void  diagmultr(const Vec3<T> &rhs);
+	const Mat3 svdinverse(const T thr=1000*DBL_EPSILON) const;
 };
 
 
