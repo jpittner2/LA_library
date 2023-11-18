@@ -872,7 +872,8 @@ NRSMat<std::complex<double> >  NRSMat<std::complex<double> >::inverse() {return 
  ******************************************************************************/
 template class NRSMat<double>;
 template class NRSMat<std::complex<double> >;
-
+//template class NRSMat<float>;
+//template class NRSMat<std::complex<float> >;
 template class NRSMat<long long>;
 template class NRSMat<long>;
 template class NRSMat<int>;

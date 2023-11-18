@@ -17,6 +17,9 @@
 */
 
 #include "vecmat3.h"
+#ifndef QUAT_NO_RANDOM 
+#include "la_random.h"
+#endif
 
 namespace LA_Vecmat3 {
 
@@ -613,6 +616,24 @@ tmp=(q[2][1]+q[1][2])/2;
 q[2][1]=q[1][2]=tmp;
 }
 
+
+#ifndef QUAT_NO_RANDOM
+template <>
+void Vec3<double>::randomize(const double x)
+{
+for(int i=0;i<3;++i)  q[i]=x*RANDDOUBLESIGNED();
+}
+
+
+template <>
+void Mat3<double>::randomize(const double x, const bool symmetric)
+{
+if(symmetric)  for(int i=0;i<3;++i) for(int j=0; j<=i; ++j) q[j][i]=q[i][j]=x*RANDDOUBLESIGNED();
+else for(int i=0;i<3;++i) for(int j=0; j<3; ++j) q[i][j]=x*RANDDOUBLESIGNED();
+}
+
+#endif
+
 //eigensolver for 3x3 matrix by Joachim Kopp - analytic formula version,
 //might be unstable for ill-conditioned ones, then use other methods
 //cf. arxiv physics 0610206v3
@@ -651,7 +672,7 @@ q[2][1]=q[1][2]=tmp;
 #define SQR(x)      ((x)*(x))                        // x^2
 //
 template <typename T>
-void Mat3<T>::eival_sym(Vec3<T> &w) const
+void Mat3<T>::eival_sym(Vec3<T> &w, const bool sortdown) const
 {
 T  m, c1, c0;
   
@@ -685,10 +706,19 @@ T  m, c1, c0;
   w[0]  = w[1] + c;
   w[1] -= s;
 
+if(sortdown)
+	{
+        if(w[0]<w[1]) {T tmp=w[0]; w[0]=w[1]; w[1]=tmp;}
+        if(w[0]<w[2]) {T tmp=w[0]; w[0]=w[2]; w[2]=tmp;}
+        if(w[1]<w[2]) {T tmp=w[1]; w[1]=w[2]; w[2]=tmp;}
+	}
+else
 //sort in ascending order
-if(w[0]>w[1]) {T tmp=w[0]; w[0]=w[1]; w[1]=tmp;}
-if(w[0]>w[2]) {T tmp=w[0]; w[0]=w[2]; w[2]=tmp;}
-if(w[1]>w[2]) {T tmp=w[1]; w[1]=w[2]; w[2]=tmp;}
+	{
+	if(w[0]>w[1]) {T tmp=w[0]; w[0]=w[1]; w[1]=tmp;}
+	if(w[0]>w[2]) {T tmp=w[0]; w[0]=w[2]; w[2]=tmp;}
+	if(w[1]>w[2]) {T tmp=w[1]; w[1]=w[2]; w[2]=tmp;}
+	}
 }
 
 // Calculates the eigenvalues and normalized eigenvectors of a symmetric 3x3
@@ -717,7 +747,7 @@ if(w[1]>w[2]) {T tmp=w[1]; w[1]=w[2]; w[2]=tmp;}
 //   v1.0: First released version
 // ----------------------------------------------------------------------------
 template <typename T>
-void Mat3<T>::eivec_sym(Vec3<T> &w, Mat3 &v) const
+void Mat3<T>::eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown) const
 {
   T norm;          // Squared norm or inverse norm of current eigenvector
   T n0, n1;        // Norm of first and second columns of A
@@ -729,7 +759,7 @@ void Mat3<T>::eivec_sym(Vec3<T> &w, Mat3 &v) const
   int i, j;             // Loop counters
 
   // Calculate eigenvalues
-  eival_sym(w);
+  eival_sym(w,sortdown);
 Mat3<T> A(*this); //scratch copy
 
   wmax = fabs(w[0]);

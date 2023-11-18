@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-//this header defines simple classes for 3-dimensional vectors and matrices to describe rotations etc.
+//this header defines simple classes for 3-dimensional REAL-valued vectors and matrices to describe rotations etc.
 //the class is compatible with functions in quaternion.h used for SO(3) parametrization
 //it should be compilable separately from LA as well as being a part of LA
 
@@ -62,7 +62,7 @@ public:
 	//compiler generates default copy constructor and assignment operator
 	
 	//formal indexing
-	inline const T operator[](const int i) const {return q[i];};
+	inline const T& operator[](const int i) const {return q[i];};
 	inline T& operator[](const int i) {return q[i];};
 
 	//operations of Vec3s with scalars
@@ -89,6 +89,7 @@ public:
 	const Vec3 timesT(const Mat3<T> &rhs) const; //with transpose
 	Mat3<T> outer(const Vec3 &rhs) const; //tensor product
 	void inertia(Mat3<T> &itensor, const T weight) const; //contribution to inertia tensor
+	void randomize(const T x);
 
 	//C-style IO
 	int fprintf(FILE *f, const char *format) const {return ::fprintf(f,format,q[0],q[1],q[2]);};
@@ -130,7 +131,7 @@ public:
 	//formal indexing
 	inline const T* operator[](const int i) const {return q[i];};
 	inline T* operator[](const int i) {return q[i];};
-	inline const T operator()(const int i, const int j) const {return q[i][j];};
+	inline const T& operator()(const int i, const int j) const {return q[i][j];};
 	inline T& operator()(const int i, const int j) {return q[i][j];};
 	
 
@@ -144,6 +145,8 @@ public:
 	Mat3& operator/=(const T rhs) {return *this *= ((T)1/rhs);};
         const Mat3 operator*(const T rhs) const {return Mat3(*this) *= rhs;};
         const Mat3 operator/(const T rhs) const {return Mat3(*this) /= rhs;};
+
+	void randomize(const T x, const bool symmetric=false);
 
 	//Mat3 algebra
 	const Mat3 operator-() const {return *this * (T)-1;}; //unary minus
@@ -166,8 +169,8 @@ public:
         int fprintf(FILE *f, const char *format) const {int n= ::fprintf(f,format,q[0][0],q[0][1],q[0][2]); n+=::fprintf(f,format,q[1][0],q[1][1],q[1][2]); n+=::fprintf(f,format,q[2][0],q[2][1],q[2][2]); return n;};
         int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
 	void symmetrize(); //average offdiagonal elements
-	void eival_sym(Vec3<T> &w) const; //only for real symmetric matrix, symmetry is not checked
-	void eivec_sym(Vec3<T> &w, Mat3 &v) const; //only for real symmetric matrix, symmetry is not checked
+	void eival_sym(Vec3<T> &w, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked
+	void eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked
 	T norm(const T scalar = 0) const;
 };
 

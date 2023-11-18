@@ -3411,6 +3411,8 @@ for(int j=0; j<nn; ++j) (*this)(j,i) *= f;
  ******************************************************************************/
 template class NRMat<double>;
 template class NRMat<std::complex<double> >;
+//template class NRMat<float>;
+//template class NRMat<std::complex<float> >;
 template class NRMat<long long>;
 template class NRMat<long>;
 template class NRMat<int>;

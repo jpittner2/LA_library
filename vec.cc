@@ -27,7 +27,7 @@
 #include <errno.h>
 #include "vec.h"
 #include <unistd.h>
-
+#include "vecmat3.h"
 
 namespace LA {
 
@@ -904,6 +904,7 @@ void NRVec<T>::storesubvector(const NRVec<int> &selection, const NRVec &rhs)
 }
 
 
+
 /***************************************************************************//**
  * forced instantization in the corespoding object file
  ******************************************************************************/
@@ -1039,6 +1040,8 @@ INSTANTIZE_CONCAT(std::complex<double>)
 
 
 
+//template class NRVec<float>;
+//template class NRVec<std::complex<float> >;
 template class NRVec<double>;
 template class NRVec<std::complex<double> >;
 template class NRVec<char>;

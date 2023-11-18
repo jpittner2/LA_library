@@ -426,7 +426,7 @@ cout <<b;
 cout <<d;
 }
 
-if(1)
+if(0)
 {
 NRMat<double> a;
 cin >>a ;
@@ -2784,5 +2784,32 @@ NRSMat<char> adjperm = adj.permuted(p);
 cout <<"resorted graph = "<<adjperm<<endl;
 }
 
+if(1)
+{
+Mat3<double> a;
+a.randomize(10.);
+cout<<a<<endl;
+Mat3<double> ata = a.transpose()*a;
+Mat3<double> work(ata);
+Vec3<double> w;
+Mat3<double> v;
+work.eivec_sym(w,v,true);
+cout <<w<<endl<<sqrt(w[0])<<" "<<sqrt(w[1])<<" "<<sqrt(w[2])<<" "<<endl<<endl<<v<<endl;
+
+Mat3<double> aat = a*a.transpose();
+Mat3<double> work2(aat);
+Vec3<double> w2; 
+Mat3<double> v2;
+work2.eivec_sym(w2,v2,true);
+cout <<w2<<endl<<sqrt(w2[0])<<" "<<sqrt(w2[1])<<" "<<sqrt(w2[2])<<" "<<endl<<endl<<v2<<endl;
+
+
+NRMat<double> aa(a);
+cout <<aa.nrows()<<" "<<aa.ncols()<<endl;
+NRMat<double> uu(3,3),vv(3,3);
+NRVec<double> ss(3);
+singular_decomposition(aa,&uu,ss,&vv,0);
+cout <<uu<<ss<<vv<<endl;
+}
 
 }

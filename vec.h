@@ -21,7 +21,10 @@
 #define _LA_VEC_H_
 
 #include "la_traits.h"
+#include "vecmat3.h"
 #include <list>
+
+using namespace LA_Vecmat3;
 
 namespace LA {
 
@@ -134,6 +137,7 @@ public:
 	
 	//! inlined constructor creating vector of given size filled with data located at given memory location 
         inline NRVec(const T *a, const int n);
+	inline NRVec(const Vec3<T> &rhs) : NRVec(&rhs[0],3) {};
 	
 	//! inlined constructor creating vector of given size filled with data located at given memory location 
 	inline NRVec(T *a, const int n, bool skeleton);

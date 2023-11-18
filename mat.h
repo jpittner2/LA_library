@@ -22,6 +22,10 @@
 #define _LA_MAT_H_
 #include "la_traits.h"
 
+using namespace LA_Vecmat3;
+
+#include "vecmat3.h"
+
 
 namespace LA {
 
@@ -82,8 +86,9 @@ public:
 	inline NRMat(const T &a, const int n, const int m);
 
 	//! inlined constructor creating matrix of given size filled with data located at given memory location 
-	NRMat(const T *a, const int n, const int m);
-
+	inline NRMat(const T *a, const int n, const int m);
+	inline NRMat(const Mat3<T> &rhs) : NRMat(&rhs(0,0),3,3) {};
+	
 	//! inlined constructor creating matrix of given size from an array
 	template<int R, int C> inline NRMat(const T (&a)[R][C]);
 
@@ -615,7 +620,6 @@ NRMat<T>::NRMat(const T *a, const int n, const int m) : nn(n), mm(m), count(new 
 		cublasSetVector(nm, sizeof(T), a, 1, v, 1);
 	}
 #endif
-
 }
 
 /***************************************************************************//**

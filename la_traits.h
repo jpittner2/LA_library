@@ -68,6 +68,13 @@ extern "C" {
 }
 #endif
 
+
+//forward declarations
+namespace LA_Vecmat3 {
+template<typename C> class Vec3;
+template<typename C> class Mat3;
+}
+
 namespace LA {
 
 
