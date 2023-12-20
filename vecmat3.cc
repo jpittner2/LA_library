@@ -207,7 +207,7 @@ void Mat3<T>::transposeme()
 {T t; t=q[0][1]; q[0][1]=q[1][0]; q[1][0]=t; t=q[0][2]; q[0][2]=q[2][0]; q[2][0]=t; t=q[1][2]; q[1][2]=q[2][1]; q[2][1]=t;};
 
 template<typename T>
-const Mat3<T> Mat3<T>::inverse() const
+const Mat3<T> Mat3<T>::inverse(T *det) const
                 {
                 Mat3<T> r;
                 r[0][0]=  q[2][2]*q[1][1]-q[2][1]*q[1][2];
@@ -219,7 +219,27 @@ const Mat3<T> Mat3<T>::inverse() const
                 r[2][0]=  q[2][1]*q[1][0]-q[2][0]*q[1][1];
                 r[2][1]= -q[2][1]*q[0][0]+q[2][0]*q[0][1];
                 r[2][2]=  q[1][1]*q[0][0]-q[1][0]*q[0][1];
-                return r/determinant();
+		T d=determinant();
+		if(det) *det=d;
+                return r/d;
+                }
+
+template<typename T>
+const Vec3<T> Mat3<T>::linear_solve(const  Vec3<T> &rhs, T *det) const
+                {
+                Vec3<T> r;
+                r[0]= ( q[2][2]*q[1][1]-q[2][1]*q[1][2]) * rhs[0]
+                      +( -q[2][2]*q[0][1]+q[2][1]*q[0][2]) * rhs[1]
+                      +( +q[1][2]*q[0][1]-q[1][1]*q[0][2]) * rhs[2];
+                r[1]= (-q[2][2]*q[1][0]+q[2][0]*q[1][2]) * rhs[0]
+                      +( +q[2][2]*q[0][0]-q[2][0]*q[0][2])  * rhs[1]
+                      +( -q[1][2]*q[0][0]+q[1][0]*q[0][2]) * rhs[2];
+                r[2]= ( q[2][1]*q[1][0]-q[2][0]*q[1][1]) * rhs[0]
+                      +( -q[2][1]*q[0][0]+q[2][0]*q[0][1]) *rhs[1]
+                      +( q[1][1]*q[0][0]-q[1][0]*q[0][1]) * rhs[2];
+		T d=determinant();
+		if(det) *det=d;
+                return r/d;
                 }
 
 template<typename T>

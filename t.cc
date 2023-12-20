@@ -2794,6 +2794,25 @@ srand(seed);
 
 Mat3<double> a;
 a.randomize(10.);
+cout<<a<<endl; 
+Vec3<double> b;
+b.randomize(10.);
+cout <<b<<endl;
+Vec3<double> x = a.linear_solve(b);
+cout <<x<<endl;
+cout <<"linear solve error = "<<(b-a*x).norm()<<endl;
+}
+
+if(0)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+Mat3<double> a;
+a.randomize(10.);
 cout<<a<<endl;
 Mat3<double> ata = a.transpose()*a;
 Mat3<double> work(ata);
