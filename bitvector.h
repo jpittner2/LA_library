@@ -20,13 +20,14 @@
 #define _BITVECTOR_H_
 
 #include "vec.h"
+#include <stdint.h>
+
 
 namespace LA {
-
 //compressed storage of large bit vectors
-//any reasonable compiler changes the dividions and modulos to shift/and instructions
+//let's now use 64-bit blocks exclusively 
 
-typedef unsigned long bitvector_block; //should be automatically portable and efficiently use wordlength of each machine (32 vs 64)
+typedef uint64_t bitvector_block; 
 
 #define blockbits (8*sizeof(bitvector_block))
 
@@ -47,19 +48,21 @@ public:
 	//operator= seems to be correctly synthetized by the compiler
 	//override dereferencing to address single bits, is however possible
 	//only in the const context (otherwise we would have to define a type which, when assigned to, changes a single bit - possible but probably inefficient)
-	void resize(const unsigned int n) {NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits); modulo=n%blockbits;};
+	void resize(const unsigned int n, bool preserve=false) {NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits,preserve); modulo=n%blockbits;};
 	unsigned int size() const {return (nn*blockbits)-blockbits+(modulo?modulo:blockbits);};
 	//arguments must be unsigned to keep the resulting assembly code simple and efficient
         const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1UL;};
+	const bool get(const unsigned int i) const {return (*this)[i];};
 	bitvector_block getblock(const unsigned int i) const {return v[i];}; //integer interpretation
 	void setblock(const unsigned int i, const bitvector_block b) {v[i]=b;};
 	int getblocksize() const {return 8*sizeof(bitvector_block);};
 	void set(const unsigned int i) {v[i/blockbits] |= (1UL<<(i%blockbits));};
 	void reset(const unsigned int i) {v[i/blockbits] &= ~(1UL<<(i%blockbits));};
-	const bool get(const unsigned int i) {return (v[i/blockbits] >>(i%blockbits))&1UL;};
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
 	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
+	bool iszero() const {for(int i=0; i<nn; ++i) if(v[i]) return false; return true;};
+	void randomize();
 	bool operator!=(const bitvector &rhs) const;
 	bool operator==(const bitvector &rhs) const {return !(*this != rhs);};
 	bool operator>(const bitvector &rhs) const;
@@ -70,13 +73,22 @@ public:
 	bitvector& operator&=(const bitvector &rhs);
 	bitvector& operator|=(const bitvector &rhs);
 	bitvector& operator^=(const bitvector &rhs);
+	bitvector& operator+=(const bitvector &rhs) {return (*this)^=rhs;}; //addition modulo 2
+	bitvector& operator-=(const bitvector &rhs) {return (*this)^=rhs;}; //subtraction modulo 2
 	bitvector operator&(const bitvector &rhs) const {return bitvector(*this) &= rhs;};
 	bitvector operator|(const bitvector &rhs) const {return bitvector(*this) |= rhs;};
 	bitvector operator^(const bitvector &rhs) const {return bitvector(*this) ^= rhs;};
+	bitvector operator+(const bitvector &rhs) const {return *this ^ rhs;}; //addition modulo 2
+	bitvector operator-(const bitvector &rhs) const {return *this ^ rhs;}; //subtraction modulo 2
         unsigned int operator%(const bitvector &y) const; //number of differing bits
 	unsigned int population(const unsigned int before=0) const; //number of 1's
 	//extended, truncated const i.e. not on *this but return new entity, take care of modulo's bits
-	//logical shifts  <<= >>= << >> not implemented yet
+	//logical shifts
+	bitvector& operator>>=(unsigned int i);
+	bitvector& leftshift(unsigned int i, bool autoresize=false);
+	bitvector& operator<<=(unsigned int i) {return leftshift(i,true);};
+	bitvector operator>>(unsigned int i) {bitvector r(*this); return r>>=i;};
+	bitvector operator<<(unsigned int i) {bitvector r(*this); return r<<=i;};
 	//logical rotations not implemented yet
 	//unformatted file IO
 	void read(int fd, bool dimensions=1, bool transp=0);

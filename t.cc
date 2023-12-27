@@ -2784,7 +2784,7 @@ NRSMat<char> adjperm = adj.permuted(p);
 cout <<"resorted graph = "<<adjperm<<endl;
 }
 
-if(1)
+if(0)
 {
 int seed;
 int f=open("/dev/random",O_RDONLY);
@@ -2850,6 +2850,31 @@ Mat3<double> ainv= a.inverse();
 Mat3<double> ainv2= a.svdinverse();
 cout <<endl<<"Inverse via svd\n"<<ainv2<<endl;
 cout <<"Difference of inverses = "<<(ainv-ainv2).norm()<<endl;
+}
+
+if(1)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+int n;
+cin >>n;
+bitvector v(n);
+v.randomize();
+//do{
+//	cout <<v <<endl;
+//	v>>=1;
+//}while(!v.iszero());
+
+
+for(int i=0; i<n; ++i) 
+	{
+	cout <<v <<endl;
+        v<<=1;
+	}
 }
 
 }

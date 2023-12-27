@@ -101,9 +101,7 @@ return r;
 
 bitvector& bitvector::operator&=(const bitvector &rhs)
 {
-#ifdef DEBUG
-if(nn!=rhs.nn || modulo!=rhs.modulo) laerror("operation on incompatible bitvectors");
-#endif
+if(size()<rhs.size()) resize(rhs.size(),true);
 copyonwrite();
 for(int i=0; i<nn; ++i) v[i] &= rhs.v[i];
 return *this;
@@ -111,9 +109,7 @@ return *this;
 
 bitvector& bitvector::operator|=(const bitvector &rhs)
 {
-#ifdef DEBUG
-if(nn!=rhs.nn || modulo!=rhs.modulo) laerror("operation on incompatible bitvectors");
-#endif
+if(size()<rhs.size()) resize(rhs.size(),true);
 copyonwrite();
 for(int i=0; i<nn; ++i) v[i] |= rhs.v[i];
 return *this;
@@ -121,9 +117,7 @@ return *this;
 
 bitvector& bitvector::operator^=(const bitvector &rhs)
 {
-#ifdef DEBUG
-if(nn!=rhs.nn || modulo!=rhs.modulo) laerror("operation on incompatible bitvectors");
-#endif
+if(size()<rhs.size()) resize(rhs.size(),true);
 copyonwrite();
 for(int i=0; i<nn; ++i) v[i] ^= rhs.v[i];
 return *this;
@@ -155,6 +149,61 @@ return s;
 }
 
 #endif
+
+
+bitvector& bitvector::operator>>=(unsigned int i)
+{
+if(i==0) return *this;
+copyonwrite();
+unsigned int imod = i%blockbits;
+unsigned int ishift = i/blockbits;
+for(int dest=0; dest<nn; ++dest)
+	{
+	int src=dest+ishift;
+	if(src>=nn) v[dest]=0;
+	else
+		{
+		v[dest] = v[src]>>imod;
+		if(imod && (src+1<nn)) v[dest] |= (v[src+1]&((1ULL<<imod)-1)) <<(blockbits-imod);
+		}
+	}
+return *this;
+}
+
+bitvector& bitvector::leftshift(unsigned int i, bool autoresize)
+{
+if(i==0) return *this;
+copyonwrite();
+unsigned int imod = i%blockbits;
+unsigned int ishift = i/blockbits;
+if(autoresize) resize(size()+i,true);
+for(int dest=nn-1; dest>=0; --dest)
+        {
+        int src=dest-ishift;
+        if(src<0) v[dest]=0;
+        else
+                {
+                v[dest] = v[src]<<imod;
+                if(imod && (src-1>=0)) v[dest] |= (v[src-1]& (((1ULL<<imod)-1) <<(blockbits-imod)))>>(blockbits-imod);
+                }
+        }
+
+return *this;
+}
+
+
+void  bitvector::randomize()
+{
+copyonwrite();
+for(int i=0; i<nn; ++i) v[i]=RANDINT64();
+//zero the excess bits
+if(modulo) 
+	{
+	bitvector_block mask = (1ULL<<modulo)-1;
+	v[nn-1] &= mask;
+	}
+}
+
 
 
 unsigned int bitvector::population(const unsigned int before) const
