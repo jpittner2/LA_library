@@ -31,7 +31,7 @@
 namespace LA {
 
 template<typename N>
-N primefactor(const N &x);
+N primefactor(const N &x, const N &last=0);
 
 template<typename N>
 bool isprime(const N &x) {return x>1 && x==primefactor(x);}

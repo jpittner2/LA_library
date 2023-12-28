@@ -22,12 +22,12 @@
 namespace LA {
 
 template<typename N>
-N primefactor(const N &x)
+N primefactor(const N &x, const N &last)
 {
 N i,t;
    if ( x <= 2 ) return x;
    if ( !(x & 1) ) return 2;
-   i = 3;
+   i = last >3 ? last : 3;
    for (;;) { 
       t = x / i; 
     if ( t < i ) break;
@@ -47,7 +47,7 @@ N y=x;
 N last=0;
 while(y>1)
 	{
-	N z=primefactor(y);
+	N z=primefactor(y,last);
 	if(z!=last)
 		{	
 		std::pair<N,N> p;
@@ -121,7 +121,7 @@ return y;
 //force instantization
 
 #define INSTANTIZE(N) \
-template N primefactor(const N &x); \
+template N primefactor(const N &x, const N &last); \
 template FACTORIZATION<N>  factorization(const N &x); \
 template N nextprime(N x); \
 template std::ostream & operator<<(std::ostream &s, const FACTORIZATION<N>  &x); \
