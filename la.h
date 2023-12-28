@@ -24,6 +24,7 @@
 #include "laerror.h"
 #include "auxstorage.h"
 #include "bisection.h"
+#include "numbers.h"
 #include "bitvector.h"
 #include "conjgrad.h"
 #include "davidson.h"

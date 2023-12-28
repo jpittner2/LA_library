@@ -27,6 +27,7 @@
 #include "contfrac.h"
 #include "simple.h"
 #include "graph.h"
+#include "numbers.h"
 
 
 using namespace std;
@@ -2883,7 +2884,7 @@ v.randomize();
 for(int i=0; i<v.size(); ++i) cout <<(v<<i)<<endl;
 }
 
-if(1)
+if(0)
 {
 int seed;
 int f=open("/dev/random",O_RDONLY);
@@ -2936,7 +2937,13 @@ if(!(l%u).is_zero()) laerror("error in gcd");
 if(!(l%v).is_zero()) laerror("error in gcd");
 if(!(u%g).is_zero()) laerror("error in gcd");
 if(!(v%g).is_zero()) laerror("error in gcd");
+}
 
+if(1)
+{
+uint64_t n;
+cin >>n;
+cout <<factorization(n)<<" phi = "<<eulerphi(n)<<endl;
 }
 
 }
