@@ -2852,7 +2852,7 @@ cout <<endl<<"Inverse via svd\n"<<ainv2<<endl;
 cout <<"Difference of inverses = "<<(ainv-ainv2).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int seed;
 int f=open("/dev/random",O_RDONLY);
@@ -2864,17 +2864,79 @@ int n;
 cin >>n;
 bitvector v(n);
 v.randomize();
-//do{
-//	cout <<v <<endl;
-//	v>>=1;
-//}while(!v.iszero());
+do{
+	cout <<v << " NLZ "<<v.nlz()<<" DEG "<<v.degree()<<" NTZ "<<v.ntz()<<endl;
+	v>>=1;
+}while(!v.iszero());
+	cout <<v << " NLZ "<<v.nlz()<< " DEG "<<v.degree()<<" NTZ "<<v.ntz()<<endl;
 
+v.randomize();
 
 for(int i=0; i<n; ++i) 
 	{
-	cout <<v <<endl;
+	cout <<v << " size "<<v.size()<<" NLZ "<<v.nlz()<< " DEG "<<v.degree()<<" NTZ "<<v.ntz()<<endl;
         v<<=1;
 	}
+	cout <<v << " size "<<v.size()<<" NLZ "<<v.nlz()<< " DEG "<<v.degree()<<" NTZ "<<v.ntz()<<endl;
+
+v.randomize();
+for(int i=0; i<v.size(); ++i) cout <<(v<<i)<<endl;
+}
+
+if(1)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+int n;
+cin >>n;
+bitvector v(n),u(n);
+u.randomize();
+v.randomize();
+bitvector w=u*v;
+bitvector z=v*u;
+cout <<u<<endl;
+cout <<v<<endl;
+cout <<w<<endl;
+if(w!=z) laerror("error in bitvector multiplication");
+if(w.degree()!=v.degree()+u.degree()) laerror("error in degree or multiplication");
+cout <<w/u-v<<endl;
+cout <<w%u<<endl;
+cout <<w/v-u<<endl;
+cout <<w%v<<endl;
+if(!(w/u-v).is_zero()) laerror("error in division");
+if(!(w/v-u).is_zero()) laerror("error in division");
+if(!(w%u).is_zero()) laerror("error in division");
+if(!(w%v).is_zero()) laerror("error in division");
+cout <<w.gcd(u)-u<<endl;
+cout <<w.gcd(v)-v<<endl;
+if(!(w.gcd(u)-u).is_zero()) laerror("error in gcd");
+if(!(w.gcd(v)-v).is_zero()) laerror("error in gcd");
+
+u.randomize();
+v.randomize();
+bitvector g=u.gcd(v);
+bitvector l=u.lcm(v);
+cout <<u<<endl;
+cout <<v<<endl;
+cout <<g<<endl;
+cout <<l<<endl;
+cout <<l/u - v/g<<endl;
+cout <<l/v - u/g<<endl;
+cout <<l%u<<endl;
+cout <<l%v<<endl;
+cout <<u%g<<endl;
+cout <<v%g<<endl;
+if(!(l/u - v/g).is_zero()) laerror("error in gcd");
+if(!(l/v - u/g).is_zero()) laerror("error in gcd");
+if(!(l%u).is_zero()) laerror("error in gcd");
+if(!(l%v).is_zero()) laerror("error in gcd");
+if(!(u%g).is_zero()) laerror("error in gcd");
+if(!(v%g).is_zero()) laerror("error in gcd");
+
 }
 
 }

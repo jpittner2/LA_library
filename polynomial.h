@@ -69,7 +69,7 @@ public:
                 }
 	Polynomial operator+(const Polynomial &rhs) const {return Polynomial(*this) += rhs;};
 	Polynomial operator-(const Polynomial &rhs) const {return Polynomial(*this) -= rhs;};
-	Polynomial operator*(const Polynomial &rhs) const //for very long polynomials FFT should be used
+	Polynomial operator*(const Polynomial &rhs) const //NOTE: naive implementation! For very long polynomials FFT-based methods should be used
 		{
 		NOT_GPU(*this); 
 		Polynomial r(degree()+rhs.degree());

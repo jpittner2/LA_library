@@ -25,7 +25,7 @@
 
 namespace LA {
 //compressed storage of large bit vectors
-//let's now use 64-bit blocks exclusively 
+//let's now use 64-bit blocks exclusively  for simplicity
 
 typedef uint64_t bitvector_block; 
 
@@ -48,10 +48,10 @@ public:
 	//operator= seems to be correctly synthetized by the compiler
 	//override dereferencing to address single bits, is however possible
 	//only in the const context (otherwise we would have to define a type which, when assigned to, changes a single bit - possible but probably inefficient)
-	void resize(const unsigned int n, bool preserve=false) {NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits,preserve); modulo=n%blockbits;};
+	void resize(const unsigned int n, bool preserve=false); //preserve data or clear
 	unsigned int size() const {return (nn*blockbits)-blockbits+(modulo?modulo:blockbits);};
 	//arguments must be unsigned to keep the resulting assembly code simple and efficient
-        const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1UL;};
+        const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1ULL;};
 	const bool get(const unsigned int i) const {return (*this)[i];};
 	bitvector_block getblock(const unsigned int i) const {return v[i];}; //integer interpretation
 	void setblock(const unsigned int i, const bitvector_block b) {v[i]=b;};
@@ -62,6 +62,8 @@ public:
 	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
 	bool iszero() const {for(int i=0; i<nn; ++i) if(v[i]) return false; return true;};
+	bool is_zero() const {return iszero();};
+	bool is_one() const {if(v[0]!=1) return false; for(int i=1; i<nn; ++i) if(v[i]) return false; return true;};
 	void randomize();
 	bool operator!=(const bitvector &rhs) const;
 	bool operator==(const bitvector &rhs) const {return !(*this != rhs);};
@@ -80,15 +82,24 @@ public:
 	bitvector operator^(const bitvector &rhs) const {return bitvector(*this) ^= rhs;};
 	bitvector operator+(const bitvector &rhs) const {return *this ^ rhs;}; //addition modulo 2
 	bitvector operator-(const bitvector &rhs) const {return *this ^ rhs;}; //subtraction modulo 2
-        unsigned int operator%(const bitvector &y) const; //number of differing bits
+	bitvector operator*(const bitvector &rhs) const; //multiplication of polynomials over GF(2) NOTE: naive algorithm, does not employ CLMUL nor fft-like approach, only for short vectors!!!
+	bitvector division(const bitvector &rhs,  bitvector &remainder) const;
+	bitvector operator/(const bitvector &rhs) const {bitvector rem(rhs.size()); return division(rhs,rem);};
+	bitvector operator%(const bitvector &rhs) const {bitvector rem(rhs.size()); division(rhs,rem); return rem;};
+	bitvector gcd(const bitvector &rhs) const;
+	bitvector lcm(const bitvector &rhs) const {return (*this)*rhs/this->gcd(rhs);};
+        unsigned int bitdiff(const bitvector &y) const; //number of differing bits
 	unsigned int population(const unsigned int before=0) const; //number of 1's
+	unsigned int nlz() const; //number of leading zeroes
+	unsigned int degree() const {if(iszero()) return 0; else return size()-nlz()-1;}; //interprested as a polynomial over GF(2)
+	unsigned int ntz() const;  //number of trailing zeroes
 	//extended, truncated const i.e. not on *this but return new entity, take care of modulo's bits
 	//logical shifts
 	bitvector& operator>>=(unsigned int i);
 	bitvector& leftshift(unsigned int i, bool autoresize=false);
 	bitvector& operator<<=(unsigned int i) {return leftshift(i,true);};
-	bitvector operator>>(unsigned int i) {bitvector r(*this); return r>>=i;};
-	bitvector operator<<(unsigned int i) {bitvector r(*this); return r<<=i;};
+	bitvector operator>>(unsigned int i) const {bitvector r(*this); return r>>=i;};
+	bitvector operator<<(unsigned int i) const {bitvector r(*this); return r<<=i;};
 	//logical rotations not implemented yet
 	//unformatted file IO
 	void read(int fd, bool dimensions=1, bool transp=0);

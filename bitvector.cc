@@ -103,7 +103,7 @@ bitvector& bitvector::operator&=(const bitvector &rhs)
 {
 if(size()<rhs.size()) resize(rhs.size(),true);
 copyonwrite();
-for(int i=0; i<nn; ++i) v[i] &= rhs.v[i];
+for(int i=0; i<nn; ++i) v[i] &= (i>=rhs.nn? 0 : rhs.v[i]);
 return *this;
 }
 
@@ -111,7 +111,7 @@ bitvector& bitvector::operator|=(const bitvector &rhs)
 {
 if(size()<rhs.size()) resize(rhs.size(),true);
 copyonwrite();
-for(int i=0; i<nn; ++i) v[i] |= rhs.v[i];
+for(int i=0; i<nn && i<rhs.nn; ++i) v[i] |= rhs.v[i];
 return *this;
 }
 
@@ -119,7 +119,7 @@ bitvector& bitvector::operator^=(const bitvector &rhs)
 {
 if(size()<rhs.size()) resize(rhs.size(),true);
 copyonwrite();
-for(int i=0; i<nn; ++i) v[i] ^= rhs.v[i];
+for(int i=0; i<nn && i<rhs.nn; ++i) v[i] ^= rhs.v[i];
 return *this;
 }
 
@@ -136,7 +136,7 @@ x+= (x>>16);
 return x&0x3f;
 }
 #else
-//@@@@ use an efficient trick
+//@@@@ use an efficient trick too
 static unsigned int word_popul(unsigned long x)
 {
 unsigned int s=0;
@@ -222,7 +222,7 @@ if(modulo)
 return s+word_popul(a);
 }
 
-unsigned int bitvector::operator%(const bitvector &y) const
+unsigned int bitvector::bitdiff(const bitvector &y) const
 {
 if(nn!=y.nn) laerror("incompatible size in bitdifference");
 
@@ -236,6 +236,143 @@ if(modulo)
         a &= ~mask;
         }
 return s+word_popul(a);
+}
+
+static unsigned int nlz64(uint64_t x0)
+{
+int64_t x=x0;
+uint64_t y;
+unsigned int n;
+n=0;
+y=x;
+L: if ( x<0) return n;
+if(y==0) return 64-n;
+++n;
+x<<=1;
+y>>=1;
+goto L;
+}
+
+static unsigned int ntz64(uint64_t x)
+{
+unsigned int n;
+if(x==0) return 64;
+n=1;
+if((x&0xffffffff)==0) {n+=32; x>>=32;}
+if((x&0xffff)==0) {n+=16; x>>=16;}
+if((x&0xff)==0) {n+=8; x>>=8;}
+if((x&0xf)==0) {n+=4; x>>=4;}
+if((x&0x3)==0) {n+=2; x>>=2;}
+return n-(x&1);
+}
+
+unsigned int bitvector::nlz() const
+{
+int leadblock=nn-1;
+unsigned int n=0;
+while(leadblock>0 && v[leadblock] == 0) 
+	{
+	--leadblock;
+	n+=blockbits;
+	}
+n+= nlz64(v[leadblock]);
+if(modulo) n-= blockbits-modulo;
+return n;
+}
+
+unsigned int bitvector::ntz() const
+{
+int tailblock=0;
+unsigned int n=0;
+if(iszero()) return size();
+while(tailblock<nn-1 && v[tailblock] == 0)
+        {
+        ++tailblock;
+        n+=blockbits;
+        }
+n+= ntz64(v[tailblock]);
+return n;
+}
+
+//NOTE: naive algorithm, just for testing
+//does not perform modulo irreducible polynomial, is NOT GF(2^n) multiplication
+bitvector bitvector::operator*(const bitvector &rhs) const
+{
+bitvector r(size()+rhs.size());
+r.clear();
+bitvector tmp(rhs);
+tmp.resize(size()+rhs.size(),true);
+for(int i=0; i<=degree(); ++i)
+	{
+	if((*this)[i]) r+= tmp;
+	tmp.leftshift(1,false);
+	}
+return r;
+}
+
+void bitvector::resize(const unsigned int n, bool preserve)
+{
+int old=size(); 
+NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits,preserve); 
+modulo=n%blockbits; 
+if(preserve)  //clear newly allocated memory
+	{
+	for(int i=old; i<nn*blockbits; ++i) this->reset(i);
+	} 
+else clear();
+}
+
+
+bitvector bitvector::division(const bitvector &rhs,  bitvector &remainder) const
+{
+if(rhs.is_zero()) laerror("division by zero binary polynomial");
+if(is_zero() || rhs.is_one()) {remainder.clear(); return *this;}
+bitvector r(size());
+r.clear();
+remainder= *this;
+remainder.copyonwrite();
+
+int rhsd = rhs.degree();
+int d;
+while((d=remainder.degree()) >= rhsd)
+	{
+	unsigned int pos = d-rhsd;
+	r.set(pos);
+	remainder -= (rhs<<pos);
+	}
+
+return r;
+}
+
+bitvector bitvector::gcd(const bitvector &rhs) const
+{
+bitvector big,small;
+
+if(degree()>=rhs.degree()) 
+	{big= *this; small=rhs;}
+else
+	{big=rhs; small= *this;}
+
+if(big.is_zero())
+	{
+	if(small.is_zero()) laerror("two zero arguments in gcd");
+	return small;
+	}
+
+if(small.is_zero()) return big;
+if(small.is_one()) return small;
+if(big.is_one()) return big;
+
+do      {
+        bitvector help=small;
+        small= big%small;
+        big=help;
+        }
+while(! small.is_zero());
+return big;
+
+
+
 }
 
 void bitvector::read(int fd, bool dimensions, bool transp)
@@ -257,6 +394,7 @@ if(dimensions)
         }
 NRVec<bitvector_block>::put(fd,dimensions,transp);
 }
+
 
 
 
