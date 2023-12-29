@@ -117,6 +117,30 @@ return y;
 }
 
 
+template <typename N>
+N powmod(const N &x, N i, const N &m)
+{
+if(i==0) return 1;
+if(i==1) return x%m;
+N y,z;  
+z=x%m;            
+while(!(i&1))   
+        {       
+        z = (z*z)%m;
+        i >>= 1;
+        }       
+y=z;    
+while((i >>= 1)/*!=0*/)
+                {
+                z = (z*z)%m;
+                if(i&1) y = (y*z)%m;
+                }
+return y;
+}
+
+
+
+
 
 //force instantization
 
@@ -126,6 +150,7 @@ template FACTORIZATION<N>  factorization(const N &x); \
 template N nextprime(N x); \
 template std::ostream & operator<<(std::ostream &s, const FACTORIZATION<N>  &x); \
 template N pow(const N &x, N i); \
+template N powmod(const N &x, N i, const N &m); \
 template N eulerphi(const FACTORIZATION<N> &f); \
 
 

@@ -62,6 +62,9 @@ N eulerphi(const N &x) {return eulerphi(factorization(x));}
 template <typename N>
 N pow(const N &x, N i);
 
+template <typename N>
+N powmod(const N &x, N i, const N &m);
+
 
 }//namespace
 #endif
