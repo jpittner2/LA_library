@@ -2939,11 +2939,23 @@ if(!(u%g).is_zero()) laerror("error in gcd");
 if(!(v%g).is_zero()) laerror("error in gcd");
 }
 
-if(1)
+if(0)
 {
 uint64_t n;
 cin >>n;
 cout <<factorization(n)<<" phi = "<<eulerphi(n)<<endl;
+}
+
+if(1)
+{
+bitvector ir; cin >>ir;
+bitvector a; cin >>a;
+bitvector ai = a.field_inv(ir);
+cout<< "inverse = "<<ai<<endl;
+cout<<"check1 " <<(a*ai)%ir<<endl;
+cout<<"check2 " <<a.field_mult(ai,ir)<<endl;
+
+
 }
 
 }

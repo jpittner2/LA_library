@@ -83,13 +83,17 @@ public:
 	bitvector operator^(const bitvector &rhs) const {return bitvector(*this) ^= rhs;};
 	bitvector operator+(const bitvector &rhs) const {return *this ^ rhs;}; //addition modulo 2
 	bitvector operator-(const bitvector &rhs) const {return *this ^ rhs;}; //subtraction modulo 2
-	bitvector operator*(const bitvector &rhs) const; //multiplication of polynomials over GF(2) NOTE: naive algorithm, does not employ CLMUL nor fft-like approach, only for short vectors!!!
+	bitvector multiply(const bitvector &rhs, bool autoresize=true) const; //use autoresize=false only if you know it will not overflow!
+	bitvector operator*(const bitvector &rhs) const {return multiply(rhs,true);}  //multiplication of polynomials over GF(2) NOTE: naive algorithm, does not employ CLMUL nor fft-like approach, only for short vectors!!!
+	bitvector field_mult(const bitvector &rhs, const bitvector &irpolynom) const; //multiplication in GF(2^n)
+	bitvector field_inv(const bitvector &irpolynom) const; //multiplication in GF(2^n)
+	bitvector field_div(const bitvector &rhs, const bitvector &irpolynom) const {return field_mult(rhs.field_inv(irpolynom),irpolynom);};
 	bitvector division(const bitvector &rhs,  bitvector &remainder) const;
 	bitvector operator/(const bitvector &rhs) const {bitvector rem(rhs.size()); return division(rhs,rem);};
 	bitvector operator%(const bitvector &rhs) const {bitvector rem(rhs.size()); division(rhs,rem); return rem;};
-	bitvector gcd(const bitvector &rhs) const;
+	bitvector gcd(const bitvector &rhs) const; //as a polynomial over GF2
 	bitvector lcm(const bitvector &rhs) const {return (*this)*rhs/this->gcd(rhs);};
-        unsigned int bitdiff(const bitvector &y) const; //number of differing bits
+        unsigned int bitdiff(const bitvector &y) const; //number of differing bits (Hamming distance)
 	unsigned int population(const unsigned int before=0) const; //number of 1's
 	unsigned int nlz() const; //number of leading zeroes
 	unsigned int degree() const {if(iszero()) return 0; else return size()-nlz()-1;}; //interprested as a polynomial over GF(2)

@@ -296,12 +296,13 @@ return n;
 
 //NOTE: naive algorithm, just for testing
 //does not perform modulo irreducible polynomial, is NOT GF(2^n) multiplication
-bitvector bitvector::operator*(const bitvector &rhs) const
+bitvector bitvector::multiply(const bitvector &rhs, bool autoresize) const
 {
-bitvector r(size()+rhs.size());
+int maxsize=size(); if(rhs.size()>maxsize) maxsize=rhs.size();
+bitvector r(autoresize?size()+rhs.size():maxsize);
 r.clear();
 bitvector tmp(rhs);
-tmp.resize(size()+rhs.size(),true);
+if(autoresize) tmp.resize(size()+rhs.size(),true);
 for(int i=0; i<=degree(); ++i)
 	{
 	if((*this)[i]) r+= tmp;
@@ -309,6 +310,60 @@ for(int i=0; i<=degree(); ++i)
 	}
 return r;
 }
+
+
+//this is GF(2^n) multiplication
+bitvector bitvector::field_mult(const bitvector &rhs, const bitvector &irpolynom) const
+{
+int d=irpolynom.degree();
+if(d>size()||d>rhs.size()) laerror("inconsistent dimensions in field_mult");
+bitvector r(size());
+r.clear();
+bitvector tmp(*this);
+tmp.resize(size()+1,true);
+int rd=rhs.degree();
+for(int i=0; i<=rd; ++i) //avoid making a working copy of rhs and shifting it
+        {
+        if(rhs[i]) r+= tmp;
+        tmp.leftshift(1,false);
+  	if(tmp[d]) tmp -= irpolynom;
+        }
+return r;
+}
+
+
+
+//this is GF(2^n) multiplicative inverseion
+//cf. https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+bitvector bitvector::field_inv(const bitvector &irpolynom) const
+{
+int d=irpolynom.degree();
+if(d>size()) laerror("inconsistent dimensions in field_inv");
+
+bitvector t(size()); t.clear();
+bitvector newt(size()); newt.clear(); newt.set(0);
+bitvector r(irpolynom); r.copyonwrite();
+bitvector newr(*this); if(r.size()>newr.size()) newr.resize(r.size(),true); newr.copyonwrite();
+int rs=r.size();
+
+
+while(!newr.is_zero())
+	{
+	//std::cout <<"r "<<r<<" newr "<<newr <<" "; std::cout <<"t "<<t<<" newt "<<newt; std::cout <<std::endl;
+	bitvector remainder(rs);
+	bitvector quotient = r.division(newr,remainder);
+	r=newr; newr=remainder;
+	remainder= t - quotient.multiply(newt,false); //avoid size growth
+	t=newt; newt=remainder;
+	}
+
+if(r.degree()>0) laerror("field_inv: polynomial is not irreducible or input is its multiple");
+if(!r[0]) laerror("zero in field_inv");
+
+return t;
+}
+
+
 
 void bitvector::resize(const unsigned int n, bool preserve)
 {
@@ -338,9 +393,9 @@ while((d=remainder.degree()) >= rhsd)
 	{
 	unsigned int pos = d-rhsd;
 	r.set(pos);
-	remainder -= (rhs<<pos);
+	remainder -= rhs<<pos;
 	}
-
+remainder.resize(rhs.size(),true);
 return r;
 }
 
