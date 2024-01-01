@@ -18,6 +18,7 @@
 
 #include "bitvector.h"
 #include <unistd.h>
+#include "numbers.h"
 
 namespace LA {
 
@@ -425,10 +426,67 @@ do      {
         }
 while(! small.is_zero());
 return big;
-
-
-
 }
+
+
+//cf. Brent & Zimmermann ANZMC08t (2008) paper
+bool bitvector::is_irreducible() const
+{
+bitvector tmp(size());
+tmp.clear(); tmp.set(1);
+unsigned int d=degree();
+
+//repeated squaring test
+for(unsigned int j=0; j<d; ++j) tmp = tmp.field_mult(tmp,*this);
+tmp.flip(1);
+if(!tmp.is_zero()) return false;
+
+FACTORIZATION<uint64_t> f = factorization((uint64_t)d);
+if(f.begin()->first==d) return true; //d was prime
+
+//additional tests needed for non-prime degrees
+for(auto p=f.begin(); p!=f.end(); ++p)
+	{
+	unsigned int dm= d / p->first;
+	tmp.clear(); tmp.set(1);
+	for(unsigned int j=0; j<dm; ++j) tmp = tmp.field_mult(tmp,*this);
+	tmp.flip(1);
+	bitvector g=tmp.gcd(*this);
+	if(!g,is_one()) return false;
+	}
+return true;
+}
+
+
+//horner scheme
+bitvector bitvector::composition(const bitvector &x) const
+{
+bitvector r(size());
+r.clear();
+int d=degree();
+for(int i=d; i>0; --i)
+	{
+	if((*this)[i]) r.flip(0);
+	r*=x;
+	}
+if((*this)[0]) r.flip(0);
+return r;
+}
+
+bitvector bitvector::field_composition(const bitvector &x, const bitvector &ir) const
+{
+bitvector r(size());
+r.clear();
+int d=degree();
+for(int i=d; i>0; --i)
+	{
+	if((*this)[i]) r.flip(0);
+	r= r.field_mult(x,ir);
+	}
+if((*this)[0]) r.flip(0);
+return r;
+}
+
 
 void bitvector::read(int fd, bool dimensions, bool transp)
 {

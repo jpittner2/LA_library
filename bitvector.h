@@ -59,6 +59,7 @@ public:
 	int getblocksize() const {return 8*sizeof(bitvector_block);};
 	void set(const unsigned int i) {v[i/blockbits] |= (1UL<<(i%blockbits));};
 	void reset(const unsigned int i) {v[i/blockbits] &= ~(1UL<<(i%blockbits));};
+	void flip(const unsigned int i) {v[i/blockbits] ^= (1UL<<(i%blockbits));};
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
 	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
@@ -85,18 +86,23 @@ public:
 	bitvector operator-(const bitvector &rhs) const {return *this ^ rhs;}; //subtraction modulo 2
 	bitvector multiply(const bitvector &rhs, bool autoresize=true) const; //use autoresize=false only if you know it will not overflow!
 	bitvector operator*(const bitvector &rhs) const {return multiply(rhs,true);}  //multiplication of polynomials over GF(2) NOTE: naive algorithm, does not employ CLMUL nor fft-like approach, only for short vectors!!!
+	bitvector&  operator*=(const bitvector &rhs) {*this = (*this)*rhs; return *this;}
 	bitvector field_mult(const bitvector &rhs, const bitvector &irpolynom) const; //multiplication in GF(2^n)
 	bitvector field_inv(const bitvector &irpolynom) const; //multiplication in GF(2^n)
 	bitvector field_div(const bitvector &rhs, const bitvector &irpolynom) const {return field_mult(rhs.field_inv(irpolynom),irpolynom);};
+	bitvector field_composition(const bitvector &rhs, const bitvector &irpolynom) const;
+	bool is_irreducible() const; //test irreducibility of polynomial over GF2
 	bitvector division(const bitvector &rhs,  bitvector &remainder) const;
 	bitvector operator/(const bitvector &rhs) const {bitvector rem(rhs.size()); return division(rhs,rem);};
 	bitvector operator%(const bitvector &rhs) const {bitvector rem(rhs.size()); division(rhs,rem); return rem;};
 	bitvector gcd(const bitvector &rhs) const; //as a polynomial over GF2
 	bitvector lcm(const bitvector &rhs) const {return (*this)*rhs/this->gcd(rhs);};
+	bitvector composition(const bitvector &rhs) const;
         unsigned int bitdiff(const bitvector &y) const; //number of differing bits (Hamming distance)
 	unsigned int population(const unsigned int before=0) const; //number of 1's
 	unsigned int nlz() const; //number of leading zeroes
 	unsigned int degree() const {if(iszero()) return 0; else return size()-nlz()-1;}; //interprested as a polynomial over GF(2)
+	void truncate(int t=0) {int s=degree()+1; if(t>s) s=t;  resize(s,true);};
 	unsigned int ntz() const;  //number of trailing zeroes
 	//extended, truncated const i.e. not on *this but return new entity, take care of modulo's bits
 	//logical shifts

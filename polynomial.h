@@ -147,6 +147,7 @@ public:
 			}
 		return r;
 		}
+	Polynomial composition(const Polynomial &rhs) const;
 	Polynomial even_powers() const {int d=degree()/2; Polynomial r(d); for(int i=0; i<=degree(); i+=2) r[i/2] = (*this)[i]; return r;};
 	Polynomial odd_powers() const {int d=(degree()-1)/2; Polynomial r(d); if(degree()==0) {r[0]=0; return r;} for(int i=1; i<=degree(); i+=2) r[(i-1)/2] = (*this)[i]; return r;};
 	void polydiv(const Polynomial &rhs, Polynomial &q, Polynomial &r) const;

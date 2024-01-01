@@ -2949,11 +2949,18 @@ cout <<factorization(n)<<" phi = "<<eulerphi(n)<<endl;
 if(1)
 {
 bitvector ir; cin >>ir;
+if(!ir.is_irreducible()) laerror("input must be an irreducible polynomial");
 bitvector a; cin >>a;
 bitvector ai = a.field_inv(ir);
 cout<< "inverse = "<<ai<<endl;
 cout<<"check1 " <<(a*ai)%ir<<endl;
 cout<<"check2 " <<a.field_mult(ai,ir)<<endl;
+
+bitvector c=a.composition(ai);
+bitvector cc=a.field_composition(ai,ir);
+cout <<c<<endl;
+cout <<c%ir<<endl;
+cout <<cc<<endl;
 
 
 }

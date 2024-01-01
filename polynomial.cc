@@ -249,6 +249,12 @@ resize(n,false);
 for(int i=0; i<=n; ++i) (*this)[i] = (T) binom(n,i);
 }
 
+template <typename T>
+Polynomial<T>  Polynomial<T>::composition(const Polynomial &rhs) const
+{
+return value(*this,rhs);
+}
+
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file
