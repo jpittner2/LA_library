@@ -43,7 +43,7 @@ private:
 	unsigned int modulo;
 public:
 	bitvector() : NRVec<bitvector_block>() {};
-	explicit bitvector (const unsigned int n):NRVec<bitvector_block>((n+blockbits-1)/blockbits) {modulo=n%blockbits;};
+	explicit bitvector (const unsigned int n):NRVec<bitvector_block>((n+blockbits-1)/blockbits) {modulo=n%blockbits; memset(v,0,nn*sizeof(bitvector_block));};
 	bitvector (const bitvector_block a, const unsigned int n):NRVec<bitvector_block>(a,(n+blockbits-1)/blockbits) {modulo=n%blockbits;};
 	bitvector(const bitvector &rhs) : NRVec<bitvector_block>(rhs) {modulo=rhs.modulo;};
 	//operator= seems to be correctly synthetized by the compiler
@@ -63,10 +63,13 @@ public:
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
 	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
-	bool iszero() const {for(int i=0; i<nn; ++i) if(v[i]) return false; return true;};
-	bool is_zero() const {return iszero();};
-	bool is_one() const {if(v[0]!=1) return false; for(int i=1; i<nn; ++i) if(v[i]) return false; return true;};
+	void zero_padding() const; 
+	bool is_zero() const {zero_padding(); for(int i=0; i<nn; ++i) if(v[i]) return false; return true;};
+	bool is_one() const {zero_padding(); if(v[0]!=1) return false; for(int i=1; i<nn; ++i) if(v[i]) return false;return true;};
+	bool iszero() const {return is_zero();};
 	void randomize();
+	bitvector& operator++();
+	bitvector& operator--();
 	bool operator!=(const bitvector &rhs) const;
 	bool operator==(const bitvector &rhs) const {return !(*this != rhs);};
 	bool operator>(const bitvector &rhs) const;
@@ -77,6 +80,9 @@ public:
 	bitvector& operator&=(const bitvector &rhs);
 	bitvector& operator|=(const bitvector &rhs);
 	bitvector& operator^=(const bitvector &rhs);
+	bitvector& operator&=(const bitvector_block rhs) {v[0]&=rhs; return *this;};
+        bitvector& operator|=(const bitvector_block rhs) {v[0]|=rhs; return *this;};
+        bitvector& operator^=(const bitvector_block rhs) {v[0]^=rhs; return *this;};
 	bitvector& operator+=(const bitvector &rhs) {return (*this)^=rhs;}; //addition modulo 2
 	bitvector& operator-=(const bitvector &rhs) {return (*this)^=rhs;}; //subtraction modulo 2
 	bitvector operator&(const bitvector &rhs) const {return bitvector(*this) &= rhs;};
@@ -87,10 +93,13 @@ public:
 	bitvector multiply(const bitvector &rhs, bool autoresize=true) const; //use autoresize=false only if you know it will not overflow!
 	bitvector operator*(const bitvector &rhs) const {return multiply(rhs,true);}  //multiplication of polynomials over GF(2) NOTE: naive algorithm, does not employ CLMUL nor fft-like approach, only for short vectors!!!
 	bitvector&  operator*=(const bitvector &rhs) {*this = (*this)*rhs; return *this;}
+	bitvector pow(unsigned int n) const; 
 	bitvector field_mult(const bitvector &rhs, const bitvector &irpolynom) const; //multiplication in GF(2^n)
 	bitvector field_inv(const bitvector &irpolynom) const; //multiplication in GF(2^n)
 	bitvector field_div(const bitvector &rhs, const bitvector &irpolynom) const {return field_mult(rhs.field_inv(irpolynom),irpolynom);};
 	bitvector field_composition(const bitvector &rhs, const bitvector &irpolynom) const;
+	bitvector field_pow(unsigned int n, const bitvector &irpolynom) const; 
+	bitvector field_sqrt(const bitvector &irpolynom) const;
 	bool is_irreducible() const; //test irreducibility of polynomial over GF2
 	bitvector division(const bitvector &rhs,  bitvector &remainder) const;
 	bitvector operator/(const bitvector &rhs) const {bitvector rem(rhs.size()); return division(rhs,rem);};
@@ -99,7 +108,7 @@ public:
 	bitvector lcm(const bitvector &rhs) const {return (*this)*rhs/this->gcd(rhs);};
 	bitvector composition(const bitvector &rhs) const;
         unsigned int bitdiff(const bitvector &y) const; //number of differing bits (Hamming distance)
-	unsigned int population(const unsigned int before=0) const; //number of 1's
+	unsigned int population(const unsigned int before=0) const; //number of 1's (Hamming weight)
 	unsigned int nlz() const; //number of leading zeroes
 	unsigned int degree() const {if(iszero()) return 0; else return size()-nlz()-1;}; //interprested as a polynomial over GF(2)
 	void truncate(int t=0) {int s=degree()+1; if(t>s) s=t;  resize(s,true);};
@@ -116,6 +125,8 @@ public:
 	void read(int fd, bool dimensions=1, bool transp=0);
 	void write(int fd, bool dimensions=1, bool transp=0);
 	};
+
+extern bitvector find_irreducible(int deg, int pop= -1, int nth=1); //degree and requested Hamming weight or -1 for random trial
 
 //expand to separate bytes or ints
 template <typename T>

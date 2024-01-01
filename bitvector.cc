@@ -39,21 +39,48 @@ return s;
 }
 
 
+void bitvector::zero_padding() const
+{
+if(!modulo) return;
+bitvector *p =  const_cast<bitvector *>(this);
+p->v[nn-1] &= (1ULL<<modulo)-1;
+}
+
+
+bitvector& bitvector::operator++()
+{
+copyonwrite();
+zero_padding();
+int i=0;
+while(i<nn) if(++v[i++]) break;
+return *this;
+}
+
+
+bitvector& bitvector::operator--()
+{
+copyonwrite();
+zero_padding();
+int i=0;
+while(i<nn) if(v[i++]--) break;
+return *this;
+}
+
+
+
 //implemented so that vectors of different length are considered different automatically
 bool bitvector::operator!=(const bitvector &rhs) const
 {
-if(nn!=rhs.nn || modulo!=rhs.modulo) return 1;
-if(v==rhs.v) return 0;
-if(!modulo) return memcmp(v,rhs.v,nn*sizeof(bitvector_block));
-if(memcmp(v,rhs.v,(nn-1)*sizeof(bitvector_block))) return 1;
-bitvector_block a=v[nn-1];
-bitvector_block b=rhs.v[nn-1];
-//zero out the irrelevant bits
-bitvector_block mask= ~((bitvector_block)0);
-mask <<=modulo;
-mask = ~mask;
-a&=mask; b&=mask;
-return a!=b;
+if(nn==rhs.nn && modulo==rhs.modulo && v==rhs.v) return false;
+zero_padding();
+rhs.zero_padding();
+int minnn=nn; if(rhs.nn<minnn) minnn=rhs.nn;
+int maxnn=nn; if(rhs.nn>maxnn) maxnn=rhs.nn;
+if(memcmp(v,rhs.v,minnn*sizeof(bitvector_block))) return true;
+if(minnn==maxnn) return false;
+if(nn==minnn) {for(int i=minnn; i<maxnn; ++i) if(rhs.v[i]) return true;}
+if(rhs.nn==minnn){for(int i=minnn; i<maxnn; ++i) if(v[i]) return true;}
+return false;
 }
 
 
@@ -97,6 +124,7 @@ bitvector bitvector::operator~() const
 {
 bitvector r((*this).size());
 for(int i=0; i<nn; ++i) r.v[i] = ~v[i];
+r.zero_padding();
 return r;
 }
 
@@ -197,12 +225,7 @@ void  bitvector::randomize()
 {
 copyonwrite();
 for(int i=0; i<nn; ++i) v[i]=RANDINT64();
-//zero the excess bits
-if(modulo) 
-	{
-	bitvector_block mask = (1ULL<<modulo)-1;
-	v[nn-1] &= mask;
-	}
+zero_padding();
 }
 
 
@@ -322,6 +345,7 @@ bitvector r(size());
 r.clear();
 bitvector tmp(*this);
 tmp.resize(size()+1,true);
+tmp.copyonwrite();
 int rd=rhs.degree();
 for(int i=0; i<=rd; ++i) //avoid making a working copy of rhs and shifting it
         {
@@ -358,7 +382,7 @@ while(!newr.is_zero())
 	t=newt; newt=remainder;
 	}
 
-if(r.degree()>0) laerror("field_inv: polynomial is not irreducible or input is its multiple");
+if(r.degree()>0) laerror("field_inv: polynomial is not irreducible or input is zero modulo the polynomial");
 if(!r[0]) laerror("zero in field_inv");
 
 return t;
@@ -368,12 +392,13 @@ return t;
 
 void bitvector::resize(const unsigned int n, bool preserve)
 {
-int old=size(); 
+if(preserve) zero_padding();
+int oldnn=nn; 
 NRVec<bitvector_block>::resize((n+blockbits-1)/blockbits,preserve); 
 modulo=n%blockbits; 
 if(preserve)  //clear newly allocated memory
 	{
-	for(int i=old; i<nn*blockbits; ++i) this->reset(i);
+	for(int i=oldnn; i<nn; ++i) v[i]=0;
 	} 
 else clear();
 }
@@ -430,6 +455,7 @@ return big;
 
 
 //cf. Brent & Zimmermann ANZMC08t (2008) paper
+//
 bool bitvector::is_irreducible() const
 {
 bitvector tmp(size());
@@ -452,7 +478,8 @@ for(auto p=f.begin(); p!=f.end(); ++p)
 	for(unsigned int j=0; j<dm; ++j) tmp = tmp.field_mult(tmp,*this);
 	tmp.flip(1);
 	bitvector g=tmp.gcd(*this);
-	if(!g,is_one()) return false;
+	//std::cout << "TEST tmp, ir, gcd, is_one "<<tmp<<" "<<*this<<" "<<g<<" : "<<g.is_one()<<std::endl;
+	if(!g.is_one()) return false;
 	}
 return true;
 }
@@ -508,6 +535,117 @@ if(dimensions)
 NRVec<bitvector_block>::put(fd,dimensions,transp);
 }
 
+static bitvector *tryme;
+static bool irfound;
+static int mynth;
+
+static void irfinder(int nones, int top)
+{
+if(irfound) return;
+if(nones==0) //terminate recursion
+	{
+	bool testit = tryme->is_irreducible();
+	//std::cout <<"candidate = "<< *tryme<< " result = "<<testit<<std::endl;
+	if(testit) 
+		{
+		--mynth;
+		if(!mynth) irfound=true;
+		}
+	return;
+	}
+for(int i=nones; i<=top; ++i) 
+	{
+	tryme->set(i);
+	irfinder(nones-1,i-1);
+	if(irfound) break;
+	else tryme->reset(i);
+	}
+}
+
+
+bitvector find_irreducible(int deg, int pop, int nth)
+{
+if(deg<=0) laerror("illegal degree in find_irreducible");
+if(deg==1) {bitvector r(2); r.set(1); r.reset(0); return r;}
+bitvector r(deg+1);
+if(pop== -1)
+	{
+	do	{
+		r.randomize();
+		r.set(0);
+		r.set(deg);
+		if((r.population()&1)==0) r.flip(1+RANDINT32()%(deg-2));
+		}
+	while(!r.is_irreducible());
+	return r;
+	}
+if(pop<3 || (pop&1)==0) laerror("impossible population of irreducible polynomial requested");
+r.clear();
+r.set(0);
+r.set(deg);
+pop-=2;
+tryme= &r;
+irfound=false;
+mynth=nth;
+irfinder(pop,deg-1);
+if(!irfound) r.clear();
+return r;
+}
+
+
+
+bitvector bitvector::pow(unsigned int n) const
+{
+if(n==0) {bitvector r(size()); r.clear(); r.set(0); return r;}
+if(n==1) return *this;
+bitvector y,z;
+z= *this;
+while(!(n&1))
+        {
+        z = z*z;
+        n >>= 1;
+        }
+y=z;
+while((n >>= 1)/*!=0*/)
+                {
+                z = z*z;
+                if(n&1) y *= z;
+                }
+return y;
+}
+
+bitvector bitvector::field_pow(unsigned int n, const bitvector &ir) const
+{
+if(n==0) {bitvector r(size()); r.clear(); r.set(0); return r;}
+if(n==1) return *this;
+bitvector y,z;
+z= *this;
+while(!(n&1))
+        {
+        z = z.field_mult(z,ir);
+        n >>= 1;
+        }
+y=z;
+while((n >>= 1)/*!=0*/)
+                {
+                z = z.field_mult(z,ir);
+                if(n&1) y = y.field_mult(z,ir);
+                }
+return y;
+}
+
+//sqrt(x) is x^(2^(d-1))
+bitvector bitvector::field_sqrt(const bitvector &ir) const
+{
+int d=ir.degree();
+bitvector r(*this); 
+for(int i=0; i<d-1; ++i) 
+	{
+	r= r.field_mult(r,ir);
+	}
+r.resize(d+1,true);
+return r;
+}
 
 
 

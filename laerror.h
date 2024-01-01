@@ -53,6 +53,8 @@ s << x.msg;
 return s;
 }
 
+extern int endianity();
+
 }//namespace
 
 #endif

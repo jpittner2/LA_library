@@ -205,4 +205,17 @@ extern "C" int cblas_errprn(int ierr, int info, char *form, ...) {
 }
 #endif
 
+
+int endianity()
+{
+static union {int i; char z[sizeof(int)];} u;
+static int jj= -1;
+if(jj<0) /* first call */
+                {
+                u.i=1;
+                jj=0; while(!u.z[jj]) jj++;
+                }
+return jj;
+}
+
 }//namespace

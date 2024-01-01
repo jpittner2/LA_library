@@ -2946,7 +2946,7 @@ cin >>n;
 cout <<factorization(n)<<" phi = "<<eulerphi(n)<<endl;
 }
 
-if(1)
+if(0)
 {
 bitvector ir; cin >>ir;
 if(!ir.is_irreducible()) laerror("input must be an irreducible polynomial");
@@ -2961,8 +2961,49 @@ bitvector cc=a.field_composition(ai,ir);
 cout <<c<<endl;
 cout <<c%ir<<endl;
 cout <<cc<<endl;
-
-
 }
+
+if(1)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+int d;
+cin >>d;
+bitvector ir=find_irreducible(d,3);
+if(ir.is_zero()) ir=find_irreducible(d,5);
+if(ir.is_zero()) ir=find_irreducible(d,7);
+if(ir.is_zero()) {cout<<"cannot find IR polynomial\n"; exit(1);}
+
+
+cout <<"IR = "<<ir<<endl;
+if(!ir.is_irreducible()) laerror("error in IR finder");
+else cout <<"IS irreducible\n";
+bitvector a(d);
+do { a.randomize(); }while(a.is_zero());
+cout <<"A = "<<a<<endl;
+bitvector aa=a;
+cout <<"A+1 = "<<++aa<<endl;
+cout <<"A+1-1 = "<<--aa<<endl;
+if(a!=aa) laerror("error in inc/dec");
+bitvector g=ir.gcd(a);
+cout<<"GCD A,IR = "<<g<<endl;
+if(!g.is_one() && !a.is_zero()) laerror("ERROR IN is_irreducible\n");
+bitvector ai = a.field_inv(ir);
+cout <<"I = "<<ai<<endl;
+bitvector check = a.field_mult(ai,ir);
+cout<<"check " <<check<<endl;
+if(!check.is_one()) laerror("error in GF(2^n) inversion");
+bitvector s=a.field_sqrt(ir);
+cout <<"test a "<<a<<endl;
+cout <<"tests2 "<<s.field_mult(s,ir)<<endl;
+cout <<"test s "<<s<<endl;
+bitvector dif=a - s.field_mult(s,ir);
+if(!dif.is_zero()) laerror("error in gf 2^n sqrt");
+}
+
 
 }
