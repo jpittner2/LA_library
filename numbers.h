@@ -65,6 +65,10 @@ N pow(const N &x, N i);
 template <typename N>
 N powmod(const N &x, N i, const N &m);
 
+template <typename N>
+N multmod(N x, N y, const N &m);
+
+
 
 }//namespace
 #endif

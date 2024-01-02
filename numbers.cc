@@ -117,6 +117,23 @@ return y;
 }
 
 
+//avoiding overflow which would occur very soon in (x*y)%m
+template <typename N>
+N multmod(N x, N y, const N &m)
+{
+N sum=0;
+if(y==0) return 0;
+while(x)
+	{
+	if(x&1) sum= (sum+y)%m;
+	x>>=1;
+	y = (y<<1)%m; //still can overflow here but for much larger numbers
+	}
+return sum;
+}
+
+
+
 template <typename N>
 N powmod(const N &x, N i, const N &m)
 {
@@ -126,14 +143,14 @@ N y,z;
 z=x%m;            
 while(!(i&1))   
         {       
-        z = (z*z)%m;
+        z = multmod(z,z,m);
         i >>= 1;
         }       
 y=z;    
 while((i >>= 1)/*!=0*/)
                 {
-                z = (z*z)%m;
-                if(i&1) y = (y*z)%m;
+		z = multmod(z,z,m);
+                if(i&1) y = multmod(y,z,m);
                 }
 return y;
 }
@@ -151,6 +168,7 @@ template N nextprime(N x); \
 template std::ostream & operator<<(std::ostream &s, const FACTORIZATION<N>  &x); \
 template N pow(const N &x, N i); \
 template N powmod(const N &x, N i, const N &m); \
+template N multmod(N x, N i, const N &m); \
 template N eulerphi(const FACTORIZATION<N> &f); \
 
 

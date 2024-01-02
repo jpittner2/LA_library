@@ -21,8 +21,12 @@
 
 #include "vec.h"
 #include "numbers.h"
+#include "laerror.h"
 #include <stdint.h>
 
+//TODO: if efficiency is requires, make also a monic_bitvector, which will not store the leading 1 explicitly
+//and then the field operations will be done without any resize
+//To avoid confusion this class must NOT be derived from bitvector and have only explicit constructor conversion
 
 namespace LA {
 //compressed storage of large bit vectors
@@ -46,6 +50,19 @@ public:
 	explicit bitvector (const unsigned int n):NRVec<bitvector_block>((n+blockbits-1)/blockbits) {modulo=n%blockbits; memset(v,0,nn*sizeof(bitvector_block));};
 	bitvector (const bitvector_block a, const unsigned int n):NRVec<bitvector_block>(a,(n+blockbits-1)/blockbits) {modulo=n%blockbits;};
 	bitvector(const bitvector &rhs) : NRVec<bitvector_block>(rhs) {modulo=rhs.modulo;};
+	explicit bitvector(const uint8_t *data, const unsigned int n): NRVec<bitvector_block>((n+blockbits-1)/blockbits) 
+		{
+		modulo=n%blockbits;
+		if(endianity()) laerror("not portable to big endian");
+		else memcpy(&v[0],data,(n+7)/8);
+		zero_padding();
+		};      
+	void getdata(uint8_t *data)
+		{
+		if(endianity()) laerror("not portable to big endian");
+                else memcpy(data,&v[0],(size()+7)/8);
+		}
+
 	//operator= seems to be correctly synthetized by the compiler
 	//override dereferencing to address single bits, is however possible
 	//only in the const context (otherwise we would have to define a type which, when assigned to, changes a single bit - possible but probably inefficient)
@@ -57,9 +74,27 @@ public:
 	bitvector_block getblock(const unsigned int i) const {return v[i];}; //integer interpretation
 	void setblock(const unsigned int i, const bitvector_block b) {v[i]=b;};
 	int getblocksize() const {return 8*sizeof(bitvector_block);};
-	void set(const unsigned int i) {v[i/blockbits] |= (1UL<<(i%blockbits));};
-	void reset(const unsigned int i) {v[i/blockbits] &= ~(1UL<<(i%blockbits));};
-	void flip(const unsigned int i) {v[i/blockbits] ^= (1UL<<(i%blockbits));};
+	void set(const unsigned int i) 
+		{
+#ifdef DEBUG
+		if(i>=size()) laerror("bitvector index out of range in");
+#endif
+		v[i/blockbits] |= (1UL<<(i%blockbits));
+		};
+	void reset(const unsigned int i) 
+		{
+#ifdef DEBUG    
+                if(i>=size()) laerror("bitvector index out of range in");
+#endif
+		v[i/blockbits] &= ~(1UL<<(i%blockbits));
+		};
+	void flip(const unsigned int i) 
+		{
+#ifdef DEBUG    
+                if(i>=size()) laerror("bitvector index out of range in");
+#endif
+		v[i/blockbits] ^= (1UL<<(i%blockbits));
+		};
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
 	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
 	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};

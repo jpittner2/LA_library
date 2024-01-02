@@ -2944,6 +2944,12 @@ if(0)
 uint64_t n;
 cin >>n;
 cout <<factorization(n)<<" phi = "<<eulerphi(n)<<endl;
+uint64_t a;
+do {
+	a=RANDINT64()%n;
+
+	}while(gcd(a,n)!=1);
+cout <<"E-F test "<<powmod(a,eulerphi(n),n)<<endl;
 }
 
 if(0)
