@@ -243,5 +243,43 @@ else
 return parity;
 }
 
+//heapsort
+//DATA must have assignmend and comparison operators implemented
+template<typename INDEX, typename DATA>
+void myheapsort(INDEX n, DATA *ra,int typ=1)
+{
+        INDEX l,j,ir,i;
+        DATA rra;
+	ra--; //below indexed from 1
+
+        l=(n >> 1)+1;
+        ir=n;
+        for (;;) {
+                if (l > 1) {
+                        rra=ra[--l];
+                } else {
+                        rra=ra[ir];
+                        ra[ir]=ra[1];
+                        if (--ir == 1) {
+                                ra[1]=rra;
+                                return;
+                        }
+                }
+                i=l;
+                j=l << 1;
+                while (j <= ir) {
+                        if (j < ir && (typ>0?ra[j] < ra[j+1]:ra[j]>ra[j+1])) ++j;
+                        if (typ>0?rra < ra[j]:rra>ra[j]) {
+                                ra[i]=ra[j];
+                                j += (i=j);
+                        }
+                        else j=ir+1;
+                }
+                ra[i]=rra;
+        }
+}
+
+
+
 }//namespace
 #endif

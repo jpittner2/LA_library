@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <list>
+#include "qsort.h"
 
 
 namespace LA {
@@ -246,6 +247,39 @@ end:
 return select? sumperm/2:sumperm;
 }
 
+//Algorithm L2 from Knuth's volume 4 for multiset permutations
+//input must be initialized with (repeated) numbers in any order
+template <typename T>
+PERM_RANK_TYPE NRPerm<T>::generate_all_multi(void (*callback)(const NRPerm<T>&))
+{
+PERM_RANK_TYPE sumperm=0;
+this->copyonwrite();
+myheapsort(this->size(),&(*this)[1],1);
+while(1)
+        {
+        int j,k,l;
+        T t;
+
+        sumperm++;
+        (*callback)(*this);
+        j=this->size()-1;
+        while(j>0 && (*this)[j]>=(*this)[j+1]) j--;
+        if(j==0) break; /*finished*/
+        l=this->size();
+        while((*this)[j]>=(*this)[l]) l--;
+        t=(*this)[j];(*this)[j]=(*this)[l];(*this)[l]=t;
+        k=j+1;
+        l=this->size();
+        while(k<l)
+                {
+                t=(*this)[k];(*this)[k]=(*this)[l];(*this)[l]=t;
+                k++;l--;
+                }
+        }
+return sumperm;
+}
+
+
 
 template <typename T>
 static T _n;
@@ -253,13 +287,13 @@ static T _n;
 template <typename T>
 static void (*_callback)(const NRPerm<T>& ); 
 
-PERM_RANK_TYPE _sumperm;
+static PERM_RANK_TYPE _sumperm;
 
 template <typename T>
-NRPerm<T> *_perm;
+static NRPerm<T> *_perm;
 
 template <typename T>
-void permg(T n)
+static void permg(T n)
 {
 if(n<= _n<T>)
         {
@@ -306,6 +340,81 @@ do{
 }while(this->next());
 return np;
 }
+
+template <typename T>
+static T _n2;
+
+template <typename T>
+static void (*_callback2)(const NRPerm<T>& );
+
+static PERM_RANK_TYPE _sumperm2;
+
+template <typename T>
+static NRPerm<T> *_perm2;
+
+template <typename T>
+static const T *pclasses2;
+
+template <typename T>
+static T *_pperm;
+
+static int sameclass;
+
+template <typename T>
+static void permg2(T n) //place number n in a free box in all possible ways and according to restrictions
+{
+T i;
+if(n<=_n2<T>)
+        {
+        T c=pclasses2<T>[n];
+        for(i=1;i<=_n2<T>;i++)
+                {
+                if(_pperm<T>[i]>=1) goto skipme; /*place already occupied*/
+                if (sameclass)
+                        {
+                        if(sameclass==1 && c!=pclasses2<T>[i]) goto skipme;
+                        if(sameclass== -1 && c==pclasses2<T>[i] ) goto skipme;
+                        if(sameclass== -2) /*allow only permutations which leave elements of each class sorted*/
+                                {
+                                T j,k;
+                                for(j=i+1; j<=_n2<T>; j++)
+                                        if((k=_pperm<T>[j])>=1)
+                                                 if(/* automatically fulfilled k<n &&*/ c==pclasses2<T>[k]) goto skipme;
+                                }
+                        }
+                /*put it there and next number*/
+                _pperm<T>[i]=n;
+                permg2(n+1);
+                _pperm<T>[i]=0;
+                skipme:;
+                }
+        }
+else
+        {
+        _sumperm2++;
+	(*_callback2<T>)(*_perm2<T>);
+        }
+}
+
+
+
+template <typename T>
+PERM_RANK_TYPE NRPerm<T>::generate_restricted(void (*callback)(const NRPerm<T>&), const NRVec_from1<T> &classes, int restriction_type)
+{
+this->copyonwrite();
+this->clear();
+_n2<T> = this->size();
+_callback2<T> =callback;
+_sumperm2=0;
+_perm2<T> = this;
+_pperm<T> = &(*this)[1]-1;
+pclasses2<T> = &classes[1]-1;
+sameclass=restriction_type;
+permg2<T>(1);
+return _sumperm2;
+}
+
+
 
 template <typename T>
 PERM_RANK_TYPE NRPerm<T>::rank() const

@@ -75,6 +75,19 @@ for(int i=0; i<4; ++i)
 	}
 }
 
+void printme0(const NRPerm<int> &p)
+{
+cout<<p;
+}
+
+void printme1(const NRPerm<int> &p)
+{
+cout <<p.parity()<<' ';
+cout<<p;
+//cout<<p.inverse();
+}
+
+
 static int unitary_n;
 static PERM_RANK_TYPE space_dim;
 
@@ -2189,6 +2202,33 @@ cout <<"generated "<<tot<<endl;
 
 if(0)
 {
+int n;
+cin >>n;
+NRPerm<int> p(n);
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+for(int i=1; i<=n; ++i) p[i]=1+RANDINT32()%(n-1);
+cout <<"Initial = "<<p<<endl;
+int tot=p.generate_all_multi(printme0);
+cout <<"generated "<<tot<<endl;
+}
+
+if(1)
+{
+int n; cin >>n;
+NRPerm<int> p(n); 
+NRVec_from1<int> classes; cin>>classes;
+if(classes.size()!=p.size()) laerror("sizes do not match");
+int tot=p.generate_restricted(printme1,classes,-2);
+cout <<"generated "<<tot<<endl;
+}
+
+
+if(0)
+{
 int n,unitary_n;;
 cin >>n >>unitary_n;
 Partition<int> p(n);
@@ -2969,7 +3009,7 @@ cout <<c%ir<<endl;
 cout <<cc<<endl;
 }
 
-if(1)
+if(0)
 {
 int seed;
 int f=open("/dev/random",O_RDONLY);
