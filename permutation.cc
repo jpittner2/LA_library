@@ -94,9 +94,36 @@ for(T i=1; i<=this->size(); ++i) q[i]=(*this)[this->size()-i+1];
 return q;
 }
 
+template <typename T>
+NRPerm<T> NRPerm<T>::operator+(const NRPerm<T> &q) const
+{
+#ifdef DEBUG
+        if(!this->is_valid() || !q.is_valid()) laerror("concatenation of invalid permutation");
+#endif
+
+NRPerm<T> r(size()+q.size());
+for(int i=1; i<=size(); ++i) r[i]=(*this)[i];
+for(int i=1; i<=q.size(); ++i) r[size()+i]=size()+q[i];
+return r;
+}
 
 template <typename T>
-NRPerm<T> NRPerm<T>::operator*(const NRPerm<T> q) const
+NRPerm<T> NRPerm<T>::operator-(const NRPerm<T> &q) const
+{
+#ifdef DEBUG
+        if(!this->is_valid() || !q.is_valid()) laerror("concatenation of invalid permutation");
+#endif
+
+NRPerm<T> r(size()+q.size());
+for(int i=1; i<=q.size(); ++i) r[i]=size()+q[i];
+for(int i=1; i<=size(); ++i) r[q.size()+i]=(*this)[i];
+return r;
+}
+
+
+
+template <typename T>
+NRPerm<T> NRPerm<T>::operator*(const NRPerm<T> &q) const
 {
 #ifdef DEBUG
         if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
@@ -111,7 +138,7 @@ return r;
 }
 
 template <typename T>
-NRPerm<T> NRPerm<T>::conjugate_by(const NRPerm<T> q) const
+NRPerm<T> NRPerm<T>::conjugate_by(const NRPerm<T> &q) const
 {
 #ifdef DEBUG
         if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
@@ -125,6 +152,16 @@ for(T i=1; i<=n; ++i) r[i] = qi[(*this)[q[i]]];
 return r;
 
 }
+
+template <typename T>
+CyclePerm<T> CyclePerm<T>::conjugate_by(const CyclePerm<T> &q) const
+{
+#ifdef DEBUG
+        if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
+#endif 
+return q.inverse()*((*this)*q);
+}
+
 
 template <typename T>
 int NRPerm<T>::parity() const
@@ -740,7 +777,7 @@ return r;
 
 //multiplication via NRPerm - could there be a more efficient direct algorithm?
 template <typename T>
-CyclePerm<T> CyclePerm<T>::operator*(const CyclePerm q) const
+CyclePerm<T> CyclePerm<T>::operator*(const CyclePerm &q) const
 {
 int m=this->max();
 int mm=q.max();

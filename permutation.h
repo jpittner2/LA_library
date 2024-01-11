@@ -50,14 +50,17 @@ public:
 	explicit NRPerm(const CyclePerm<T> &rhs, const int n=0); 
 
 	//specific operations
+	int size() const {return NRVec_from1<T>::size();};
 	void identity();
 	bool is_valid() const; //is it really a permutation
 	bool is_identity() const;
 	NRPerm inverse() const;
 	NRPerm reverse() const; //backward order
-	NRPerm operator*(const NRPerm q) const; //q is rhs and applied first, this applied second
+	NRPerm operator+(const NRPerm &rhs) const; //concatenate the permutations this,rhs, renumbering rhs (not commutative)
+	NRPerm operator-(const NRPerm &rhs) const; //concatenate the permutations rhs,this, renumbering rhs (not commutative)
+	NRPerm operator*(const NRPerm &q) const; //q is rhs and applied first, this applied second
 	NRPerm operator*(const CyclePerm<T> &r) const;
-	NRPerm conjugate_by(const NRPerm q) const; //q^-1 p q
+	NRPerm conjugate_by(const NRPerm &q) const; //q^-1 p q
 	int parity() const; //returns +/- 1
 	void randomize(void); //uniformly random by Fisher-Yates shuffle
 	bool next(); //generate next permutation in lex order
@@ -94,8 +97,9 @@ public:
 	T max() const {T m=0; for(int i=1; i<=this->size(); ++i) {T mm= (*this)[i].max(); if(mm>m) m=mm;} return m;}
 	CompressedPartition<T> cycles(const T n) const;
 	void readfrom(const std::string &line);
-	CyclePerm operator*(const CyclePerm q) const; //q is rhs and applied first, this applied second
+	CyclePerm operator*(const CyclePerm &q) const; //q is rhs and applied first, this applied second
 	NRPerm<T> operator*(const NRPerm<T> &r) const;
+	CyclePerm conjugate_by(const CyclePerm &q) const; //q^-1 p q
 	PERM_RANK_TYPE order() const; //lcm of cycle lengths
 	bool operator==(const CyclePerm &rhs) const {return NRPerm<T>(*this) == NRPerm<T>(rhs);}; //cycle representation is not unique, cannot inherit operator== from NRVec
 	void simplify(bool keep1=false); //remove cycles of size 0 or 1
