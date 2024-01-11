@@ -95,7 +95,7 @@ return q;
 }
 
 template <typename T>
-NRPerm<T> NRPerm<T>::operator+(const NRPerm<T> &q) const
+NRPerm<T> NRPerm<T>::operator&(const NRPerm<T> &q) const
 {
 #ifdef DEBUG
         if(!this->is_valid() || !q.is_valid()) laerror("concatenation of invalid permutation");
@@ -108,7 +108,7 @@ return r;
 }
 
 template <typename T>
-NRPerm<T> NRPerm<T>::operator-(const NRPerm<T> &q) const
+NRPerm<T> NRPerm<T>::operator|(const NRPerm<T> &q) const
 {
 #ifdef DEBUG
         if(!this->is_valid() || !q.is_valid()) laerror("concatenation of invalid permutation");
@@ -1940,8 +1940,15 @@ template T Sn_character(const Partition<T> &irrep, const  Partition<T> &cclass);
 template std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &x); \
 
 
+#define INSTANTIZE2(T,R) \
+template class WeightPermutation<T,R>; \
+template class PermutationAlgebra<T,R>; \
+
+
 INSTANTIZE(int)
 INSTANTIZE(unsigned int)
+
+INSTANTIZE2(int,double)
 
 
 

@@ -37,6 +37,8 @@ template <typename T> class CyclePerm;
 template <typename T> class Partition;
 template <typename T> class CompressedPartition;
 template <typename T> class YoungTableaux;
+template <typename T, typename R> class WeightPermutation;
+template <typename T, typename R> class PermutationAlgebra;
 
 template <typename T>
 class NRPerm : public NRVec_from1<T> {
@@ -56,8 +58,8 @@ public:
 	bool is_identity() const;
 	NRPerm inverse() const;
 	NRPerm reverse() const; //backward order
-	NRPerm operator+(const NRPerm &rhs) const; //concatenate the permutations this,rhs, renumbering rhs (not commutative)
-	NRPerm operator-(const NRPerm &rhs) const; //concatenate the permutations rhs,this, renumbering rhs (not commutative)
+	NRPerm operator&(const NRPerm &rhs) const; //concatenate the permutations this,rhs, renumbering rhs (not commutative)
+	NRPerm operator|(const NRPerm &rhs) const; //concatenate the permutations rhs,this, renumbering rhs (not commutative)
 	NRPerm operator*(const NRPerm &q) const; //q is rhs and applied first, this applied second
 	NRPerm operator*(const CyclePerm<T> &r) const;
 	NRPerm conjugate_by(const NRPerm &q) const; //q^-1 p q
@@ -75,6 +77,33 @@ public:
 	explicit NRPerm(const int n, const PERM_RANK_TYPE rank); //compute permutation from its rank
 	NRPerm pow(const int n) const {return power(*this,n);};
 };
+
+template <typename T, typename R> 
+class WeightPermutation {
+public:
+	R weight;
+	NRPerm<T> perm;
+	
+	WeightPermutation() : weight(0) {};
+	WeightPermutation(const R w, const NRPerm<T> &p) : weight(w), perm(p) {};
+	WeightPermutation(const NRPerm<T> &p) : perm(p) {weight= p.parity();};
+	void copyonwrite() {perm.copyonwrite();};
+	
+};
+
+template <typename T, typename R>
+class PermutationAlgebra : public NRVec<WeightPermutation<T,R> >
+{
+public:
+	PermutationAlgebra() {};
+	PermutationAlgebra(const YoungTableaux<T> &y);// Young antisymmetrizer TODO@@@
+	
+};
+
+//TODO@@@ iostream for WeightPermutation and PermutationAlgebra
+
+//TODO@@@ permutationalgebra  for Kucharski style antisymmetrizers
+
 
 extern PERM_RANK_TYPE factorial(const int n);
 extern PERM_RANK_TYPE binom(int n, int k);
