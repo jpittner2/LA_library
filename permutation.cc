@@ -1632,8 +1632,6 @@ return _character<T>;
 
 
 ////generation of the young operator
-template <typename T>
-void (*_young_operator_callback)(const NRPerm<T>&p, const T parity, const PERM_RANK_TYPE nterms);
 
 template <typename T>
 static NRPerm<T> _aperm;
@@ -1655,6 +1653,9 @@ static PERM_RANK_TYPE _nyoungterms, _expectterms;
 template <typename T>
 static T _antparity;
 
+template <typename T, typename R>
+PermutationAlgebra<T,R> *_young_r;
+
 
 
 template <typename T>
@@ -1663,8 +1664,9 @@ static void symetr(T ilin, T iel)
 
 if(ilin > (*_tyou_cols<T>)[1])
 	{
+	(*_young_r<T,T>)[_nyoungterms].weight = _antparity<T>;
+	(*_young_r<T,T>)[_nyoungterms].perm = _aperm<T>*_sperm<T>;
 	++_nyoungterms;
-	(*_young_operator_callback<T>)(_aperm<T>*_sperm<T>,_antparity<T>,_expectterms);
 	} 
 else if(iel > (*_tyou_rows<T>)[ilin]) symetr(ilin+1,(T)1);
 else
@@ -1715,14 +1717,12 @@ else
 
 
 
-
 template <typename T>
-PERM_RANK_TYPE YoungTableaux<T>::young_operator(void (*callback)(const NRPerm<T>&p, const T parity, const PERM_RANK_TYPE nterms)) const
+PermutationAlgebra<T,T> YoungTableaux<T>::young_operator() const
 {
 #ifdef DEBUG
 if(!this->is_standard()) laerror("young_operator called for non-standard tableaux");
 #endif
-_young_operator_callback<T> = callback;
 _nyoungterms =0;
 _tyou<T> = this;
 Partition<T> rows=Partition<T>(*this);
@@ -1739,11 +1739,14 @@ _expectterms=1;
 for(int i=1;i<=cols[1];i++) _expectterms *= factorial(rows[i]);
 for(int i=1;i<=rows[1];i++) _expectterms *= factorial(cols[i]);
 
+PermutationAlgebra<T,T> r(_expectterms);
+_young_r<T,T> = &r;
+
 antisym<T>(1,1);
 
 if(_nyoungterms!=_expectterms) laerror("youngconstruct: inconsistent number of terms");
 
-return _nyoungterms;
+return r;
 }
 
 
@@ -1943,14 +1946,17 @@ template std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &x); 
 #define INSTANTIZE2(T,R) \
 template class WeightPermutation<T,R>; \
 template class PermutationAlgebra<T,R>; \
+template std::istream & operator>>(std::istream &s, WeightPermutation<T,R> &x); \
+template std::ostream & operator<<(std::ostream &s, const WeightPermutation<T,R> &x); \
 
 
 INSTANTIZE(int)
 INSTANTIZE(unsigned int)
 
+
+INSTANTIZE2(int,int)
+
+
 INSTANTIZE2(int,double)
-
-
-
 
 }//namespace

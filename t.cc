@@ -91,16 +91,11 @@ cout<<p;
 static int unitary_n;
 static PERM_RANK_TYPE space_dim;
 
-void yyprintme(const NRPerm<int>&p, const int parity, const PERM_RANK_TYPE nterms)
-{
-cout<< parity<<"/"<<nterms<<" "<<p;
-}
-
 void yprintme(const YoungTableaux<int>&y)
 {
 cout <<y;
 if(!y.is_standard()) laerror("internal error in young");
-y.young_operator(yyprintme);
+cout << y.young_operator();
 }
 
 void pprintme(const Partition<int> &p)
@@ -2216,7 +2211,7 @@ int tot=p.generate_all_multi(printme0);
 cout <<"generated "<<tot<<endl;
 }
 
-if(1)
+if(0)
 {
 int n; cin >>n;
 NRPerm<int> p(n); 
@@ -2227,9 +2222,9 @@ cout <<"generated "<<tot<<endl;
 }
 
 
-if(0)
+if(1)
 {
-int n,unitary_n;;
+int n;;
 cin >>n >>unitary_n;
 Partition<int> p(n);
 space_dim=0;

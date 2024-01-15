@@ -29,6 +29,8 @@ typedef   unsigned long long PERM_RANK_TYPE;
 
 //permutations are always numbered from 1; offset is employed when applied to vectors and matrices
 
+//TODO@@@ permutace - substitute jako multiplikace ale x[p[i]] = y[i] kde ale x a y nejsou prave permutace
+
 namespace LA {
 
 
@@ -91,16 +93,33 @@ public:
 	
 };
 
+
+template <typename T, typename R>
+std::istream & operator>>(std::istream &s, WeightPermutation<T,R> &x)
+{
+s>>x.weight>>x.perm;
+return s;
+}
+
+template <typename T, typename R>
+std::ostream & operator<<(std::ostream &s, const WeightPermutation<T,R> &x)
+{
+s<<x.weight<<' '<<x.perm<<' ';
+return s;
+}
+        
+
+
 template <typename T, typename R>
 class PermutationAlgebra : public NRVec<WeightPermutation<T,R> >
 {
 public:
 	PermutationAlgebra() {};
-	PermutationAlgebra(const YoungTableaux<T> &y);// Young antisymmetrizer TODO@@@
+	PermutationAlgebra(int n) : NRVec<WeightPermutation<T,R> >(n) {};
 	
 };
 
-//TODO@@@ iostream for WeightPermutation and PermutationAlgebra
+//TODO@@@ basic operators for the algebra, possibly also simplification after operation
 
 //TODO@@@ permutationalgebra  for Kucharski style antisymmetrizers
 
@@ -241,7 +260,7 @@ public:
 	NRVec_from1<T> yamanouchi() const; //yamanouchi symbol
 	T character_contribution(int ncyc=0) const; //contribution of filled tableaux to Sn character
 	PERM_RANK_TYPE generate_all_standard(void (*callback)(const YoungTableaux<T>&));
-	PERM_RANK_TYPE young_operator(void (*callback)(const NRPerm<T>&p, const T parity, const PERM_RANK_TYPE nterms)) const; //generate young operator for a standard tableaux
+	PermutationAlgebra<T,T> young_operator() const; //generate young operator for a standard tableaux
 
 };
 
