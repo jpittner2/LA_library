@@ -264,6 +264,7 @@ static inline bool gencmp(const std::complex<C> *x, const std::complex<C> *y, si
 static bool bigger(const  std::complex<C> &x, const std::complex<C> &y) {laerror("std::complex comparison undefined"); return false;}
 static bool smaller(const  std::complex<C> &x, const std::complex<C> &y) {laerror("std::complex comparison undefined"); return false;}
 static inline normtype norm (const  std::complex<C> &x) {return std::abs(x);}
+static inline normtype abs2(const  std::complex<C> &x) {return std::abs(x.real())+std::abs(x.imag());} //faster without sqrt
 static inline void axpy (std::complex<C> &s, const std::complex<C> &x, const std::complex<C> &c) {s+=x*c;}
 static inline void get(int fd, std::complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(std::complex<C>)!=read(fd,&x,sizeof(std::complex<C>))) laerror("read error");}
 static inline void put(int fd, const std::complex<C> &x, bool dimensions=0, bool transp=0) {if(sizeof(std::complex<C>)!=write(fd,&x,sizeof(std::complex<C>))) laerror("write error");}
@@ -320,6 +321,7 @@ static inline bool gencmp(const C *x, const C *y, size_t n) {return memcmp(x,y,n
 static inline bool bigger(const  C &x, const C &y) {return x>y;}
 static inline bool smaller(const  C &x, const C &y) {return x<y;}
 static inline normtype norm (const  C &x) {return std::abs(x);}
+static inline normtype abs2 (const  C &x) {return std::abs(x);}
 static inline void axpy (C &s, const C &x, const C &c) {s+=x*c;}
 static inline void put(int fd, const C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=write(fd,&x,sizeof(C))) laerror("write error");}
 static inline void get(int fd, C &x, bool dimensions=0, bool transp=0) {if(sizeof(C)!=read(fd,&x,sizeof(C))) laerror("read error");}
