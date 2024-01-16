@@ -69,10 +69,12 @@ public:
 	void randomize(void); //uniformly random by Fisher-Yates shuffle
 	bool next(); //generate next permutation in lex order
 	PERM_RANK_TYPE generate_all(void (*callback)(const NRPerm<T>&), int parity_select=0); //Algorithm L from Knuth's vol.4, efficient but not in lex order!
-	PERM_RANK_TYPE generate_all_multi(void (*callback)(const NRPerm<T>&));  //Algorithm L2 from Knuth's vol.4, for multiset (repeated numbers, not really permutations)
+	PermutationAlgebra<T,T>  list_all(int parity_select=0);
+	PERM_RANK_TYPE generate_all_multi(void (*callback)(const NRPerm<T>&));  //Algorithm L2 from Knuth's vol.4, for a multiset (repeated numbers, not really permutations)
 	PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&)); //recursive method, also not lexicographic
 	PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&)); //generate in lex order using next()
 	PERM_RANK_TYPE generate_restricted(void (*callback)(const NRPerm<T>&), const NRVec_from1<T> &classes, int restriction_type=0);
+	PermutationAlgebra<T,T>  list_restricted(const NRVec_from1<T> &classes, int restriction_type=0); //weight is set to parity (antisymmetrizer) by default
 	PERM_RANK_TYPE rank() const; //counted from 0 to n!-1
 	NRVec_from1<T> inversions(const int type, PERM_RANK_TYPE *prank=NULL) const; //inversion tables
 	explicit NRPerm(const int type, const NRVec_from1<T> &inversions); //compute permutation from inversions

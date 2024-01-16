@@ -2211,18 +2211,19 @@ int tot=p.generate_all_multi(printme0);
 cout <<"generated "<<tot<<endl;
 }
 
-if(0)
+if(1)
 {
 int n; cin >>n;
 NRPerm<int> p(n); 
 NRVec_from1<int> classes; cin>>classes;
 if(classes.size()!=p.size()) laerror("sizes do not match");
-int tot=p.generate_restricted(printme1,classes,-2);
-cout <<"generated "<<tot<<endl;
+PermutationAlgebra<int,int> tot = p.list_restricted(classes,-2);
+cout <<"generated\n"<<tot<<endl;
+cout <<"ALL\n"<<p.list_all();
 }
 
 
-if(1)
+if(0)
 {
 int n;;
 cin >>n >>unitary_n;

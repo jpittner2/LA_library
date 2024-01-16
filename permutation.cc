@@ -262,7 +262,7 @@ PERM_RANK_TYPE sumperm=0;
 
 p2:
         sumperm++;
-        if(!select || (select&1) == (sumperm&1)) (*callback)(*this);
+        if(callback) {if(!select || (select&1) == (sumperm&1)) {(*callback)(*this); this->copyonwrite();}}
         j=n; s=0;
 p4:
         q=c[j]+d[j];
@@ -284,6 +284,36 @@ end:
 return select? sumperm/2:sumperm;
 }
 
+
+
+template <typename T> 
+static PermutationAlgebra<T,T>  *list_all_return;
+
+static PERM_RANK_TYPE list_all_index;
+
+template <typename T> 
+static void list_all_callback(const NRPerm<T> &p)
+{
+(*list_all_return<T>)[list_all_index].weight= (list_all_index&1)?-1:1;
+(*list_all_return<T>)[list_all_index].perm=p;
+(*list_all_return<T>)[list_all_index].perm.copyonwrite();
+++list_all_index;
+}
+
+template <typename T>
+PermutationAlgebra<T,T>  NRPerm<T>::list_all(int parity_sel)
+{
+PERM_RANK_TYPE number = factorial(this->size());
+if(parity_sel) number/=2;
+PermutationAlgebra<T,T>  ret(number);
+list_all_return<T> = &ret;
+list_all_index=0;
+this->generate_all(list_all_callback,parity_sel);
+return ret;
+}
+
+
+
 //Algorithm L2 from Knuth's volume 4 for multiset permutations
 //input must be initialized with (repeated) numbers in any order
 template <typename T>
@@ -298,7 +328,7 @@ while(1)
         T t;
 
         sumperm++;
-        (*callback)(*this);
+        if(callback) (*callback)(*this);
         j=this->size()-1;
         while(j>0 && (*this)[j]>=(*this)[j+1]) j--;
         if(j==0) break; /*finished*/
@@ -347,7 +377,7 @@ if(n<= _n<T>)
 else
         {
         _sumperm++;
-	(*_callback<T>)(*_perm<T>);
+	if(_callback<T>) (*_callback<T>)(*_perm<T>);
         }
 }
 
@@ -373,7 +403,7 @@ PERM_RANK_TYPE np=0;
 this->identity();
 do{
 ++np;
-(*callback)(*this);
+if(callback) (*callback)(*this);
 }while(this->next());
 return np;
 }
@@ -429,9 +459,10 @@ if(n<=_n2<T>)
 else
         {
         _sumperm2++;
-	(*_callback2<T>)(*_perm2<T>);
+	if(_callback2<T>) {(*_callback2<T>)(*_perm2<T>); _perm2<T> -> copyonwrite();}
         }
 }
+
 
 
 
@@ -451,6 +482,30 @@ permg2<T>(1);
 return _sumperm2;
 }
 
+template <typename T> 
+static PermutationAlgebra<T,T>  *list_restricted_return;
+
+static PERM_RANK_TYPE list_restricted_index;
+
+template <typename T> 
+static void list_restricted_callback(const NRPerm<T> &p)
+{
+(*list_restricted_return<T>)[list_restricted_index].weight=p.parity();
+(*list_restricted_return<T>)[list_restricted_index].perm=p;
+(*list_restricted_return<T>)[list_restricted_index].copyonwrite();
+++list_restricted_index;
+}
+
+template <typename T>
+PermutationAlgebra<T,T>  NRPerm<T>::list_restricted(const NRVec_from1<T> &classes, int restriction_type)
+{
+PERM_RANK_TYPE number = this->generate_restricted(NULL,classes,restriction_type);
+PermutationAlgebra<T,T>  ret(number);
+list_restricted_return<T> = &ret;
+list_restricted_index=0;
+generate_restricted(list_restricted_callback,classes,restriction_type);
+return ret;
+}
 
 
 template <typename T>
@@ -1140,7 +1195,7 @@ template <typename T>
 void partgen(int remain, int pos)
 {
 int hi,lo;
-if(remain==0) {++partitioncount; (*_pcallback<T>)(*partition<T>); return;}
+if(remain==0) {++partitioncount; if(_pcallback<T>) (*_pcallback<T>)(*partition<T>); return;}
 if(partitiontyp) lo=(remain+partitiontypabs-pos)/(partitiontypabs-pos+1); else lo=1;
 hi=remain;
 if(partitiontyp>0) hi -= partitiontypabs-pos;
@@ -1539,7 +1594,7 @@ if(ncyc> _ncycles<T>)
 	{
 	if(_callyoung)
 		{
-		_young_callback<T>(*_tchi<T>);
+		if(_young_callback<T>) _young_callback<T>(*_tchi<T>);
 		_character<T> ++;
 		}
 	else _character<T> += _tchi<T>->character_contribution(_ncycles<T>);
