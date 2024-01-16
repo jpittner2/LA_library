@@ -2218,8 +2218,11 @@ NRPerm<int> p(n);
 NRVec_from1<int> classes; cin>>classes;
 if(classes.size()!=p.size()) laerror("sizes do not match");
 PermutationAlgebra<int,int> tot = p.list_restricted(classes,-2);
-cout <<"generated\n"<<tot<<endl;
-cout <<"ALL\n"<<p.list_all();
+tot.copyonwrite();
+cout <<"generated " <<tot.size()<<"\n"<<tot<<endl;
+PermutationAlgebra<int,int> all= p.list_all();
+all.sort();
+cout <<"ALL\n"<<all;
 }
 
 

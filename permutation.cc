@@ -727,6 +727,55 @@ return value;
 #undef MAXBINOM
 
 
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator&(const PermutationAlgebra<T,R> &rhs) const
+{
+PermutationAlgebra<T,R> res(this->size()*rhs.size());
+for(int i=0; i<this->size(); ++i)
+	for(int j=0; j<rhs.size(); ++j)
+		res[i*rhs.size()+j] = (*this)[i]&rhs[j];
+return res;
+}
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator|(const PermutationAlgebra<T,R> &rhs) const
+{
+PermutationAlgebra<T,R> res(this->size()*rhs.size());
+for(int i=0; i<this->size(); ++i)
+        for(int j=0; j<rhs.size(); ++j)
+                res[i*rhs.size()+j] = (*this)[i]|rhs[j];
+return res;
+}
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator*(const PermutationAlgebra<T,R> &rhs) const
+{
+if(this->size()>0 && rhs.size()>0 && (*this)[0].perm.size()!=rhs[0].perm.size()) laerror("permutation sizes do not match");
+PermutationAlgebra<T,R> res(this->size()*rhs.size());
+for(int i=0; i<this->size(); ++i)
+        for(int j=0; j<rhs.size(); ++j)
+                res[i*rhs.size()+j] = (*this)[i]*rhs[j];
+return res;
+}
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator+(const PermutationAlgebra<T,R> &rhs) const
+{
+if(this->size()>0 && rhs.size()>0 && (*this)[0].perm.size()!=rhs[0].perm.size()) laerror("permutation sizes do not match");
+return this->concat(rhs);
+}
+
+
+template <typename T, typename R>
+void PermutationAlgebra<T,R>::simplify()
+{
+copyonwrite();
+sort();
+//@@@@implement merging weights of identical permutations and resize like we did in qubithamiltonian with other stuff
+}
+
+
+
 
 ////////////////////////////////////////////////////////
 

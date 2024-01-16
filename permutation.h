@@ -29,7 +29,6 @@ typedef   unsigned long long PERM_RANK_TYPE;
 
 //permutations are always numbered from 1; offset is employed when applied to vectors and matrices
 
-//TODO@@@ permutace - substitute jako multiplikace ale x[p[i]] = y[i] kde ale x a y nejsou prave permutace
 
 namespace LA {
 
@@ -41,6 +40,9 @@ template <typename T> class CompressedPartition;
 template <typename T> class YoungTableaux;
 template <typename T, typename R> class WeightPermutation;
 template <typename T, typename R> class PermutationAlgebra;
+
+
+//operator== != < > inherited from NRVec
 
 template <typename T>
 class NRPerm : public NRVec_from1<T> {
@@ -82,18 +84,63 @@ public:
 	NRPerm pow(const int n) const {return power(*this,n);};
 };
 
+
+//this is not a class memeber due to double templating
+//it is also possible to use member function permuted of NRVec(_from1)
+template <typename T, typename X>
+NRVec_from1<X> applypermutation(const NRPerm<T> &p, const NRVec_from1<X> &set, bool inverse=false)
+{
+#ifdef DEBUG
+if(p.size()!=set.size()) laerror("size mismatch in applypermutation");
+#endif
+NRVec_from1<X> r(set.size());
+if(inverse) for(int i=1; i<p.size(); ++i) r[p[i]] = set[i];
+else for(int i=1; i<p.size(); ++i) r[i] = set[p[i]];
+return r;
+}
+
+
 template <typename T, typename R> 
 class WeightPermutation {
 public:
 	R weight;
 	NRPerm<T> perm;
 	
+	int size() const {return perm.size();};
+	bool is_plaindata() const {return false;};
 	WeightPermutation() : weight(0) {};
 	WeightPermutation(const R w, const NRPerm<T> &p) : weight(w), perm(p) {};
 	WeightPermutation(const NRPerm<T> &p) : perm(p) {weight= p.parity();};
 	void copyonwrite() {perm.copyonwrite();};
+	WeightPermutation  operator&(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm&rhs.perm);};
+	WeightPermutation  operator|(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm|rhs.perm);};
+	WeightPermutation  operator*(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm*rhs.perm);};
+	WeightPermutation operator*(const R &x) const {return WeightPermutation(weight*x,perm); }
+//@@@operator+ and - yielding Permutationalgebra
+
+	bool operator==(const WeightPermutation &rhs) const {return this->perm == rhs.perm;}; //NOTE for sorting, compares only the permutation not the weight!
+	bool operator>(const WeightPermutation &rhs) const {return  this->perm > rhs.perm;};
+        bool operator<(const WeightPermutation &rhs) const {return  this->perm < rhs.perm;};
+        bool operator>=(const WeightPermutation &rhs) const {return !(*this < rhs);};
+        bool operator<=(const WeightPermutation &rhs) const {return !(*this > rhs);};
+
 	
 };
+
+
+//some necessary traits of the non-scalar class to be able to use LA methods
+template<typename T, typename R>
+class LA_traits<WeightPermutation<T,R> > {
+public: 
+        static bool is_plaindata() {return false;};
+        static void copyonwrite(WeightPermutation<T,R>& x) {x.perm.copyonwrite();};
+	typedef typename LA_traits<R>::normtype  normtype;
+	static inline bool smaller(const WeightPermutation<T,R>& x, const WeightPermutation<T,R>& y) {return x.perm<y.perm;};
+	static inline bool bigger(const WeightPermutation<T,R>& x, const WeightPermutation<T,R>& y) {return x.perm>y.perm;};
+	
+};
+
+
 
 
 template <typename T, typename R>
@@ -118,10 +165,21 @@ class PermutationAlgebra : public NRVec<WeightPermutation<T,R> >
 public:
 	PermutationAlgebra() {};
 	PermutationAlgebra(int n) : NRVec<WeightPermutation<T,R> >(n) {};
-	
+	PermutationAlgebra(const NRVec<WeightPermutation<T,R> > &x) :  NRVec<WeightPermutation<T,R> >(x) {};
+	int size() const {return NRVec<WeightPermutation<T,R> >::size();};
+	void copyonwrite() {NRVec<WeightPermutation<T,R> >::copyonwrite();};
+	void sort(int direction = 0, int from = 0, int to = -1, int *permut = NULL, bool stable=false) {NRVec<WeightPermutation<T,R> >::sort(direction,from, to,permut,stable);};
+
+	PermutationAlgebra operator&(const PermutationAlgebra &rhs) const;
+	PermutationAlgebra operator|(const PermutationAlgebra &rhs) const;
+	PermutationAlgebra operator*(const PermutationAlgebra &rhs) const; 
+	PermutationAlgebra operator+(const PermutationAlgebra &rhs) const;
+	PermutationAlgebra &operator*=(const R &x) {this->copyonwrite(); for(int i=1; i<=size(); ++i) (*this)[i].weight *= x; return *this;};
+	PermutationAlgebra operator*(const R &x) const {PermutationAlgebra r(*this); return r*=x;};
+	void simplify(); 
 };
 
-//TODO@@@ basic operators for the algebra, possibly also simplification after operation
+//TODO@@@ also simplification after operation
 
 //TODO@@@ permutationalgebra  for Kucharski style antisymmetrizers
 
