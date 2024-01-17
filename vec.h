@@ -1986,6 +1986,51 @@ for(typename std::list<T>::const_iterator i=l.begin(); i!=l.end(); ++i) (*this)[
 }
 
 
+//general simplification template for a NRVec of a class consisting from a coefficient and an element
+//the class T must have traits for sorting, normtype, elementtype, coefficienttype, coefficient, abscoefficient, and operator== which ignores the coefficient and uses just the element
+//it is not a member function to avoid the need of extra traits when this is not needed
+
+template<typename T>
+void NRVec_simplify(NRVec<T> &x, const typename LA_traits<T>::normtype thr=0, bool alwayskeepfirst=false)
+{
+if(x.size()==0) return;
+
+x.copyonwrite();
+
+//first sort to identify identical terms
+x.sort();
+
+//the following operations conserve the sorting, so no need to reset the issorted flag
+
+int newsize=1;
+//add factors of identical elements
+for(int next=1; next<x.size(); ++next)
+	{
+	if(x[next] == x[newsize-1])
+		{
+		LA_traits<T>::coefficient(x[newsize-1]) += LA_traits<T>::coefficient(x[next]);
+		}
+	else
+		{
+		if(next!=newsize) x[newsize] = x[next];
+		++newsize;
+		}
+	}
+
+//now skip terms with zero coefficients
+int newsize2=0;
+for(int next=0; next<newsize; ++next)
+	{
+	if(next==0 && alwayskeepfirst || !(LA_traits<T>::coefficient(x[next])==0 || LA_traits<T>::abscoefficient(x[next]) <thr))
+		{
+		if(next!=newsize2) x[newsize2] = x[next];
+		++newsize2;
+		}
+	}
+
+x.resize(newsize2,true);
+}
+
 
 
 }//namespace

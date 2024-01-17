@@ -163,12 +163,19 @@ return q.inverse()*((*this)*q);
 }
 
 
+//NOTE: for larger permutations it might be more efficient to use cycle decomposition but where exactly the breakeven is?
+//at the moment we do it the trivial way for small permutations and using sort for larger ones
 template <typename T>
 int NRPerm<T>::parity() const
 {
 if(!this->is_valid()) return 0;
 T n=this->size();
 if(n==1) return 1;
+if(n>=10) //???
+	{
+	NRPerm<T> tmp(*this);
+	return (tmp.sort()&1) ? -1:1;
+	}
 T count=0;
 for(T i=2;i<=n;i++) for(T j=1;j<i;j++) if((*this)[j]>(*this)[i]) count++;
 return (count&1)? -1:1;
@@ -310,6 +317,17 @@ list_all_return<T> = &ret;
 list_all_index=0;
 this->generate_all(list_all_callback,parity_sel);
 return ret;
+}
+
+
+template <typename T, typename R>
+bool PermutationAlgebra<T,R>::operator==(PermutationAlgebra<T,R> &rhs)
+{
+simplify();
+rhs.simplify();
+if(size()!=rhs.size()) return false;
+for(int i=0; i<size(); ++i) if((*this)[i].weight!=rhs[i].weight || (*this)[i].perm!=rhs[i].perm) return false;
+return true;
 }
 
 
@@ -755,6 +773,7 @@ PermutationAlgebra<T,R> res(this->size()*rhs.size());
 for(int i=0; i<this->size(); ++i)
         for(int j=0; j<rhs.size(); ++j)
                 res[i*rhs.size()+j] = (*this)[i]*rhs[j];
+res.simplify();
 return res;
 }
 
@@ -762,17 +781,12 @@ template <typename T, typename R>
 PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator+(const PermutationAlgebra<T,R> &rhs) const
 {
 if(this->size()>0 && rhs.size()>0 && (*this)[0].perm.size()!=rhs[0].perm.size()) laerror("permutation sizes do not match");
-return this->concat(rhs);
+PermutationAlgebra<T,R> res=this->concat(rhs);
+res.simplify();
+return res;
 }
 
 
-template <typename T, typename R>
-void PermutationAlgebra<T,R>::simplify()
-{
-copyonwrite();
-sort();
-//@@@@implement merging weights of identical permutations and resize like we did in qubithamiltonian with other stuff
-}
 
 
 

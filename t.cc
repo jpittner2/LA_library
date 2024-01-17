@@ -90,28 +90,38 @@ cout<<p;
 
 static int unitary_n;
 static PERM_RANK_TYPE space_dim;
+static NRVec<PermutationAlgebra<int,int> > allyoung;
+static NRVec<int> allyoung_irrep;
+int current_irrep;
+int allyoung_index;
 
 void yprintme(const YoungTableaux<int>&y)
 {
 cout <<y;
 if(!y.is_standard()) laerror("internal error in young");
-cout << y.young_operator();
+allyoung[allyoung_index] = y.young_operator();
+cout <<"Young "<<allyoung_index<<" (irrep "<<current_irrep<<") = "<<allyoung[allyoung_index]<<endl;
+allyoung_irrep[allyoung_index]=current_irrep;
+allyoung_index++;
 }
 
 void pprintme(const Partition<int> &p)
 {
 CompressedPartition<int> pc(p);
+++current_irrep;
 cout<<'['<<pc<<"]\n";
+
+
+PERM_RANK_TYPE snd=p.Sn_irrep_dim();
+cout<<"Sn IR dim "<<snd<<endl;
 
 YoungTableaux<int> y(p);
 PERM_RANK_TYPE dim=y.generate_all_standard(yprintme);
 
 Partition<int> q=p.adjoint();
-PERM_RANK_TYPE snd=p.Sn_irrep_dim();
-cout<<"IR dim "<<snd<<endl;
 if(dim!=snd) laerror("inconsistency in standard tableaux generation");
 PERM_RANK_TYPE und=p.Un_irrep_dim(unitary_n);
-cout<<"U("<<unitary_n<<") ir dim "<<und<<endl;
+cout<<"U("<<unitary_n<<") IR dim "<<und<<endl;
 space_dim += und*snd;
 CompressedPartition<int> qc(q);
 cout <<"("<<qc<<')';
@@ -2211,7 +2221,7 @@ int tot=p.generate_all_multi(printme0);
 cout <<"generated "<<tot<<endl;
 }
 
-if(1)
+if(0)
 {
 int n; cin >>n;
 NRPerm<int> p(n); 
@@ -2230,13 +2240,35 @@ if(0)
 {
 int n;;
 cin >>n >>unitary_n;
+Sn_characters<int> Sn(n);
+cout <<Sn;
+if(!Sn.is_valid()) laerror("internal error in Sn character calculation");
+cout <<"allyoung.resize "<<Sn.sumirrepdims()<<endl;
+allyoung.resize(Sn.sumirrepdims());
+allyoung_irrep.resize(Sn.sumirrepdims());
+allyoung_index=0;
+
+
 Partition<int> p(n);
 space_dim=0;
 int tot=p.generate_all(pprintme,0);
 cout <<"partitions generated "<<tot<<endl;
 if(tot!=partitions(n)) laerror("internal error in partition generation or enumerations");
 if(space_dim!=longpow(unitary_n,n)) {cout<<space_dim<<" "<<ipow(unitary_n,n)<<endl;laerror("integer overflow or internal error in space dimensions");}
+
+for(int i=0; i<allyoung.size(); ++i)
+	for(int j=0; j<allyoung.size(); ++j)
+		{
+		PermutationAlgebra<int,int> r=allyoung[i]*allyoung[j];
+		//cout <<"Young "<<i<<" "<<allyoung[i]<<endl;
+		//cout <<"Young "<<j<<" "<<allyoung[j]<<endl;
+		cout <<"Product of Young "<<i<<" and "<<j<<" = "<<r<<"\n";
+		if(i!=j && !r.is_zero()) cout <<"NONORTHOGONAL Young operators found "<<i<< " "<<j<<" (irreps "<<allyoung_irrep[i]<<" "<<allyoung_irrep[j]<<")\n";
+		if(allyoung_irrep[i]!=allyoung_irrep[j] && !r.is_zero()) laerror("internal error in PermutationAlgebra");
+		}
 }
+
+
 
 if(0)
 {
@@ -3050,5 +3082,9 @@ bitvector dif=a - s.field_mult(s,ir);
 if(!dif.is_zero()) laerror("error in gf 2^n sqrt");
 }
 
+
+if(1)
+{
+}
 
 }

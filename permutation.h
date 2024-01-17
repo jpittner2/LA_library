@@ -107,6 +107,9 @@ public:
 	NRPerm<T> perm;
 	
 	int size() const {return perm.size();};
+	bool is_zero() const {return weight==0;}
+	bool is_scaledidentity() const {return perm.is_identity();}
+	bool is_identity() const {return weight==1 && is_scaledidentity();}
 	bool is_plaindata() const {return false;};
 	WeightPermutation() : weight(0) {};
 	WeightPermutation(const R w, const NRPerm<T> &p) : weight(w), perm(p) {};
@@ -116,7 +119,6 @@ public:
 	WeightPermutation  operator|(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm|rhs.perm);};
 	WeightPermutation  operator*(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm*rhs.perm);};
 	WeightPermutation operator*(const R &x) const {return WeightPermutation(weight*x,perm); }
-//@@@operator+ and - yielding Permutationalgebra
 
 	bool operator==(const WeightPermutation &rhs) const {return this->perm == rhs.perm;}; //NOTE for sorting, compares only the permutation not the weight!
 	bool operator>(const WeightPermutation &rhs) const {return  this->perm > rhs.perm;};
@@ -135,9 +137,13 @@ public:
         static bool is_plaindata() {return false;};
         static void copyonwrite(WeightPermutation<T,R>& x) {x.perm.copyonwrite();};
 	typedef typename LA_traits<R>::normtype  normtype;
+	typedef R coefficienttype;
+	typedef NRPerm<T> elementtype;
 	static inline bool smaller(const WeightPermutation<T,R>& x, const WeightPermutation<T,R>& y) {return x.perm<y.perm;};
 	static inline bool bigger(const WeightPermutation<T,R>& x, const WeightPermutation<T,R>& y) {return x.perm>y.perm;};
-	
+	static R coefficient(const WeightPermutation<T,R>& x){return x.weight;};
+	static R& coefficient(WeightPermutation<T,R>& x) {return x.weight;};
+	static typename LA_traits<R>::normtype abscoefficient(const WeightPermutation<T,R>& x){return LA_traits<R>::abs2(x.weight);};
 };
 
 
@@ -168,7 +174,7 @@ public:
 	PermutationAlgebra(const NRVec<WeightPermutation<T,R> > &x) :  NRVec<WeightPermutation<T,R> >(x) {};
 	int size() const {return NRVec<WeightPermutation<T,R> >::size();};
 	void copyonwrite() {NRVec<WeightPermutation<T,R> >::copyonwrite();};
-	void sort(int direction = 0, int from = 0, int to = -1, int *permut = NULL, bool stable=false) {NRVec<WeightPermutation<T,R> >::sort(direction,from, to,permut,stable);};
+	int sort(int direction = 0, int from = 0, int to = -1, int *permut = NULL, bool stable=false) {return NRVec<WeightPermutation<T,R> >::sort(direction,from, to,permut,stable);};
 
 	PermutationAlgebra operator&(const PermutationAlgebra &rhs) const;
 	PermutationAlgebra operator|(const PermutationAlgebra &rhs) const;
@@ -176,10 +182,13 @@ public:
 	PermutationAlgebra operator+(const PermutationAlgebra &rhs) const;
 	PermutationAlgebra &operator*=(const R &x) {this->copyonwrite(); for(int i=1; i<=size(); ++i) (*this)[i].weight *= x; return *this;};
 	PermutationAlgebra operator*(const R &x) const {PermutationAlgebra r(*this); return r*=x;};
-	void simplify(); 
+	void simplify(const typename LA_traits<R>::normtype thr=0) {NRVec_simplify(*this,thr);};
+	bool operator==(PermutationAlgebra &rhs); //do NOT inherit from NRVec, as the underlying one ignores weights for the simplification; also we have to simplify before comparison
+	bool is_zero() const {return size()==0;}; //assume it was simplified
+	bool is_scaled_identity() const {return size()==1 && (*this)[0]. is_scaledidentity();}; //assume it was simplified
+	bool is_identity() const {return size()==1 && (*this)[0]. is_identity();}; //assume it was simplified
 };
 
-//TODO@@@ also simplification after operation
 
 //TODO@@@ permutationalgebra  for Kucharski style antisymmetrizers
 
@@ -343,6 +352,8 @@ NRMat_from1<T> chi; //characters
 
 	Sn_characters(const int n0); //compute the table
 	bool is_valid() const; //check internal consistency
+	T irrepdim(T i) const {return chi(i,1);};
+	T sumirrepdims() const {T s=0; for(T i=1; i<=chi.nrows(); ++i) s+=irrepdim(i); return s;};
 };
 
 template <typename T>  class Polynomial; //forward declaration
