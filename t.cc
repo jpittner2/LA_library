@@ -3083,8 +3083,34 @@ if(!dif.is_zero()) laerror("error in gf 2^n sqrt");
 }
 
 
+if(0)
+{
+int n;
+cin>>n;
+NRPerm<int> p(n);
+PermutationAlgebra<int,int> a=p.list_all();
+for(int i=0; i<a.size(); ++i)
+	if(a[i].weight!=a[i].perm.parity()) laerror("internal error in parity");
+}
+
 if(1)
 {
+//this is kucharskiP antisymmetrizer just without parsing the input
+NRVec<NRVec_from1<int> > groups;
+cin >> groups;
+int ntot=0;
+for(int i=0; i<groups.size(); ++i) ntot+=groups[i].size();
+NRVec_from1<string> indices(ntot);
+cin >>indices;
+
+PermutationAlgebra<int,int> a=general_antisymmetrizer(groups,-2,true);
+for(int i=0; i<a.size(); ++i)
+	{
+	cout << (a[i].weight==1?'+':'-');
+	NRVec_from1<string> pindices=applypermutation(a[i].perm,indices,false);
+	for(int j=1; j<=pindices.size(); ++j) cout <<pindices[j];
+	cout <<endl;
+	}
 }
 
 }

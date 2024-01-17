@@ -440,8 +440,6 @@ static NRPerm<T> *_perm2;
 template <typename T>
 static const T *pclasses2;
 
-template <typename T>
-static T *_pperm;
 
 static int sameclass;
 
@@ -454,7 +452,7 @@ if(n<=_n2<T>)
         T c=pclasses2<T>[n];
         for(i=1;i<=_n2<T>;i++)
                 {
-                if(_pperm<T>[i]>=1) goto skipme; /*place already occupied*/
+                if((*_perm2<T>)[i]>=1) goto skipme; /*place already occupied*/
                 if (sameclass)
                         {
                         if(sameclass==1 && c!=pclasses2<T>[i]) goto skipme;
@@ -463,14 +461,14 @@ if(n<=_n2<T>)
                                 {
                                 T j,k;
                                 for(j=i+1; j<=_n2<T>; j++)
-                                        if((k=_pperm<T>[j])>=1)
+                                        if((k=(*_perm2<T>)[j])>=1)
                                                  if(/* automatically fulfilled k<n &&*/ c==pclasses2<T>[k]) goto skipme;
                                 }
                         }
                 /*put it there and next number*/
-                _pperm<T>[i]=n;
+                (*_perm2<T>)[i]=n;
                 permg2(n+1);
-                _pperm<T>[i]=0;
+                (*_perm2<T>)[i]=0;
                 skipme:;
                 }
         }
@@ -493,7 +491,6 @@ _n2<T> = this->size();
 _callback2<T> =callback;
 _sumperm2=0;
 _perm2<T> = this;
-_pperm<T> = &(*this)[1]-1;
 pclasses2<T> = &classes[1]-1;
 sameclass=restriction_type;
 permg2<T>(1);
@@ -505,22 +502,25 @@ static PermutationAlgebra<T,T>  *list_restricted_return;
 
 static PERM_RANK_TYPE list_restricted_index;
 
+static bool list_restricted_invert;
+
 template <typename T> 
 static void list_restricted_callback(const NRPerm<T> &p)
 {
 (*list_restricted_return<T>)[list_restricted_index].weight=p.parity();
-(*list_restricted_return<T>)[list_restricted_index].perm=p;
-(*list_restricted_return<T>)[list_restricted_index].copyonwrite();
+(*list_restricted_return<T>)[list_restricted_index].perm= list_restricted_invert?p.inverse():p;
+(*list_restricted_return<T>)[list_restricted_index].perm.copyonwrite();
 ++list_restricted_index;
 }
 
 template <typename T>
-PermutationAlgebra<T,T>  NRPerm<T>::list_restricted(const NRVec_from1<T> &classes, int restriction_type)
+PermutationAlgebra<T,T>  NRPerm<T>::list_restricted(const NRVec_from1<T> &classes, int restriction_type, bool invert)
 {
 PERM_RANK_TYPE number = this->generate_restricted(NULL,classes,restriction_type);
 PermutationAlgebra<T,T>  ret(number);
 list_restricted_return<T> = &ret;
 list_restricted_index=0;
+list_restricted_invert=invert;
 generate_restricted(list_restricted_callback,classes,restriction_type);
 return ret;
 }
@@ -2040,6 +2040,25 @@ return r;
 }
 
 
+template<typename T>
+PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &groups, int restriction_type, bool inverted)
+{
+PermutationAlgebra<T,T> r;
+int ngroups=groups.size();
+if(ngroups==0) return r;
+NRVec<PermutationAlgebra<T,T> > lists(ngroups);
+for(int i=0; i<ngroups; ++i)
+	{
+	int ni = groups[i].size();
+	NRPerm<T> tmp(ni);
+	lists[i] = tmp.list_restricted(groups[i],restriction_type,inverted);
+	}
+//cross-product the lists
+r=lists[0];
+for(int i=1; i<ngroups; ++i) r= r&lists[i];
+return r;
+}
+
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file
@@ -2053,6 +2072,7 @@ template class Partition<T>; \
 template class YoungTableaux<T>; \
 template class Sn_characters<T>; \
 template class CycleIndex<T>; \
+template PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &groups, int, bool); \
 template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x); \

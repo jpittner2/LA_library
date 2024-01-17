@@ -76,7 +76,7 @@ public:
 	PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&)); //recursive method, also not lexicographic
 	PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&)); //generate in lex order using next()
 	PERM_RANK_TYPE generate_restricted(void (*callback)(const NRPerm<T>&), const NRVec_from1<T> &classes, int restriction_type=0);
-	PermutationAlgebra<T,T>  list_restricted(const NRVec_from1<T> &classes, int restriction_type=0); //weight is set to parity (antisymmetrizer) by default
+	PermutationAlgebra<T,T>  list_restricted(const NRVec_from1<T> &classes, int restriction_type=0, bool inverted=false); //weight is set to parity (antisymmetrizer) by default
 	PERM_RANK_TYPE rank() const; //counted from 0 to n!-1
 	NRVec_from1<T> inversions(const int type, PERM_RANK_TYPE *prank=NULL) const; //inversion tables
 	explicit NRPerm(const int type, const NRVec_from1<T> &inversions); //compute permutation from inversions
@@ -94,8 +94,8 @@ NRVec_from1<X> applypermutation(const NRPerm<T> &p, const NRVec_from1<X> &set, b
 if(p.size()!=set.size()) laerror("size mismatch in applypermutation");
 #endif
 NRVec_from1<X> r(set.size());
-if(inverse) for(int i=1; i<p.size(); ++i) r[p[i]] = set[i];
-else for(int i=1; i<p.size(); ++i) r[i] = set[p[i]];
+if(inverse) for(int i=1; i<=p.size(); ++i) r[p[i]] = set[i];
+else for(int i=1; i<=p.size(); ++i) r[i] = set[p[i]];
 return r;
 }
 
@@ -189,8 +189,6 @@ public:
 	bool is_identity() const {return size()==1 && (*this)[0]. is_identity();}; //assume it was simplified
 };
 
-
-//TODO@@@ permutationalgebra  for Kucharski style antisymmetrizers
 
 
 extern PERM_RANK_TYPE factorial(const int n);
@@ -390,6 +388,10 @@ if(inverse) for(int i=1; i<=n; ++i) r[i-1] = v[p[i]-1];
 else for(int i=1; i<=n; ++i) r[p[i]-1] = v[i-1];
 return r;
 }
+
+
+template<typename T>
+PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &groups, int restriction_type=0, bool inverted=false);
 
 
 }//namespace
