@@ -22,6 +22,7 @@
 #include <string.h>
 #include <list>
 #include "qsort.h"
+#include "bitvector.h"
 
 
 namespace LA {
@@ -320,6 +321,8 @@ return ret;
 }
 
 
+
+
 template <typename T, typename R>
 bool PermutationAlgebra<T,R>::operator==(PermutationAlgebra<T,R> &rhs)
 {
@@ -425,6 +428,23 @@ if(callback) (*callback)(*this);
 }while(this->next());
 return np;
 }
+
+template <typename T>
+PermutationAlgebra<T,T>  NRPerm<T>::list_all_lex()
+{       
+PERM_RANK_TYPE number = factorial(this->size());
+PermutationAlgebra<T,T>  ret(number);
+PERM_RANK_TYPE np=0;
+this->identity();
+do{
+ret[np].perm = *this; ret[np].perm.copyonwrite();
+ret[np].weight=0;
+++np;
+}while(this->next());
+return ret;
+}
+
+
 
 template <typename T>
 static T _n2;
@@ -765,6 +785,7 @@ for(int i=0; i<this->size(); ++i)
 return res;
 }
 
+
 template <typename T, typename R>
 PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator*(const PermutationAlgebra<T,R> &rhs) const
 {
@@ -776,6 +797,7 @@ for(int i=0; i<this->size(); ++i)
 res.simplify();
 return res;
 }
+
 
 template <typename T, typename R>
 PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator+(const PermutationAlgebra<T,R> &rhs) const
@@ -974,11 +996,12 @@ return r;
 
 
 template <typename T>
-CompressedPartition<T> CyclePerm<T>::cycles(const T n) const
+CompressedPartition<T> CyclePerm<T>::cycles(T n) const
 {
 #ifdef DEBUG
 if(!this->is_valid()) laerror("operation with an invalid cycleperm");
 #endif
+if(n==0) n=max();
 CompressedPartition<T> r(n); r.clear();
 T ncycles=this->size();
 for(T i=1; i<=ncycles; ++i)
@@ -2041,6 +2064,48 @@ return r;
 
 
 template<typename T>
+NRMat<PERM_RANK_TYPE> Multable(T n)
+{
+NRPerm<T> p(n);
+PermutationAlgebra<T,T> all = p.list_all_lex();
+NRMat<PERM_RANK_TYPE> r(all.size(),all.size());
+for(PERM_RANK_TYPE i=0; i<all.size(); ++i) r[0][i] = r[i][0]=i; //identity
+for(PERM_RANK_TYPE i=1; i<all.size(); ++i)
+	for(PERM_RANK_TYPE j=1; j<all.size(); ++j)
+		{
+		NRPerm<T> tmp = all[i].perm * all[j].perm;
+		r(i,j) = tmp.rank();
+		}
+//consistency checks
+#ifdef DEBUG
+bitvector occ(all.size());
+for(PERM_RANK_TYPE i=0; i<all.size(); ++i) 
+	{
+	occ.clear();
+	for(PERM_RANK_TYPE j=0; j<all.size(); ++j) {if(occ[r(i,j)]) laerror("inconsistency in Multable"); occ.set(r(i,j));}
+	occ.clear();
+	for(PERM_RANK_TYPE j=0; j<all.size(); ++j) {if(occ[r(j,i)]) laerror("inconsistency in Multable"); occ.set(r(j,i));}
+	}
+
+#endif
+return r;
+}
+
+template<typename T, typename R>
+NRMat<R> RegularRepresentation(const PermutationAlgebra<T,R> &a, const NRMat<PERM_RANK_TYPE> &mtable)
+{
+NRMat<R> r(mtable.nrows(),mtable.ncols());
+r.clear();
+for(int i=0; i<a.size(); ++i)
+	{
+	PERM_RANK_TYPE rx=a[i].perm.rank();	
+	for(PERM_RANK_TYPE j=0; j<mtable.nrows();++j) r(mtable(rx,j),j) += a[i].weight;
+	}
+return r;
+}
+
+
+template<typename T>
 PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &groups, int restriction_type, bool inverted)
 {
 PermutationAlgebra<T,T> r;
@@ -2072,6 +2137,7 @@ template class Partition<T>; \
 template class YoungTableaux<T>; \
 template class Sn_characters<T>; \
 template class CycleIndex<T>; \
+template NRMat<PERM_RANK_TYPE> Multable(T n); \
 template PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &groups, int, bool); \
 template std::istream & operator>>(std::istream &s, CyclePerm<T> &x); \
 template std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x); \
@@ -2086,6 +2152,7 @@ template class WeightPermutation<T,R>; \
 template class PermutationAlgebra<T,R>; \
 template std::istream & operator>>(std::istream &s, WeightPermutation<T,R> &x); \
 template std::ostream & operator<<(std::ostream &s, const WeightPermutation<T,R> &x); \
+template NRMat<R> RegularRepresentation(const PermutationAlgebra<T,R> &a, const NRMat<PERM_RANK_TYPE> &mtable); \
 
 
 INSTANTIZE(int)

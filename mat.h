@@ -139,7 +139,7 @@ public:
 	void axpy(const T alpha, const NRPerm<int> &p, const bool direction);
 	explicit NRMat(const NRPerm<int> &p, const bool direction, const bool parity=false); //permutation matrix
 	explicit NRMat(const WeightPermutation<int,T> &p, const bool direction); 
-	explicit NRMat(const PermutationAlgebra<int,T> &p, const bool direction, const int nforce=0); //note that one cannot represent e.g. young projectors in this way, since the representation of S(n) by permutation matrices is reducible just to two irreps [n] and [n-1,1]
+	explicit NRMat(const PermutationAlgebra<int,T> &p, const bool direction, const int nforce=0); //note that one cannot represent e.g. young projectors in this way, since the representation of S(n) by permutation matrices is reducible just to two irreps [n] and [n-1,1] since the charater of that RR = number of cycles of length=1
 
 
 	/***************************************************************************//**

@@ -60,6 +60,7 @@ public:
 	void identity();
 	bool is_valid() const; //is it really a permutation
 	bool is_identity() const;
+	CompressedPartition<T> cycles() const {return CyclePerm<T>(*this).cycles(size());};
 	NRPerm inverse() const;
 	NRPerm reverse() const; //backward order
 	NRPerm operator&(const NRPerm &rhs) const; //concatenate the permutations this,rhs, renumbering rhs (not commutative)
@@ -72,6 +73,7 @@ public:
 	bool next(); //generate next permutation in lex order
 	PERM_RANK_TYPE generate_all(void (*callback)(const NRPerm<T>&), int parity_select=0); //Algorithm L from Knuth's vol.4, efficient but not in lex order!
 	PermutationAlgebra<T,T>  list_all(int parity_select=0);
+	PermutationAlgebra<T,T>  list_all_lex();
 	PERM_RANK_TYPE generate_all_multi(void (*callback)(const NRPerm<T>&));  //Algorithm L2 from Knuth's vol.4, for a multiset (repeated numbers, not really permutations)
 	PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&)); //recursive method, also not lexicographic
 	PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&)); //generate in lex order using next()
@@ -126,6 +128,7 @@ public:
         bool operator<(const WeightPermutation &rhs) const {return  this->perm < rhs.perm;};
         bool operator>=(const WeightPermutation &rhs) const {return !(*this < rhs);};
         bool operator<=(const WeightPermutation &rhs) const {return !(*this > rhs);};
+	WeightPermutation & operator=(const WeightPermutation &rhs) {weight=rhs.weight; perm=rhs.perm; return *this;};
 
 	
 };
@@ -145,6 +148,7 @@ public:
 	static R coefficient(const WeightPermutation<T,R>& x){return x.weight;};
 	static R& coefficient(WeightPermutation<T,R>& x) {return x.weight;};
 	static typename LA_traits<R>::normtype abscoefficient(const WeightPermutation<T,R>& x){return LA_traits<R>::abs2(x.weight);};
+	static void clear(WeightPermutation<T,R> *v, int nn) {for(int i=0; i<nn; ++i) {v[i].weight=0; v[i].perm.clear();}}
 };
 
 
@@ -211,7 +215,7 @@ public:
 	CyclePerm inverse() const; //reverse all cycles
 	int parity() const; //negative if having odd number of even-length cycles
 	T max() const {T m=0; for(int i=1; i<=this->size(); ++i) {T mm= (*this)[i].max(); if(mm>m) m=mm;} return m;}
-	CompressedPartition<T> cycles(const T n) const;
+	CompressedPartition<T> cycles(T n = 0) const;
 	void readfrom(const std::string &line);
 	CyclePerm operator*(const CyclePerm &q) const; //q is rhs and applied first, this applied second
 	NRPerm<T> operator*(const NRPerm<T> &r) const;
@@ -389,6 +393,12 @@ if(inverse) for(int i=1; i<=n; ++i) r[i-1] = v[p[i]-1];
 else for(int i=1; i<=n; ++i) r[p[i]-1] = v[i-1];
 return r;
 }
+
+template<typename T>
+NRMat<PERM_RANK_TYPE> Multable(T n);
+
+template<typename T, typename R>
+NRMat<R> RegularRepresentation(const PermutationAlgebra<T,R> &a, const NRMat<PERM_RANK_TYPE> &mtable);
 
 
 template<typename T>

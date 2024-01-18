@@ -88,10 +88,12 @@ cout<<p;
 }
 
 
+static NRMat<PERM_RANK_TYPE> Snmtable;
 static int unitary_n;
 static PERM_RANK_TYPE space_dim;
 static NRVec<PermutationAlgebra<int,int> > allyoung;
 static NRVec<NRMat<int> >allyoungmat;
+static NRVec<NRMat<int> >allyoungregular;
 static NRVec<int> allyoung_irrep;
 int current_irrep;
 int allyoung_index;
@@ -103,7 +105,9 @@ if(!y.is_standard()) laerror("internal error in young");
 allyoung[allyoung_index] = y.young_operator();
 cout <<"Young "<<allyoung_index<<" (irrep "<<current_irrep<<") = "<<allyoung[allyoung_index]<<endl;
 allyoungmat[allyoung_index] = NRMat<int>(allyoung[allyoung_index],false);
-cout <<"Matrix representation = "<<allyoungmat[allyoung_index];
+allyoungregular[allyoung_index] = RegularRepresentation(allyoung[allyoung_index],Snmtable);
+//cout <<"Matrix representation = "<<allyoungmat[allyoung_index];
+cout <<"Regular representation = "<<allyoungregular[allyoung_index];
 allyoung_irrep[allyoung_index]=current_irrep;
 allyoung_index++;
 }
@@ -2246,9 +2250,14 @@ cin >>n >>unitary_n;
 Sn_characters<int> Sn(n);
 cout <<Sn;
 if(!Sn.is_valid()) laerror("internal error in Sn character calculation");
+
+Snmtable = Multable(n);
+cout <<"Multiplication table = "<<Snmtable<<endl;
+
 cout <<"allyoung.resize "<<Sn.sumirrepdims()<<endl;
 allyoung.resize(Sn.sumirrepdims());
 allyoungmat.resize(Sn.sumirrepdims());
+allyoungregular.resize(Sn.sumirrepdims());
 allyoung_irrep.resize(Sn.sumirrepdims());
 allyoung_index=0;
 
@@ -2264,14 +2273,23 @@ for(int i=0; i<allyoung.size(); ++i)
 	{
 	for(int j=0; j<allyoung.size(); ++j)
 		{
-		//cout <<"Young "<<i<<" "<<allyoung[i]<<endl;
-		//cout <<"Young "<<j<<" "<<allyoung[j]<<endl;
+		//	cout <<"Young "<<i<<" "<<allyoung[i]<<endl;
+		//	cout <<"Young "<<j<<" "<<allyoung[j]<<endl;
 		PermutationAlgebra<int,int> r=allyoung[i]*allyoung[j];
 		NRMat<int> rm(r,false,n);
 		NRMat<int> rm2 = allyoungmat[i]*allyoungmat[j];
-		cout <<"Product of Young "<<i<<" and "<<j<<" = "<<r<<"\n"<<"matrix "<<rm<<endl;
-		if(rm!=rm2) laerror("internal error in matrix representation of permutationalgebra");
+		NRMat<int> rreg=RegularRepresentation(r,Snmtable);
+		NRMat<int> rreg2=allyoungregular[i]*allyoungregular[j]; 
+		cout <<"Product of Young "<<i<<" and "<<j<<" = "<<r<<endl;
+		//cout<<"matrix "<<rm<<endl;
 		if(i!=j && !r.is_zero()) cout <<"NONORTHOGONAL Young operators found "<<i<< " "<<j<<" (irreps "<<allyoung_irrep[i]<<" "<<allyoung_irrep[j]<<")\n";
+		if(rreg!=rreg2) 
+			{
+			cout <<"Representation of product = "<<rreg;
+			cout <<"Product of representations = "<<rreg2;
+			laerror("internal error in multiplication of permutationalgebra");
+			}
+		if(rm!=rm2) laerror("internal error in matrix representation of permutationalgebra");
 		if(allyoung_irrep[i]!=allyoung_irrep[j] && !r.is_zero()) laerror("internal error in PermutationAlgebra");
 		}
 	}
