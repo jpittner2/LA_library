@@ -178,7 +178,7 @@ public:
 	void transposeme();
 	const Mat3 transpose() const {Mat3 r(*this); r.transposeme(); return r;};
 	const Mat3 inverse(T *det = NULL) const;
-	const Vec3<T> linear_solve(const  Vec3<T> &rhs, T *det = NULL) const;
+	const Vec3<T> linear_solve(const  Vec3<T> &rhs, T *det = NULL) const; //alternative to simple_gaussj in simple.h
 	//C-style IO
         int fprintf(FILE *f, const char *format) const {int n= ::fprintf(f,format,q[0][0],q[0][1],q[0][2]); n+=::fprintf(f,format,q[1][0],q[1][1],q[1][2]); n+=::fprintf(f,format,q[2][0],q[2][1],q[2][2]); return n;};
         int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
