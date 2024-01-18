@@ -91,6 +91,7 @@ cout<<p;
 static int unitary_n;
 static PERM_RANK_TYPE space_dim;
 static NRVec<PermutationAlgebra<int,int> > allyoung;
+static NRVec<NRMat<int> >allyoungmat;
 static NRVec<int> allyoung_irrep;
 int current_irrep;
 int allyoung_index;
@@ -101,6 +102,8 @@ cout <<y;
 if(!y.is_standard()) laerror("internal error in young");
 allyoung[allyoung_index] = y.young_operator();
 cout <<"Young "<<allyoung_index<<" (irrep "<<current_irrep<<") = "<<allyoung[allyoung_index]<<endl;
+allyoungmat[allyoung_index] = NRMat<int>(allyoung[allyoung_index],false);
+cout <<"Matrix representation = "<<allyoungmat[allyoung_index];
 allyoung_irrep[allyoung_index]=current_irrep;
 allyoung_index++;
 }
@@ -2245,6 +2248,7 @@ cout <<Sn;
 if(!Sn.is_valid()) laerror("internal error in Sn character calculation");
 cout <<"allyoung.resize "<<Sn.sumirrepdims()<<endl;
 allyoung.resize(Sn.sumirrepdims());
+allyoungmat.resize(Sn.sumirrepdims());
 allyoung_irrep.resize(Sn.sumirrepdims());
 allyoung_index=0;
 
@@ -2257,15 +2261,20 @@ if(tot!=partitions(n)) laerror("internal error in partition generation or enumer
 if(space_dim!=longpow(unitary_n,n)) {cout<<space_dim<<" "<<ipow(unitary_n,n)<<endl;laerror("integer overflow or internal error in space dimensions");}
 
 for(int i=0; i<allyoung.size(); ++i)
+	{
 	for(int j=0; j<allyoung.size(); ++j)
 		{
-		PermutationAlgebra<int,int> r=allyoung[i]*allyoung[j];
 		//cout <<"Young "<<i<<" "<<allyoung[i]<<endl;
 		//cout <<"Young "<<j<<" "<<allyoung[j]<<endl;
-		cout <<"Product of Young "<<i<<" and "<<j<<" = "<<r<<"\n";
+		PermutationAlgebra<int,int> r=allyoung[i]*allyoung[j];
+		NRMat<int> rm(r,false,n);
+		NRMat<int> rm2 = allyoungmat[i]*allyoungmat[j];
+		cout <<"Product of Young "<<i<<" and "<<j<<" = "<<r<<"\n"<<"matrix "<<rm<<endl;
+		if(rm!=rm2) laerror("internal error in matrix representation of permutationalgebra");
 		if(i!=j && !r.is_zero()) cout <<"NONORTHOGONAL Young operators found "<<i<< " "<<j<<" (irreps "<<allyoung_irrep[i]<<" "<<allyoung_irrep[j]<<")\n";
 		if(allyoung_irrep[i]!=allyoung_irrep[j] && !r.is_zero()) laerror("internal error in PermutationAlgebra");
 		}
+	}
 }
 
 
@@ -3093,7 +3102,7 @@ for(int i=0; i<a.size(); ++i)
 	if(a[i].weight!=a[i].perm.parity()) laerror("internal error in parity");
 }
 
-if(1)
+if(0)
 {
 /*this is kucharskiP antisymmetrizer just without parsing the input
 generate antisymmetrization operator for Brandow diagrams in the Kucharski convention
@@ -3121,5 +3130,10 @@ for(int i=0; i<a.size(); ++i)
 	cout <<endl;
 	}
 }
+
+if(1)
+{
+}
+
 
 }

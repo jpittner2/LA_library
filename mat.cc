@@ -1834,6 +1834,25 @@ NRMat<std::complex<double> >::dot(const NRMat<std::complex<double> > &rhs) const
 	return ret;
 }
 
+
+template<>
+const NRMat<int> NRMat<int>::operator*(const NRMat<int> &rhs) const {
+#ifdef DEBUG            
+        if(mm != rhs.nn) laerror("incompatible matrices in NRMat<int>::operator*(const NRMat<int>&)");
+        if(mm<=0 ||rhs.mm <= 0) laerror("illegal matrix dimension in gemm");
+#endif  
+	NOT_GPU(rhs);
+	NOT_GPU(*this);
+        NRMat<int> result(nn, rhs.mm);
+	result.clear();
+	for(int i=0;i<nn;++i)
+		for(int j=0; j<mm; ++j)
+			for(int k=0; k<rhs.mm; ++k)
+				result(i,k) += (*this)(i,j)*rhs(j,k);
+        return result;
+}               
+
+
 /***************************************************************************//**
  * compute product of this matrix \f$A\f$ with given real matrix \f$B\f$
  * @param[in] rhs matrix \f$B\f$
@@ -3167,7 +3186,7 @@ template<typename T>
 NRMat<T>::NRMat(const NRPerm<int> &p, const bool direction, const bool parity)
 {
 int n=p.size();
-resize(n,n);
+nn=mm=0; count=0; v=0; resize(n,n);
 clear();
 T alpha= parity? p.parity():1;
 axpy(alpha,p,direction);
@@ -3177,18 +3196,18 @@ template<typename T>
 NRMat<T>::NRMat(const WeightPermutation<int,T> &wp, const bool direction)
 {
 int n=wp.size();
-resize(n,n);
+nn=mm=0; count=0; v=0; resize(n,n);
 clear(); 
 axpy(wp.weight,wp.perm,direction);
 }
 
 template<typename T>
-NRMat<T>::NRMat(const PermutationAlgebra<int,T> &ap, const bool direction)
+NRMat<T>::NRMat(const PermutationAlgebra<int,T> &ap, const bool direction , int nforce)
 {
 int na= ap.size();
-if(na<=0) laerror("cannot deduce matrix size from empty PermutationAlgebra");
-int n=ap[0].size();
-resize(n,n);
+if(na<=0 && nforce<=0) laerror("cannot deduce matrix size from empty PermutationAlgebra");
+int n= nforce>0?nforce:ap[0].size();
+nn=mm=0; count=0; v=0; resize(n,n);
 clear();
 for(int i=0; i<na; ++i) axpy(ap[i].weight,ap[i].perm,direction);
 }
