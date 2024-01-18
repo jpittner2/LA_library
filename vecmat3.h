@@ -96,6 +96,7 @@ public:
 	const Vec3 operator*(const Mat3<T> &rhs) const;
 	const Vec3 timesT(const Mat3<T> &rhs) const; //with transpose
 	Mat3<T> outer(const Vec3 &rhs) const; //tensor product
+	void addouter(Mat3<T> &m, const Vec3 &rhs, const T weight) const; //tensor product
 	void inertia(Mat3<T> &itensor, const T weight) const; //contribution to inertia tensor
 	void randomize(const T x);
 
