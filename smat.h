@@ -1223,6 +1223,16 @@ std::istream& operator>>(std::istream  &s, NRSMat<T> &x) {
 #endif
 }
 
+//convert whole matrix between types
+template <typename T, typename S>
+void NRSMat_convert(NRSMat<T> &a, const NRSMat<S> &b)
+{
+a.resize(b.nrows(),b.ncols());
+for(int i=0; i<b.nrows(); ++i)
+        for(int j=0; j<=i; ++j)
+                a(i,j) = (T) b(i,j);
+}
+
 
 /***************************************************************************//**
  * generate operators relating NRSMat<T> objects and scalars

@@ -31,6 +31,8 @@ namespace LA {
 
 //forward declaration
 template<typename T> class NRPerm;
+template<typename T, typename R> class WeightPermutation;
+template<typename T, typename R> class PermutationAlgebra;
 template<typename T> class CyclePerm;
 template<typename T> class NRMat_from1;
 
@@ -136,6 +138,8 @@ public:
 	void scale_col(const int i, const T f); //in place
 	void axpy(const T alpha, const NRPerm<int> &p, const bool direction);
 	explicit NRMat(const NRPerm<int> &p, const bool direction, const bool parity=false); //permutation matrix
+	explicit NRMat(const WeightPermutation<int,T> &p, const bool direction); 
+	explicit NRMat(const PermutationAlgebra<int,T> &p, const bool direction); 
 
 
 	/***************************************************************************//**
@@ -1553,6 +1557,17 @@ NRMat<typename LA_traits<T>::normtype>  NRMat<T>::abs() const {
         NRMat<typename LA_traits<T>::normtype> r(nn,mm);
         for(size_t i=0; i< nn; i++)  for(size_t j=0; j< mm; j++) r(i,j) = MYABS((*this)(i,j));
         return r;
+}
+
+
+//convert whole matrix between types
+template <typename T, typename S>
+void NRMat_convert(NRMat<T> &a, const NRMat<S> &b)
+{
+a.resize(b.nrows(),b.ncols());
+for(int i=0; i<b.nrows(); ++i)
+	for(int j=0; j<b.ncols(); ++j)
+		a(i,j) = (T) b(i,j);
 }
 
 

@@ -3173,6 +3173,27 @@ T alpha= parity? p.parity():1;
 axpy(alpha,p,direction);
 }
 
+template<typename T>
+NRMat<T>::NRMat(const WeightPermutation<int,T> &wp, const bool direction)
+{
+int n=wp.size();
+resize(n,n);
+clear(); 
+axpy(wp.weight,wp.perm,direction);
+}
+
+template<typename T>
+NRMat<T>::NRMat(const PermutationAlgebra<int,T> &ap, const bool direction)
+{
+int na= ap.size();
+if(na<=0) laerror("cannot deduce matrix size from empty PermutationAlgebra");
+int n=ap[0].size();
+resize(n,n);
+clear();
+for(int i=0; i<na; ++i) axpy(ap[i].weight,ap[i].perm,direction);
+}
+
+
 
 
 //apply permutations

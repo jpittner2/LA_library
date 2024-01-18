@@ -2039,6 +2039,15 @@ for(int next=0; next<newsize; ++next)
 x.resize(newsize2,true);
 }
 
+//convert whole vector between types
+template <typename T, typename S>
+void NRVec_convert(NRVec<T> &a, const NRVec<S> &b)
+{
+a.resize(b.size());
+for(int i=0; i<b.size(); ++i)
+                a[i] = (T) b[i];
+}
+
 
 
 }//namespace
