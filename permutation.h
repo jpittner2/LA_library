@@ -121,6 +121,7 @@ public:
 	WeightPermutation operator*(const R &x) const {return WeightPermutation(weight*x,perm); }
 
 	bool operator==(const WeightPermutation &rhs) const {return this->perm == rhs.perm;}; //NOTE for sorting, compares only the permutation not the weight!
+	bool operator!=(const WeightPermutation &rhs) const {return !(*this==rhs);} //NOTE: compares only the permutation
 	bool operator>(const WeightPermutation &rhs) const {return  this->perm > rhs.perm;};
         bool operator<(const WeightPermutation &rhs) const {return  this->perm < rhs.perm;};
         bool operator>=(const WeightPermutation &rhs) const {return !(*this < rhs);};
@@ -185,8 +186,8 @@ public:
 	void simplify(const typename LA_traits<R>::normtype thr=0) {NRVec_simplify(*this,thr);};
 	bool operator==(PermutationAlgebra &rhs); //do NOT inherit from NRVec, as the underlying one ignores weights for the simplification; also we have to simplify before comparison
 	bool is_zero() const {return size()==0;}; //assume it was simplified
-	bool is_scaled_identity() const {return size()==1 && (*this)[0]. is_scaledidentity();}; //assume it was simplified
-	bool is_identity() const {return size()==1 && (*this)[0]. is_identity();}; //assume it was simplified
+	bool is_scaled_identity() const {return size()==1 && (*this)[0].is_scaledidentity();}; //assume it was simplified
+	bool is_identity() const {return size()==1 && (*this)[0].is_identity();}; //assume it was simplified
 };
 
 

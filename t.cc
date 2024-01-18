@@ -3095,7 +3095,16 @@ for(int i=0; i<a.size(); ++i)
 
 if(1)
 {
-//this is kucharskiP antisymmetrizer just without parsing the input
+/*this is kucharskiP antisymmetrizer just without parsing the input
+generate antisymmetrization operator for Brandow diagrams in the Kucharski convention
+               #NOTE: permgener conserves order in the subsets,
+                #this means that the permuted elements label places
+                #in the expression, not the indices, since places
+                #correspond to already existing antisymmetry
+                #in principle it would be more logical to printout permutation of places rather than indices
+                #but this is more convenient for further processing
+*/
+
 NRVec<NRVec_from1<int> > groups;
 cin >> groups;
 int ntot=0;
