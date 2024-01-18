@@ -363,6 +363,14 @@ public:
 		return sum;
 	};
 
+	//! compute the sum of squares the vector elements
+        inline const T sumsqr() const {
+                T sum(v[0]);
+                for(register int i=1; i<nn; i++){ sum += v[i]*v[i];}
+                return sum;
+        };
+
+
 	//! compute the product of the vector elements
         inline const T prod() const {
                 T prod(v[0]);

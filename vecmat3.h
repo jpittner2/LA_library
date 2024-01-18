@@ -79,6 +79,10 @@ public:
 	Vec3& operator/=(const T rhs) {return *this *= ((T)1/rhs);};
         const Vec3 operator*(const T rhs) const {return Vec3(*this) *= rhs;};
         const Vec3 operator/(const T rhs) const {return Vec3(*this) /= rhs;};
+	T sum() const {return q[0]+q[1]+q[2];};
+	T asum() const {return abs(q[0])+abs(q[1])+abs(q[2]);};
+	T sumsqr() const {return q[0]*q[0]+q[1]*q[1]+q[2]*q[2];};
+	T prod() const {return q[0]*q[1]*q[2];};
 
 	//Vec3 algebra
 	const Vec3 operator-() const {Vec3 r(*this); r.q[0]= -r.q[0]; r.q[1]= -r.q[1]; r.q[2]= -r.q[2]; return r;}; //unary minus
