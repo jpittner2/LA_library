@@ -67,7 +67,9 @@ public:
 	NRPerm operator|(const NRPerm &rhs) const; //concatenate the permutations rhs,this, renumbering rhs (not commutative)
 	NRPerm operator*(const NRPerm &q) const; //q is rhs and applied first, this applied second
 	NRPerm operator*(const CyclePerm<T> &r) const;
-	NRPerm conjugate_by(const NRPerm &q) const; //q^-1 p q
+	NRPerm multiply(const NRPerm<T> &q, bool inverse) const; //multiplication but optionally q inversed
+	NRPerm conjugate_by(const NRPerm &q, bool reverse=false) const; //q^-1 p q or q p q^-1
+	NRPerm commutator(const NRPerm &q, bool inverse=false) const;  //p^-1 q^-1 p q or q^-1 p^-1 q p
 	int parity() const; //returns +/- 1
 	void randomize(void); //uniformly random by Fisher-Yates shuffle
 	bool next(); //generate next permutation in lex order

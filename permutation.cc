@@ -135,11 +135,27 @@ if(n!=q.size()) laerror("product of incompatible permutations");
 NRPerm<T> r(n);
 for(T i=1; i<=n; ++i) r[i] = (*this)[q[i]];
 return r;
-
 }
 
 template <typename T>
-NRPerm<T> NRPerm<T>::conjugate_by(const NRPerm<T> &q) const
+NRPerm<T> NRPerm<T>::multiply(const NRPerm<T> &q, bool inverse) const
+{
+#ifdef DEBUG
+        if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
+#endif
+
+T n=this->size();
+if(n!=q.size()) laerror("product of incompatible permutations");
+NRPerm<T> r(n);
+if(inverse) for(T i=1; i<=n; ++i) r[q[i]] = (*this)[i];
+else for(T i=1; i<=n; ++i) r[i] = (*this)[q[i]];
+return r;
+}
+
+
+
+template <typename T>
+NRPerm<T> NRPerm<T>::conjugate_by(const NRPerm<T> &q, bool inverse) const
 {
 #ifdef DEBUG
         if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
@@ -149,10 +165,29 @@ T n=this->size();
 if(n!=q.size()) laerror("product of incompatible permutations");
 NRPerm<T> qi=q.inverse();
 NRPerm<T> r(n);
-for(T i=1; i<=n; ++i) r[i] = qi[(*this)[q[i]]];
+if(inverse)  for(T i=1; i<=n; ++i) r[i] = q[(*this)[qi[i]]];
+else for(T i=1; i<=n; ++i) r[i] = qi[(*this)[q[i]]];
 return r;
-
 }
+
+template <typename T>
+NRPerm<T> NRPerm<T>::commutator(const NRPerm<T> &q, bool inverse) const
+{
+#ifdef DEBUG
+        if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
+#endif
+
+T n=this->size();
+if(n!=q.size()) laerror("product of incompatible permutations");
+NRPerm<T> qi=q.inverse();
+NRPerm<T> pi=this->inverse();
+NRPerm<T> r(n);
+if(inverse)  for(T i=1; i<=n; ++i) r[i] = qi[pi[q[(*this)[i]]]];
+else for(T i=1; i<=n; ++i) r[i] = pi[qi[(*this)[q[i]]]];
+return r;
+}
+
+
 
 template <typename T>
 CyclePerm<T> CyclePerm<T>::conjugate_by(const CyclePerm<T> &q) const
