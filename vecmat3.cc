@@ -986,7 +986,7 @@ return 0;
 //begin Jacobi's  eigensolver for 3x3 matrix
 
 #define ROTATE(a,i,j,k,l) g=a[i][j];h=a[k][l];a[i][j]=g-s*(h+g*tau); a[k][l]=h+s*(g-h*tau);
-#define SWAP(i,j) {T tmp; tmp=d[i]; d[i]=d[j]; d[j]=tmp; for(int ii=0; ii<3; ++ii) {tmp=v[ii][i]; v[ii][i]=v[ii][j]; v[ii][j]=tmp;}}
+#define SWAP(i,j) {T tmp; tmp=d[i]; d[i]=d[j]; d[j]=tmp; for(int ii=0; ii<n; ++ii) {tmp=v[ii][i]; v[ii][i]=v[ii][j]; v[ii][j]=tmp;}}
 
 template <typename T>
 bool Mat3<T>::eivec_sym(Vec3<T> &d, Mat3 &v, const bool sortdown) const
