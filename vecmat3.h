@@ -183,8 +183,7 @@ public:
         int fprintf(FILE *f, const char *format) const {int n= ::fprintf(f,format,q[0][0],q[0][1],q[0][2]); n+=::fprintf(f,format,q[1][0],q[1][1],q[1][2]); n+=::fprintf(f,format,q[2][0],q[2][1],q[2][2]); return n;};
         int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
 	void symmetrize(); //average offdiagonal elements
-	void eival_sym(Vec3<T> &w, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked
-	void eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked
+	bool eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked, returns false on success
 	T norm(const T scalar = 0) const;
 	void qrd(Mat3 &q, Mat3 &r); //not const, destroys the matrix
 	void svd(Mat3 &u, Vec3<T> &w, Mat3 &v, bool proper_rotations=false) const;  //if proper_rotations = true, singular value can be negative but u and v are proper rotations

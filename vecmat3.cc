@@ -91,17 +91,24 @@ template<typename T>
 void Vec3<T>::inertia(Mat3<T> &m, const T weight) const
 {
 T r2 = q[0]*q[0]+q[1]*q[1]+q[2]*q[2];
+T tmp;
 
 m[0][0] -= weight*(q[0]*q[0]-r2);
-m[0][1] -= weight*q[0]*q[1];
-m[0][2] -= weight*q[0]*q[2];
 
-m[1][0] -= weight*q[1]*q[0];
+tmp= weight*q[0]*q[1];
+m[0][1] -= tmp; 
+m[1][0] -= tmp;
+
+tmp = weight*q[0]*q[2];
+m[0][2] -=  tmp;
+m[2][0] -= tmp;
+
 m[1][1] -= weight*(q[1]*q[1]-r2);
-m[1][2] -= weight*q[1]*q[2];
 
-m[2][0] -= weight*q[2]*q[0];
-m[2][1] -= weight*q[2]*q[1];
+tmp =  weight*q[1]*q[2];
+m[1][2] -= tmp;
+m[2][1] -= tmp;
+
 m[2][2] -= weight*(q[2]*q[2]-r2);
 }
 
@@ -671,6 +678,14 @@ else for(int i=0;i<3;++i) for(int j=0; j<3; ++j) q[i][j]=x*RANDDOUBLESIGNED();
 
 #endif
 
+
+
+#if 0
+//the Kopp's method is numerically unstable if the matrix is already close to diagonal
+//for example repeated diagonalization of inertia tensor and performing a body rotation
+//yields nonsense on the second run
+//I switched to Jacobi
+//
 //eigensolver for 3x3 matrix by Joachim Kopp - analytic formula version,
 //might be unstable for ill-conditioned ones, then use other methods
 //cf. arxiv physics 0610206v3
@@ -703,7 +718,7 @@ else for(int i=0;i<3;++i) for(int j=0; j<3; ++j) q[i][j]=x*RANDDOUBLESIGNED();
 #define SQR(x)      ((x)*(x))                        // x^2
 //
 template <typename T>
-void Mat3<T>::eival_sym(Vec3<T> &w, const bool sortdown) const
+static void eival_sym(const  Mat3<T> &q, Vec3<T> &w, const bool sortdown) 
 {
 T  m, c1, c0;
   
@@ -721,13 +736,13 @@ T  m, c1, c0;
   c0 = q[2][2]*dd + q[0][0]*ee + q[1][1]*ff - q[0][0]*q[1][1]*q[2][2]
             - 2.0 * q[0][2]*de;                                     // c*d^2 + a*e^2 + b*f^2 - a*b*c - 2*f*d*e)
 
-  T p, sqrt_p, q, c, s, phi;
+  T p, sqrt_p, Q, c, s, phi;
   p = SQR(m) - 3.0*c1;
-  q = m*(p - (3.0/2.0)*c1) - (27.0/2.0)*c0;
+  Q = m*(p - (3.0/2.0)*c1) - (27.0/2.0)*c0;
   sqrt_p = sqrt(abs(p));
 
-  phi = 27.0 * ( 0.25*SQR(c1)*(p - c1) + c0*(q + 27.0/4.0*c0));
-  phi = (1.0/3.0) * atan2(sqrt(abs(phi)), q);
+  phi = 27.0 * ( 0.25*SQR(c1)*(p - c1) + c0*(Q + 27.0/4.0*c0));
+  phi = (1.0/3.0) * atan2(sqrt(abs(phi)), Q);
   
   c = sqrt_p*cos(phi);
   s = (1.0/M_SQRT3)*sqrt_p*sin(phi);
@@ -778,7 +793,7 @@ else
 //   v1.0: First released version
 // ----------------------------------------------------------------------------
 template <typename T>
-void Mat3<T>::eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown) const
+bool Mat3<T>::eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown) const
 {
   T norm;          // Squared norm or inverse norm of current eigenvector
   T n0, n1;        // Norm of first and second columns of A
@@ -790,13 +805,13 @@ void Mat3<T>::eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown) const
   int i, j;             // Loop counters
 
   // Calculate eigenvalues
-  eival_sym(w,sortdown);
+  eival_sym(*this, w,sortdown);
 Mat3<T> A(*this); //scratch copy
 
-  wmax = fabs(w[0]);
-  if ((t=fabs(w[1])) > wmax)
+  wmax = abs(w[0]);
+  if ((t=abs(w[1])) > wmax)
     wmax = t;
-  if ((t=fabs(w[2])) > wmax)
+  if ((t=abs(w[2])) > wmax)
     wmax = t;
   thresh = SQR(8.0 * DBL_EPSILON  * wmax);
 
@@ -857,7 +872,7 @@ Mat3<T> A(*this); //scratch copy
   
   // Prepare calculation of second eigenvector
   t = w[0] - w[1];
-  if (fabs(t) > 8.0 * DBL_EPSILON * wmax)
+  if (abs(t) > 8.0 * DBL_EPSILON * wmax)
   {
     // For non-degenerate eigenvalue, calculate second eigenvector by the formula
     //   v[1] = (A - w[1]).e1 x (A - w[1]).e2
@@ -959,11 +974,122 @@ Mat3<T> A(*this); //scratch copy
   v[1][2] = v[2][0]*v[0][1] - v[0][0]*v[2][1];
   v[2][2] = v[0][0]*v[1][1] - v[1][0]*v[0][1];
 
+return 0;
 }
 
 #undef SQR
-//end eigensolver for 3x3 matrix
+//end Kopp's eigensolver for 3x3 matrix
 /////////////////////////////////////////////////////////////////////////////////////////////
+#else
+
+
+//begin Jacobi's  eigensolver for 3x3 matrix
+
+#define ROTATE(a,i,j,k,l) g=a[i][j];h=a[k][l];a[i][j]=g-s*(h+g*tau); a[k][l]=h+s*(g-h*tau);
+#define SWAP(i,j) {T tmp; tmp=d[i]; d[i]=d[j]; d[j]=tmp; for(int ii=0; ii<3; ++ii) {tmp=v[ii][i]; v[ii][i]=v[ii][j]; v[ii][j]=tmp;}}
+
+template <typename T>
+bool Mat3<T>::eivec_sym(Vec3<T> &d, Mat3 &v, const bool sortdown) const
+{
+Mat3<T> a(*this);//will be overwritten but we are const
+const int n=3;
+int j,iq,ip,i;
+T tresh,theta,tau,t,sm,s,h,g,c;
+
+Vec3<T> b,z;
+	for (ip=0;ip<n;ip++) {
+		for (iq=0;iq<n;iq++) v[ip][iq]=0.0;
+		v[ip][ip]=1.0;
+	}
+	for (ip=0;ip<n;ip++) {
+		b[ip]=d[ip]=a[ip][ip];
+		z[ip]=0.0;
+	}
+	for (i=1;i<=50;i++) {
+		sm=0.0;
+		for (ip=0;ip<n-1;ip++) {
+			for (iq=ip+1;iq<n;iq++)
+				sm += abs(a[ip][iq]);
+		}
+		if (sm == 0.0)  
+			{
+			if(sortdown)
+				{
+			        if(d[0]<d[1]) SWAP(0,1)
+			        if(d[0]<d[2]) SWAP(0,2)
+			        if(d[1]<d[2]) SWAP(1,2)
+				}
+			else
+				{
+				if(d[0]>d[1]) SWAP(0,1)
+				if(d[0]>d[2]) SWAP(0,2)
+				if(d[1]>d[2]) SWAP(1,2)
+				}
+			return 0; 
+			}
+		if (i < 4)
+			tresh=0.2*sm/(n*n);
+		else
+			tresh=0.0;
+		for (ip=0;ip<n-1;ip++) {
+			for (iq=ip+1;iq<n;iq++) {
+				g=100.0*abs(a[ip][iq]);
+				if (i > 4 && abs(d[ip])+g == abs(d[ip])
+					&& abs(d[iq])+g == abs(d[iq]))
+					a[ip][iq]=0.0;
+				else if (abs(a[ip][iq]) > tresh) {
+					h=d[iq]-d[ip];
+					if (abs(h)+g == abs(h))
+						t=(a[ip][iq])/h;
+					else {
+						theta=0.5*h/(a[ip][iq]);
+						t=1.0/(abs(theta)+sqrt(1.0+theta*theta));
+						if (theta < 0.0) t = -t;
+					}
+					c=1.0/sqrt(1+t*t);
+					s=t*c;
+					tau=s/(1.0+c);
+					h=t*a[ip][iq];
+					z[ip] -= h;
+					z[iq] += h;
+					d[ip] -= h;
+					d[iq] += h;
+					a[ip][iq]=0.0;
+					for (j=0;j<=ip-1;j++) {
+						ROTATE(a,j,ip,j,iq)
+					}
+					for (j=ip+1;j<=iq-1;j++) {
+						ROTATE(a,ip,j,j,iq)
+					}
+					for (j=iq+1;j<n;j++) {
+						ROTATE(a,ip,j,iq,j)
+					}
+					for (j=0;j<n;j++) {
+						ROTATE(v,j,ip,j,iq)
+					}
+				}
+			}
+		}
+		for (ip=0;ip<n;ip++) {
+			b[ip] += z[ip];
+			d[ip]=b[ip];
+			z[ip]=0.0;
+		}
+	}
+return 1;
+}
+
+#undef ROTATE
+#undef SWAP
+
+#endif
+//end Jacobi's eigensolver for 3x3 matrix
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
 
 template<typename T>
 T Mat3<T>::norm(const T scalar) const

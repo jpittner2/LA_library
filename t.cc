@@ -2461,7 +2461,7 @@ Polynomial<double> pp({1,2,3,4,5});
 cout<<pp;
 }
 
-if(0)
+if(1)
 {
 //prepare random symmetric mat3
 int seed;
@@ -2470,10 +2470,14 @@ if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
 close(f);
 srand(seed);
 
+double scale;
+cin >> scale;
+
 NRMat<double> tmp(3,3);
-tmp.randomize(2.);
+tmp.randomize(scale);
 Mat3<double> mm(tmp);
 mm.symmetrize();
+mm+= 1.;
 NRMat<double> m(&mm[0][0],3,3);
 cout <<m<<"3 3\n"<<mm<<endl;
 
@@ -3149,7 +3153,7 @@ for(int i=0; i<a.size(); ++i)
 	}
 }
 
-if(1)
+if(0)
 {
 }
 
