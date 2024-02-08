@@ -2461,7 +2461,7 @@ Polynomial<double> pp({1,2,3,4,5});
 cout<<pp;
 }
 
-if(1)
+if(0)
 {
 //prepare random symmetric mat3
 int seed;
@@ -3153,8 +3153,12 @@ for(int i=0; i<a.size(); ++i)
 	}
 }
 
-if(0)
+if(1)
 {
+NRMat<double> a;
+cin>>a;
+cout <<a.rsum()<<endl;
+cout <<a.csum()<<endl;
 }
 
 

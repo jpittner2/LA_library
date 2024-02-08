@@ -253,9 +253,9 @@ public:
 	//! for this matrix \f$A\f$ compute \f$A\cdot{}A^\mathrm{T}\f$
 	const NRSMat<T> timestransposed() const;
 
-	//! sum the rows
+	//! sum numbers in the rows (sum over column index)
 	const NRVec<T> rsum() const;
-	//! sum the columns
+	//! sum numbers in the columns (sum over row index)
 	const NRVec<T> csum() const;
 
 	//! orthonormalize this matrix

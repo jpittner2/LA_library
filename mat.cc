@@ -593,12 +593,12 @@ const NRMat<T> NRMat<T>::operator|(const NRMat<T> &b) const {
 template <typename T>
 const NRVec<T> NRMat<T>::csum() const {
 	NOT_GPU(*this);
-	NRVec<T> result(nn, getlocation());
+	NRVec<T> result(mm, getlocation());
 	T sum;
 	
-	for(register int i=0; i<nn; i++) { 
+	for(register int i=0; i<mm; i++) { 
 		sum = (T)0;
-		for(int j=0; j<mm; j++) sum += (*this)[i][j];
+		for(int j=0; j<nn; j++) sum += (*this)[j][i];
 		result[i] = sum;
 	}
 	return result;
@@ -610,18 +610,18 @@ const NRVec<T> NRMat<T>::csum() const {
  ******************************************************************************/
 template <>
 const NRVec<double> NRMat<double>::csum() const {
-	NRVec<double> result(nn, getlocation());
-	result = 0.0;
+	NRVec<double> result(mm, getlocation());
+	result.clear();
 #ifdef CUDALA
 	if(location == cpu){
 #endif
 		for(register int i=0; i<mm; i++){
-			cblas_daxpy(nn, 1.0, &((*this)(0, i)), nn, result.v, 1);
+			cblas_daxpy(nn, 1.0, &((*this)(0, i)), mm, result.v+i, 0);
 		}
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<mm; i++){
-			cublasDaxpy(nn, 1.0, v + i, nn, result.v, 1);
+			cublasDaxpy(nn, 1.0, v + i, mm, result.v+i, 0);
 			TEST_CUBLAS("cublasDaxpy");
 		}
 	}
@@ -635,18 +635,18 @@ const NRVec<double> NRMat<double>::csum() const {
  ******************************************************************************/
 template <>
 const NRVec<std::complex<double> > NRMat<std::complex<double> >::csum() const {
-	NRVec<std::complex<double> > result(nn, getlocation());
-	result = 0.0;
+	NRVec<std::complex<double> > result(mm, getlocation());
+	result.clear();
 #ifdef CUDALA
 	if(location == cpu){
 #endif
 		for(register int i=0;i<mm;i++){
-			cblas_zaxpy(nn, &CONE, &((*this)(0, i)), nn, result.v, 1);
+			cblas_zaxpy(nn, &CONE, &((*this)(0, i)), mm, result.v+i, 0);
 		}
 #ifdef CUDALA
 	}else{
-		for(register int i=0;i<nn;i++){
-			cublasZaxpy(nn, CUONE, (cuDoubleComplex*)(v + i), nn, (cuDoubleComplex*)(result.v), 1);
+		for(register int i=0;i<mm;i++){
+			cublasZaxpy(nn, CUONE, (cuDoubleComplex*)(v + i), mm, (cuDoubleComplex*)(result.v+i), 0);
 			TEST_CUBLAS("cublasZaxpy");
 		}
 	}
@@ -661,12 +661,12 @@ const NRVec<std::complex<double> > NRMat<std::complex<double> >::csum() const {
 template <typename T>
 const NRVec<T> NRMat<T>::rsum() const {
 	NOT_GPU(*this);
-	NRVec<T> result(mm, getlocation());
+	NRVec<T> result(nn, getlocation());
 	T sum;
 	
-	for(register int i=0; i<mm; i++) { 
+	for(register int i=0; i<nn; i++) { 
 		sum = (T)0;
-		for(int j=0; j<nn; j++) sum += (*this)[j][i];
+		for(int j=0; j<mm; j++) sum += (*this)[i][j];
 		result[i] = sum;
 	}
 	return result;
@@ -678,18 +678,18 @@ const NRVec<T> NRMat<T>::rsum() const {
  ******************************************************************************/
 template <>
 const NRVec<double> NRMat<double>::rsum() const {
-	NRVec<double> result(mm, getlocation());
-	result = 0.0;
+	NRVec<double> result(nn, getlocation());
+	result.clear();
 #ifdef CUDALA
 	if(location == cpu){
 #endif
 		for(register int i=0;i<nn;i++){
-			cblas_daxpy(mm, 1.0, (*this)[i], 1, result.v, 1);
+			cblas_daxpy(mm, 1.0, (*this)[i], 1, result.v+i, 0);
 		}
 #ifdef CUDALA
 	}else{
 		for(register int i=0;i<nn;i++){
-			cublasDaxpy(mm, 1.0, v + i*(size_t)mm, 1, result.v, 1);
+			cublasDaxpy(mm, 1.0, v + i*(size_t)mm, 1, result.v+i, 0);
 			TEST_CUBLAS("cublasDaxpy");
 		}
 	}
@@ -703,18 +703,18 @@ const NRVec<double> NRMat<double>::rsum() const {
  ******************************************************************************/
 template <>
 const NRVec<std::complex<double> > NRMat<std::complex<double> >::rsum() const {
-	NRVec<std::complex<double> > result(mm, getlocation());
-	result = 0.0;
+	NRVec<std::complex<double> > result(nn, getlocation());
+	result.clear();
 #ifdef CUDALA
 	if(location == cpu){
 #endif
 		for(register int i=0;i<nn;i++){
-			cblas_zaxpy(mm, &CONE, (*this)[i], 1, result.v, 1);
+			cblas_zaxpy(mm, &CONE, (*this)[i], 1, result.v+i, 0);
 		}
 #ifdef CUDALA
 	}else{
 		for(register int i=0;i<nn;i++){
-			cublasZaxpy(mm, CUONE, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(result.v), 1);
+			cublasZaxpy(mm, CUONE, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(result.v+i), 0);
 			TEST_CUBLAS("cublasZaxpy");
 		}
 	}
