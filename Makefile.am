@@ -1,12 +1,14 @@
 lib_LTLIBRARIES = libla.la
-include_HEADERS = version.h simple.h vecmat3.h quaternion.h fortran.h cuda_la.h auxstorage.h  davidson.h   laerror.h    mat.h          qsort.h             vec.h bisection.h   diis.h       la.h         noncblas.h     smat.h numbers.h bitvector.h   fourindex.h  la_traits.h la_random.h  nonclass.h     sparsemat.h sparsesmat.h csrmat.h conjgrad.h    gmres.h      matexp.h     permutation.h   polynomial.h contfrac.h graph.h
-libla_la_SOURCES = simple.cc quaternion.cc vecmat3.cc vec.cc mat.cc smat.cc sparsemat.cc sparsesmat.cc csrmat.cc laerror.cc noncblas.cc  numbers.cc bitvector.cc strassen.cc nonclass.cc cuda_la.cc fourindex.cc permutation.cc polynomial.cc contfrac.cc graph.cc la_random.cc
+include_HEADERS = version.h simple.h vecmat3.h quaternion.h fortran.h cuda_la.h auxstorage.h  davidson.h   laerror.h    mat.h          qsort.h             vec.h bisection.h   diis.h       la.h         noncblas.h     smat.h numbers.h bitvector.h   fourindex.h  la_traits.h la_random.h  nonclass.h     sparsemat.h sparsesmat.h csrmat.h conjgrad.h    gmres.h      matexp.h     permutation.h   polynomial.h contfrac.h graph.h reg.h regsurf.h
+libla_la_SOURCES = simple.cc quaternion.cc vecmat3.cc vec.cc mat.cc smat.cc sparsemat.cc sparsesmat.cc csrmat.cc laerror.cc noncblas.cc  numbers.cc bitvector.cc strassen.cc nonclass.cc cuda_la.cc fourindex.cc permutation.cc polynomial.cc contfrac.cc graph.cc la_random.cc reg.cc regsurf.cc
 nodist_libla_la_SOURCES = version.cc
-check_PROGRAMS = t test tX
+check_PROGRAMS = t test tX test_reg test_regsurf
 t_SOURCES = t.cc t2.cc 
 #nodist_t_SOURCES = 
 test_SOURCES = test.cc
 tX_SOURCES = tX.cc
+test_reg_SOURCES = test_reg.cc
+test_regsurf_SOURCES = test_regsurf.cc
 LDADD = .libs/libla.a
 ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = get_git_version LICENSE doxygen.cfg aminclude.am acinclude.m4 footer.html

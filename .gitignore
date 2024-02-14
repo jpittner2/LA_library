@@ -54,6 +54,8 @@ t
 test
 fi
 tX
+test_reg
+test_regsurf
 *.tar.bz2
 .*.swp
 # CVS default ignores end
