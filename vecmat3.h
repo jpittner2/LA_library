@@ -33,10 +33,14 @@
 
 namespace LA_Vecmat3 {
 
+#ifndef DBL_EPSILON
+
 #ifdef NO_NUMERIC_LIMITS                     
 #define DBL_EPSILON 1.19209290e-07f
 #else 
 #define  DBL_EPSILON std::numeric_limits<T>::epsilon()
+#endif
+
 #endif
 
 
