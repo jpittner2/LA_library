@@ -196,7 +196,7 @@ protected:
     T*  s_y_preds = nullptr;
     // the surfaces difference y data values of each surfaces [s_count_geometries]
     T*  s_y_delta = nullptr;
-    // the surfaces temporary y data values of each surfaces [s_count_geometries]
+    // the surfaces temporary y data values of each surfaces [s_count_kernels]
     T*  s_y_temp = nullptr;
     // the surfaces temporary y partial data values of each surfaces [count_kernels]
     T*  s_y_temp_part = nullptr;
@@ -260,7 +260,7 @@ protected:
     NRVec<T> s_y_preds_vec;
     // NRVec for vector of delta y values for surface [s_count_geometries]
     NRVec<T> s_y_delta_vec;
-    // NRVec for vector of temporary y values for surface [s_count_geometries]
+    // NRVec for vector of temporary y values for surface [s_count_kernels]
     NRVec<T> s_y_temp_vec;
     // NRVec for vector of temporary partial y values for geometry [s_count_kernels]
     NRVec<T> s_y_temp_part_vec;

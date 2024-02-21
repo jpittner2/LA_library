@@ -482,7 +482,7 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
     // NRVec for vector of delta y values for surface [s_count_geometries]
     s_y_delta_vec = NRVec<T>(count_geometries);
     // NRVec for vector of temporary y values for surface [s_count_geometries]
-    s_y_temp_vec = NRVec<T>(count_geometries);
+    s_y_temp_vec = NRVec<T>(count_kernels);
     // NRVec for vector of partial temporary y values for geometry [s_count_kernels]
     s_y_temp_part_vec = NRVec<T>(count_kernels);
     
