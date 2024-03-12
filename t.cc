@@ -3153,12 +3153,26 @@ for(int i=0; i<a.size(); ++i)
 	}
 }
 
-if(1)
+if(0)
 {
 NRMat<double> a;
 cin>>a;
 cout <<a.rsum()<<endl;
 cout <<a.csum()<<endl;
+}
+
+if(1)
+{
+int n;
+cin>>n;
+int count=0;
+for(int i=4; i<=n; ++i)
+for(int j=3; j<i; ++j)
+for(int k=2; k<j; ++k)
+for(int l=1; l<k; ++l)
+	++count;
+
+cout <<count<<" "<<binom(n,4)<<endl;
 }
 
 
