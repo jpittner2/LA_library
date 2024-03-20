@@ -198,9 +198,6 @@ public:
 
 
 
-extern PERM_RANK_TYPE factorial(const int n);
-extern PERM_RANK_TYPE binom(int n, int k);
-extern PERM_RANK_TYPE longpow(PERM_RANK_TYPE x, int i);
 
 //permutations represented in the cycle format
 template <typename T>

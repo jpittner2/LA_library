@@ -35,6 +35,7 @@
 #include "matexp.h"
 #include "noncblas.h"
 #include "nonclass.h"
+#include "miscfunc.h"
 #include "permutation.h"
 #include "qsort.h"
 #include "smat.h"

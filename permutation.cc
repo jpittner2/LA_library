@@ -18,6 +18,7 @@
 
 #include "vec.h"
 #include "permutation.h"
+#include "miscfunc.h"
 #include <stdio.h>
 #include <string.h>
 #include <list>
@@ -729,75 +730,6 @@ for(k=n-1; k>=0; --k)
 *this =  NRPerm(3,inv);
 }
 
-#define MAXFACT 20
-PERM_RANK_TYPE factorial(const int n)
-{
-static int ntop=20;
-static  PERM_RANK_TYPE a[MAXFACT+1]={1,1,2,6,24,120,720,5040,
-40320,
-362880,
-3628800,
-39916800ULL,
-479001600ULL,
-6227020800ULL,
-87178291200ULL,
-1307674368000ULL,
-20922789888000ULL,
-355687428096000ULL,
-6402373705728000ULL,
-121645100408832000ULL,
-2432902008176640000ULL};
-
-int j;
-if (n < 0) laerror("negative argument of factorial");
-if (n > MAXFACT) laerror("overflow in factorial");
-        while (ntop<n) {
-                j=ntop++;
-                a[ntop]=a[j]*ntop;
-                }
-return a[n];
-}
-
-
-#define MAXBINOM 100
-#define ibidxmaxeven(n) ((n-2)*(n-2)/4)
-#define ibidx(n,k) (k-2+(n&1?(n-3)*(n-3)/4:(n/2-1)*(n/2-2)))
-PERM_RANK_TYPE binom(int n, int k)
-{
-PERM_RANK_TYPE p,value;
-register int d;
-static PERM_RANK_TYPE ibitab[ibidxmaxeven(MAXBINOM)]= /*only nontrivial are stored,
-                                            zero initialization by compiler assumed*/
-{
-6,
-10,
-15,20,
-21,35,
-28,56,70
-};
-
-
-if(k>n||k<0) return(0);
-if(k>n/2) k=n-k;
-if(k==0) return(1);
-if(k==1) return(n);
-int ind=0;
-if(n<=MAXBINOM)
-        {
-        ind=ibidx(n,k);
-        if (ibitab[ind]) return ibitab[ind];
-        }
-/* nonrecurent method used anyway */
-d=n-k;
-p=1;
-for(;n>d;n--) p *= n;
-value=p/factorial(k);
-if(n<=MAXBINOM) ibitab[ind]=value;
-return value;
-}
-#undef ibidx
-#undef ibidxmaxeven
-#undef MAXBINOM
 
 
 template <typename T, typename R>
@@ -1288,20 +1220,6 @@ for(int i=1; i<=nparts; ++i) n+= x[i].size();
 this->resize(n);
 this->clear();
 for(int i=1; i<=nparts; ++i) (*this)[i]=x[i].size();
-}
-
-PERM_RANK_TYPE longpow(PERM_RANK_TYPE x, int i)
-{
-if(i<0) return 0;
-PERM_RANK_TYPE y=1;
-do
-        {
-        if(i&1) y *= x;
-	i >>= 1;
-        if(i) x *= x;
-        }
-while(i);
-return y ;
 }
 
 
