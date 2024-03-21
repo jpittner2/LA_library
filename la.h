@@ -45,6 +45,7 @@
 #include "vec.h"
 #include "polynomial.h"
 #include "contfrac.h"
+#include "tensor.h"
 #include "version.h"
 
 using namespace LA;
