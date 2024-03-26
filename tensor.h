@@ -17,7 +17,7 @@
 */
 
 
-//a simple tensor class with arbitrary summetry of index subgroups
+//a simple tensor class with arbitrary symmetry of index subgroups
 //stored in an efficient way
 //presently only a rudimentary implementation
 //presently limited to 2G data size due to NRVec - maybe use a typedef LA_index 
@@ -28,6 +28,7 @@
 #define _TENSOR_H
 
 #include <stdint.h>
+#include <cstdarg>
 #include "vec.h"
 #include "miscfunc.h"
 
@@ -44,10 +45,19 @@ LA_index offset; //indices start at
 LA_index size;  //indices span this range
 } INDEXGROUP;
 
+typedef NRVec<LA_index> FLATINDEX; //all indices but in a single vector
+typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP structure
+
+
 template<typename T>
 class Tensor {
 	NRVec<indexgroup> shape;
 	NRVec<T> data;	
+
+private:
+	LA_largeindex index(const SUPERINDEX &I); //map the tensor indices to the position in data
+	LA_largeindex index(const FLATINDEX &I); //map the tensor indices to the position in data
+	LA_largeindex vindex(int i1,va_list args); //map list of indices  to the position in data @@@must call va_end
 
 public:
 	Tensor() {};
@@ -55,8 +65,20 @@ public:
 	int rank() const; //is computed from shape
 	LA_largeindex size() const; //expensive, is computed from shape
 	void copyonwrite() {shape.copyonwrite(); data.copyonwrite();};
-	//@@@operator() lhs and rhs both via vararg a via superindex of flat and nested types, get/put to file, stream i/o
+	inline T& operator()(const SUPERINDEX &I) {return data[index(I)];};
+        inline const T& operator()(const SUPERINDEX &I) const  {return data[index(I)];}; 
+	inline T& operator()(const FLATINDEX &I) {return data[index(I)];};
+        inline const T& operator()(const FLATINDEX &I) const  {return data[index(I)];};
+	inline T& operator()(int i1...) {va_list args; va_start(args,i1); return data[vindex(i1,args)];};
+	inline const T& operator()(int i1...) const {va_list args; va_start(args,i1); return data[vindex(i1,args)];};
+
+	//@@@TODO - unwinding to full size in a specified index
+	//@@@TODO - contractions - basic and efficient
+	//@@@TODO get/put to file, stream i/o
 };
+
+
+
 
 template<typename T>
 int Tensor<T>:: rank() const

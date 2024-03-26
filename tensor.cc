@@ -23,6 +23,29 @@
 
 namespace LA {
 
+template<typename T>
+LA_largeindex Tensor<T>::index(const SUPERINDEX &I)
+{
+//check index structure and ranges
+#ifndef DEBUG
+if(I.size()!=shape.size()) laerror("mismatch in the number of tensor index groups");
+for(int i=0; i<I.size; ++i)
+	{
+	if(shape[i].number!=I[i].size()) {std::cerr<<"error in index group no. "<<i<<std::endl; laerror("mismatch in the size of tensor index group");}
+	for(int j=0; j<shape[i].number; ++j)
+		{
+		if(I[i][j] <shape[i].offset || I[i][j] >= shape[i].offset+shape[i].size()) 
+			{
+			std::cerr<<"error in index group no. "<<i<<" index no. "<<j<<std::endl;
+			laerror("tensor index out of range");
+			}
+		}
+	}
+#endif
+
+
+//@@@@@@@@@
+}
 
 
 
