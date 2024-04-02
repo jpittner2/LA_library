@@ -35,6 +35,18 @@
 
 namespace LA {
 
+
+template<typename T>
+class Signedpointer
+{
+T *ptr;
+int sgn;
+public:
+	Signedpointer(const T *p, int s) : ptr(p),sgn(s) {};
+//@@@@@@operations on singedpointer as LHS of the non-const tensor.operator() expressions
+};
+
+
 typedef int LA_index;
 typedef int LA_largeindex;
 
@@ -42,7 +54,7 @@ typedef class indexgroup {
 int number; //number of indices
 int symmetry; //-1 0 or 1
 LA_index offset; //indices start at
-LA_index size;  //indices span this range
+LA_index range;  //indices span this range
 } INDEXGROUP;
 
 typedef NRVec<LA_index> FLATINDEX; //all indices but in a single vector
@@ -51,26 +63,31 @@ typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP stru
 
 template<typename T>
 class Tensor {
+//essential data
 	NRVec<indexgroup> shape;
 	NRVec<T> data;	
 
+//redundant data to facilitate efficient indexing
+	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups
+
 private:
-	LA_largeindex index(const SUPERINDEX &I); //map the tensor indices to the position in data
-	LA_largeindex index(const FLATINDEX &I); //map the tensor indices to the position in data
-	LA_largeindex vindex(int i1,va_list args); //map list of indices  to the position in data @@@must call va_end
+	LA_largeindex index(int *sign, const SUPERINDEX &I); //map the tensor indices to the position in data
+	LA_largeindex index(int *sign, const  FLATINDEX &I); //map the tensor indices to the position in data
+	LA_largeindex vindex(int *sign, int i1, va_list args); //map list of indices  to the position in data @@@must call va_end
 
 public:
 	Tensor() {};
-	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)size()) {data.clear();};
-	int rank() const; //is computed from shape
-	LA_largeindex size() const; //expensive, is computed from shape
+	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)getsize()) {data.clear();};
+	int getrank() const; //is computed from shape
+	LA_largeindex getsize(); //set redundant data and return total size
 	void copyonwrite() {shape.copyonwrite(); data.copyonwrite();};
-	inline T& operator()(const SUPERINDEX &I) {return data[index(I)];};
-        inline const T& operator()(const SUPERINDEX &I) const  {return data[index(I)];}; 
-	inline T& operator()(const FLATINDEX &I) {return data[index(I)];};
-        inline const T& operator()(const FLATINDEX &I) const  {return data[index(I)];};
-	inline T& operator()(int i1...) {va_list args; va_start(args,i1); return data[vindex(i1,args)];};
-	inline const T& operator()(int i1...) const {va_list args; va_start(args,i1); return data[vindex(i1,args)];};
+	inline Signedpointer<T> operator()(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
+        inline const T& operator()(const SUPERINDEX &I) const  {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
+	inline Signedpointer<T> operator()(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
+        inline const T& operator()(const FLATINDEX &I) const  {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
+	inline Signedpointer<T> operator()(int i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
+	inline const T& operator()(int i1...) const {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
+	//NOTE: for sign==0 data[i]  can be undefined pointer, avoid dereferencing it
 
 	//@@@TODO - unwinding to full size in a specified index
 	//@@@TODO - contractions - basic and efficient
@@ -81,7 +98,7 @@ public:
 
 
 template<typename T>
-int Tensor<T>:: rank() const
+int Tensor<T>:: getrank() const
 {
 int r=0;
 for(int i=0; i<shape.size(); ++i)
@@ -92,24 +109,28 @@ for(int i=0; i<shape.size(); ++i)
 return r;
 }
 
+
+
 template<typename T>
-LA_largeindex Tensor<T>::size() const
+LA_largeindex Tensor<T>::getsize()
 {
+cumsizes.resize(shape.size());
 LA_largeindex s=1;
 for(int i=0; i<shape.size(); ++i)
 	{
 	if(shape[i].number==0) laerror("empty index group");
-	if(shape[i].size==0) return 0;
+	if(shape[i].range==0) return 0;
+	cumsizes[i]=s;
 	switch(shape[i].symmetry) 
 		{
 		case 0:
-			s *= longpow(shape[i].size,shape[i].number);
+			s *= longpow(shape[i].range,shape[i].number);
 			break;
 		case 1:
-			s *= binom(shape[i].size+shape[i].number-1,shape[i].number);
+			s *= simplicial(shape[i].number,shape[i].range);
 			break;
 		case -1:
-			s *= binom(shape[i].size,shape[i].number);
+			s *= simplicial(shape[i].number,shape[i].range-shape[i].number+1);
 			break;
 		default: 
 			laerror("illegal index group symmetry");

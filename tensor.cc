@@ -16,25 +16,27 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <iostream>
 #include "tensor.h"
 #include "laerror.h"
-#include <iostream>
+#include "qsort.h"
+#include "miscfunc.h"
 
 
 namespace LA {
 
 template<typename T>
-LA_largeindex Tensor<T>::index(const SUPERINDEX &I)
+LA_largeindex Tensor<T>::index(int *sign, const SUPERINDEX &I)
 {
 //check index structure and ranges
-#ifndef DEBUG
+#ifdef DEBUG
 if(I.size()!=shape.size()) laerror("mismatch in the number of tensor index groups");
-for(int i=0; i<I.size; ++i)
+for(int i=0; i<I.size(); ++i)
 	{
 	if(shape[i].number!=I[i].size()) {std::cerr<<"error in index group no. "<<i<<std::endl; laerror("mismatch in the size of tensor index group");}
 	for(int j=0; j<shape[i].number; ++j)
 		{
-		if(I[i][j] <shape[i].offset || I[i][j] >= shape[i].offset+shape[i].size()) 
+		if(I[i][j] <shape[i].offset || I[i][j] >= shape[i].offset+shape[i].range) 
 			{
 			std::cerr<<"error in index group no. "<<i<<" index no. "<<j<<std::endl;
 			laerror("tensor index out of range");
