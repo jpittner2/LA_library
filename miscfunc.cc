@@ -758,5 +758,56 @@ return(bern[n]);
 
 
 
+//there is a closed form s(d,n) = binom(n+d-1,d)
+//but that would be inefficient
+//we use recurrence s(d,n) = s(d,n-1) + s(d-1,n)
+//we cannot also use the above efficient binom() since here we need laerge n while d is small
+//
+//enlarge storage size if needed
+//
+#define SIMPLICIAL_MAXD 8
+#define SIMPLICIAL_MAXN 1024
+
+unsigned long long simplicial(int d, int n)
+{
+static unsigned long long stored[SIMPLICIAL_MAXD-2][SIMPLICIAL_MAXN]={{0,1,3}};
+static int maxd=2;
+static int maxn=2;
+
+if(n<=0) return 0;
+if(d==0||n==1) return 1;
+if(d==1) return n;
+
+//resize precomputed part as needed
+if(n>maxn)
+	{
+	if(n>=SIMPLICIAL_MAXN) laerror("storage overflow in simplicial");
+	int newdim=2*n; 
+	if(newdim<2*maxn) newdim=2*maxn;
+	if(newdim>=SIMPLICIAL_MAXN) newdim=SIMPLICIAL_MAXN-1;
+	for(int i=maxn+1; i<=newdim;++i) stored[0][i] = i*(i+1)/2;
+	for(int dd=1; dd<=maxd-2; ++dd)
+		{
+		for(int i=maxn+1; i<=newdim;++i) stored[dd][i] =  stored[dd][i-1] + stored[dd-1][i];
+		}
+	maxn=newdim;
+	}
+
+if(d>maxd)
+	{
+	if(d>=SIMPLICIAL_MAXD) laerror("storage overflow in simplicial");
+	for(int dd=maxd+1; dd<=d; ++dd)
+		{
+		stored[dd-2][0]=0;
+		stored[dd-2][1]=1;
+		for(int i=2; i<=maxn; ++i) stored[dd-2][i] = stored[dd-3][i] + stored[dd-2][i-1];
+		}
+	maxd=d;
+	}
+
+return stored[d-2][n];
+}
+
+
 
 }//namespace

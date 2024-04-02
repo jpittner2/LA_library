@@ -28,6 +28,7 @@
 #include "simple.h"
 #include "graph.h"
 #include "numbers.h"
+#include "miscfunc.h"
 
 
 using namespace std;
@@ -3161,7 +3162,7 @@ cout <<a.rsum()<<endl;
 cout <<a.csum()<<endl;
 }
 
-if(1)
+if(0)
 {
 int n;
 cin>>n;
@@ -3173,6 +3174,13 @@ for(int l=1; l<k; ++l)
 	++count;
 
 cout <<count<<" "<<binom(n,4)<<endl;
+}
+
+if(1)
+{
+int d,n;
+cin>>d>>n;
+cout <<simplicial(d,n)<<" "<<binom(n+d-1,d)<<endl;
 }
 
 
