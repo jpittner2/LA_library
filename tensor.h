@@ -44,7 +44,7 @@ int sgn;
 public:
 	Signedpointer(T *p, int s) : ptr(p),sgn(s) {};
 	T& operator=(const T rhs) {if(sgn==0) return *ptr; if(sgn>0) *ptr=rhs; else *ptr = -rhs; return *ptr;}
-//@@@@@@operations on singedpointer as LHS of the non-const tensor.operator() expressions
+//@@@@@@operations like += etc. on singedpointer as LHS of the non-const tensor.operator() expressions
 };
 
 
@@ -96,16 +96,16 @@ public:
 	LA_largeindex getsize(); //set redundant data and return total size
 	LA_largeindex size() const {return data.size();};
 	void copyonwrite() {shape.copyonwrite(); data.copyonwrite();};
-        inline Signedpointer<T> operator[](const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
+        inline Signedpointer<T> lhs(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
 	inline T operator()(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
-        inline Signedpointer<T> operator[](const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
+        inline Signedpointer<T> lhs(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
         inline T operator()(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
-        //inline Signedpointer<T> operator[](int i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
-	//cannot have operator[] with variable number of argmuments
+        inline Signedpointer<T> lhs(int i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
         inline T operator()(int i1...) {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
-	//@@@do a 'set' operatiaon with va_arg instead
 
 	//NOTE: for sign==0 data[i]  can be undefined pointer, avoid dereferencing it
+	
+	inline Tensor& operator*=(const T &a) {data*=a; return *this;};
 
 	//@@@TODO - unwinding to full size in a specified index
 	//@@@TODO - contractions - basic and efficient

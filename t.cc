@@ -3202,7 +3202,18 @@ g.range=3;
 
 Tensor<double> epsilon(g);
 cout <<epsilon.size()<<endl;
-//cout <<epsilon(3,2,1)<<endl;
+
+NRVec<LA_index> I({1,2,3});
+NRVec<NRVec<LA_index> > II(I,1);
+epsilon.lhs(II)=1;
+II.copyonwrite();
+II[0][0]=3;
+II[0][1]=2;
+II[0][2]=1;
+
+epsilon *= 2.;
+
+cout <<epsilon(II)<<endl;
 
 }
 

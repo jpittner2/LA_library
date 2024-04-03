@@ -146,8 +146,16 @@ return r;
 }
 
 //@@@@todo flatindex
+template<typename T>
+LA_largeindex Tensor<T>::index(int *sign, const FLATINDEX &I) const
+{
+}
 
 //@@@@todo vindex
+template<typename T>
+LA_largeindex Tensor<T>::vindex(int *sign,  int i1, va_list args) const
+{
+}
 
 
 template class Tensor<double>;
