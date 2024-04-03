@@ -280,6 +280,119 @@ void myheapsort(INDEX n, DATA *ra,int typ=1)
 }
 
 
+//network up-sorting templates
+//more elegant would be a double template with N and partial specialization, but this is not allowed in current C++ for non-member functions
+//
+#define CONDSWAP(i,j) if(data[i]>data[j]) {T tmp=data[i]; data[i]=data[j]; data[j]=tmp; parity^=1;}
+
+template<typename T> 
+inline int netsort_0(T *data) {return 0;}
+
+template<typename T>
+inline int netsort_1(T *data) {return 0;}
+
+template<typename T>
+inline int netsort_2(T *data) 
+{
+int parity=0;
+		CONDSWAP(0,1);
+return parity;
+}
+
+template<typename T>
+inline int netsort_3(T *data) 
+{
+int parity=0;
+                CONDSWAP(0,2);
+                CONDSWAP(0,1);
+                CONDSWAP(1,2);
+return parity;
+}
+
+template<typename T>
+inline int netsort_4(T *data)
+{
+int parity=0;
+                CONDSWAP(0,2);
+                CONDSWAP(1,3);
+                CONDSWAP(0,1);
+                CONDSWAP(2,3);
+                CONDSWAP(1,2);
+return parity;
+}
+
+template<typename T>
+inline int netsort_5(T *data)
+{
+int parity=0;
+                CONDSWAP(0,3);
+                CONDSWAP(1,4);
+                CONDSWAP(0,2);
+                CONDSWAP(1,3);
+                CONDSWAP(0,1);
+                CONDSWAP(2,4);
+                CONDSWAP(1,2);
+                CONDSWAP(3,4);
+                CONDSWAP(2,3);
+return parity;
+}
+
+template<typename T>
+inline int netsort_6(T *data)
+{
+int parity=0;
+                CONDSWAP(0,5);
+                CONDSWAP(1,3);
+                CONDSWAP(2,4);
+                CONDSWAP(1,2);
+                CONDSWAP(3,4);
+                CONDSWAP(0,3);
+                CONDSWAP(2,5);
+                CONDSWAP(0,1);
+                CONDSWAP(2,3);
+                CONDSWAP(4,5);
+                CONDSWAP(1,2);
+                CONDSWAP(3,4);
+return parity;
+}
+
+#undef CONDSWAP
+
+
+template<typename T>
+int netsort(const int n, T *data)
+{
+if(n<0) laerror("negative n in netsort");
+switch(n)
+	{
+	case 0:
+	case 1:
+		return 0;
+		break;
+	case 2:
+		return netsort_2(data);
+		break;
+	case 3:
+		return netsort_3(data);
+		break;
+	case 4:
+		return netsort_4(data);
+		break;
+	case 5:
+		return netsort_5(data);
+		break;
+	case 6:
+		return netsort_6(data);
+		break;
+	default:
+		return ptrqsortup<T,int>(data,data+n-1);
+		break;
+	}
+return 0;
+}
+
+
+
 
 }//namespace
 #endif

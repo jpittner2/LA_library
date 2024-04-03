@@ -3176,12 +3176,19 @@ for(int l=1; l<k; ++l)
 cout <<count<<" "<<binom(n,4)<<endl;
 }
 
-if(1)
+if(0)
 {
 int d,n;
 cin>>d>>n;
 cout <<simplicial(d,n)<<" "<<binom(n+d-1,d)<<endl;
 }
 
+if(1)
+{
+NRVec<int> d({6,2,1,4,3,5});
+d.copyonwrite();
+netsort(d.size(),&d[0]);
+cout <<d;
+}
 
 }
