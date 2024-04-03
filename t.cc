@@ -3183,12 +3183,27 @@ cin>>d>>n;
 cout <<simplicial(d,n)<<" "<<binom(n+d-1,d)<<endl;
 }
 
-if(1)
+if(0)
 {
 NRVec<int> d({6,2,1,4,3,5});
 d.copyonwrite();
 netsort(d.size(),&d[0]);
 cout <<d;
+}
+
+
+if(1)
+{
+INDEXGROUP g;
+g.number=3;
+g.symmetry= -1;
+g.offset=1;
+g.range=3;
+
+Tensor<double> epsilon(g);
+cout <<epsilon.size()<<endl;
+//cout <<epsilon(3,2,1)<<endl;
+
 }
 
 }
