@@ -126,7 +126,7 @@ public:
 	inline int getcount() const {return count?*count:0;}
 
 	//! ensure that the data of this matrix are referenced exactly once
-	void copyonwrite(bool detachonly=false);
+	void copyonwrite(bool detachonly=false, bool deep=true);
 
 	//! permute matrix elements
         const NRMat permuted_rows(const NRPerm<int> &p, const bool inverse=false) const;
@@ -1107,12 +1107,20 @@ NRMat<T> & NRMat<T>::operator|=(const NRMat<T> &rhs) {
  * @see NRMat<T>::count, NRMat<T>::operator|=() 
  ******************************************************************************/
 template <typename T>
-void NRMat<T>::copyonwrite(bool detachonly) {
+void NRMat<T>::copyonwrite(bool detachonly, bool deep) {
 	if(!count) 
                 { 
                 if(nn||mm) laerror("nonempty matrix without reference count encountered");
                 if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty matrix\n";
                 return;
+                }
+
+        if(*count == 1 && !LA_traits<T>::is_plaindata() && !detachonly &&deep) //type-nested copyonwrite
+                {
+#ifdef CUDALA
+                if(location != cpu) laerror("nested types not supported on gpu memory");
+#endif
+		for(int i=0; i<nn*mm; ++i) LA_traits<T>::copyonwrite(v[i]);
                 }
 
 	if(*count > 1){

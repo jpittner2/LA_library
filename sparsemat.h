@@ -139,7 +139,7 @@ public:
 	void setunsymmetric();//unwind the matrix assuming it was indeed symmetric
 	inline bool issymmetric() const {return symmetric;}
 	unsigned int length() const;
-	void copyonwrite(bool detachonly=false);
+	void copyonwrite(bool detachonly=false, bool deep=true);
 	void clear() {copyonwrite(LA_traits<T>::is_plaindata()); if(count) {delete count; count=NULL;}}
 	void simplify(const double sparseepsilon=SPARSEEPSILON);
 	const T trace() const;

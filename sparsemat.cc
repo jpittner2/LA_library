@@ -143,7 +143,7 @@ while(l)
 }
 
 template <class T>
-void SparseMat<T>::copyonwrite(bool detachonly)
+void SparseMat<T>::copyonwrite(bool detachonly, bool deep)
 {
 	if(!count) 
                 { 
@@ -151,6 +151,18 @@ void SparseMat<T>::copyonwrite(bool detachonly)
                 if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty sparsemat\n";
                 return;
                 }
+
+        if(*count == 1 && !LA_traits<T>::is_plaindata() && !detachonly && deep) //type-nested copyonwrite
+                {
+		matel<T> *l =list;
+                while(l)
+                         {
+                         LA_traits<T>::copyonwrite(l->elem);
+                         l=l->next;
+                         }
+
+                }
+
 
         if(*count > 1)
                 {

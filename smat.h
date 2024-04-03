@@ -168,7 +168,7 @@ public:
 	void get(int fd, bool dimensions = 1, bool transp = 0);
         void put(int fd, bool dimensions = 1, bool transp = 0) const;
 
-	void copyonwrite(bool detachonly=false);
+	void copyonwrite(bool detachonly=false, bool deep=true);
 
 	void clear() {copyonwrite(LA_traits<T>::is_plaindata()); LA_traits<T>::clear(v,NN2);}; //zero out
 	void resize(const int n);
@@ -984,13 +984,21 @@ NRSMat<T> & NRSMat<T>::operator=(const NRSMat<T> & rhs) {
  * @see NRSMat<T>::operator|=, NRSMat<T>::copyonwrite()
  ******************************************************************************/
 template <typename T>
-void NRSMat<T>::copyonwrite(bool detachonly) {
+void NRSMat<T>::copyonwrite(bool detachonly, bool deep) {
 	if(!count) 
                 { 
                 if(nn) laerror("nonempty smat without reference count encountered");
                 if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty smat\n";
                 return;
                 }
+        if(*count == 1 && !LA_traits<T>::is_plaindata() && !detachonly && deep) //type-nested copyonwrite
+                {
+#ifdef CUDALA
+                if(location != cpu) laerror("nested types not supported on gpu memory");
+#endif
+                for(int i=0; i<NN2; ++i) LA_traits<T>::copyonwrite(v[i]);
+                }
+
 	if(*count > 1){
 		(*count)--;
 		count = new int;

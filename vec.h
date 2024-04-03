@@ -177,7 +177,7 @@ public:
 	#endif
 
 	//! create separate copy of the data corresponding to this vector 
-	void copyonwrite(bool detachonly=false);
+	void copyonwrite(bool detachonly=false, bool deep=true);
 
 	//! purge this vector 
 	void clear() { copyonwrite(LA_traits<T>::is_plaindata()); LA_traits<T>::clear(v, nn); };
@@ -1127,12 +1127,19 @@ NRVec<T>::~NRVec() {
  * make own copy of the underlying data connected with this vector
  ******************************************************************************/
 template <typename T>
-void NRVec<T>::copyonwrite(bool detachonly) {
+void NRVec<T>::copyonwrite(bool detachonly,bool deep) {
 	if(!count)
 		{
 		if(nn) laerror("nonempty vector without reference count encountered");
 		if(_LA_warn_empty_copyonwrite) std::cout <<"Warning: copyonwrite of empty vector\n";
 		return;
+		}
+	if(*count == 1 && !LA_traits<T>::is_plaindata() && !detachonly && deep) //type-nested copyonwrite
+		{
+#ifdef CUDALA
+                if(location != cpu) laerror("nested types not supported on gpu memory");
+#endif
+		for(int i=0; i<nn; ++i) LA_traits<T>::copyonwrite(v[i]);
 		}
 	if(*count > 1) {
 		(*count)--;
