@@ -158,6 +158,27 @@ LA_largeindex Tensor<T>::vindex(int *sign,  int i1, va_list args) const
 }
 
 
+//binary I/O
+
+template<typename T>
+void Tensor<T>::put(int fd) const
+{
+shape.put(fd,true);
+cumsizes.put(fd,true);
+data.put(fd,true);
+}
+
+template<typename T>
+void Tensor<T>::get(int fd)
+{
+shape.get(fd,true);
+cumsizes.get(fd,true);
+data.get(fd,true);
+}
+
+
+
+
 template class Tensor<double>;
 template class Tensor<std::complex<double> >;
 
