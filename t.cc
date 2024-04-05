@@ -3212,8 +3212,9 @@ II[0][1]=2;
 II[0][2]=1;
 
 epsilon *= 2.;
+epsilon.lhs(1,2,3) -= 1.;
 
-cout <<epsilon(II)<<endl;
+cout <<epsilon(1,2,3)<<" "<<epsilon(3,2,1)<<endl;
 
 }
 

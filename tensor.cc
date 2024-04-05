@@ -83,7 +83,7 @@ switch(I.size()) //a few special cases for efficiency
 		//compressed storage case
 		NRVec<LA_index> II(I);
 		II.copyonwrite();
-		II -= g.offset;
+		if(g.offset!=0) II -= g.offset;
 		int parity=netsort(II.size(),&II[0]);
 		if(g.symmetry<0 && (parity&1)) *sign= -1;
 		if(g.symmetry<0) //antisymmetric
@@ -137,7 +137,7 @@ for(int g=0; g<shape.size(); ++g) //loop over index groups
 	{
 	int gsign;
 	LA_largeindex groupindex =  subindex(&gsign,shape[g],I[g]);
-	std::cout <<"INDEX TEST group "<<g<<" cumsizes "<< cumsizes[g]<<" groupindex "<<groupindex<<std::endl;
+	//std::cout <<"INDEX TEST group "<<g<<" cumsizes "<< cumsizes[g]<<" groupindex "<<groupindex<<std::endl;
 	*sign *= gsign;
 	if(groupindex == -1) return -1;
 	r += groupindex * cumsizes[g];
@@ -145,16 +145,45 @@ for(int g=0; g<shape.size(); ++g) //loop over index groups
 return r;
 }
 
-//@@@@todo flatindex
+
 template<typename T>
 LA_largeindex Tensor<T>::index(int *sign, const FLATINDEX &I) const
 {
+#ifdef DEBUG
+if(rank()!=I.size()) laerror("tensor rank mismatch in index");
+#endif
+
+LA_largeindex r=0;
+*sign=1;
+int gstart=0;
+for(int g=0; g<shape.size(); ++g) //loop over index groups
+        {
+        int gsign;
+	int gend= gstart+shape[g].number-1;
+	NRVec<LA_index> subI = I.subvector(gstart,gend); 
+	gstart=gend+1;
+        LA_largeindex groupindex =  subindex(&gsign,shape[g],subI);
+        //std::cout <<"FLATINDEX TEST group "<<g<<" cumsizes "<< cumsizes[g]<<" groupindex "<<groupindex<<std::endl;
+        *sign *= gsign;
+        if(groupindex == -1) return -1;
+        r += groupindex * cumsizes[g];
+        }
+return r;
 }
 
-//@@@@todo vindex
+
 template<typename T>
-LA_largeindex Tensor<T>::vindex(int *sign,  int i1, va_list args) const
+LA_largeindex Tensor<T>::vindex(int *sign,  LA_index i1, va_list args) const
 {
+NRVec<LA_index> I(rank());
+I[0]=i1;
+for(int i=1; i<rank(); ++i)
+	{
+	I[i] = va_arg(args,LA_index);
+	}
+va_end(args);
+
+return index(sign,I);
 }
 
 
@@ -172,6 +201,7 @@ template<typename T>
 void Tensor<T>::get(int fd)
 {
 shape.get(fd,true);
+myrank=calcrank(); //is not stored but recomputed
 cumsizes.get(fd,true);
 data.get(fd,true);
 }

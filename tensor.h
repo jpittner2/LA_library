@@ -59,7 +59,11 @@ typedef class indexgroup {
 public:
 int number; //number of indices
 int symmetry; //-1 0 or 1
-LA_index offset; //indices start at
+#ifdef LA_TENSOR_ZERO_OFFSET
+static const LA_index offset = 0; //compiler can optimiza away some computations 
+#else
+LA_index offset; //indices start at a general offset
+#endif
 LA_index range;  //indices span this range
 } INDEXGROUP;
 
@@ -83,6 +87,7 @@ typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP stru
 
 template<typename T>
 class Tensor {
+	int myrank;
 	NRVec<indexgroup> shape;
 	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups (a function of shape but precomputed for efficiency)
 	NRVec<T> data;	
@@ -90,15 +95,17 @@ class Tensor {
 private:
 	LA_largeindex index(int *sign, const SUPERINDEX &I) const; //map the tensor indices to the position in data
 	LA_largeindex index(int *sign, const  FLATINDEX &I) const; //map the tensor indices to the position in data
-	LA_largeindex vindex(int *sign, int i1, va_list args) const; //map list of indices  to the position in data @@@must call va_end
+	LA_largeindex vindex(int *sign, LA_index i1, va_list args) const; //map list of indices  to the position in data
+//@@@reversed index
 
 public:
 	//constructors
-	Tensor() {};
-	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)getsize()) {data.clear();}; //general tensor
-	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(getsize()); data.clear();}; //tensor with a single index group
+	Tensor() : myrank(0) {};
+	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)getsize()), myrank(calcrank()) {data.clear();}; //general tensor
+	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(getsize()); myrank=calcrank(); data.clear();}; //tensor with a single index group
 
-	int getrank() const; //is computed from shape
+	int rank() const {return myrank;};
+	int calcrank(); //is computed from shape
 	LA_largeindex getsize(); //set redundant data and return total size
 	LA_largeindex size() const {return data.size();};
 	void copyonwrite() {shape.copyonwrite(); data.copyonwrite();};
@@ -106,8 +113,8 @@ public:
 	inline T operator()(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
         inline Signedpointer<T> lhs(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
         inline T operator()(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
-        inline Signedpointer<T> lhs(int i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
-        inline T operator()(int i1...) {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
+        inline Signedpointer<T> lhs(LA_index i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
+        inline T operator()(LA_index i1...) {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
 	
 	inline Tensor& operator*=(const T &a) {data*=a; return *this;};
 	inline Tensor& operator/=(const T &a) {data/=a; return *this;};
@@ -119,6 +126,7 @@ public:
 	//@@@TODO - contractions - basic and efficient
 	//@@@dodelat indexy
 	//@@@ dvojite rekurzivni loopover s callbackem - nebo iterator s funkci next???
+	//@@@nebo inverse index function?
 	//@@@ stream i/o na zaklade tohoto
 };
 
@@ -126,7 +134,7 @@ public:
 
 
 template<typename T>
-int Tensor<T>:: getrank() const
+int Tensor<T>:: calcrank() 
 {
 int r=0;
 for(int i=0; i<shape.size(); ++i)
