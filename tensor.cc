@@ -193,6 +193,7 @@ template<typename T>
 void Tensor<T>::put(int fd) const
 {
 shape.put(fd,true);
+groupsizes.put(fd,true);
 cumsizes.put(fd,true);
 data.put(fd,true);
 }
@@ -202,6 +203,7 @@ void Tensor<T>::get(int fd)
 {
 shape.get(fd,true);
 myrank=calcrank(); //is not stored but recomputed
+groupsizes.put(fd,true);
 cumsizes.get(fd,true);
 data.get(fd,true);
 }
