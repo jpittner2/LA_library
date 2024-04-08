@@ -36,6 +36,7 @@ extern double gamma(double x);
 extern double gammln(double x);
 extern double bernoulli_number(int n);
 extern unsigned long long simplicial(int d, int n); //simplicial numbers in a precomputed efficient way
+extern int inverse_simplicial(int d,  unsigned long long s);
 
 
 

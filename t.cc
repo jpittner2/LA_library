@@ -3176,11 +3176,14 @@ for(int l=1; l<k; ++l)
 cout <<count<<" "<<binom(n,4)<<endl;
 }
 
-if(0)
+if(1)
 {
 int d,n;
 cin>>d>>n;
-cout <<simplicial(d,n)<<" "<<binom(n+d-1,d)<<endl;
+unsigned long long s;
+s=simplicial(d,n);
+cout <<s<<" "<<binom(n+d-1,d)<<endl;
+cout <<inverse_simplicial(d,s)<<endl;
 }
 
 if(0)
@@ -3192,7 +3195,7 @@ cout <<d;
 }
 
 
-if(1)
+if(0)
 {
 INDEXGROUP g;
 g.number=3;

@@ -16,12 +16,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "miscfunc.h"
-#include "laerror.h"
 #include <iostream>
 #include <stdint.h>
 #include <math.h>
 
+#include "miscfunc.h"
+#include "laerror.h"
+#include "polynomial.h"
 
 namespace LA {
 
@@ -64,11 +65,11 @@ double logz,cor,nn,z;
 
 cor=0.0;
 z=n+1.0;
-logz=log(z);
+logz= std::log(z);
 if(z>=2.0) /*does not have sense for smaller anyway and could make troubles*/
         {
         int i,ii,m;
-        m=(int)ceil(0.5-log(EPS/10000.)/logz/2.0);
+        m=(int)std::ceil(0.5-std::log(EPS/10000.)/logz/2.0);
         if(m<2)m=2; if(m>16)m=16;
         nn=z*z;
         for(i=m;i>0;i--) {ii=2*i;cor = cor/nn + bernoulli_number(ii)/((double)ii*(ii-1));}
@@ -77,7 +78,7 @@ if(z>=2.0) /*does not have sense for smaller anyway and could make troubles*/
 
 /*0.5*ln(2*M_PI)=0.91893853320467275836*/
 return((z-0.5)*logz-z+0.918938533204672741780329736406+cor);
-/*cor=log((1.0/(24.0*n)+1.0)/(12.0*n)+1.0)*/
+/*cor=std::log((1.0/(24.0*n)+1.0)/(12.0*n)+1.0)*/
 }
 
 
@@ -125,14 +126,14 @@ if(n < 2) return(0.0);
 if(n <= LIMITFACT) /*supposed LIMITFACT > MAXFACT*/
         if(a[n]) return(a[n]); else
                 {
-                if(n<=MAXFACT) return(a[n]= log(factorial(n)));
+                if(n<=MAXFACT) return(a[n]= std::log(factorial(n)));
 
                 {
                 int j;
-                if(!a[top]) a[top]= log(factorial(top));
+                if(!a[top]) a[top]= std::log(factorial(top));
                 while (top<n) {
                         j=top++;
-                        a[top]=a[j]+log((double)top);
+                        a[top]=a[j]+std::log((double)top);
                         }
                 return a[n];
                 }
@@ -619,7 +620,7 @@ double hlp;
 if(x>0.96 && x<1.04 && x!=1.0) /*use laurent series -1 and 0 term and spline */
 	{
 	double l,e;
-	l= -log10(fabs(x-1.0));
+	l= -std::log10(std::fabs(x-1.0));
 	if(l>=6.5) std::cerr <<"Argument of zeta too near to the pole, result will be very imprecise!\n";
 	if(l>12.0) e=0.0;
 	else
@@ -630,7 +631,7 @@ if(x>0.96 && x<1.04 && x!=1.0) /*use laurent series -1 and 0 term and spline */
 	return(c_euler+e+1.0/(x-1.0));
 	}
 
-if(x==floor(x) && fabs(x)<=(((unsigned int) 1)<<(4*sizeof(int)-1)) )
+if(x==std::floor(x) && std::fabs(x)<=(((unsigned int) 1)<<(4*sizeof(int)-1)) )
 	{
 	int n;
 	n=(int)x;
@@ -642,7 +643,7 @@ if(x==floor(x) && fabs(x)<=(((unsigned int) 1)<<(4*sizeof(int)-1)) )
 		else return(0.0);
 		}
 	if(n==2||n==4||n==6||n==8) /*precalculated few bernoulli numbers */
-		return(fabs(bernoulli_number(n))*pow(2*M_PI,(double)n)/factorial(n)/2.0);
+		return(std::fabs(bernoulli_number(n))*pow(2*M_PI,(double)n)/factorial(n)/2.0);
 	/*otherwise continue like if general real argument*/
 	}
 if(x<-1.02 || (x>0.58 && x<1.94)) return (2.0*pow(2.0*M_PI,x-1.0)*sin(M_PI*x/2.0)*gamma(1.0-x)*zeta(1.0-x));
@@ -653,7 +654,7 @@ if(x>=9.1) /* in this region the summation per definition is best and quite exac
 	{
 	double s;
 	int i,n;
-	n=(int)ceil(pow(EPS/1000.0,-1.0/x));
+	n=(int)std::ceil(pow(EPS/1000.0,-1.0/x));
 	s=0.0;for(i=n;i>1;i--) s+= pow((double)i,-x);
 	return(1.0+s);
 	}
@@ -672,17 +673,17 @@ bool f;
 double p;
 
 if(x>MAXFACT) laerror("too big argument in gamma");
-f= (fabs(x-floor(x+0.5))<EPS);
+f= (std::fabs(x-std::floor(x+0.5))<EPS);
 if(x<=0.0 && f) laerror("nonpositive integer argument in gamma");
-if(f) return factorial(floor(x+0.5)-1);
+if(f) return factorial(std::floor(x+0.5)-1);
 
 if(x<8.0)
         {
         p=1.0;
         while(x<8.0) {p /= x; x += 1.0;}
-        return(p*exp(stirfact(x-1.0)));
+        return(p* std::exp(stirfact(x-1.0)));
         }
-return(exp(stirfact(x-1.0)));
+return( std::exp(stirfact(x-1.0)));
 }
 
 
@@ -697,14 +698,14 @@ double gammln(double x)
 {
 bool f;
  
-f= (fabs(x-floor(x+0.5))<EPS);
+f= (std::fabs(x-std::floor(x+0.5))<EPS);
 if(x<=0.0 && f) laerror("nonpositive integer argument in gamma");
-if(fabs(x-floor(x+0.5))<EPS) return factln(x-1.0);
+if(std::fabs(x-std::floor(x+0.5))<EPS) return factln(x-1.0);
 if(x<8.0)
         {
         double p;
         p=0.0;  
-        while(x<8.0) {p -= log(fabs(x)); x += 1.0;}
+        while(x<8.0) {p -= std::log(std::fabs(x)); x += 1.0;}
         return(p+stirfact(x-1.0));
         }
 return(stirfact(x-1.0));
@@ -759,7 +760,8 @@ return(bern[n]);
 
 
 //there is a closed form s(d,n) = binom(n+d-1,d)
-//but that would be inefficient
+//we could also pre-generate these polynomials for small d
+//but that would be inefficient, better is to buffer all values
 //we use recurrence s(d,n) = s(d,n-1) + s(d-1,n)
 //we cannot also use the above efficient binom() since here we need laerge n while d is small
 //
@@ -808,6 +810,42 @@ if(d>maxd)
 return stored[d-2][n];
 }
 
+
+
+int inverse_simplicial(int d,  unsigned long long s)
+{
+if(s==0) return 0;
+if(d==0 || s==1) return 1;
+if(d==1) return (int)s;
+if(d>=SIMPLICIAL_MAXD) laerror("storage overflow in inverse_simplicial");
+
+static int maxd=0;
+static Polynomial<double> polynomials[SIMPLICIAL_MAXD];
+static Polynomial<double> polynomials_der[SIMPLICIAL_MAXD];
+for(int i=maxd+1; i<=d; ++i) //generate as needed
+	{
+	NRVec<double> roots(i);
+	for(int j=0; j<i;++j) roots[j] = -j;
+	polynomials[i-1] = polyfromroots(roots) * (1./factorial(i));
+	polynomials_der[i-1] = polynomials[i-1].derivative(1);
+	maxd=i;
+	}
+
+//solve polynomial equation by newton
+double x=std::pow(factorial(d)*(double)s,1./d); //good init guess
+double dx;
+do 
+	{
+	double residual = value(polynomials[d-1],x)-s;
+	dx = residual/value(polynomials_der[d-1],x);
+	x -= dx;
+	}
+while(std::fabs(dx)>.5); //so usually 2 iterations are enough
+return std::floor(x);
+}
+
+#undef SIMPLICIAL_MAXD
+#undef SIMPLICIAL_MAXN
 
 
 }//namespace
