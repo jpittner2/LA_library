@@ -3180,10 +3180,15 @@ if(1)
 {
 int d,n;
 cin>>d>>n;
-unsigned long long s;
-s=simplicial(d,n);
-cout <<s<<" "<<binom(n+d-1,d)<<endl;
-cout <<inverse_simplicial(d,s)<<endl;
+unsigned long long s1;
+s1=simplicial(d,n);
+cout <<s1<<" "<<binom(n+d-1,d)<<endl;
+unsigned long long s2 = simplicial(d,n+1);
+for(unsigned long long  s=s1; s<s2; ++s) 
+	{
+	int i=inverse_simplicial(d,s);
+	if(i!=n) cout <<"Error "<<s<<" " <<i<<endl;
+	}
 }
 
 if(0)

@@ -811,7 +811,7 @@ return stored[d-2][n];
 }
 
 
-
+//find largest n such that simplicial(d,n)<=s
 int inverse_simplicial(int d,  unsigned long long s)
 {
 if(s==0) return 0;
@@ -841,7 +841,9 @@ do
 	x -= dx;
 	}
 while(std::fabs(dx)>.5); //so usually 2 iterations are enough
-return std::floor(x);
+int n=  std::floor(x);
+while(simplicial(d,n)>s) --n;
+return n;
 }
 
 #undef SIMPLICIAL_MAXD
