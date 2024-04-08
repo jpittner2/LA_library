@@ -109,6 +109,60 @@ return -1;
 }
 
 
+//inverse map of group superindex to canonically ordered index list
+NRVec<LA_index>  inverse_subindex(const INDEXGROUP &g, LA_largeindex s)
+{
+NRVec<LA_index> I(g.number);
+if(g.number==1) {I[0]=s+g.offset; return I;}
+switch(g.symmetry)
+	{
+	case 0:
+		for(int i=0; i<g.number; ++i)
+			{
+			I[i] = s%g.range;
+			s /= g.range;
+			}
+		break;
+	case 1:
+		for(int i=g.number; i>0; --i)
+			{
+			I[i-1] = inverse_simplicial(i,s);
+			s -= simplicial(i,I[i-1]);
+			}
+		break;
+	case -1:
+		for(int i=g.number-1; i>=0; --i)
+                        {
+                        I[i] = i + inverse_simplicial(i+1,s);
+                        s -= simplicial(i+1,I[i]-i);
+                        }
+		break;
+	default: laerror("illegal index symmetry");
+	}
+
+if(g.offset!=0) I += g.offset;
+return I;
+}
+
+
+template<typename T>
+SUPERINDEX Tensor<T>::inverse_index(LA_largeindex s) const
+{
+SUPERINDEX I(shape.size());
+for(int g=shape.size()-1; g>=0; --g)
+	{
+	LA_largeindex groupindex;
+	if(g>0) 
+		{
+		groupindex = s/cumsizes[g];
+		s %= cumsizes[g];
+		}
+	else groupindex=s;
+	I[g] = inverse_subindex(shape[g],groupindex);
+	}
+return I;
+}
+
 
 
 template<typename T>

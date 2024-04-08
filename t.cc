@@ -3176,7 +3176,7 @@ for(int l=1; l<k; ++l)
 cout <<count<<" "<<binom(n,4)<<endl;
 }
 
-if(1)
+if(0)
 {
 int d,n;
 cin>>d>>n;
@@ -3200,16 +3200,29 @@ cout <<d;
 }
 
 
-if(0)
+if(1)
 {
 INDEXGROUP g;
 g.number=3;
 g.symmetry= -1;
 g.offset=1;
-g.range=3;
+g.range=10;
 
 Tensor<double> epsilon(g);
 cout <<epsilon.size()<<endl;
+
+for(LA_largeindex s=0; s<epsilon.size(); ++s)
+	{
+	SUPERINDEX I = epsilon.inverse_index(s);
+	int sign;
+	LA_largeindex ss=epsilon.index(&sign,I);
+	if(ss!=s || sign!=1) 
+		{
+		cout <<"offset = "<<s<<endl;
+		cout <<"index = "<<I<<endl;
+		laerror("Internal error in tensor index calculation");	
+		}
+	}
 
 NRVec<LA_index> I({1,2,3});
 NRVec<NRVec<LA_index> > II(I,1);

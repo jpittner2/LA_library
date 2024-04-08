@@ -93,13 +93,12 @@ class Tensor {
 	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups (a function of shape but precomputed for efficiency)
 	NRVec<T> data;	
 
-private:
+public:
 	LA_largeindex index(int *sign, const SUPERINDEX &I) const; //map the tensor indices to the position in data
 	LA_largeindex index(int *sign, const  FLATINDEX &I) const; //map the tensor indices to the position in data
 	LA_largeindex vindex(int *sign, LA_index i1, va_list args) const; //map list of indices  to the position in data
-//@@@reversed index
+	SUPERINDEX inverse_index(LA_largeindex s) const; //inefficient, but possible if needed
 
-public:
 	//constructors
 	Tensor() : myrank(0) {};
 	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)calcsize()), myrank(calcrank()) {}; //general tensor
@@ -130,13 +129,16 @@ public:
 	void get(int fd);
 
 	//@@@TODO - unwinding to full size in a specified index
+	//@@@contraction by a whole index group
 	//@@@TODO - contractions - basic and efficient? first contraction in a single index; between a given group+index in group at each tensor
 	//@@@ dvojite rekurzivni loopover s callbackem - nebo iterator s funkci next???
-	//@@@nebo inverse index function?
 	//@@@ stream i/o na zaklade tohoto
 	//@@@permuteindexgroups
-	//@@@symmetreize a group, antisymmetrize a group, expand a (anti)symmetric grtoup
+	//@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric grtoup - obecne symmetry change krome +1 na -1 vse mozne
+	//@@@outer product
+	//@@@explicit constructors from vec mat smat and dense fourindex
 	//@@@@@@+= -= + - on same shape
+	//@@@@@@ randomize
 };
 
 
