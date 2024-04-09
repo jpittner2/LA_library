@@ -65,6 +65,9 @@ static const LA_index offset = 0; //compiler can optimiza away some computations
 LA_index offset; //indices start at a general offset
 #endif
 LA_index range;  //indices span this range
+
+	bool operator==(const indexgroup &rhs) const {return number==rhs.number && symmetry==rhs.symmetry && offset==rhs.offset && range==rhs.range;};
+	inline bool operator!=(const indexgroup &rhs) const {return !((*this)==rhs);};
 } INDEXGROUP;
 
 template<>
@@ -73,6 +76,7 @@ class LA_traits<indexgroup> {
 	static bool is_plaindata() {return true;};
 	static void copyonwrite(indexgroup& x) {};
 	typedef INDEXGROUP normtype;
+	static inline int gencmp(const indexgroup *a, const indexgroup *b, int n) {return memcmp(a,b,n*sizeof(indexgroup));};
         static inline void put(int fd, const indexgroup &x, bool dimensions=1) {if(sizeof(indexgroup)!=write(fd,&x,sizeof(indexgroup))) laerror("write error 1 in indexgroup put"); }
         static inline void multiput(int nn, int fd, const indexgroup *x, bool dimensions=1) {if(nn*sizeof(indexgroup)!=write(fd,x,nn*sizeof(indexgroup))) laerror("write error 1 in indexgroup multiiput"); }
         static inline void get(int fd, indexgroup &x, bool dimensions=1) {if(sizeof(indexgroup)!=read(fd,&x,sizeof(indexgroup))) laerror("read error 1 in indexgroup get");}
@@ -104,13 +108,14 @@ public:
 	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)calcsize()), myrank(calcrank()) {}; //general tensor
 	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); myrank=calcrank();}; //tensor with a single index group
 	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data) {};
+	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
 
 	void clear() {data.clear();};
 	int rank() const {return myrank;};
 	int calcrank(); //is computed from shape
 	LA_largeindex calcsize(); //set redundant data and return total size
 	LA_largeindex size() const {return data.size();};
-	void copyonwrite() {shape.copyonwrite(); data.copyonwrite();};
+	void copyonwrite() {shape.copyonwrite(); groupsizes.copyonwrite(); cumsizes.copyonwrite(); data.copyonwrite();};
         inline Signedpointer<T> lhs(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
 	inline T operator()(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
         inline Signedpointer<T> lhs(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
@@ -125,68 +130,32 @@ public:
 	inline Tensor& operator/=(const T &a) {data/=a; return *this;};
 	inline Tensor operator/(const T &a) const {Tensor r(*this); r /=a; return r;};
 
+
+	inline Tensor& operator+=(const Tensor &rhs) {if(shape!=rhs.shape) laerror("incompatible tensors for operation"); data+=rhs.data; return *this;}
+	inline Tensor& operator-=(const Tensor &rhs) {if(shape!=rhs.shape) laerror("incompatible tensors for operation"); data-=rhs.data; return *this;}
+	inline Tensor operator+(const Tensor &rhs) const {Tensor r(*this); r+=rhs; return r;};
+	inline Tensor operator-(const Tensor &rhs) const {Tensor r(*this); r-=rhs; return r;};
+
+	Tensor operator-() const {return Tensor(myrank,shape,groupsizes,cumsizes,-data);}; //unary-
+
 	void put(int fd) const;
 	void get(int fd);
 
+	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x);};
+
 	//@@@TODO - unwinding to full size in a specified index
-	//@@@contraction by a whole index group
+	//@@@contraction by a whole index group or by individual single index
 	//@@@TODO - contractions - basic and efficient? first contraction in a single index; between a given group+index in group at each tensor
-	//@@@ dvojite rekurzivni loopover s callbackem - nebo iterator s funkci next???
-	//@@@ stream i/o na zaklade tohoto
-	//@@@permuteindexgroups
 	//@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric grtoup - obecne symmetry change krome +1 na -1 vse mozne
-	//@@@outer product
-	//@@@explicit constructors from vec mat smat and dense fourindex
-	//@@@@@@+= -= + - on same shape
-	//@@@@@@ randomize
+	//@@@outer product and product with a contraction
+	//@@@@permuteindexgroups
+	//@@@@@@explicit constructors from vec mat smat and dense fourindex
+	//@@@@@@ dvojite rekurzivni loopover s callbackem - nebo iterator s funkci next???
+	//@@@@@@ stream i/o na zaklade tohoto
 };
 
 
 
-
-template<typename T>
-int Tensor<T>:: calcrank() 
-{
-int r=0;
-for(int i=0; i<shape.size(); ++i)
-        {
-	if(shape[i].number==0) laerror("empty index group");
-	r+=shape[i].number;
-	}
-return r;
-}
-
-
-
-template<typename T>
-LA_largeindex Tensor<T>::calcsize()
-{
-groupsizes.resize(shape.size());
-cumsizes.resize(shape.size());
-LA_largeindex s=1;
-for(int i=0; i<shape.size(); ++i)
-	{
-	if(shape[i].number==0) laerror("empty index group");
-	if(shape[i].range==0) return 0;
-	cumsizes[i]=s;
-	switch(shape[i].symmetry) 
-		{
-		case 0:
-			s *= groupsizes[i] = longpow(shape[i].range,shape[i].number);
-			break;
-		case 1:
-			s *= groupsizes[i] = simplicial(shape[i].number,shape[i].range);
-			break;
-		case -1:
-			s *= groupsizes[i] = simplicial(shape[i].number,shape[i].range-shape[i].number+1);
-			break;
-		default: 
-			laerror("illegal index group symmetry");
-			break;
-		}
-	}
-return s;
-}
 
 
 

@@ -26,6 +26,53 @@
 
 namespace LA {
 
+template<typename T>
+int Tensor<T>:: calcrank()  
+{
+int r=0;
+for(int i=0; i<shape.size(); ++i)
+        {
+        if(shape[i].number==0) laerror("empty index group");
+        r+=shape[i].number;
+        }
+return r;
+}
+
+
+
+template<typename T>
+LA_largeindex Tensor<T>::calcsize()
+{
+groupsizes.resize(shape.size()); 
+cumsizes.resize(shape.size());
+LA_largeindex s=1;
+for(int i=0; i<shape.size(); ++i)
+        {
+        if(shape[i].number==0) laerror("empty index group");
+        if(shape[i].range==0) return 0;
+        cumsizes[i]=s;
+        switch(shape[i].symmetry)
+                {
+                case 0:
+                        s *= groupsizes[i] = longpow(shape[i].range,shape[i].number);
+                        break;
+                case 1:
+                        s *= groupsizes[i] = simplicial(shape[i].number,shape[i].range);
+                        break;
+                case -1:
+                        s *= groupsizes[i] = simplicial(shape[i].number,shape[i].range-shape[i].number+1);
+                        break;
+                default: 
+                        laerror("illegal index group symmetry");
+                        break;
+                }
+        }
+return s;
+}
+
+
+
+
 LA_largeindex subindex(int *sign, const INDEXGROUP &g, const NRVec<LA_index> &I) //index of one subgroup 
 {
 #ifdef DEBUG
