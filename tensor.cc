@@ -35,6 +35,7 @@ for(int i=0; i<shape.size(); ++i)
         if(shape[i].number==0) laerror("empty index group");
         r+=shape[i].number;
         }
+myrank=r;
 return r;
 }
 
@@ -310,10 +311,188 @@ data.get(fd,true);
 }
 
 
+template<typename T>
+Tensor<T>::Tensor(const NRVec<T> &x)
+: data(x)
+{
+myrank=1;
+shape.resize(1);
+shape[0].number=1;
+shape[0].symmetry=0;
+#ifndef LA_TENSOR_ZERO_OFFSET
+shape[0].offset=0;
+#endif
+shape[0].range=x.size();
+calcsize();
+}
+
+template<typename T>
+Tensor<T>::Tensor(const NRMat<T> &x)
+: data(&x(0,0),x.nrows()*x.ncols())
+{
+myrank=2;
+if(x.nrows()==x.ncols())
+	{
+	shape.resize(1);
+	shape[0].number=2;
+	shape[0].symmetry=0;
+#ifndef LA_TENSOR_ZERO_OFFSET
+	shape[0].offset=0;
+#endif
+	shape[0].range=x.nrows();
+	}
+else
+	{
+	shape.resize(2);
+	shape[0].number=1; shape[1].number=1;
+	shape[0].symmetry=0; shape[1].symmetry=0;
+#ifndef LA_TENSOR_ZERO_OFFSET
+        shape[0].offset=0; shape[1].offset=0;
+#endif
+	shape[0].range=x.ncols();
+	shape[1].range=x.nrows();
+	}
+calcsize();
+}
+
+
+template<typename T>
+Tensor<T>::Tensor(const NRSMat<T> &x)
+: data(NRVec<T>(x))
+{
+myrank=2;
+shape.resize(1);
+shape[0].number=2;
+shape[0].symmetry=1;
+#ifndef LA_TENSOR_ZERO_OFFSET
+        shape[0].offset=0;
+#endif
+shape[0].range=x.nrows();
+calcsize();
+}
+
+
+template<typename T>
+void loopingroups(Tensor<T> &t, int ngroup, int igroup, T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, T *))
+{
+LA_index istart,iend;
+switch(t.shape[ngroup].symmetry)
+	{
+	case 0:
+		istart= t.shape[ngroup].offset;
+		iend=   t.shape[ngroup].offset+t.shape[ngroup].range-1;
+		break;
+	case 1:
+		istart= t.shape[ngroup].offset;
+		if(igroup==t.shape[ngroup].number-1) iend=   t.shape[ngroup].offset+t.shape[ngroup].range-1;
+		else iend = I[ngroup][igroup+1];
+		break;
+	case -1:
+		istart= t.shape[ngroup].offset + igroup;
+		if(igroup==t.shape[ngroup].number-1) iend=   t.shape[ngroup].offset+t.shape[ngroup].range-1;
+                else iend = I[ngroup][igroup+1]-1;
+		break;
+	}
+
+for(LA_index i = istart; i<=iend; ++i)
+	{
+	I[ngroup][igroup]=i;
+	if(ngroup==0 && igroup==0) 
+		{
+		int sign;
+		//std::cout <<"TEST  "<<t.index(&sign,I)<<" ";
+		(*callback)(I,(*p)++);
+		}
+	else 
+		{
+		int newigroup= igroup-1;
+		int newngroup=ngroup;
+		if(newigroup<0)
+			{
+			--newngroup;
+			newigroup=t.shape[newngroup].number-1;
+			}
+		loopingroups(t,newngroup,newigroup,p,I,callback);
+		}
+	}
+}
+
+
+template<typename T>
+void Tensor<T>::loopover(void (*callback)(const SUPERINDEX &, T *))
+{
+SUPERINDEX I(shape.size());
+for(int i=0; i<I.size(); ++i) {I[i].resize(shape[i].number); I[i] = shape[i].offset;}
+T *pp=&data[0];
+loopingroups(*this,shape.size()-1,shape[shape.size()-1].number-1,&pp,I,callback);
+}
+
+
+static std::ostream *sout;
+template<typename T>
+static void outputcallback(const SUPERINDEX &I, T *v)
+{
+//print indices flat
+for(int i=0; i<I.size(); ++i)
+	for(int j=0; j<I[i].size(); ++j) *sout << I[i][j]<<" ";
+*sout<<" "<< *v<<std::endl;
+}
+
+
+std::ostream & operator<<(std::ostream &s, const INDEXGROUP &x)
+{
+s<<x.number <<" "<<x.symmetry<<" ";
+#ifndef LA_TENSOR_ZERO_OFFSET
+s<<x.offset<<" ";
+#endif
+s<< x.range<<std::endl;
+return s;
+}
+
+std::istream & operator>>(std::istream &s, INDEXGROUP &x)
+{
+s>>x.number>>x.symmetry;
+#ifndef LA_TENSOR_ZERO_OFFSET
+s>>x.offset;
+#endif
+s>>x.range;
+return s;
+}
+
+
+
+template<typename T>
+std::ostream & operator<<(std::ostream &s, const Tensor<T> &x)
+{
+s<<x.shape;
+sout= &s;
+const_cast<Tensor<T> *>(&x)->loopover(&outputcallback<T>);
+return s;
+}
+
+template <typename T>
+std::istream & operator>>(std::istream &s, Tensor<T> &x)
+{
+s>>x.shape;
+x.data.resize(x.calcsize()); x.calcrank();
+FLATINDEX I(x.rank());
+for(LA_largeindex i=0; i<x.data.size(); ++i)
+	{
+	for(int j=0; j<I.size(); ++j) s>>I[j];
+	T val; s>>val;
+	x.lhs(I) = val;
+	}
+return s;
+}
+
 
 
 template class Tensor<double>;
 template class Tensor<std::complex<double> >;
+template std::ostream & operator<<(std::ostream &s, const Tensor<double> &x);
+template std::ostream & operator<<(std::ostream &s, const Tensor<std::complex<double> > &x);
+template std::istream & operator>>(std::istream &s, Tensor<double> &x);
+template std::istream & operator>>(std::istream &s, Tensor<std::complex<double> > &x);
 
 
 }//namespace

@@ -19,6 +19,8 @@
 
 //a simple tensor class with arbitrary symmetry of index subgroups
 //stored in an efficient way
+//each index group has a specific symmetry (nosym,sym,antisym)
+//additional symmetry between index groups (like in 2-electron integrals) is not supported directly, you would need to nest the class to Tensor<Tensor<T> >
 //presently only a rudimentary implementation
 //presently limited to 2G data size due to NRVec - maybe use a typedef LA_index 
 //to uint64_t in the future in vector and matrix classes
@@ -30,6 +32,8 @@
 #include <stdint.h>
 #include <cstdarg>
 #include "vec.h"
+#include "mat.h"
+#include "smat.h"
 #include "miscfunc.h"
 
 
@@ -70,6 +74,12 @@ LA_index range;  //indices span this range
 	inline bool operator!=(const indexgroup &rhs) const {return !((*this)==rhs);};
 } INDEXGROUP;
 
+
+std::ostream & operator<<(std::ostream &s, const INDEXGROUP &x);
+std::istream & operator>>(std::istream &s, INDEXGROUP &x);
+
+
+
 template<>
 class LA_traits<indexgroup> {
 	public:
@@ -91,11 +101,13 @@ typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP stru
 
 template<typename T>
 class Tensor {
-	int myrank;
+public:
 	NRVec<indexgroup> shape;
+	NRVec<T> data;	
+private:
+	int myrank;
 	NRVec<LA_largeindex> groupsizes; //group sizes of symmetry index groups (a function of shape but precomputed for efficiency)
 	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups (a function of shape but precomputed for efficiency)
-	NRVec<T> data;	
 
 public:
 	LA_largeindex index(int *sign, const SUPERINDEX &I) const; //map the tensor indices to the position in data
@@ -105,10 +117,13 @@ public:
 
 	//constructors
 	Tensor() : myrank(0) {};
-	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)calcsize()), myrank(calcrank()) {}; //general tensor
-	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); myrank=calcrank();}; //tensor with a single index group
+	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)calcsize()) {calcrank();}; //general tensor
+	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank();}; //tensor with a single index group
 	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data) {};
 	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
+	explicit Tensor(const NRVec<T> &x);
+	explicit Tensor(const NRMat<T> &x);
+	explicit Tensor(const NRSMat<T> &x);
 
 	void clear() {data.clear();};
 	int rank() const {return myrank;};
@@ -131,8 +146,23 @@ public:
 	inline Tensor operator/(const T &a) const {Tensor r(*this); r /=a; return r;};
 
 
-	inline Tensor& operator+=(const Tensor &rhs) {if(shape!=rhs.shape) laerror("incompatible tensors for operation"); data+=rhs.data; return *this;}
-	inline Tensor& operator-=(const Tensor &rhs) {if(shape!=rhs.shape) laerror("incompatible tensors for operation"); data-=rhs.data; return *this;}
+	inline Tensor& operator+=(const Tensor &rhs) 
+		{
+#ifdef DEBUG
+		if(shape!=rhs.shape) laerror("incompatible tensors for operation"); 
+#endif
+		data+=rhs.data; 
+		return *this;
+		}
+
+        inline Tensor& operator-=(const Tensor &rhs) 
+                {
+#ifdef DEBUG
+                if(shape!=rhs.shape) laerror("incompatible tensors for operation"); 
+#endif
+                data-=rhs.data; 
+                return *this;
+                }
 	inline Tensor operator+(const Tensor &rhs) const {Tensor r(*this); r+=rhs; return r;};
 	inline Tensor operator-(const Tensor &rhs) const {Tensor r(*this); r-=rhs; return r;};
 
@@ -143,17 +173,23 @@ public:
 
 	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x);};
 
+	void loopover(void (*callback)(const SUPERINDEX &, T *));
+
 	//@@@TODO - unwinding to full size in a specified index
 	//@@@contraction by a whole index group or by individual single index
 	//@@@TODO - contractions - basic and efficient? first contraction in a single index; between a given group+index in group at each tensor
-	//@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric grtoup - obecne symmetry change krome +1 na -1 vse mozne
 	//@@@outer product and product with a contraction
-	//@@@@permuteindexgroups
-	//@@@@@@explicit constructors from vec mat smat and dense fourindex
-	//@@@@@@ dvojite rekurzivni loopover s callbackem - nebo iterator s funkci next???
-	//@@@@@@ stream i/o na zaklade tohoto
+	//@@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric grtoup - obecne symmetry change krome +1 na -1 vse mozne
+	//@@@@@@permute index groups
 };
 
+
+
+template <typename T>
+std::ostream & operator<<(std::ostream &s, const Tensor<T> &x);
+
+template <typename T>
+std::istream & operator>>(std::istream &s, Tensor<T> &x);
 
 
 

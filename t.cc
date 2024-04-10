@@ -3206,9 +3206,10 @@ INDEXGROUP g;
 g.number=3;
 g.symmetry= -1;
 g.offset=1;
-g.range=10;
+g.range=5;
 
 Tensor<double> epsilon(g);
+epsilon.clear();
 cout <<epsilon.size()<<endl;
 
 for(LA_largeindex s=0; s<epsilon.size(); ++s)
@@ -3237,6 +3238,9 @@ epsilon.lhs(1,2,3) -= 1.;
 
 cout <<epsilon(1,2,3)<<" "<<epsilon(3,2,1)<<endl;
 
+for(int i=0; i<epsilon.data.size(); ++i) epsilon.data[i]=10*i;
+cout <<epsilon.data;
+cout <<epsilon;
 }
 
 }
