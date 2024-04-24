@@ -97,6 +97,7 @@ class LA_traits<indexgroup> {
 
 typedef NRVec<LA_index> FLATINDEX; //all indices but in a single vector
 typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP structure
+typedef NRVec<LA_largeindex> GROUPINDEX; //set of indices in the symmetry groups
 
 
 template<typename T>
@@ -104,10 +105,9 @@ class Tensor {
 public:
 	NRVec<indexgroup> shape;
 	NRVec<T> data;	
-private:
 	int myrank;
 	NRVec<LA_largeindex> groupsizes; //group sizes of symmetry index groups (a function of shape but precomputed for efficiency)
-	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups (a function of shape but precomputed for efficiency)
+	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups (a function of shape but precomputed for efficiency); always cumsizes[0]=1, index group 0 is the innermost-loop one
 
 public:
 	LA_largeindex index(int *sign, const SUPERINDEX &I) const; //map the tensor indices to the position in data
@@ -117,7 +117,7 @@ public:
 
 	//constructors
 	Tensor() : myrank(0) {};
-	Tensor(const NRVec<indexgroup> &s) : shape(s), data((int)calcsize()) {calcrank();}; //general tensor
+	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank();}; //general tensor
 	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank();}; //tensor with a single index group
 	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data) {};
 	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
@@ -173,14 +173,17 @@ public:
 
 	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x);};
 
-	void loopover(void (*callback)(const SUPERINDEX &, T *));
+	void loopover(void (*callback)(const SUPERINDEX &, T *)); //loop over all elements
+	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
+
+	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
 
 	//@@@TODO - unwinding to full size in a specified index
 	//@@@contraction by a whole index group or by individual single index
+	//@@@ general antisymmetrization operator Kucharski style
 	//@@@TODO - contractions - basic and efficient? first contraction in a single index; between a given group+index in group at each tensor
 	//@@@outer product and product with a contraction
 	//@@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric grtoup - obecne symmetry change krome +1 na -1 vse mozne
-	//@@@@@@permute index groups
 };
 
 

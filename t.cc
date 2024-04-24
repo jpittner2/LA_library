@@ -3200,7 +3200,7 @@ cout <<d;
 }
 
 
-if(1)
+if(0)
 {
 INDEXGROUP g;
 g.number=3;
@@ -3242,5 +3242,33 @@ for(int i=0; i<epsilon.data.size(); ++i) epsilon.data[i]=10*i;
 cout <<epsilon.data;
 cout <<epsilon;
 }
+
+if(1)
+{
+int n=3;
+NRVec<INDEXGROUP> s(4);
+for(int i=0; i<4; ++i) 
+	{
+	s[i].number=1;
+	s[i].symmetry=0;
+	s[i].offset=0;
+	s[i].range=n;
+	}
+Tensor<double> t(s);
+t.randomize(1.);
+cout <<t;
+NRPerm<int> p({3,1,4,2});
+Tensor<double> tt=t.permute_index_groups(p);
+cout <<tt;
+for(int i=0; i<n; ++i)
+	for(int j=0; j<n; ++j)
+		for(int k=0; k<n; ++k)
+			for(int l=0; l<n; ++l)
+				{
+				if(t(i,j,k,l)!=tt(k,i,l,j)) laerror("error in permute_index_groups");
+				}
+}
+
+
 
 }

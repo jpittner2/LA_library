@@ -27,13 +27,14 @@
 namespace LA {
 
 template<typename T>
-int Tensor<T>:: calcrank()  
+int Tensor<T>:: calcrank()
 {
 int r=0;
 for(int i=0; i<shape.size(); ++i)
         {
-        if(shape[i].number==0) laerror("empty index group");
-        r+=shape[i].number;
+	const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[i];
+        if(sh->number==0) laerror("empty index group");
+        r+=sh->number;
         }
 myrank=r;
 return r;
@@ -49,19 +50,20 @@ cumsizes.resize(shape.size());
 LA_largeindex s=1;
 for(int i=0; i<shape.size(); ++i)
         {
-        if(shape[i].number==0) laerror("empty index group");
-        if(shape[i].range==0) return 0;
+	const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[i];
+        if(sh->number==0) laerror("empty index group");
+        if(sh->range==0) return 0;
         cumsizes[i]=s;
-        switch(shape[i].symmetry)
+        switch(sh->symmetry)
                 {
                 case 0:
-                        s *= groupsizes[i] = longpow(shape[i].range,shape[i].number);
+                        s *= groupsizes[i] = longpow(sh->range,sh->number);
                         break;
                 case 1:
-                        s *= groupsizes[i] = simplicial(shape[i].number,shape[i].range);
+                        s *= groupsizes[i] = simplicial(sh->number,sh->range);
                         break;
                 case -1:
-                        s *= groupsizes[i] = simplicial(shape[i].number,shape[i].range-shape[i].number+1);
+                        s *= groupsizes[i] = simplicial(sh->number,sh->range-sh->number+1);
                         break;
                 default: 
                         laerror("illegal index group symmetry");
@@ -376,20 +378,21 @@ template<typename T>
 void loopingroups(Tensor<T> &t, int ngroup, int igroup, T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, T *))
 {
 LA_index istart,iend;
-switch(t.shape[ngroup].symmetry)
+const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&t.shape))[ngroup];
+switch(sh->symmetry)
 	{
 	case 0:
-		istart= t.shape[ngroup].offset;
-		iend=   t.shape[ngroup].offset+t.shape[ngroup].range-1;
+		istart= sh->offset;
+		iend=   sh->offset+sh->range-1;
 		break;
 	case 1:
-		istart= t.shape[ngroup].offset;
-		if(igroup==t.shape[ngroup].number-1) iend=   t.shape[ngroup].offset+t.shape[ngroup].range-1;
+		istart= sh->offset;
+		if(igroup==sh->number-1) iend=   sh->offset+sh->range-1;
 		else iend = I[ngroup][igroup+1];
 		break;
 	case -1:
-		istart= t.shape[ngroup].offset + igroup;
-		if(igroup==t.shape[ngroup].number-1) iend=   t.shape[ngroup].offset+t.shape[ngroup].range-1;
+		istart= sh->offset + igroup;
+		if(igroup==sh->number-1) iend=   sh->offset+sh->range-1;
                 else iend = I[ngroup][igroup+1]-1;
 		break;
 	}
@@ -410,7 +413,8 @@ for(LA_index i = istart; i<=iend; ++i)
 		if(newigroup<0)
 			{
 			--newngroup;
-			newigroup=t.shape[newngroup].number-1;
+			const indexgroup *sh2 = &(* const_cast<const NRVec<indexgroup> *>(&t.shape))[newngroup];
+			newigroup=sh2->number-1;
 			}
 		loopingroups(t,newngroup,newigroup,p,I,callback);
 		}
@@ -422,9 +426,16 @@ template<typename T>
 void Tensor<T>::loopover(void (*callback)(const SUPERINDEX &, T *))
 {
 SUPERINDEX I(shape.size());
-for(int i=0; i<I.size(); ++i) {I[i].resize(shape[i].number); I[i] = shape[i].offset;}
+for(int i=0; i<I.size(); ++i)
+	{
+	const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[i];
+	I[i].resize(sh->number); 
+	I[i] = sh->offset;
+	}
 T *pp=&data[0];
-loopingroups(*this,shape.size()-1,shape[shape.size()-1].number-1,&pp,I,callback);
+int ss=shape.size()-1;
+const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[ss];
+loopingroups(*this,ss,sh->number-1,&pp,I,callback);
 }
 
 
@@ -483,6 +494,60 @@ for(LA_largeindex i=0; i<x.data.size(); ++i)
 	x.lhs(I) = val;
 	}
 return s;
+}
+
+
+
+template<typename T>
+void loopovergroups(Tensor<T> &t, int ngroup, T **p, GROUPINDEX &I, void (*callback)(const GROUPINDEX &, T *))
+{
+for(LA_largeindex i = 0; i<t.groupsizes[ngroup]; ++i)
+	{
+	I[ngroup]=i;
+	if(ngroup==0) (*callback)(I,(*p)++);
+	else loopovergroups(t,ngroup-1,p,I,callback);
+	}
+}
+
+template<typename T>
+void Tensor<T>::grouploopover(void (*callback)(const GROUPINDEX &, T *))
+{
+GROUPINDEX I(shape.size());
+T *pp=&data[0];
+loopovergroups(*this,shape.size()-1,&pp,I,callback);
+}
+
+
+const NRPerm<int> *help_p;
+template<typename T> 
+Tensor<T> *help_t;
+
+template<typename T>
+static void permutecallback(const GROUPINDEX &I, T *v)
+{
+LA_largeindex target=0;
+for(int i=0; i< help_t<T>->shape.size(); ++i)
+	{
+	target += I[(*help_p)[i+1]-1] * help_t<T>->cumsizes[i];
+	}
+help_t<T>->data[target] = *v;
+}
+
+
+
+template<typename T>
+Tensor<T> Tensor<T>::permute_index_groups(const NRPerm<int> &p) const
+{
+NRVec<indexgroup> newshape=shape.permuted(p);
+Tensor<T> r(newshape);
+
+//prepare statics for the callback
+help_p = &p;
+help_t<T> = &r;
+
+//now rearrange the data
+const_cast<Tensor<T> *>(this)->grouploopover(permutecallback<T>);
+return r;
 }
 
 
