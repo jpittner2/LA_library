@@ -3243,7 +3243,7 @@ cout <<epsilon.data;
 cout <<epsilon;
 }
 
-if(1)
+if(0)
 {
 int n=3;
 NRVec<INDEXGROUP> s(4);
@@ -3270,5 +3270,28 @@ for(int i=0; i<n; ++i)
 }
 
 
+if(1)
+{
+int n=5;
+INDEXGROUP g;
+g.number=4;
+g.symmetry= -1;
+g.offset=0;
+g.range=n;
+
+Tensor<double> e(g);
+e.randomize(1.);
+Tensor<double> eu = e.unwind_index(0,1);
+
+for(int i=0; i<n; ++i)
+        for(int j=0; j<n; ++j)
+                for(int k=0; k<n; ++k)
+                        for(int l=0; l<n; ++l)
+                                {
+				if(e(i,j,k,l)!=eu(j,i,k,l)) laerror("error in unwind_index");
+				}
+cout <<e;
+cout <<eu;
+}
 
 }

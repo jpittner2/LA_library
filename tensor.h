@@ -62,9 +62,9 @@ typedef int LA_largeindex;
 typedef class indexgroup {
 public:
 int number; //number of indices
-int symmetry; //-1 0 or 1
+int symmetry; //-1 0 or 1, later 2 for hermitian and -2 for antihermitian? - would need change in operator() and Signedpointer
 #ifdef LA_TENSOR_ZERO_OFFSET
-static const LA_index offset = 0; //compiler can optimiza away some computations 
+static const LA_index offset = 0; //compiler can optimize away some computations 
 #else
 LA_index offset; //indices start at a general offset
 #endif
@@ -99,6 +99,7 @@ typedef NRVec<LA_index> FLATINDEX; //all indices but in a single vector
 typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP structure
 typedef NRVec<LA_largeindex> GROUPINDEX; //set of indices in the symmetry groups
 
+FLATINDEX superindex2flat(const SUPERINDEX &I);
 
 template<typename T>
 class Tensor {
@@ -132,11 +133,11 @@ public:
 	LA_largeindex size() const {return data.size();};
 	void copyonwrite() {shape.copyonwrite(); groupsizes.copyonwrite(); cumsizes.copyonwrite(); data.copyonwrite();};
         inline Signedpointer<T> lhs(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
-	inline T operator()(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
+	inline T operator()(const SUPERINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
         inline Signedpointer<T> lhs(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
-        inline T operator()(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
+        inline T operator()(const FLATINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
         inline Signedpointer<T> lhs(LA_index i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
-        inline T operator()(LA_index i1...) {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
+        inline T operator()(LA_index i1...) const {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
 	
 	inline Tensor& operator=(const Tensor &rhs) {myrank=rhs.myrank; shape=rhs.shape; groupsizes=rhs.groupsizes; cumsizes=rhs.cumsizes; data=rhs.data; return *this;};
 
@@ -177,13 +178,11 @@ public:
 	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
 
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
+	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one
 
-	//@@@TODO - unwinding to full size in a specified index
-	//@@@contraction by a whole index group or by individual single index
-	//@@@ general antisymmetrization operator Kucharski style
-	//@@@TODO - contractions - basic and efficient? first contraction in a single index; between a given group+index in group at each tensor
-	//@@@outer product and product with a contraction
-	//@@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric grtoup - obecne symmetry change krome +1 na -1 vse mozne
+	//@@@ general antisymmetrization operator Kucharski style - or that will be left to a code generator?
+	//@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric group - obecne symmetry change krome +1 na -1 vse mozne
+	//@@@contraction
 };
 
 
