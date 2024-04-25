@@ -589,6 +589,7 @@ if(shape[group].number==1) //single index in the group
 	NRPerm<int> p(shape.size());
 	p[1]= 1+group;
 	int ii=1;
+	if(ii==1+group) ii++; //skip this
 	for(int i=2; i<=shape.size(); ++i) 
 		{
 		p[i]=ii++;
@@ -625,12 +626,17 @@ if(r.rank()!=rank()) laerror("internal error 2 in unwind_index");
 NRPerm<int> indexperm(rank());
 indexperm[1]=flatindex+1;
 int ii=1;
+if(ii==flatindex+1) ii++;
 for(int i=2; i<=rank(); ++i) 
 	{
 	indexperm[i] = ii++;
 	if(ii==flatindex+1) ii++; //skip this
 	}
-if(!indexperm.is_valid()) laerror("internal error 3 in unwind_index");
+if(!indexperm.is_valid()) 
+	{
+	std::cout << "indexperm = "<<indexperm<<std::endl;
+	laerror("internal error 3 in unwind_index");
+	}
 
 //loop recursively and do the unwinding
 help_tt<T> = this;
@@ -639,6 +645,67 @@ r.loopover(unwind_callback);
 return r;
 }
 
+
+template<typename T>
+static void auxmatmult(int nn, int mm, int kk, T *r, T *a, T *b,  T alpha=1, T beta=0) //R(nn,mm) = A * B^T
+{
+for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j)
+	{
+	if(beta==0)  r[i*mm+j]=0; else r[i*mm+j] *= beta;
+	for(int k=0; k<kk; ++k) r[i*mm+j] += alpha * a[i*kk+k] * b[j*kk+k];
+	}
+}
+
+
+template<>
+void auxmatmult<double>(int nn, int mm, int kk, double *r, double *a, double *b, double alpha, double beta)
+{
+cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nn, mm, kk, alpha, a, kk, b, kk, beta, r, mm);
+}
+
+template<>
+void auxmatmult<std::complex<double> >(int nn, int mm, int kk, std::complex<double> *r, std::complex<double> *a, std::complex<double> *b,  std::complex<double> alpha,  std::complex<double> beta)
+{
+cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nn, mm, kk, &alpha, a, kk, b, kk, &beta, r, mm);
+}
+
+
+
+
+
+//Conntraction could be implemented without the temporary storage for unwinding, but then we would need
+//double recursion over indices of both tensors. Hopefully using the matrix multiplication here
+//makes it also more efficient, even for (anti)symmetric indices
+//The index unwinding is unfortunately a big burden, and in principle could be eliminated in case of non-symmetric indices
+//
+template<typename T>
+Tensor<T> Tensor<T>::contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha) const
+{
+if(group<0||group>=shape.size()) laerror("wrong group number in contraction");
+if(rhsgroup<0||rhsgroup>=rhs.shape.size()) laerror("wrong rhsgroup number in contraction");
+if(index<0||index>=shape[group].number)  laerror("wrong index number in conntraction");
+if(rhsindex<0||rhsindex>=rhs.shape[rhsgroup].number)  laerror("wrong index number in conntraction");
+if(shape[group].offset != rhs.shape[rhsgroup].offset) laerror("incompatible index offset in contraction");
+if(shape[group].range != rhs.shape[rhsgroup].range) laerror("incompatible index range in contraction");
+
+Tensor<T> u = unwind_index(group,index);
+Tensor<T> rhsu = rhs.unwind_index(rhsgroup,rhsindex);
+
+
+NRVec<indexgroup> newshape(u.shape.size()+rhsu.shape.size()-2);
+int ii=0;
+for(int i=1; i<rhsu.shape.size(); ++i) newshape[ii++] = rhsu.shape[i];
+for(int i=1; i<u.shape.size(); ++i) newshape[ii++] = u.shape[i]; //this tensor will have more significant indices than the rhs one
+
+Tensor<T> r(newshape);
+int nn,mm,kk;
+kk=u.groupsizes[0];
+if(kk!=rhsu.groupsizes[0]) laerror("internal error in contraction");
+nn=1; for(int i=1; i<u.shape.size(); ++i) nn*= u.groupsizes[i];
+mm=1; for(int i=1; i<rhsu.shape.size(); ++i) mm*= rhsu.groupsizes[i];
+auxmatmult<T>(nn,mm,kk,&r.data[0],&u.data[0], &rhsu.data[0],alpha);
+return r;
+}
 
 
 

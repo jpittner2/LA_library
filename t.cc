@@ -3270,7 +3270,7 @@ for(int i=0; i<n; ++i)
 }
 
 
-if(1)
+if(0)
 {
 int n=5;
 INDEXGROUP g;
@@ -3292,6 +3292,62 @@ for(int i=0; i<n; ++i)
 				}
 cout <<e;
 cout <<eu;
+}
+
+
+if(1)
+{
+int n=5;
+INDEXGROUP ag;
+ag.number=4;
+ag.symmetry= 1;
+ag.offset=0;
+ag.range=n;
+
+Tensor<double> a(ag);
+a.randomize(1.);
+
+INDEXGROUP bg;
+bg.number=3;
+bg.symmetry= 0;
+bg.offset=0;
+bg.range=n;
+
+Tensor<double> b(bg);
+b.randomize(1.);
+
+Tensor<double> cc = a.contraction(0,0,b,0,1);
+cout <<cc;
+
+INDEXGROUP cga;
+cga.number=3;
+cga.symmetry= 1;
+cga.offset=0;
+cga.range=n;
+
+INDEXGROUP cgb;
+cgb.number=2;
+cgb.symmetry= 0;
+cgb.offset=0;
+cgb.range=n;
+
+NRVec<INDEXGROUP> shape({cgb,cga});
+
+Tensor<double> c(shape);
+c.clear();
+
+for(int i=0; i<n; ++i)
+	for(int j=0; j<=i; ++j)
+		for(int k=0; k<=j; ++k)
+			for(int l=0; l<n; ++l)
+				for(int m=0; m<n; ++m)
+					{
+					for(int p=0; p<n; ++p)
+						c.lhs(m,l,k,j,i) += a(p,i,j,k) * b(m,p,l);
+					if(abs(c(m,l,k,j,i)-cc(m,l,k,j,i))>1e-13) laerror("internal error in conntraction");
+					}
+
+//cout <<c;
 }
 
 }
