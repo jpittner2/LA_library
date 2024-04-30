@@ -679,16 +679,16 @@ cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nn, mm, kk, &alpha, a, kk, 
 //The index unwinding is unfortunately a big burden, and in principle could be eliminated in case of non-symmetric indices
 //
 template<typename T>
-Tensor<T> Tensor<T>::contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha) const
+void Tensor<T>::addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha, T beta, bool doresize)
 {
-if(group<0||group>=shape.size()) laerror("wrong group number in contraction");
+if(group<0||group>=rhs1.shape.size()) laerror("wrong group number in contraction");
 if(rhsgroup<0||rhsgroup>=rhs.shape.size()) laerror("wrong rhsgroup number in contraction");
-if(index<0||index>=shape[group].number)  laerror("wrong index number in conntraction");
+if(index<0||index>=rhs1.shape[group].number)  laerror("wrong index number in conntraction");
 if(rhsindex<0||rhsindex>=rhs.shape[rhsgroup].number)  laerror("wrong index number in conntraction");
-if(shape[group].offset != rhs.shape[rhsgroup].offset) laerror("incompatible index offset in contraction");
-if(shape[group].range != rhs.shape[rhsgroup].range) laerror("incompatible index range in contraction");
+if(rhs1.shape[group].offset != rhs.shape[rhsgroup].offset) laerror("incompatible index offset in contraction");
+if(rhs1.shape[group].range != rhs.shape[rhsgroup].range) laerror("incompatible index range in contraction");
 
-Tensor<T> u = unwind_index(group,index);
+Tensor<T> u = rhs1.unwind_index(group,index);
 Tensor<T> rhsu = rhs.unwind_index(rhsgroup,rhsindex);
 
 
@@ -697,15 +697,23 @@ int ii=0;
 for(int i=1; i<rhsu.shape.size(); ++i) newshape[ii++] = rhsu.shape[i];
 for(int i=1; i<u.shape.size(); ++i) newshape[ii++] = u.shape[i]; //this tensor will have more significant indices than the rhs one
 
-Tensor<T> r(newshape);
+if(doresize)
+	{
+	if(beta!= (T)0) laerror("resize in addcontraction requires beta=0");
+	resize(newshape);
+	}
+else
+	{
+	if(shape!=newshape) laerror("tensor shape mismatch in addcontraction");
+	}
 int nn,mm,kk;
 kk=u.groupsizes[0];
 if(kk!=rhsu.groupsizes[0]) laerror("internal error in contraction");
 nn=1; for(int i=1; i<u.shape.size(); ++i) nn*= u.groupsizes[i];
 mm=1; for(int i=1; i<rhsu.shape.size(); ++i) mm*= rhsu.groupsizes[i];
-auxmatmult<T>(nn,mm,kk,&r.data[0],&u.data[0], &rhsu.data[0],alpha);
-return r;
+auxmatmult<T>(nn,mm,kk,&data[0],&u.data[0], &rhsu.data[0],alpha,beta);
 }
+
 
 
 
