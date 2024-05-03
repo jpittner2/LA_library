@@ -2078,11 +2078,15 @@ NRMat< std::complex<double> >::operator*(const NRSMat< std::complex<double> > &r
 
 
 /***************************************************************************//**
- * conjugate this non-complex matrix \f$A\f$, i.e. do nothing :-)
+ * conjugate this matrix
  * @return reference to the (unmodified) matrix
  ******************************************************************************/
 template<typename T>
 NRMat<T>& NRMat<T>::conjugateme() {
+#ifdef CUDALA
+        if(location != cpu) laerror("general conjugation only on CPU");
+#endif          
+	for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j) (*this)(i,j) = LA_traits<T>::conjugate((*this)(i,j));
 	return *this;
 }
 

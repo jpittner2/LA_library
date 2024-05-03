@@ -298,6 +298,9 @@ public:
                 v[0] = a;
                 }
 
+	//! complex conjugate 
+        NRVec& conjugateme();
+        inline NRVec conjugate() const {NRVec r(*this); r.conjugateme(); return r;};
 
 	//! determine the actual value of the reference counter 
 	inline int getcount() const {return count?*count:0;}

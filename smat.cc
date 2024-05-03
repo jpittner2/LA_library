@@ -866,6 +866,58 @@ NRSMat<std::complex<double> >  NRSMat<std::complex<double> >::inverse() {return 
 
 
 
+/***************************************************************************//**
+ * conjugate this general matrix
+ * @return reference to the (unmodified) matrix
+ ******************************************************************************/
+template<typename T>
+NRSMat<T>& NRSMat<T>::conjugateme() {
+#ifdef CUDALA
+        if(location != cpu) laerror("general conjugation only on CPU");
+#endif
+	for(int i=0; i<NN2; ++i) v[i] =  LA_traits<T>::conjugate(v[i]);
+        return *this;
+}
+
+
+/***************************************************************************//**
+ * conjugate this complex matrix
+ * @return reference to the modified matrix
+ ******************************************************************************/
+template<>
+NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::conjugateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_dscal((size_t)NN2, -1.0, ((double *)v) + 1, 2);
+#ifdef CUDALA
+        }else{
+                cublasDscal((size_t)NN2, -1.0, ((double *)v) + 1, 2);
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::conjugateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_sscal((size_t)NN2, -1.0, ((float *)v) + 1, 2);
+#ifdef CUDALA
+        }else{
+                cublasSscal((size_t)NN2, -1.0, ((float *)v) + 1, 2);
+        }
+#endif
+        return *this;
+}
+
+
+
+
+
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file

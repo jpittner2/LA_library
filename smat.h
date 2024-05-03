@@ -99,6 +99,10 @@ public:
 	//! inverse matrix
         NRSMat inverse();
 
+	//! conjugate a  matrix
+        NRSMat& conjugateme();
+        const NRSMat conjugate() const {NRSMat r(*this); r.conjugateme(); return r;};
+
 
 	//! permute matrix elements
         const NRSMat permuted(const NRPerm<int> &p, const bool inverse=false) const;

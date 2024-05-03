@@ -333,7 +333,7 @@ public:
 
 	//! in case of square matrix, transpose the leading minor of order <code>n</code>
 	NRMat& transposeme(const int n = 0);
-	//! conjugate a square matrix
+	//! conjugate a  matrix
 	NRMat& conjugateme();
 
 	//! transpose this matrix and return the result by value

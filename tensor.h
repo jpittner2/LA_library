@@ -147,6 +147,10 @@ public:
 	inline Tensor& operator/=(const T &a) {data/=a; return *this;};
 	inline Tensor operator/(const T &a) const {Tensor r(*this); r /=a; return r;};
 
+	Tensor& conjugateme() {data.conjugateme(); return *this;};
+        inline Tensor conjugate() const {Tensor r(*this); r.conjugateme(); return r;};
+
+
 
 	inline Tensor& operator+=(const Tensor &rhs) 
 		{
@@ -180,8 +184,8 @@ public:
 
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
 	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one
-	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false);
-	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true); return r; }
+	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate=false);
+	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate=false) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true, conjugate); return r; }
 
 	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
 //								 this *=beta; for I over this: this(I) += alpha * sum_P c_P rhs(P(I))
