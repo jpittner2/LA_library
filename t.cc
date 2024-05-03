@@ -3350,4 +3350,6 @@ for(int i=0; i<n; ++i)
 //cout <<c;
 }
 
+//test Tensor apply_permutation_algebra
+
 }

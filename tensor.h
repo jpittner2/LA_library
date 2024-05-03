@@ -183,8 +183,12 @@ public:
 	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false);
 	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true); return r; }
 
-	//@@@ general antisymmetrization operator Kucharski style - or that will be left to a code generator?
-	//@@@symmetrize a group, antisymmetrize a group, expand a (anti)symmetric group - obecne symmetry change krome +1 na -1 vse mozne
+	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
+//								 this *=beta; for I over this: this(I) += alpha * sum_P c_P rhs(P(I))
+//								 PermutationAlgebra can represent e.g. general_antisymmetrizer in Kucharski-Bartlett notation
+
+
+	//TODO perhaps implement application of a permutation algebra to a product of several tensors
 };
 
 

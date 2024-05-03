@@ -715,6 +715,39 @@ auxmatmult<T>(nn,mm,kk,&data[0],&u.data[0], &rhsu.data[0],alpha,beta);
 }
 
 
+template<typename T>
+static const PermutationAlgebra<int,T> *help_pa;
+
+static bool help_inverse;
+
+template<typename T>
+static T help_alpha;
+
+template<typename T>
+static void permutationalgebra_callback(const SUPERINDEX &I, T *v)
+{
+FLATINDEX J = superindex2flat(I);
+for(int p=0; p<help_pa<T>->size(); ++p)
+	{
+	FLATINDEX Jp = J.permuted((*help_pa<T>)[p].perm,help_inverse);
+	*v += help_alpha<T> * (*help_pa<T>)[p].weight * (*help_t<T>)(Jp);
+	}
+}
+
+
+
+template<typename T>
+void Tensor<T>::apply_permutation_algebra(const Tensor<T> &rhs, const PermutationAlgebra<int,T> &pa, bool inverse, T alpha, T beta)
+{
+if(beta!=(T)0) *this *= beta; else clear();
+if(alpha==(T)0) return;
+
+help_t<T> = const_cast<Tensor<T> *>(&rhs);
+help_pa<T> = &pa;
+help_inverse = inverse;
+help_alpha<T> = alpha;
+loopover(permutationalgebra_callback);
+}
 
 
 template class Tensor<double>;
