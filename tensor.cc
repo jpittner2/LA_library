@@ -711,6 +711,7 @@ kk=u.groupsizes[0];
 if(kk!=rhsu.groupsizes[0]) laerror("internal error in contraction");
 nn=1; for(int i=1; i<u.shape.size(); ++i) nn*= u.groupsizes[i];
 mm=1; for(int i=1; i<rhsu.shape.size(); ++i) mm*= rhsu.groupsizes[i];
+data.copyonwrite();
 auxmatmult<T>(nn,mm,kk,&data[0],&u.data[0], &rhsu.data[0],alpha,beta,conjugate);
 }
 
@@ -739,8 +740,9 @@ for(int p=0; p<help_pa<T>->size(); ++p)
 template<typename T>
 void Tensor<T>::apply_permutation_algebra(const Tensor<T> &rhs, const PermutationAlgebra<int,T> &pa, bool inverse, T alpha, T beta)
 {
-if(beta!=(T)0) *this *= beta; else clear();
+if(beta!=(T)0) {if(beta!=(T)1) *this *= beta;} else clear();
 if(alpha==(T)0) return;
+copyonwrite();
 
 help_t<T> = const_cast<Tensor<T> *>(&rhs);
 help_pa<T> = &pa;
