@@ -22,6 +22,7 @@
 #include "qsort.h"
 #include "miscfunc.h"
 #include <complex>
+#include "bitvector.h"
 
 
 namespace LA {
@@ -750,6 +751,93 @@ help_inverse = inverse;
 help_alpha<T> = alpha;
 loopover(permutationalgebra_callback);
 }
+
+
+template<typename T>
+void Tensor<T>::split_index_group(int group)
+{
+if(group<0||group >= shape.size()) laerror("illegal index group number");
+if(shape[group].number==1) return; //nothing to split
+if(shape[group].symmetry!=0) laerror("only non-symmetric index group can be splitted");
+
+NRVec<indexgroup> newshape(shape.size()+shape[group].number-1);
+int gg=0;
+for(int g=0; g<shape.size(); ++g)
+	{
+	if(g==group)
+		{
+		for(int i=0; i<shape[group].number; ++i)
+			{
+			newshape[gg] = shape[group]; 
+			newshape[gg].number = 1;
+			gg++;
+			}
+		}
+	else
+		newshape[gg++] = shape[g];
+	}
+
+shape=newshape;
+LA_largeindex newsize = calcsize(); //recalculate auxiliary arrays
+if(data.size()!=newsize) laerror("internal error in split_index_group");
+}
+
+
+template<typename T>
+void Tensor<T>:: merge_adjacent_index_groups(int groupfrom, int groupto)
+{
+if(groupfrom<0||groupfrom>= shape.size()) laerror("illegal index group number");
+if(groupto<0||groupto>= shape.size()) laerror("illegal index group number");
+if(groupfrom==groupto) return;
+if(groupfrom>groupto) {int t=groupfrom; groupfrom=groupto; groupto=t;}
+
+int newnumber=0;
+for(int g=groupfrom; g<=groupto; ++g)
+	{
+	if(shape[g].symmetry!=0) laerror("only non-symmetric index groups can be merged");
+	if(shape[g].offset!=shape[groupfrom].offset) laerror("incompatible offset in merge_adjacent_index_groups");
+	if(shape[g].range!=shape[groupfrom].range) laerror("incompatible range in merge_adjacent_index_groups");
+	newnumber += shape[g].number;
+	}
+
+NRVec<indexgroup> newshape(shape.size()-(groupto-groupfrom+1)+1);
+for(int g=0; g<=groupfrom; ++g) newshape[g]=shape[g];
+newshape[groupfrom].number=newnumber;
+for(int g=groupfrom+1; g<newshape.size(); ++g) newshape[g]=shape[g+groupto-groupfrom];
+
+shape=newshape;
+LA_largeindex newsize = calcsize(); //recalculate auxiliary arrays
+if(data.size()!=newsize) laerror("internal error in merge_adjacent_index_groups");
+}
+
+
+template<typename T>
+Tensor<T> Tensor<T>::merge_index_groups(const NRVec<int> &groups) const
+{
+if(groups.size()<=1) return *this;
+NRPerm<int> p(shape.size());
+int gg=0;
+bitvector selected(shape.size());
+selected.clear();
+for(int g=0; g<groups.size(); ++g) 
+	{
+	if(groups[g]<0||groups[g]>=shape.size()) laerror("illegal group number in merge_index_groups");
+	if(selected[g]) laerror("repeated group number in merge_index_groups");
+	selected.set(g);
+	p[gg++] = 1+groups[g];
+	}
+for(int g=0; g<shape.size(); ++g)
+	if(!selected[g]) 
+		p[gg++] = 1+g;
+if(gg!=shape.size() || !p.is_valid()) laerror("internal error in merge_index_groups");
+
+Tensor<T> r =  permute_index_groups(p);
+r.merge_adjacent_index_groups(0,groups.size()-1);
+return r;
+}
+
+
+
 
 
 template class Tensor<double>;

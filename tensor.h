@@ -190,7 +190,9 @@ public:
 	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
 //								 this *=beta; for I over this: this(I) += alpha * sum_P c_P rhs(P(I))
 //								 PermutationAlgebra can represent e.g. general_antisymmetrizer in Kucharski-Bartlett notation
-
+	void split_index_group(int group); //formal split of a non-symmetric index group WITHOUT the need for data reorganization
+	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization
+	Tensor merge_index_groups(const NRVec<int> &groups) const;
 
 	//TODO perhaps implement application of a permutation algebra to a product of several tensors
 };
