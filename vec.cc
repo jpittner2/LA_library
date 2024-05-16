@@ -909,6 +909,7 @@ void NRVec<T>::storesubvector(const NRVec<int> &selection, const NRVec &rhs)
  ******************************************************************************/
 template<typename T>
 NRVec<T>& NRVec<T>::conjugateme() {
+copyonwrite();
 #ifdef CUDALA
         if(location != cpu) laerror("general conjugation only on CPU");
 #endif

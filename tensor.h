@@ -36,6 +36,9 @@
 #include "smat.h"
 #include "miscfunc.h"
 
+//@@@todo - outer product
+//@@@permutation of individual indices??? how to treat the symmetry groups
+//@@@todo - index names and contraction by named index list
 
 namespace LA {
 
@@ -98,6 +101,15 @@ class LA_traits<indexgroup> {
 typedef NRVec<LA_index> FLATINDEX; //all indices but in a single vector
 typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP structure
 typedef NRVec<LA_largeindex> GROUPINDEX; //set of indices in the symmetry groups
+struct  INDEX
+{
+int group;
+int index;
+};
+typedef NRVec<INDEX> INDEXLIST; //collection of several indices
+
+int flatposition(const INDEX &i, const NRVec<indexgroup> &shape); //position of that index in FLATINDEX
+int flatposition(const INDEX &i, const NRVec<indexgroup> &shape);
 
 FLATINDEX superindex2flat(const SUPERINDEX &I);
 
@@ -184,8 +196,12 @@ public:
 
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
 	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one
-	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate=false);
-	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate=false) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true, conjugate); return r; }
+	Tensor unwind_indices(const INDEXLIST &il) const; //the same for a list of indices
+	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs2, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //rhs1 will have more significant non-contracted indices in the result than rhs2
+	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true, conjugate1, conjugate); return r; };
+
+	void addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false);
+	inline Tensor contractions( const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {Tensor<T> r; r.addcontractions(*this,il1,rhs2,il2,alpha,0,true,conjugate1, conjugate2); return r; };
 
 	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
 //								 this *=beta; for I over this: this(I) += alpha * sum_P c_P rhs(P(I))

@@ -3316,7 +3316,12 @@ bg.range=n;
 Tensor<double> b(bg);
 b.randomize(1.);
 
-Tensor<double> cc = a.contraction(0,0,b,0,1);
+INDEXLIST il1(1);
+il1[0]={0,0};
+INDEXLIST il2(1);
+il2[0]={0,1};
+Tensor<double> cc = a.contractions(il1,b,il2);
+//Tensor<double> cc = a.contraction(0,0,b,0,1);
 cout <<cc;
 
 INDEXGROUP cga;
@@ -3344,12 +3349,40 @@ for(int i=0; i<n; ++i)
 					{
 					for(int p=0; p<n; ++p)
 						c.lhs(m,l,k,j,i) += a(p,i,j,k) * b(m,p,l);
-					if(abs(c(m,l,k,j,i)-cc(m,l,k,j,i))>1e-13) laerror("internal error in conntraction");
+					if(abs(c(m,l,k,j,i)-cc(m,l,k,j,i))>1e-13) laerror("internal error in contraction");
 					}
 
 //cout <<c;
 }
 
 //test Tensor apply_permutation_algebra
+
+//test unwind_indices
+if(0)
+{
+int n=5;
+INDEXGROUP g;
+g.number=4;
+g.symmetry= -1;
+g.offset=0;
+g.range=n;
+
+Tensor<double> e(g);
+e.randomize(1.);
+INDEXLIST il(2);
+il[0]= {0,1};
+il[1]= {0,3};
+Tensor<double> eu = e.unwind_indices(il);
+
+for(int i=0; i<n; ++i)
+        for(int j=0; j<n; ++j)
+                for(int k=0; k<n; ++k)
+                        for(int l=0; l<n; ++l)
+                                {
+				if(e(i,j,k,l)!=eu(j,l,i,k)) laerror("error in unwind_indces");
+				}
+cout <<e;
+cout <<eu;
+}
 
 }
