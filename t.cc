@@ -3295,7 +3295,7 @@ cout <<eu;
 }
 
 
-if(1)
+if(0)
 {
 int n=5;
 INDEXGROUP ag;
@@ -3383,6 +3383,42 @@ for(int i=0; i<n; ++i)
 				}
 cout <<e;
 cout <<eu;
+}
+
+if(0)
+{
+int n=5;
+INDEXGROUP g;
+g.number=2;
+g.symmetry= 1;
+g.offset=0;
+g.range=n;
+
+Tensor<double> e(g);
+e.randomize(1.);
+INDEXLIST il(2);
+il[0]= {0,1};
+il[1]= {0,0};
+Tensor<double> eu = e.unwind_indices(il);
+
+for(int i=0; i<n; ++i)
+        for(int j=0; j<n; ++j)
+                for(int k=0; k<n; ++k)
+                        for(int l=0; l<n; ++l)
+                                {
+				if(e(i,j)!=eu(j,i)) laerror("error in unwind_indces");
+				}
+cout <<e;
+cout <<eu;
+}
+
+if(1)
+{
+NRVec<double> a({1.,10.,100.});
+NRVec<double> b({1.,2.,3.});
+Tensor<double> aa(a);
+Tensor<double> bb(b);
+cout << aa*bb;
 }
 
 }

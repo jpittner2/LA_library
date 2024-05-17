@@ -36,9 +36,9 @@
 #include "smat.h"
 #include "miscfunc.h"
 
-//@@@todo - outer product
 //@@@permutation of individual indices??? how to treat the symmetry groups
 //@@@todo - index names and contraction by named index list
+//@@@contraction inside one tensor
 
 namespace LA {
 
@@ -158,6 +158,8 @@ public:
 	inline Tensor operator*(const T &a) const {Tensor r(*this); r *=a; return r;};
 	inline Tensor& operator/=(const T &a) {data/=a; return *this;};
 	inline Tensor operator/(const T &a) const {Tensor r(*this); r /=a; return r;};
+
+	Tensor operator*(const Tensor &rhs) const; //outer product
 
 	Tensor& conjugateme() {data.conjugateme(); return *this;};
         inline Tensor conjugate() const {Tensor r(*this); r.conjugateme(); return r;};
