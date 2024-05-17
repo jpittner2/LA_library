@@ -704,6 +704,24 @@ const NRMat<double> NRVec<double>::otimes(const NRVec<double> &b,const bool conj
 	return result;
 }
 
+template<>
+const NRVec<double> NRVec<double>::otimes2vec(const NRVec<double> &b,const bool conj, const double &scale) const {
+
+	SAME_LOC(*this, b);
+	NRVec<double> result(0.0, nn*b.nn, this->getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_dger(CblasRowMajor, nn, b.nn, scale, v, 1, b.v, 1, result.v, b.nn);
+#ifdef CUDALA
+	}else{
+		cublasDger(b.nn, nn, scale, b.v, 1, v, 1, result.v, b.nn);
+		TEST_CUBLAS("cublasDger");
+	}
+#endif
+	return result;
+}
+
 /***************************************************************************//**
  * computes the outer product of this complex vector \f$\vec{a}\f$ with given
  * complex vector \f$\vec{b}\f$ and scales the resulting matrix with factor \f$\alpha\f$, i.e.
@@ -749,6 +767,42 @@ NRVec<std::complex<double> >::otimes(const NRVec<std::complex<double> > &b, cons
 #endif
 	return result;
 }
+
+template<>
+const NRVec<std::complex<double> > 
+NRVec<std::complex<double> >::otimes2vec(const NRVec<std::complex<double> > &b, const bool conj, const std::complex<double> &scale) const {
+	
+	SAME_LOC(*this, b);
+	NRVec<std::complex<double> > result(0., nn*b.nn, this->getlocation());
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		if(conj){
+			cblas_zgerc(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result.v, b.nn);
+		}else{
+			cblas_zgeru(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result.v, b.nn);
+		}
+#ifdef CUDALA
+	}else{
+		if(conj){
+			const cuDoubleComplex alpha = make_cuDoubleComplex(scale.real(), -scale.imag());
+
+			cublasZgerc(b.nn, nn, alpha, (cuDoubleComplex*)(b.v), 1, (cuDoubleComplex*)(v), 1, (cuDoubleComplex*)(result.v), b.nn);
+			TEST_CUBLAS("cublasZgerc");
+
+			result.conjugateme();
+		}else{
+			const cuDoubleComplex alpha = make_cuDoubleComplex(scale.real(), +scale.imag());
+
+			cublasZgeru(b.nn, nn, alpha, (cuDoubleComplex*)(b.v), 1, (cuDoubleComplex*)(v), 1, (cuDoubleComplex*)(result.v), b.nn);
+			TEST_CUBLAS("cublasZgeru");
+		}
+	}
+#endif
+	return result;
+}
+
 
 template<>
 NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
@@ -988,7 +1042,8 @@ template<> void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char t
 template<> void NRVec<T>::gemv(const LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
 template<> void NRVec<T>::gemv(const  LA_traits_complex<T>::Component_type beta, const  LA_traits_complex<T>::NRSMat_Noncomplex_type  &a, const char trans,  const  LA_traits_complex<T>::Component_type alpha, const NRVec<T> &x) { laerror("gemv on unsupported types"); } \
 template<> NRVec<T> & NRVec<T>::normalize(LA_traits<T>::normtype *) {laerror("normalize() impossible for integer types"); return *this;} \
-template<> const NRMat<T> NRVec<T>::otimes(const NRVec<T> &b,const bool conj, const T &scale) const {laerror("otimes presently implemented only for double and complex double"); return NRMat<T> ();}
+template<> const NRMat<T> NRVec<T>::otimes(const NRVec<T> &b,const bool conj, const T &scale) const {laerror("otimes presently implemented only for double and complex double"); return NRMat<T> ();}\
+template<> const NRVec<T> NRVec<T>::otimes2vec(const NRVec<T> &b,const bool conj, const T &scale) const {laerror("otimes2vec presently implemented only for double and complex double"); return NRVec<T> ();}\
 
 
 

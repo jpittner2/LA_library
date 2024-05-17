@@ -130,7 +130,8 @@ public:
 	};
 	
 	//! inlined constructor creating vector of given size filled with prescribed value 
-	inline NRVec(const T &a, const int n);
+	//inline NRVec(const T &a, const int n);
+	inline NRVec(const T &a, const int n, const GPUID loc = undefined);
 
 	//! inlined constructor creating vector froman array
 	template<int SIZE> inline NRVec(const T (&a)[SIZE]);
@@ -356,8 +357,12 @@ public:
 	
 	//! compute the outer product of two vectors 
 	const NRMat<T> otimes(const NRVec<T> &rhs, const bool conjugate = false, const T &scale = 1) const;
+
 	//! opeartor for outer product computation
 	inline const NRMat<T> operator|(const NRVec<T> &rhs) const { return otimes(rhs,true); };
+
+        //! compute the outer product of two vectors, result interpreted as a vector
+        const NRVec otimes2vec(const NRVec<T> &rhs, const bool conjugate = false, const T &scale = 1) const;
 
 	//! compute the sum of the vector elements 
 	inline const T sum() const {
@@ -678,6 +683,8 @@ std::istream & operator>>(std::istream &s, NRVec<T> &x) {
  * @param[in] a value to be assigned to all vector elements
  * @param[in] n required vector size
  ******************************************************************************/
+
+/* replaced by the one with optional GPUID
 template <typename T>
 inline NRVec<T>::NRVec(const T& a, const int n): nn(n), count(new int) {
 	*count = 1;
@@ -693,6 +700,30 @@ inline NRVec<T>::NRVec(const T& a, const int n): nn(n), count(new int) {
                }
 #ifdef CUDALA
 	}else{
+		v = (T*) gpualloc(n*sizeof(T));
+		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+		smart_gpu_set(n, a, v);
+	}
+#endif
+}
+*/
+
+template <typename T>
+inline NRVec<T>::NRVec(const T& a, const int n,  const GPUID loc): nn(n), count(new int) {
+	*count = 1;
+#ifdef CUDALA
+	location = (loc==undefined?DEFAULT_LOC:loc);
+	if(location == cpu){
+#endif
+		v = new T[n];
+                if(!LA_traits<T>::is_plaindata() || a != (T)0){
+                        for(register int i=0; i<n; i++) v[i] = a;
+                }else{
+                        memset(v, 0, nn*sizeof(T));
+               }
+#ifdef CUDALA
+	}else{
+		if(sizeof(T)%sizeof(float) != 0)laerror("memory alignment error");
 		v = (T*) gpualloc(n*sizeof(T));
 		if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
 		smart_gpu_set(n, a, v);
