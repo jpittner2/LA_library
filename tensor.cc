@@ -1024,15 +1024,6 @@ return r;
 }
 
 
-//outer product, rhs indices will be the less significant than this
-template<typename T>
-Tensor<T> Tensor<T>::operator*(const Tensor &rhs) const
-{
-Tensor<T> r(rhs.shape.concat(shape));
-r.data= data.otimes2vec(rhs.data);
-return r;
-}
-
 
 
 template class Tensor<double>;

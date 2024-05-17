@@ -36,9 +36,12 @@
 #include "smat.h"
 #include "miscfunc.h"
 
-//@@@permutation of individual indices??? how to treat the symmetry groups
-//@@@todo - index names and contraction by named index list
-//@@@contraction inside one tensor
+//@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
+//@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
+//@@@ will not be particularly efficient
+//
+//@@@permutation of individual indices - chech the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
+//@@@todo - implement index names - flat vector of names, and contraction by named index list
 
 namespace LA {
 
@@ -61,6 +64,12 @@ public:
 
 typedef int LA_index;
 typedef int LA_largeindex;
+
+//indexname must not be an array due to its use as a return value in NRVec functions
+#define N_INDEXNAME 8
+struct INDEXNAME {
+	char name[N_INDEXNAME];
+};
 
 typedef class indexgroup {
 public:
@@ -109,7 +118,6 @@ int index;
 typedef NRVec<INDEX> INDEXLIST; //collection of several indices
 
 int flatposition(const INDEX &i, const NRVec<indexgroup> &shape); //position of that index in FLATINDEX
-int flatposition(const INDEX &i, const NRVec<indexgroup> &shape);
 
 FLATINDEX superindex2flat(const SUPERINDEX &I);
 
@@ -119,6 +127,7 @@ public:
 	NRVec<indexgroup> shape;
 	NRVec<T> data;	
 	int myrank;
+	//@@@??? NRVec<INDEXNAME> names;
 	NRVec<LA_largeindex> groupsizes; //group sizes of symmetry index groups (a function of shape but precomputed for efficiency)
 	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups (a function of shape but precomputed for efficiency); always cumsizes[0]=1, index group 0 is the innermost-loop one
 
@@ -131,6 +140,7 @@ public:
 	//constructors
 	Tensor() : myrank(0) {};
 	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank();}; //general tensor
+	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
 	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank();}; //tensor with a single index group
 	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data) {};
 	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
@@ -159,7 +169,7 @@ public:
 	inline Tensor& operator/=(const T &a) {data/=a; return *this;};
 	inline Tensor operator/(const T &a) const {Tensor r(*this); r /=a; return r;};
 
-	Tensor operator*(const Tensor &rhs) const; //outer product
+	inline Tensor operator*(const Tensor &rhs) const {return Tensor(rhs.shape.concat(shape),data.otimes2vec(rhs.data));} //outer product,  rhs indices will be the less significant 
 
 	Tensor& conjugateme() {data.conjugateme(); return *this;};
         inline Tensor conjugate() const {Tensor r(*this); r.conjugateme(); return r;};
