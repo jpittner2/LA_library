@@ -38,6 +38,31 @@ for(unsigned int i=0; i<x.size(); ++i) {x.assign(i,str[i]!='0');}
 return s;
 }
 
+std::ostream & operator<<(std::ostream &s, const bitmatrix &x)
+{
+s<<x.nrows()<<" "<<x.ncols()<<std::endl;
+for(unsigned int i=0; i<x.nrows(); ++i) 
+	{
+	for(unsigned int j=0; j<x.ncols(); ++j) s<< x(i,j);
+	s<<std::endl;
+	}
+return s;
+}
+
+std::istream & operator>>(std::istream  &s, bitmatrix &x)
+{
+unsigned int n,m;
+s >> n >> m;
+x.resize(n,m);
+for(unsigned int i=0; i<n; ++i) 
+        {
+        for(unsigned int j=0; j<m; ++j) {int z; s>>z; if(z) x.set(i,j); else x.reset(i,j);}
+        }
+return s; 
+}
+
+
+
 
 void bitvector::zero_padding() const
 {

@@ -3412,13 +3412,32 @@ cout <<e;
 cout <<eu;
 }
 
-if(1)
+if(0)
 {
 NRVec<double> a({1.,10.,100.});
 NRVec<double> b({1.,2.,3.});
 Tensor<double> aa(a);
 Tensor<double> bb(b);
 cout << aa*bb;
+}
+
+if(1)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+bitmatrix a(4,4);
+a.randomize();
+a.reset(0,0);
+a.set(3,3);
+bitmatrix b(a);
+bitmatrix c=a;
+cout <<a;
+cout <<b;
+cout <<c;
 }
 
 }

@@ -163,6 +163,23 @@ public:
 
 extern bitvector find_irreducible(int deg, int pop= -1, int nth=1); //degree and requested Hamming weight or -1 for random trial
 
+class bitmatrix : public bitvector
+        {
+private:
+        unsigned int nn,mm;
+public:
+	unsigned int nrows() const {return nn;}
+	unsigned int ncols() const {return mm;}
+	bitmatrix() : nn(0),mm(0) {};
+	bitmatrix(unsigned int nn0,unsigned int mm0) : nn(nn0),mm(mm0){bitvector::resize(nn*mm,false);};
+	void set(const unsigned int i, const unsigned int j) {bitvector::set(i*mm+j);};
+	void reset(const unsigned int i, const unsigned int j) {bitvector::reset(i*mm+j);};
+	void flip(const unsigned int i, const unsigned int j) {bitvector::flip(i*mm+j);};
+	const bool assign(const unsigned int i, const unsigned int j, const bool r) {if(r) bitvector::set(i*mm+j); else bitvector::reset(i*mm+j); return r;};
+	const bool operator()(const unsigned int i,  const unsigned int j) const {return bitvector::operator[](i*mm+j);};
+	void resize(const unsigned int n, const unsigned int m) {nn=n; mm=m; bitvector::resize(n*m,false);};
+};
+
 //expand to separate bytes or ints
 template <typename T>
 void bitvector_expand(const bitvector &v, NRVec<T> &r)
@@ -214,6 +231,11 @@ for(int i=0; i<n; ++i) if(v[i]) r.set(i);
 
 extern std::ostream & operator<<(std::ostream &s, const bitvector &x);
 extern std::istream & operator>>(std::istream  &s, bitvector &x);
+
+extern std::ostream & operator<<(std::ostream &s, const bitmatrix &x);
+extern std::istream & operator>>(std::istream  &s, bitmatrix &x);
+
+
 
 class bitvector_from1 : public bitvector
 	{
