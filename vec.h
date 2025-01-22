@@ -1874,10 +1874,10 @@ inline const double NRVec<double>::amax() const {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		ret = v[cblas_idamax(nn, v, 1) - 1];
+		ret = v[cblas_idamax(nn, v, 1)];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIdamax(nn, v, 1) - 1;
+		const int pozice = cublasIdamax(nn, v, 1) ;
 		TEST_CUBLAS("cublasIdamax");
 
 		gpuget(1, sizeof(double), v + pozice, &ret);
@@ -1906,7 +1906,7 @@ inline const double NRVec<double>::amin() const {
 		ret = v[index];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIdamin(nn, v, 1) - 1;
+		const int pozice = cublasIdamin(nn, v, 1);
 		TEST_CUBLAS("cublasIdamin");
 		gpuget(1, sizeof(double), v + pozice, &ret);
 	}
@@ -1925,10 +1925,10 @@ inline const std::complex<double> NRVec<std::complex<double> >::amax() const {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		ret = v[cblas_izamax(nn, v, 1) - 1];
+		ret = v[cblas_izamax(nn, v, 1) ];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIzamax(nn, (cuDoubleComplex*)v, 1) - 1;
+		const int pozice = cublasIzamax(nn, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamax");
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}
@@ -1960,7 +1960,7 @@ inline const std::complex<double> NRVec<std::complex<double> >::amin() const {
 		ret = v[index];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIzamin(nn, (cuDoubleComplex*)v, 1) - 1;
+		const int pozice = cublasIzamin(nn, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamin");
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}

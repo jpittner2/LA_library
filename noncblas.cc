@@ -582,9 +582,9 @@ CBLAS_INDEX cblas_idamax(const int N, const double *X, const int incX) {
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
-	return (CBLAS_INDEX)FORNAME(idamax)(&ntmp,X,&incxtmp);
+	return (CBLAS_INDEX)FORNAME(idamax)(&ntmp,X,&incxtmp)-1;
 #else
-	return (CBLAS_INDEX)FORNAME(idamax)(&N,X,&incX);
+	return (CBLAS_INDEX)FORNAME(idamax)(&N,X,&incX)-1;
 #endif
 }
 
@@ -593,9 +593,9 @@ CBLAS_INDEX cblas_izamax(const int N, const void *X, const int incX) {
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
-	return (CBLAS_INDEX)FORNAME(izamax)(&ntmp, X, &incxtmp);
+	return (CBLAS_INDEX)FORNAME(izamax)(&ntmp, X, &incxtmp)-1;
 #else
-	return (CBLAS_INDEX)FORNAME(izamax)(&N, X, &incX);
+	return (CBLAS_INDEX)FORNAME(izamax)(&N, X, &incX)-1;
 #endif
 }
 
@@ -604,9 +604,9 @@ CBLAS_INDEX cblas_isamax(const int N, const float *X, const int incX) {
 #ifdef FORINT
         const FINT ntmp=N;
         const FINT incxtmp=incX;
-        return (CBLAS_INDEX)FORNAME(isamax)(&ntmp,X,&incxtmp);
+        return (CBLAS_INDEX)FORNAME(isamax)(&ntmp,X,&incxtmp)-1;
 #else
-        return (CBLAS_INDEX)FORNAME(isamax)(&N,X,&incX);
+        return (CBLAS_INDEX)FORNAME(isamax)(&N,X,&incX)-1;
 #endif
 }
 
@@ -618,9 +618,9 @@ CBLAS_INDEX cblas_idamin(const int N, const double *X, const int incX) {
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
-	return (CBLAS_INDEX)FORNAME(idamin)(&ntmp,X,&incxtmp);
+	return (CBLAS_INDEX)FORNAME(idamin)(&ntmp,X,&incxtmp)-1;
 #else
-	return (CBLAS_INDEX)FORNAME(idamin)(&N,X,&incX);
+	return (CBLAS_INDEX)FORNAME(idamin)(&N,X,&incX)-1;
 #endif
 }
 
@@ -630,9 +630,9 @@ CBLAS_INDEX cblas_izamin(const int N, const void *X, const int incX) {
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
-	return (CBLAS_INDEX)FORNAME(izamin)(&ntmp, X, &incxtmp);
+	return (CBLAS_INDEX)FORNAME(izamin)(&ntmp, X, &incxtmp)-1;
 #else
-	return (CBLAS_INDEX)FORNAME(izamin)(&N, X, &incX);
+	return (CBLAS_INDEX)FORNAME(izamin)(&N, X, &incX)-1;
 #endif
 }
 */

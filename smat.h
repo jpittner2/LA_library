@@ -799,10 +799,10 @@ inline const double NRSMat<double>::amax() const {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		ret = v[cblas_idamax(NN2, v, 1) - 1];
+		ret = v[cblas_idamax(NN2, v, 1)];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIdamax(NN2, v, 1) - 1;
+		const int pozice = cublasIdamax(NN2, v, 1) ;
 		TEST_CUBLAS("cublasIdamax");//"double NRSMat<double>::amax()"
 
 		gpuget(1, sizeof(double), v + pozice, &ret);
@@ -833,7 +833,7 @@ inline const double NRSMat<double>::amin() const {
 		ret = v[index];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIdamin(nn, v, 1) - 1;
+		const int pozice = cublasIdamin(nn, v, 1);
 		TEST_CUBLAS("cublasIdamin");//"double NRSMat<double>::amin()"
 		gpuget(1, sizeof(double), v + pozice, &ret);
 	}
@@ -852,10 +852,10 @@ inline const std::complex<double> NRSMat< std::complex<double> >::amax() const{
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		ret = v[cblas_izamax(NN2, v, 1) - 1];
+		ret = v[cblas_izamax(NN2, v, 1)];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIzamax(NN2, (cuDoubleComplex*)v, 1) - 1;
+		const int pozice = cublasIzamax(NN2, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamax");//"std::complex<double> NRSMat<std::complex<double> >::amax()"
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}
@@ -888,7 +888,7 @@ inline const std::complex<double> NRSMat<std::complex<double> >::amin() const{
 		ret = v[index];
 #ifdef CUDALA
 	}else{
-		const int pozice = cublasIzamin(nn, (cuDoubleComplex*)v, 1) - 1;
+		const int pozice = cublasIzamin(nn, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamin");//"std::complex<double> NRSMat<std::complex<double> >::amin()"
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
 	}

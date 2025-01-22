@@ -3421,7 +3421,7 @@ Tensor<double> bb(b);
 cout << aa*bb;
 }
 
-if(1)
+if(0)
 {
 int seed;
 int f=open("/dev/random",O_RDONLY);
@@ -3439,5 +3439,18 @@ cout <<a;
 cout <<b;
 cout <<c;
 }
+
+if(1)
+{
+NRMat<double> m;
+cin >>m;
+NRVec<double> v(m);
+cout <<v;
+NRMat<double> mm(v,m.nrows(),m.ncols());
+cout <<mm;
+cout <<m.getcount()<<" "<<v.getcount()<<" "<<mm.getcount()<<endl;
+}
+
+
 
 }
