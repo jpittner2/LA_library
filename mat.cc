@@ -723,6 +723,60 @@ const NRVec<std::complex<double> > NRMat<std::complex<double> >::rsum() const {
 }
 
 /***************************************************************************//**
+ * sum up the elements of current matrix of general type <code>T</code>
+ * @return sum
+ ******************************************************************************/
+template <typename T>
+const T NRMat<T>::sum() const {
+	NOT_GPU(*this);
+	T sum;
+	
+		sum = (T)0;
+		for(int i=0; i<nn; i++) for(int j=0; j<mm; j++) sum += (*this)[i][j];
+	return sum;
+}
+
+/***************************************************************************//**
+ * sum up the all of the current double-precision real matrix
+ * @return sum
+ ******************************************************************************/
+template <>
+const double NRMat<double>::sum() const {
+	double result=0;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_daxpy(nn*mm, 1.0, (*this)[0], 1, &result, 0);
+#ifdef CUDALA
+	}else{
+	laerror("not implemented");
+		}
+	}
+#endif
+	return result;
+}
+
+/***************************************************************************//**
+ * sum up the all of the current double-precision complex matrix
+ * @return sum
+ ******************************************************************************/
+template <>
+const std::complex<double>  NRMat<std::complex<double> >::sum() const {
+	std::complex<double>  result=0;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_zaxpy(nn*mm, &CONE, (*this)[0], 1, &result, 0);
+#ifdef CUDALA
+	}else{
+	laerror("not implemented");
+		}
+	}
+#endif
+	return result;
+}
+
+/***************************************************************************//**
  * extract block submatrix
  * @param[in] fromrow starting row
  * @param[in] torow final row

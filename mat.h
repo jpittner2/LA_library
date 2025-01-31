@@ -257,6 +257,8 @@ public:
 	const NRVec<T> rsum() const;
 	//! sum numbers in the columns (sum over row index)
 	const NRVec<T> csum() const;
+	//! sum all matrix elements
+        const T sum() const;
 
 	//! orthonormalize this matrix
 	void orthonormalize(const bool rowcol, const NRSMat<T> *metric = NULL);
