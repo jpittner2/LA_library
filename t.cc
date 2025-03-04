@@ -3440,7 +3440,7 @@ cout <<b;
 cout <<c;
 }
 
-if(1)
+if(0)
 {
 NRMat<double> m;
 cin >>m;
@@ -3450,6 +3450,37 @@ NRMat<double> mm(v,m.nrows(),m.ncols());
 cout <<mm;
 cout <<m.getcount()<<" "<<v.getcount()<<" "<<mm.getcount()<<endl;
 }
+
+if(1)
+{
+NRVec<double> v(12);
+v.randomize(1.);
+cout <<v;
+cout<<"sorted\n";
+v.printsorted(cout,1,false);
+cout<<"abssorted\n";
+v.printsorted(cout,1,true);
+}
+
+if(1)
+{
+NRSMat<double> v(4);
+v.randomize(1.);
+cout <<v;
+cout<<"smat sorted\n";
+v.printsorted(cout,1,false);
+}
+
+if(1)
+{
+NRMat<double> v(4,5);
+v.randomize(1.);
+cout <<v;
+cout<<"mat sorted\n";
+v.printsorted(cout,1,false);
+}
+
+
 
 
 

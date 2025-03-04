@@ -491,6 +491,7 @@ public:
 	//! sort by default in ascending order and return the parity of corresponding permutation resulting to this order
 	int sort(int direction = 0, int from = 0, int to = -1, int *perm = NULL, bool stable=false);
 	int sort(int direction, NRPerm<int> &perm, bool stable=false);
+	void printsorted(std::ostream &s, int direction=1, bool absvalue=false, bool stable=false, typename LA_traits<T>::normtype thr=0, int topmax=0, const NRMat<int> *indexmap=NULL) const;
 
 	//! apply given function to each element
 	NRVec& call_on_me(T (*_F)(const T &) ){
@@ -580,6 +581,35 @@ if(nn!=perm.size()) laerror("incompatible vector and permutation");
 perm.identity();
 int r=sort(direction,0,nn-1,&perm[1],stable);
 return r;
+}
+
+
+template<typename T>
+void NRVec<T>::printsorted(std::ostream &s, int direction, bool absvalue, bool stable, typename LA_traits<T>::normtype thr, int topmax,  const NRMat<int> *indexmap) const
+{
+NRPerm<int> perm(nn); perm.identity();
+NRVec_from1<T> tmp;
+NRVec_from1<typename LA_traits<T>::normtype> tmp2;
+if(absvalue) 
+	{
+	tmp2.resize(nn);
+	for(int i=1; i<=nn; ++i) tmp2[i] = MYABS((*this)[i-1]);
+	tmp2.sort(direction,perm,stable);
+	}
+else
+	{
+	tmp= *this;
+	tmp.sort(direction,perm,stable);
+	}
+int ii=1;
+for(int i=1; i<=nn; ++i)
+	{
+	if(topmax && ii>topmax) break;
+	if(thr!=0 && (absvalue?tmp2[i]:MYABS(tmp[i]))<thr) continue;
+	if(indexmap) s<<(*indexmap)[perm[i]-1][0]<<" "<<(*indexmap)[perm[i]-1][1]; else s<<perm[i]-1;
+	s<<' ' << (*this)[perm[i]-1]<<std::endl;
+	++ii;
+	}
 }
 
 

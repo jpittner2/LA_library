@@ -164,6 +164,7 @@ public:
 	inline bool transp(const int i, const int j) const {return i>j;} //this can be used for compact storage of matrices, which are actually not symmetric, but one triangle of them is redundant
 	const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const;
 	void axpy(const T alpha, const NRSMat &x); // this+= a*x
+	
 
 	inline const T amax() const;
 	inline const T amin() const;
@@ -185,6 +186,9 @@ public:
         //! store given matrix at given position into the current matrix
         void storesubmatrix(const int from, const NRSMat &rhs);
         void storesubmatrix(const NRVec<int> &selection, const NRSMat &rhs);
+
+	//!print sorted list of matrix elements
+	void printsorted(std::ostream &s, int direction=1, bool absvalue=false, bool stable=false, typename LA_traits<T>::normtype thr=0, int topmax=0) const;
 
 
 	inline operator T*();
@@ -1244,6 +1248,17 @@ for(int i=0; i<b.nrows(); ++i)
         for(int j=0; j<=i; ++j)
                 a(i,j) = (T) b(i,j);
 }
+
+template<typename T>
+void NRSMat<T>::printsorted(std::ostream &s, int direction, bool absvalue, bool stable, typename LA_traits<T>::normtype thr, int topmax) const
+{
+NRMat<int> indexmap(NN2,2);
+NRVec tmp(*this);
+int ii=0;
+for(int i=0; i<nn; ++i) for(int j=0; j<=i; ++j) {indexmap[ii][1]=i; indexmap[ii][0]=j; ii++;}
+tmp.printsorted(s,direction,absvalue,stable,thr,topmax,&indexmap);
+}
+
 
 
 /***************************************************************************//**

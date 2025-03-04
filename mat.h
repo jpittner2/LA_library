@@ -409,6 +409,10 @@ public:
 	const typename  LA_traits<T>::normtype  nonsymmetry() const;
 	const typename  LA_traits<T>::normtype  nonhermiticity() const;
 
+	//!print sorted list of matrix elements
+        void printsorted(std::ostream &s, int direction=1, bool absvalue=false, bool stable=false, typename LA_traits<T>::normtype thr=0, int topmax=0) const;
+
+
 #ifndef NO_STRASSEN
 	//! Strassen's multiplication (better than \f$\mathacal{O}(n^3)\f$, analogous syntax to \see NRMat<T>::gemm() )
 	void strassen(const T beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T alpha);
@@ -1580,6 +1584,16 @@ for(int i=0; i<b.nrows(); ++i)
 	for(int j=0; j<b.ncols(); ++j)
 		a(i,j) = (T) b(i,j);
 }
+
+
+template<typename T>
+void NRMat<T>::printsorted(std::ostream &s, int direction, bool absvalue, bool stable, typename LA_traits<T>::normtype thr, int topmax) const                                                                                                                                {
+NRMat<int> indexmap(nn*mm,2);
+NRVec tmp(*this);
+int ii=0;
+for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j) {indexmap[ii][0]=i; indexmap[ii][1]=j; ii++;}
+tmp.printsorted(s,direction,absvalue,stable,thr,topmax,&indexmap);
+}       
 
 
 
