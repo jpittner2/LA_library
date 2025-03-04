@@ -169,6 +169,17 @@ public:
 	inline const T amax() const;
 	inline const T amin() const;
 
+	 //! sum all matrix elements
+        const T sum(bool onlytriangle=false) const
+		{
+		T s = NRVec<T>(*this).sum();
+		if(onlytriangle) return s;
+		s*=2;
+		for(int i=0; i<nn; ++i) s -= (*this)(i,i);
+		return s;
+		}
+
+
 	const T trace() const;
 	void get(int fd, bool dimensions = 1, bool transp = 0);
         void put(int fd, bool dimensions = 1, bool transp = 0) const;

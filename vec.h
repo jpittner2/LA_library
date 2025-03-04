@@ -365,11 +365,7 @@ public:
         const NRVec otimes2vec(const NRVec<T> &rhs, const bool conjugate = false, const T &scale = 1) const;
 
 	//! compute the sum of the vector elements 
-	inline const T sum() const {
-		T sum(v[0]);
-		for(register int i=1; i<nn; i++){ sum += v[i];}
-		return sum;
-	};
+	const T sum() const;
 
 	//! compute the sum of squares the vector elements
         inline const T sumsqr() const {

@@ -1007,6 +1007,59 @@ NRVec<std::complex<float> >& NRVec<std::complex<float> >::conjugateme() {
 }
 
 
+/***************************************************************************//**
+ * sum up the elements of current vector of general type <code>T</code>
+ * @return sum
+ ******************************************************************************/
+template <typename T>
+const T NRVec<T>::sum() const {
+        NOT_GPU(*this);
+        T sum;
+
+                sum = (T)0;
+                for(int i=0; i<nn; i++) sum += v[i];
+        return sum;
+}
+
+/***************************************************************************//**
+ * sum up the all of the current double-precision real vector
+ * @return sum
+ ******************************************************************************/
+template <>
+const double NRVec<double>::sum() const {
+        double result=0;
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                        cblas_daxpy(nn, 1.0, v, 1, &result, 0);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented");
+                }
+        }
+#endif
+        return result;
+}
+
+/***************************************************************************//**
+ * sum up the all of the current double-precision complex vector
+ * @return sum
+ ******************************************************************************/
+template <>
+const std::complex<double>  NRVec<std::complex<double> >::sum() const {
+        std::complex<double>  result=0;
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                        cblas_zaxpy(nn, &CONE, v, 1, &result, 0);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented");
+                }
+        }
+#endif
+        return result;
+}
 
 
 
