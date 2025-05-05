@@ -55,6 +55,8 @@ return s;
 
 extern int endianity();
 
+extern bool LA_error_list_files;
+
 }//namespace
 
 #endif

@@ -39,6 +39,8 @@
 
 namespace LA {
 
+bool LA_error_list_files=false;
+
 //enforce GPU initialization by a global class instantization constructor
 #ifdef CUDALA
 GPU_START gpu_start_instant;
@@ -140,7 +142,8 @@ if(f)
   	std::cerr.flush();
 	}
 
-int r=system("echo INFO:; whoami; hostname; pwd; ls -l -t .;");
+int r=system("echo INFO:; whoami; hostname; pwd;");
+if(LA_error_list_files) r=system("ls -l -t .;");
 
 throw LAerror(s1); 
 }
