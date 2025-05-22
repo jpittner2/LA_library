@@ -78,7 +78,7 @@ public:
 	inline T& operator[](const int i) {return q[i];};
 
 	//operations of Vec3s with scalars
-	void clear() {memset(q,0,3*sizeof(T));}
+	void clear() {memset(q,0,3*sizeof(T));} //T must be plain data
 	Vec3& operator*=(const T rhs) {q[0]*=rhs; q[1]*=rhs; q[2]*=rhs; return *this;};
 	Vec3& operator/=(const T rhs) {return *this *= ((T)1/rhs);};
         const Vec3 operator*(const T rhs) const {return Vec3(*this) *= rhs;};
@@ -153,7 +153,7 @@ public:
 	
 
 	//operations of Mat3s with scalars
-	void clear() {memset(&q[0][0],0,9*sizeof(T));}
+	void clear() {memset(&q[0][0],0,9*sizeof(T));} //T must be plain data
 	Mat3& operator+=(const T rhs) {q[0][0]+=rhs; q[1][1]+=rhs; q[2][2]+=rhs; return *this;};
 	Mat3& operator-=(const T rhs) {q[0][0]-=rhs; q[1][1]-=rhs; q[2][2]-=rhs; return *this;};
 	const Mat3 operator+(const T rhs) const {return Mat3(*this) += rhs;};
@@ -241,6 +241,7 @@ class LA_traits<Vec3<T> >
 public:
        static bool is_plaindata() {return true;};
        static void copyonwrite(Vec3<T>& x) {};
+       static void clear(Vec3<T> *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();}
        typedef T normtype;
 };
 
@@ -250,6 +251,7 @@ class LA_traits<Mat3<T> >
 public:
        static bool is_plaindata() {return true;};
        static void copyonwrite(Mat3<T>& x) {};
+static void clear(Mat3<T> *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();}
        typedef T normtype;
 };
 

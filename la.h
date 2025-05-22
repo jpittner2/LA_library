@@ -46,6 +46,8 @@
 #include "polynomial.h"
 #include "contfrac.h"
 #include "tensor.h"
+#include "vecmat3.h"
+#include "quaternion.h"
 #include "version.h"
 
 using namespace LA;
