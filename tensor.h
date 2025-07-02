@@ -42,6 +42,7 @@
 //
 //@@@permutation of individual indices - chech the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //@@@todo - implement index names - flat vector of names, and contraction by named index list
+//@@@todo grassmann product and support for RDM and cumulat stuff
 
 namespace LA {
 
