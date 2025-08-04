@@ -1408,6 +1408,78 @@ const NRMat<double> imagpart<NRMat< std::complex<double> > >(const NRMat< std::c
 }
 
 template<>
+const NRSMat<double> realpart<NRSMat< std::complex<double> > >(const NRSMat< std::complex<double> > &a)
+{
+        NRSMat<double> result(a.nrows());
+
+#ifdef CUDALA
+        if(a.location == cpu){
+#endif
+	cblas_dcopy(a.nrows()*(a.ncols()+1)/2, (const double *)(&a(0,0)), 2, result, 1);
+#ifdef CUDALA
+        }else{
+	laerror("not implemented for cuda yet");
+	}
+#endif
+	return result;
+}
+
+template<>
+const NRSMat<double> imagpart<NRSMat< std::complex<double> > >(const NRSMat< std::complex<double> > &a)
+{
+        NRSMat<double> result(a.nrows());
+
+#ifdef CUDALA
+        if(a.location == cpu){
+#endif
+
+	cblas_dcopy(a.nrows()*(a.ncols()+1)/2, (const double *)(&a(0,0))+1, 2, result, 1);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented for cuda yet");
+        }
+#endif
+	return result;
+}
+
+template<>
+const NRVec<double> realpart<NRVec< std::complex<double> > >(const NRVec< std::complex<double> > &a)
+{
+        NRVec<double> result(a.size());
+
+#ifdef CUDALA
+        if(a.location == cpu){
+#endif
+	cblas_dcopy(a.size(), (const double *)&a[0], 2, result, 1);
+#ifdef CUDALA
+        }else{
+	laerror("not implemented for cuda yet");
+	}
+#endif
+	return result;
+}
+
+template<>
+const NRVec<double> imagpart<NRVec< std::complex<double> > >(const NRVec< std::complex<double> > &a)
+{
+        NRVec<double> result(a.size());
+
+#ifdef CUDALA
+        if(a.location == cpu){
+#endif
+
+	cblas_dcopy(a.size(), (const double *)&a[0]+1, 2, result, 1);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented for cuda yet");
+        }
+#endif
+	return result;
+}
+
+
+
+template<>
 const NRMat< std::complex<double> > realmatrix<NRMat<double> > (const NRMat<double> &a)
 {
 
