@@ -1,6 +1,6 @@
 #!/bin/csh -f
 cat <<!
-#include "version.h"
+#include "LA_version.h"
 const char LA::version[] = 
 !
 echo -n '"'

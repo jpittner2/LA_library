@@ -48,7 +48,7 @@
 #include "tensor.h"
 #include "vecmat3.h"
 #include "quaternion.h"
-#include "version.h"
+#include "LA_version.h"
 
 using namespace LA;
 typedef NRMat<int> NRIMat;
