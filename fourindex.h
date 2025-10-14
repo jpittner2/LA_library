@@ -141,7 +141,8 @@ typedef enum {
 // these should actually be static private members of the fourindex class, but leads to an ICE on gcc3.2
 static const int fourindex_n_symmetrytypes=13;
 static const int fourindex_permnumbers[fourindex_n_symmetrytypes]={1,8,8,4,8,1,4,8,2,2,4,2,4};
-static const int fourindex_permutations[fourindex_n_symmetrytypes][9][5]=
+static const int max_fourindex_permnumbers=8;
+static const int fourindex_permutations[fourindex_n_symmetrytypes][max_fourindex_permnumbers+1][5]=
 		{
 		{{0,1,2,3,1}}, //nosymmetry
 		{{0,1,2,3,1}, {1,0,2,3,1}, {0,1,3,2,1}, {1,0,3,2,1}, {2,3,0,1,1}, {3,2,0,1,1}, {2,3,1,0,1}, {3,2,1,0,1}}, //twoelectronrealmullikan
@@ -266,6 +267,78 @@ public:
         };
         piterator pbegin() const {return piterator(*this);}
         piterator pend() const {return piterator(NULL);}//inefficient, use end() or notend() instead
+
+
+
+//qiterator ... iterate over all allowed permutations, discared repeated indices (do not scale); conveniently expressed via the basic iterator 
+//		could be simplified using the pointer directly as piterator above if more efficiency is ever needed
+        class qiterator {
+        private:
+                fourindex *base;
+		matel4<I,T> my;
+		int permindex;
+		int uniqueindex;
+		typename fourindex::iterator it;
+		union packed_index<I> indices[max_fourindex_permnumbers];
+
+		//private methods
+                bool setup(void) //make a copy of *it to my with anti/permuted indices; returns if element is valid (nonequivalent to previous) 
+                        {
+                        if(base->symmetry==undefined_symmetry) laerror("fourindex symmetry has not been set");
+                        if(it==NULL) {uniqueindex=permindex=0; memset(&my,0,sizeof(my)); return false;} //we rely that end() is NULL
+                        for(int i=0; i<4; ++i)
+                                my.index.packed[i] = it->index.packed[fourindex_permutations[base->symmetry][permindex][i]];
+                        my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4]; //antisymmetry
+
+			//store in a table of generated  and check redundancy
+			if(permindex==0) 
+				{
+				uniqueindex=0;
+				memcpy(&indices[0],&my.index,sizeof(union packed_index<I>));
+				return true;
+				}
+			//check redundancy
+			for(int i=0; i<=uniqueindex; ++i) if(!memcmp(&indices[i],&my.index,sizeof(union packed_index<I>))) return false;
+			//store unique
+			memcpy(&indices[++uniqueindex],&my.index,sizeof(union packed_index<I>));
+			return true;
+                        };
+        public:
+		qiterator() {};
+                qiterator(fourindex *p): base(p),permindex(0),uniqueindex(0) {if(p) {it=p->begin(); setup();}};
+		qiterator(fourindex &x): base(&x),permindex(0),uniqueindex(0) {it= x.begin(); setup();};
+                ~qiterator() {};
+                bool operator!=(const qiterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
+                qiterator &operator++() 
+			{
+			bool valid;
+			do 
+				{
+				valid=true;
+				++permindex;
+				if(permindex>=fourindex_permnumbers[base->symmetry]) {uniqueindex=permindex=0; ++it;} 
+				if(it!=NULL) 
+					valid=setup(); 
+				else 
+					{
+					base=NULL; 
+					break;
+					}
+				}
+			while(!valid);
+			return *this;
+			} 
+		qiterator operator++(int) {laerror("postincrement not possible"); return *this;}
+                const matel4<I,T> * operator->() const {return &my;}
+                const matel4<I,T> & operator*() const {return my;}
+		bool end(void) {return !base;}
+                bool notend(void) {return base;}
+	};
+	qiterator qbegin() {return qiterator(*this);}
+	qiterator qend() const {return qiterator(NULL);} //inefficient, use end() or notend() instead
+
+
+
 
 	//constructors etc.
 	inline fourindex() :symmetry(undefined_symmetry),nn(0),count(NULL),list(NULL),terminator(-1),doscaling(true) {};
@@ -457,7 +530,7 @@ public:
         iterator end() const {return iterator(NULL);}
 
 
-//piterator ... iterate over all allowed permutations; conveniently expressed via the basic iterator which does the block-buffering
+//piterator ... iterate over all allowed permutations, scale in case of repeated indices; conveniently expressed via the basic iterator which does the block-buffering
         class piterator {
         private:
                 fourindex_ext *base;
@@ -494,9 +567,78 @@ public:
 	piterator pend() const {return piterator(NULL);} //inefficient, use end() or notend() instead
 
 
-};
 
 
+//qiterator ... iterate over all allowed permutations, discared repeated indices (do not scale); conveniently expressed via the basic iterator which does the block-buffering
+        class qiterator {
+        private:
+                fourindex_ext *base;
+		matel4<I,T> my;
+		int permindex;
+		int uniqueindex;
+		typename fourindex_ext::iterator it;
+		union packed_index<I> indices[max_fourindex_permnumbers];
+
+		//private methods
+                bool setup(void) //make a copy of *it to my with anti/permuted indices; returns if element is valid (nonequivalent to previous) 
+                        {
+                        if(base->symmetry==undefined_symmetry) laerror("fourindex symmetry has not been set");
+                        if(!it.notNULL()) {uniqueindex=permindex=0; memset(&my,0,sizeof(my)); return false;} //we rely that end() is NULL
+                        for(int i=0; i<4; ++i)
+                                my.index.packed[i] = it->index.packed[fourindex_permutations[base->symmetry][permindex][i]];
+                        my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4]; //antisymmetry
+
+			//store in a table of generated  and check redundancy
+			if(permindex==0) 
+				{
+				uniqueindex=0;
+				memcpy(&indices[0],&my.index,sizeof(union packed_index<I>));
+				return true;
+				}
+			//check redundancy
+			for(int i=0; i<=uniqueindex; ++i) if(!memcmp(&indices[i],&my.index,sizeof(union packed_index<I>))) return false;
+			//store unique
+			memcpy(&indices[++uniqueindex],&my.index,sizeof(union packed_index<I>));
+			return true;
+                        };
+        public:
+		qiterator() {};
+                qiterator(fourindex_ext *p): base(p),permindex(0),uniqueindex(0) {if(p) {it=p->begin(); setup();}};
+		qiterator(fourindex_ext &x): base(&x),permindex(0),uniqueindex(0) {it= x.begin(); setup();};
+                ~qiterator() {};
+                bool operator!=(const qiterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
+                qiterator &operator++() 
+			{
+			bool valid;
+			do 
+				{
+				valid=true;
+				++permindex;
+				if(permindex>=fourindex_permnumbers[base->symmetry]) {uniqueindex=permindex=0; ++it;} 
+				if(it.notNULL()) 
+					valid=setup(); 
+				else 
+					{
+					base=NULL; 
+					break;
+					}
+				}
+			while(!valid);
+			return *this;
+			} 
+		qiterator operator++(int) {laerror("postincrement not possible"); return *this;}
+                const matel4<I,T> * operator->() const {return &my;}
+                const matel4<I,T> & operator*() const {return my;}
+		bool end(void) {return !base;}
+                bool notend(void) {return base;}
+	};
+	qiterator qbegin() {return qiterator(*this);}
+	qiterator qend() const {return qiterator(NULL);} //inefficient, use end() or notend() instead
+
+
+
+
+}; //end of fourindex_ext
 
 /////////////////////////////implementations///////////////////////////////////
 
