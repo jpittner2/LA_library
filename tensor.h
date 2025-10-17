@@ -41,8 +41,7 @@
 //@@@ will not be particularly efficient
 //
 //@@@permutation of individual indices - chech the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
-//@@@todo - implement index names - flat vector of names, and contraction by named index list
-//@@@todo grassmann product and support for RDM and cumulat stuff
+//@@@todo!!! - implement index names - flat vector of names, and contraction by named index list
 
 namespace LA {
 
@@ -217,8 +216,12 @@ public:
 	inline Tensor contractions( const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {Tensor<T> r; r.addcontractions(*this,il1,rhs2,il2,alpha,0,true,conjugate1, conjugate2); return r; };
 
 	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
+	void apply_permutation_algebra(const  NRVec<Tensor> &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //avoids explicit outer product but not vectorized, rather inefficient
 //								 this *=beta; for I over this: this(I) += alpha * sum_P c_P rhs(P(I))
-//								 PermutationAlgebra can represent e.g. general_antisymmetrizer in Kucharski-Bartlett notation
+//								 PermutationAlgebra can represent e.g. general_antisymmetrizer in Kucharski-Bartlett notation, or Grassmann products building RDM from cumulants
+//								 Note that *this tensor can be e.g. antisymmetric while rhs is not and is being antisymmetrized by the PermutationAlgebra
+//								 The efficiency is not optimal, even when avoiding the outer product, the calculation is done indexing element by element
+//								 More efficient would be applying permutation algebra symbolically and efficiently computing term by term
 	void split_index_group(int group); //formal split of a non-symmetric index group WITHOUT the need for data reorganization
 	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization
 	Tensor merge_index_groups(const NRVec<int> &groups) const;

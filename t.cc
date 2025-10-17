@@ -3451,7 +3451,7 @@ cout <<mm;
 cout <<m.getcount()<<" "<<v.getcount()<<" "<<mm.getcount()<<endl;
 }
 
-if(1)
+if(0)
 {
 NRVec<double> v(12);
 v.randomize(1.);
@@ -3462,7 +3462,7 @@ cout<<"abssorted\n";
 v.printsorted(cout,1,true);
 }
 
-if(1)
+if(0)
 {
 NRSMat<double> v(4);
 v.randomize(1.);
@@ -3471,7 +3471,7 @@ cout<<"smat sorted\n";
 v.printsorted(cout,1,false);
 }
 
-if(1)
+if(0)
 {
 NRMat<double> v(4,5);
 v.randomize(1.);
@@ -3481,7 +3481,57 @@ v.printsorted(cout,1,false);
 }
 
 
+if(1)
+{
+//grassmann product of n identical rank=2 tensors in m-dim space
+int n,m;
+cin >>n>>m;
 
+//generate the source tensor
+INDEXGROUP g;
+g.number=2;
+g.symmetry= 0;
+g.offset=0;
+g.range=m;
+Tensor<double> x(g);
+x.randomize(1);
 
+cout <<x;
 
+//generate antisymmetrizer of even indices, with identity on odd indices
+NRVec<NRVec_from1<int> > indexclasses(1);
+indexclasses[0].resize(n);
+for(int i=1; i<=n; ++i) {indexclasses[0][i]= i;}
+PermutationAlgebra<int,int> a=general_antisymmetrizer(indexclasses,0,true);
+//antisymmetrize only in the even indices
+PermutationAlgebra<int,double> b(a.size());
+for(int i=0; i<a.size(); ++i) 
+	{
+	b[i].weight=a[i].weight;
+	b[i].perm.resize(2*n);
+	for(int j=1; j<=n; ++j)
+		{
+		b[i].perm[2*j-1] = 2*j-1;
+		b[i].perm[2*j] = 2*a[i].perm[j];
+		}
+	}
+cout <<b;
+
+//prepare output tensor (ignoring its symmetry)
+INDEXGROUP gg;
+gg.number= 2*n;
+gg.symmetry= 0;
+gg.offset=0;
+gg.range=m;
+Tensor<double> y(gg);
+
+NRVec<Tensor<double> > rhsvec(n);
+for(int i=0; i<n; ++i) rhsvec[i]=x;
+
+y.apply_permutation_algebra(rhsvec,b,false,1.,0.);
+
+cout <<y;
 }
+
+
+}//main

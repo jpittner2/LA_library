@@ -924,6 +924,32 @@ for(int p=0; p<help_pa<T>->size(); ++p)
 }
 
 
+static int help_tn;
+template<typename T>
+static Tensor<T> *help_tv;
+
+template<typename T>
+static void permutationalgebra_callback2(const SUPERINDEX &I, T *v)
+{
+FLATINDEX J = superindex2flat(I);
+for(int p=0; p<help_pa<T>->size(); ++p)
+        {
+        FLATINDEX Jp = J.permuted((*help_pa<T>)[p].perm,help_inverse);
+	T product;
+	//build product from the vector of tensors using the Jp index
+	int rankshift=0;
+	for(int i=0; i<help_tn; ++i)
+		{
+		int rank = help_tv<T>[i].rank();
+		FLATINDEX indi = Jp.subvector(rankshift,rankshift+rank-1);
+		if(i==0) product= help_tv<T>[i](indi);
+		else product *= help_tv<T>[i](indi);
+		rankshift +=  rank;
+		}
+        *v += help_alpha<T> * (*help_pa<T>)[p].weight * product;
+        }
+}
+
 
 template<typename T>
 void Tensor<T>::apply_permutation_algebra(const Tensor<T> &rhs, const PermutationAlgebra<int,T> &pa, bool inverse, T alpha, T beta)
@@ -932,12 +958,37 @@ if(beta!=(T)0) {if(beta!=(T)1) *this *= beta;} else clear();
 if(alpha==(T)0) return;
 copyonwrite();
 
+if(rank()!=rhs.rank()) laerror("rank mismatch in apply_permutation_algebra");
+
 help_t<T> = const_cast<Tensor<T> *>(&rhs);
 help_pa<T> = &pa;
 help_inverse = inverse;
 help_alpha<T> = alpha;
 loopover(permutationalgebra_callback);
 }
+
+
+template<typename T>
+void Tensor<T>::apply_permutation_algebra(const NRVec<Tensor<T> > &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse, T alpha, T beta)
+{
+if(beta!=(T)0) {if(beta!=(T)1) *this *= beta;} else clear();
+if(alpha==(T)0) return;
+copyonwrite();
+
+int totrank=0;
+for(int i=0; i<rhsvec.size(); ++i) totrank+=rhsvec[i].rank();
+if(totrank!=rank()) laerror("rank mismatch in apply_permutation_algebra");
+
+help_tv<T> = const_cast<Tensor<T> *>(&rhsvec[0]);
+help_tn = rhsvec.size();
+help_pa<T> = &pa;
+help_inverse = inverse;
+help_alpha<T> = alpha;
+loopover(permutationalgebra_callback2);
+}
+
+
+
 
 
 template<typename T>
