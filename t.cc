@@ -3504,6 +3504,7 @@ indexclasses[0].resize(n);
 for(int i=1; i<=n; ++i) {indexclasses[0][i]= i;}
 PermutationAlgebra<int,int> a=general_antisymmetrizer(indexclasses,0,true);
 //antisymmetrize only in the even indices
+//also convert the PermutationAlgebra<int,int> to PermutationAlgebra<int,double> as needed for apply_permutation_algebra
 PermutationAlgebra<int,double> b(a.size());
 for(int i=0; i<a.size(); ++i) 
 	{
