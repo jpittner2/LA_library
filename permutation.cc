@@ -2077,6 +2077,11 @@ for(int i=1; i<ngroups; ++i) r= r&lists[i];
 return r;
 }
 
+//DOES NOT WORK template<typename T,typename U>
+template<typename T> template <typename U> //this works
+void NRPerm<T>::testik(U u)
+{
+}
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file

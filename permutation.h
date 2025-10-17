@@ -28,6 +28,7 @@
 typedef   unsigned long long PERM_RANK_TYPE;
 
 //permutations are always numbered from 1; offset is employed when applied to vectors and matrices
+//TODO@@@ change the functions with PermutationAlgebra<T,T>  to nested T,U template functions for  PermutationAlgebra<T,U>
 
 
 namespace LA {
@@ -76,6 +77,7 @@ public:
 	PERM_RANK_TYPE generate_all(void (*callback)(const NRPerm<T>&), int parity_select=0); //Algorithm L from Knuth's vol.4, efficient but not in lex order!
 	PermutationAlgebra<T,T>  list_all(int parity_select=0);
 	PermutationAlgebra<T,T>  list_all_lex();
+	template <typename U> void testik(U u); //demostrate that in .cc one has to declare the nested templates separately
 	PERM_RANK_TYPE generate_all_multi(void (*callback)(const NRPerm<T>&));  //Algorithm L2 from Knuth's vol.4, for a multiset (repeated numbers, not really permutations)
 	PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&)); //recursive method, also not lexicographic
 	PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&)); //generate in lex order using next()
@@ -179,6 +181,8 @@ public:
 	PermutationAlgebra() {};
 	PermutationAlgebra(int n) : NRVec<WeightPermutation<T,R> >(n) {};
 	PermutationAlgebra(const NRVec<WeightPermutation<T,R> > &x) :  NRVec<WeightPermutation<T,R> >(x) {};
+	template <typename U> PermutationAlgebra(const PermutationAlgebra<T,U> &rhs) : NRVec<WeightPermutation<T,R> >(rhs.size()) 
+		{for(int i=0; i<rhs.size(); ++i) { (*this)[i].weight= (R) rhs[i].weight; (*this)[i].perm= rhs[i].perm; } };
 	int size() const {return NRVec<WeightPermutation<T,R> >::size();};
 	void copyonwrite() {NRVec<WeightPermutation<T,R> >::copyonwrite();};
 	int sort(int direction = 0, int from = 0, int to = -1, int *permut = NULL, bool stable=false) {return NRVec<WeightPermutation<T,R> >::sort(direction,from, to,permut,stable);};
@@ -403,6 +407,16 @@ NRMat<R> RegularRepresentation(const PermutationAlgebra<T,R> &a, const NRMat<PER
 template<typename T>
 PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &groups, int restriction_type=0, bool inverted=false);
 
+template <typename T, typename R, typename U>
+void cast_permutation_algebra(PermutationAlgebra<T,R> &lhs, const PermutationAlgebra<T,U> &rhs)
+{
+lhs.resize(rhs.size());
+for(int i=0; i<rhs.size(); ++i) 
+	{
+	lhs[i].weight= (R) rhs[i].weight;
+	lhs[i].perm= rhs[i].perm;
+	}
+}
 
 }//namespace
 #endif
