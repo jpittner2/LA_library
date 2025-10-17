@@ -877,6 +877,9 @@ const NRVec<T> NRVec<T>::subvector(const int from, const int to) const
 		laerror("invalid subvector specification");
 	}
 #endif
+//trivial case of whole vector for efficiency
+	if(from==0 && to == nn-1) return *this;
+
 	const int n = to - from + 1;
 	NRVec<T> r(n, getlocation());
 	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
