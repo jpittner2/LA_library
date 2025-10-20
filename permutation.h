@@ -28,7 +28,6 @@
 typedef   unsigned long long PERM_RANK_TYPE;
 
 //permutations are always numbered from 1; offset is employed when applied to vectors and matrices
-//TODO@@@ change the functions with PermutationAlgebra<T,T>  to nested T,U template functions for  PermutationAlgebra<T,U>
 
 
 namespace LA {
