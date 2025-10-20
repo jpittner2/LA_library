@@ -2031,7 +2031,7 @@ void NRMat<double>::diagmultr(const NRVec<double> &rhs) {
 		for(register int i=0; i<mm; i++){ cblas_dscal(nn, rhs[i], &(*this)(0, i), mm); }
 #ifdef CUDALA
 	}else{
-		for(register int i=0; i<mm; i++){ cublasDscal(mm, rhs[i], v + i, mm); }
+		for(register int i=0; i<mm; i++){ cublasDscal(nn, rhs[i], v + i, mm); }
 	}
 #endif
 }
