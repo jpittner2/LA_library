@@ -447,6 +447,7 @@ static void outputcallback(const SUPERINDEX &I, T *v)
 //print indices flat
 for(int i=0; i<I.size(); ++i)
 	for(int j=0; j<I[i].size(); ++j) *sout << I[i][j]<<" ";
+//*sout<<" "<< " "<<(void *)v<<" "<< *v<<std::endl;
 *sout<<" "<< *v<<std::endl;
 }
 
@@ -1073,6 +1074,53 @@ Tensor<T> r =  permute_index_groups(p);
 r.merge_adjacent_index_groups(0,groups.size()-1);
 return r;
 }
+
+
+template<typename T> 
+NRVec<NRMat<T> > Tensor<T>::Tucker(typename LA_traits<T>::normtype thr)
+{
+int r=rank();
+NRVec<NRMat<T> > ret(r);
+if(r<2) return ret;
+
+int rr=0;	
+for(int i=0; i<shape.size(); ++i)
+	for(int j=0; j<shape[i].number; ++j) //loop over all indices
+		{
+		NRMat<T> um;
+		NRVec<indexgroup> ushape;
+		{
+		Tensor<T> u=unwind_index(i,j);
+		ushape=u.shape;
+		um=u.matrix();
+		}
+		int mini=um.nrows(); if(um.ncols()<mini) mini=um.ncols(); //compact SVD, expect descendingly sorted values
+		NRMat<T> u(um.nrows(),mini),vt(mini,um.ncols());
+		NRVec<typename LA_traits<T>::normtype> w(mini);
+		singular_decomposition(um,&u,w,&vt,0);
+		um.resize(0,0); //deallocate
+		int preserve=mini;
+		for(int k=0; k<mini; ++k) if(w[k]<thr) {preserve=k; break;}
+		if(preserve==0) laerror("singular tensor in Tucker decomposition");
+		NRMat<T> umnew;
+		if(preserve<mini)
+			{
+			vt=vt.submatrix(0,preserve-1,0,um.ncols()-1);
+			w=w.subvector(0,preserve-1);
+			umnew=u.submatrix(0,um.nrows()-1,0,preserve-1);
+			}
+		else umnew=u;
+		ret[rr++]=vt.transpose(true);
+		umnew.diagmultr(w);
+		//rebuild tensor of the preserved shape from matrix
+		ushape[0].range=preserve;
+		NRVec<T> newdata(umnew);
+		*this = Tensor(ushape,newdata);
+		}
+return ret;
+}
+
+
 
 
 

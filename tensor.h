@@ -1,6 +1,6 @@
 /*
     LA: linear algebra C++ interface library
-    Copyright (C) 2024 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
+    Copyright (C) 2024-2025 Jiri Pittner <jiri.pittner@jh-inst.cas.cz> or <jiri@pittnerovi.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 //stored in an efficient way
 //each index group has a specific symmetry (nosym,sym,antisym)
 //additional symmetry between index groups (like in 2-electron integrals) is not supported directly, you would need to nest the class to Tensor<Tensor<T> >
+//leftmost index is least significant (changing fastest) in the storage order
 //presently only a rudimentary implementation
 //presently limited to 2G data size due to NRVec - maybe use a typedef LA_index 
 //to uint64_t in the future in vector and matrix classes
@@ -36,12 +37,16 @@
 #include "smat.h"
 #include "miscfunc.h"
 
+//TODO:
+//@@@!!!!!! - implement index names  and contractions, unwinding etc. by named index list
+//
 //@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
 //
-//@@@permutation of individual indices - chech the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
-//@@@todo!!! - implement index names - flat vector of names, and contraction by named index list
+//@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
+//
+//
 
 namespace LA {
 
@@ -147,7 +152,9 @@ public:
 	explicit Tensor(const NRVec<T> &x);
 	explicit Tensor(const NRMat<T> &x);
 	explicit Tensor(const NRSMat<T> &x);
+	NRMat<T> matrix() const {return NRMat<T>(data,data.size()/groupsizes[0],groupsizes[0],0);}; //reinterpret as matrix with column index being the tensor's leftmost index group (typically the unwound single index)
 
+	bool is_flat() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1) return false; return true;};
 	void clear() {data.clear();};
 	int rank() const {return myrank;};
 	int calcrank(); //is computed from shape
@@ -207,7 +214,7 @@ public:
 	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
 
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
-	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one
+	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one (the leftmost one)
 	Tensor unwind_indices(const INDEXLIST &il) const; //the same for a list of indices
 	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs2, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //rhs1 will have more significant non-contracted indices in the result than rhs2
 	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true, conjugate1, conjugate); return r; };
@@ -225,8 +232,8 @@ public:
 	void split_index_group(int group); //formal split of a non-symmetric index group WITHOUT the need for data reorganization
 	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization
 	Tensor merge_index_groups(const NRVec<int> &groups) const;
+	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
 
-	//TODO perhaps implement application of a permutation algebra to a product of several tensors
 };
 
 
