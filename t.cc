@@ -463,11 +463,11 @@ NRMat<double> u(a.nrows(),a.nrows()),v(a.ncols(),a.ncols());
 NRVec<double>s(a.ncols()<a.nrows()?a.ncols():a.nrows());
 singular_decomposition(a,&u,s,&v,0);
 cout <<u;
-NRMat<double> sdiag(0., u.ncols(),v.nrows());
-sdiag.diagonalset(s);
-cout <<sdiag;
+cout <<s;
 cout <<v;
+NRMat<double> sdiag(0., u.ncols(),v.nrows()); sdiag.diagonalset(s);
 cout << "Error "<<(u*sdiag*v-abak).norm()<<endl;
+
 NRMat<double> ai=calcinverse(abak2);
 cout <<"regular inverse "<<ai;
 NRVec<double>ss(s);ss.copyonwrite();
@@ -3481,7 +3481,7 @@ v.printsorted(cout,1,false);
 }
 
 
-if(1)
+if(0)
 {
 //grassmann product of n identical rank=2 tensors in m-dim space
 int n,m;
@@ -3497,6 +3497,29 @@ Tensor<double> x(g);
 x.randomize(1);
 
 cout <<x;
+
+int sign;
+for(int j=0; j<m; ++j) 
+for(int i=0; i<m; ++i) 
+	{
+	FLATINDEX I(2);
+	I[0]=i; I[1]=j;
+	cout <<" test "<<i<<" "<<j<<" "<<x.index(&sign,I)<<endl;
+	}
+
+NRMat<double> xm=x.matrix();
+cout <<xm;
+
+Tensor<double> xu=x.unwind_index(0,0);
+NRMat<double> xum=xu.matrix();
+cout <<xum;
+
+Tensor<double> xut=x.unwind_index(0,1);
+NRMat<double> xutm=xut.matrix();
+cout <<xutm;
+
+if((xum-xutm.transpose()).norm()>1e-14) laerror("error in unwinding");
+
 
 //generate antisymmetrizer of even indices, with identity on odd indices
 NRVec<NRVec_from1<int> > indexclasses(1);
@@ -3532,6 +3555,25 @@ for(int i=0; i<n; ++i) rhsvec[i]=x;
 y.apply_permutation_algebra(rhsvec,b,false,1.,0.);
 
 cout <<y;
+}
+
+if(1)
+{
+//compact SVD
+NRMat<double> a;
+cin >>a ;
+NRMat<double> abak=a;
+NRMat<double> abak2=a;
+int min = a.ncols()<a.nrows()?a.ncols():a.nrows();
+NRMat<double> u(a.nrows(),min),vt(min,a.ncols());
+NRVec<double>s(min);
+singular_decomposition(a,&u,s,&vt,0);
+cout <<u;
+cout <<s;
+cout <<vt;
+NRMat<double> sdiag(0., u.ncols(),vt.nrows()); sdiag.diagonalset(s);
+cout << "Error "<<(u*sdiag*vt-abak).norm()<<endl;
+
 }
 
 

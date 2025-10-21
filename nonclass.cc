@@ -801,11 +801,11 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 	if(m<=0) m=(int)m0;
 	if(n<=0) n=(int)n0;
 	if(n>n0 || m>m0) laerror("bad dimension in singular_decomposition");
-	if (u) if (m > u->nrows() || m> u->ncols())
+	if (u) if (m > u->nrows() || s.size()> u->ncols())
 		laerror("inconsistent dimension of U Mat in singular_decomposition()");
 	if (s.size() < m && s.size() < n) 
 		laerror("inconsistent dimension of S Vec in singular_decomposition()");
-	if (v) if (n > v->nrows() || n > v->ncols())
+	if (v) if (s.size() > v->nrows() || n > v->ncols())
 		laerror("inconsistent dimension of V Mat in singular_decomposition()");
 
 	a.copyonwrite();
@@ -815,31 +815,31 @@ void singular_decomposition(NRMat<double> &a, NRMat<double> *u, NRVec<double> &s
 	
 	// C-order (transposed) input and swap u,v matrices,
 	// v should be transposed at the end
-	char jobu = u ? 'A' : 'N';
-	char jobv = v ? 'A' : 'N';
+        char jobu = u ? (u->nrows()==u->ncols() ? 'A' : 'S') : 'N';
+        char jobv = v ? (v->nrows()==v->ncols() ? 'A' : 'S') : 'N';
+
 	double work0;
 	FINT lwork = -1;
 	FINT r;
 
+	FINT lda=a.ncols();
+	FINT ldu= u ? u->ncols():0;
+	FINT ldv= v ? v->ncols():0;
 #ifdef FORINT
         FINT ntmp = n;
 	FINT mtmp = m;
-	FORNAME(dgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, &work0, &lwork, &r);
+	FORNAME(dgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, &work0, &lwork, &r);
 #else
-	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, &work0, &lwork, &r);
+	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, &work0, &lwork, &r);
 #endif
 
 	lwork = (FINT) work0;
 	double *work = new double[lwork];
 
 #ifdef FORINT
-	FORNAME(dgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, work, &lwork, &r);
+	FORNAME(dgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, work, &lwork, &r);
 #else
-	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, work, &lwork, &r);
+	FORNAME(dgesvd)(&jobv, &jobu, &n, &m, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, work, &lwork, &r);
 #endif
 
 	delete[] work;
@@ -866,11 +866,11 @@ void singular_decomposition(NRMat<std::complex<double> > &a, NRMat<std::complex<
 	if(m<=0) m=(int)m0;
 	if(n<=0) n=(int)n0;
 	if(n>n0 || m>m0) laerror("bad dimension in singular_decomposition");
-	if (u) if (m > u->nrows() || m> u->ncols())
+	if (u) if (m > u->nrows() || s.size()> u->ncols())
 		laerror("inconsistent dimension of U Mat in singular_decomposition()");
 	if (s.size() < m && s.size() < n) 
 		laerror("inconsistent dimension of S Vec in singular_decomposition()");
-	if (v) if (n > v->nrows() || n > v->ncols())
+	if (v) if (s.size() > v->nrows() || n > v->ncols())
 		laerror("inconsistent dimension of V Mat in singular_decomposition()");
 
 	int nmin =  n<m?n:m;
@@ -881,32 +881,32 @@ void singular_decomposition(NRMat<std::complex<double> > &a, NRMat<std::complex<
 	
 	// C-order (transposed) input and swap u,v matrices,
 	// v should be transposed at the end
-	char jobu = u ? 'A' : 'N';
-	char jobv = v ? 'A' : 'N';
+	char jobu = u ? (u->nrows()==u->ncols() ? 'A' : 'S') : 'N';
+	char jobv = v ? (v->nrows()==v->ncols() ? 'A' : 'S') : 'N';
+
 	std::complex<double> work0;
 	FINT lwork = -1;
 	FINT r;
         double *rwork = new double[5*nmin];
 
+        FINT lda=a.ncols();
+        FINT ldu= u ? u->ncols():0;
+        FINT ldv= v ? v->ncols():0;
 #ifdef FORINT
         FINT ntmp = n;
 	FINT mtmp = m;
-	FORNAME(zgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, &work0, &lwork, rwork, &r);
+	FORNAME(zgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, &work0, &lwork, rwork, &r);
 #else
-	FORNAME(zgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, &work0, &lwork, rwork, &r);
+	FORNAME(zgesvd)(&jobv, &jobu, &n, &m, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, &work0, &lwork, rwork, &r);
 #endif
 
 	lwork = (FINT) work0.real();
 	std::complex<double> *work = new std::complex<double>[lwork];
 
 #ifdef FORINT
-	FORNAME(zgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, work, &lwork, rwork, &r);
+	FORNAME(zgesvd)(&jobv, &jobu, &ntmp, &mtmp, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, work, &lwork, rwork, &r);
 #else
-	FORNAME(zgesvd)(&jobv, &jobu, &n, &m, a, &n0, s, v?(*v)[0]:0, &n0,
-			u?(*u)[0]:0, &m0, work, &lwork, rwork, &r);
+	FORNAME(zgesvd)(&jobv, &jobu, &n, &m, a, &lda, s, v?(*v)[0]:0, &ldv, u?(*u)[0]:0, &ldu, work, &lwork, rwork, &r);
 #endif
 
 	delete[] work;
