@@ -1114,7 +1114,7 @@ if(r==1) //create an analogous output for the trivial case
 	return ret;
 	}
 
-//loop over all indices; relies on the fact tha unwinding does not change order of remaining indices
+//loop over all indices; relies on the fact that unwinding does not change order of remaining indices
 for(int i=0; i<r; ++i)
 	{
 	INDEX I=indexposition(i,shape);
@@ -1128,11 +1128,11 @@ for(int i=0; i<r; ++i)
 	int mini=um.nrows(); if(um.ncols()<mini) mini=um.ncols(); //compact SVD, expect descendingly sorted values
 	NRMat<T> u(um.nrows(),mini),vt(mini,um.ncols());
 	NRVec<typename LA_traits<T>::normtype> w(mini);
-	std::cout << "decomposing "<<um<<std::endl;
+	//std::cout << "decomposing "<<um<<std::endl;
 	singular_decomposition(um,&u,w,&vt,0);
-	std::cout << "resulting U "<<u<<std::endl;
-	std::cout << "resulting W "<<w<<std::endl;
-	std::cout << "resulting VT "<<vt<<std::endl;
+	//std::cout << "resulting U "<<u<<std::endl;
+	//std::cout << "resulting W "<<w<<std::endl;
+	//std::cout << "resulting VT "<<vt<<std::endl;
 	um.resize(0,0); //deallocate
 	int preserve=mini;
 	for(int k=0; k<mini; ++k) if(w[k]<thr) {preserve=k; break;}
