@@ -1091,6 +1091,9 @@ return r;
 }
 
 
+//NOTE: Tucker of rank=2 is inherently inefficient - result is a diagonal tensor stored in full and 2 calls to SVD
+//we could avoid the second SVD, but the wasteful storage and erconstruction would remain
+//
 template<typename T> 
 NRVec<NRMat<T> > Tensor<T>::Tucker(typename LA_traits<T>::normtype thr, bool inverseorder)
 {
@@ -1101,11 +1104,13 @@ copyonwrite();
 
 if(r==1) //create an analogous output for the trivial case 
 	{
+	typename LA_traits<T>::normtype N=data.norm();
+	data*= (1/N);
 	ret[0]=NRMat<T>(data,data.size(),1);
 	shape[0].range=1;
 	data.resize(calcsize()); 
 	calcrank();
-	data[0]=1;
+	data[0]=(T)N;
 	return ret;
 	}
 
@@ -1123,7 +1128,11 @@ for(int i=0; i<r; ++i)
 	int mini=um.nrows(); if(um.ncols()<mini) mini=um.ncols(); //compact SVD, expect descendingly sorted values
 	NRMat<T> u(um.nrows(),mini),vt(mini,um.ncols());
 	NRVec<typename LA_traits<T>::normtype> w(mini);
+	std::cout << "decomposing "<<um<<std::endl;
 	singular_decomposition(um,&u,w,&vt,0);
+	std::cout << "resulting U "<<u<<std::endl;
+	std::cout << "resulting W "<<w<<std::endl;
+	std::cout << "resulting VT "<<vt<<std::endl;
 	um.resize(0,0); //deallocate
 	int preserve=mini;
 	for(int k=0; k<mini; ++k) if(w[k]<thr) {preserve=k; break;}
