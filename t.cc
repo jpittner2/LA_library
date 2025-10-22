@@ -3275,13 +3275,20 @@ if(0)
 int n=5;
 INDEXGROUP g;
 g.number=4;
-g.symmetry= -1;
+g.symmetry= 0;
+//g.symmetry= 1;
+//g.symmetry= -1;
 g.offset=0;
 g.range=n;
 
 Tensor<double> e(g);
 e.randomize(1.);
 Tensor<double> eu = e.unwind_index(0,1);
+Tensor<double> eu2 = e.unwind_index(0,2);
+Tensor<double> eu3 = e.unwind_index(0,3);
+
+cout <<e<<endl;
+
 
 for(int i=0; i<n; ++i)
         for(int j=0; j<n; ++j)
@@ -3289,10 +3296,46 @@ for(int i=0; i<n; ++i)
                         for(int l=0; l<n; ++l)
                                 {
 				if(e(i,j,k,l)!=eu(j,i,k,l)) laerror("error in unwind_index");
+				if(e(i,j,k,l)!=eu2(k,i,j,l)) laerror("error2 in unwind_index");
+				if(e(i,j,k,l)!=eu3(l,i,j,k)) laerror("error3 in unwind_index");
 				}
-cout <<e;
-cout <<eu;
 }
+
+if(0)
+{
+int n=2;
+NRVec<INDEXGROUP> g(4);
+for(int i=0; i<4; ++i)
+	{
+	g[i].number=1;
+	g[i].symmetry= 0;
+	g[i].offset=0;
+	g[i].range=n+i;
+	}
+
+Tensor<double> e(g);
+e.randomize(1.);
+
+cout<< "E shape = "<<e.shape<<endl;
+Tensor<double> eu = e.unwind_index(1,0);
+cout<< "Eu shape = "<<eu.shape<<endl;
+Tensor<double> eu2 = e.unwind_index(2,0);
+cout<< "Eu2 shape = "<<eu2.shape<<endl;
+Tensor<double> eu3 = e.unwind_index(3,0);
+cout<< "Eu3 shape = "<<eu3.shape<<endl;
+
+for(int i=0; i<n; ++i)
+        for(int j=0; j<n+1; ++j)
+                for(int k=0; k<n+2; ++k)
+                        for(int l=0; l<n+3; ++l)
+                                {
+                                if(e(i,j,k,l)!=eu(j,i,k,l)) laerror("error in unwind_index");
+				if(e(i,j,k,l)!=eu2(k,i,j,l)) laerror("error2 in unwind_index");
+                                if(e(i,j,k,l)!=eu3(l,i,j,k)) laerror("error3 in unwind_index");
+                                }
+}
+
+
 
 
 if(0)
@@ -3355,7 +3398,6 @@ for(int i=0; i<n; ++i)
 //cout <<c;
 }
 
-//test Tensor apply_permutation_algebra
 
 //test unwind_indices
 if(0)
@@ -3390,7 +3432,8 @@ if(0)
 int n=5;
 INDEXGROUP g;
 g.number=2;
-g.symmetry= 1;
+//g.symmetry= 1;
+g.symmetry= 0;
 g.offset=0;
 g.range=n;
 
@@ -3557,7 +3600,7 @@ y.apply_permutation_algebra(rhsvec,b,false,1.,0.);
 cout <<y;
 }
 
-if(1)
+if(0)
 {
 //compact SVD
 NRMat<double> a;
@@ -3574,6 +3617,34 @@ cout <<vt;
 NRMat<double> sdiag(0., u.ncols(),vt.nrows()); sdiag.diagonalset(s);
 cout << "Error "<<(u*sdiag*vt-abak).norm()<<endl;
 
+}
+
+if(1)
+{
+//tucker of a flat tensor
+int r,n;
+cin>>r>>n;
+NRVec<INDEXGROUP> shape(r);
+for(int i=0; i<r; ++i)
+	{
+	shape[i].number=1;
+	shape[i].symmetry=0;
+	shape[i].range=n+i;
+	shape[i].offset=0;
+	}
+Tensor<double> x(shape);
+x.randomize(1.);
+cout<<x;
+Tensor<double> x0(x);
+x0.copyonwrite();
+bool inv=true;
+NRVec<NRMat<double> > dec=x.Tucker(1e-12,inv);
+cout<<"Tucker\n"<<x<<endl;
+cout<<dec;
+
+Tensor<double> y = x.inverseTucker(dec,inv);
+cout <<"invTucker\n"<<y;
+cout <<"Error = "<<(x0-y).norm()<<endl;
 }
 
 
