@@ -46,12 +46,15 @@
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
 //
-//@@@conversions to/from fourindex, optional negarive rande for beta spin handling
-//@@@ optional distinguish covariant and contravariant check in contraction
+//@@@conversions to/from fourindex, optional negarive range for beta spin handling
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //
 //
+
+
+//do not distinguish covariant/contravariant indices
+#undef LA_TENSOR_INDEXPOSITION
 
 namespace LA {
 
@@ -91,8 +94,15 @@ static const LA_index offset = 0; //compiler can optimize away some computations
 LA_index offset; //indices start at a general offset
 #endif
 LA_index range;  //indices span this range
+#ifdef LA_TENSOR_INDEXPOSITION
+bool upperindex;
+#endif
 
-	bool operator==(const indexgroup &rhs) const {return number==rhs.number && symmetry==rhs.symmetry && offset==rhs.offset && range==rhs.range;};
+	bool operator==(const indexgroup &rhs) const {return number==rhs.number && symmetry==rhs.symmetry && offset==rhs.offset && range==rhs.range
+#ifdef LA_TENSOR_INDEXPOSITION
+	&& upperindex == rhs.upperindex
+#endif
+	;};
 	inline bool operator!=(const indexgroup &rhs) const {return !((*this)==rhs);};
 } INDEXGROUP;
 

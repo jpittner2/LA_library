@@ -326,6 +326,9 @@ shape[0].symmetry=0;
 #ifndef LA_TENSOR_ZERO_OFFSET
 shape[0].offset=0;
 #endif
+#ifdef LA_TENSOR_INDEXPOSITION
+shape[0].upperindex=false;
+#endif
 shape[0].range=x.size();
 calcsize();
 }
@@ -343,6 +346,9 @@ if(x.nrows()==x.ncols() && !flat)
 #ifndef LA_TENSOR_ZERO_OFFSET
 	shape[0].offset=0;
 #endif
+#ifdef LA_TENSOR_INDEXPOSITION
+shape[0].upperindex=false;
+#endif
 	shape[0].range=x.nrows();
 	}
 else
@@ -352,6 +358,9 @@ else
 	shape[0].symmetry=0; shape[1].symmetry=0;
 #ifndef LA_TENSOR_ZERO_OFFSET
         shape[0].offset=0; shape[1].offset=0;
+#endif
+#ifdef LA_TENSOR_INDEXPOSITION
+	shape[0].upperindex=false;
 #endif
 	shape[0].range=x.ncols();
 	shape[1].range=x.nrows();
@@ -370,6 +379,9 @@ shape[0].number=2;
 shape[0].symmetry=1;
 #ifndef LA_TENSOR_ZERO_OFFSET
         shape[0].offset=0;
+#endif
+#ifdef LA_TENSOR_INDEXPOSITION
+shape[0].upperindex=false;
 #endif
 shape[0].range=x.nrows();
 calcsize();
@@ -524,6 +536,9 @@ s<<x.number <<" "<<x.symmetry<<" ";
 #ifndef LA_TENSOR_ZERO_OFFSET
 s<<x.offset<<" ";
 #endif
+#ifdef LA_TENSOR_INDEXPOSITION
+s<<x.upperindex<<" ";
+#endif
 s<< x.range<<std::endl;
 return s;
 }
@@ -533,6 +548,9 @@ std::istream & operator>>(std::istream &s, INDEXGROUP &x)
 s>>x.number>>x.symmetry;
 #ifndef LA_TENSOR_ZERO_OFFSET
 s>>x.offset;
+#endif
+#ifdef LA_TENSOR_INDEXPOSITION
+s>> x.upperindex;
 #endif
 s>>x.range;
 return s;
@@ -724,6 +742,9 @@ newshape[0].range=shape[group].range;
 #ifndef LA_TENSOR_ZERO_OFFSET
 newshape[0].offset = shape[group].offset;
 #endif
+#ifdef LA_TENSOR_INDEXPOSITION
+newshape[0].upperindex =  shape[group].upperindex;
+#endif
 int flatindex=0; //(group,index) in flat form
 for(int i=0; i<shape.size(); ++i)
 	{
@@ -819,6 +840,9 @@ for(int g=0; g<shape.size(); ++g)
 #ifndef LA_TENSOR_ZERO_OFFSET
 			newshape[gg].offset = shape[g].offset;
 #endif 
+#ifdef LA_TENSOR_INDEXPOSITION
+			newshape[gg].upperindex = shape[g].upperindex;
+#endif
 			gg++;
 			}
 		}
@@ -897,6 +921,9 @@ for(int i=0; i<il.size(); ++i)
 	newshape[i].range=shape[il[i].group].range;
 #ifndef LA_TENSOR_ZERO_OFFSET
 	newshape[i].offset = shape[il[i].group].offset;
+#endif
+#ifdef LA_TENSOR_INDEXPOSITION
+	newshape[i].upperindex =  shape[il[i].group].upperindex;
 #endif
 	oldshape[il[i].group].number --;
 	}
@@ -998,6 +1025,9 @@ if(index<0||index>=rhs1.shape[group].number)  laerror("wrong index number in con
 if(rhsindex<0||rhsindex>=rhs.shape[rhsgroup].number)  laerror("wrong index number in conntraction");
 if(rhs1.shape[group].offset != rhs.shape[rhsgroup].offset) laerror("incompatible index offset in contraction");
 if(rhs1.shape[group].range != rhs.shape[rhsgroup].range) laerror("incompatible index range in contraction");
+#ifdef LA_TENSOR_INDEXPOSITION
+if(rhs1.shape[group].upperindex ^ rhs.shape[rhsgroup].upperindex == false) laerror("can contact only upper with lower index");
+#endif
 
 const Tensor<T> u = conjugate1? (rhs1.unwind_index(group,index)).conjugate() : rhs1.unwind_index(group,index);
 const Tensor<T> rhsu = rhs.unwind_index(rhsgroup,rhsindex);
@@ -1040,6 +1070,9 @@ for(int i=0; i<il1.size(); ++i)
 	if(il2[i].index<0||il2[i].index>=rhs2.shape[il2[i].group].number)  laerror("wrong index2 number in conntractions");
 	if(rhs1.shape[il1[i].group].offset != rhs2.shape[il2[i].group].offset) laerror("incompatible index offset in contractions");
 	if(rhs1.shape[il1[i].group].range  != rhs2.shape[il2[i].group].range) laerror("incompatible index range in contractions");
+#ifdef LA_TENSOR_INDEXPOSITION
+	if(rhs1.shape[il1[i].group].upperindex ^ rhs2.shape[il2[i].group].upperindex == false) laerror("can contact only upper with lower index");
+#endif
 	}
 
 Tensor<T> u = rhs1.unwind_indices(il1);
