@@ -49,8 +49,6 @@
 //@@@conversions to/from fourindex, optional negarive rande for beta spin handling
 //@@@ optional distinguish covariant and contravariant check in contraction
 //
-//maybe const loopover and grouploopover to avoid problems with shallowly copied tensors
-//
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //
 //
@@ -224,7 +222,9 @@ public:
 	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x);};
 
 	void loopover(void (*callback)(const SUPERINDEX &, T *)); //loop over all elements
+	void constloopover(void (*callback)(const SUPERINDEX &, const T *)) const; //loop over all elements
 	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
+	void constgrouploopover(void (*callback)(const GROUPINDEX &, const T *)) const; //loop over all elements disregarding the internal structure of index groups
 
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
 	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one (the leftmost one)
