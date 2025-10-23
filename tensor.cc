@@ -1417,9 +1417,6 @@ else
 
 
 
-
-
-
 template class Tensor<double>;
 template class Tensor<std::complex<double> >;
 template std::ostream & operator<<(std::ostream &s, const Tensor<double> &x);

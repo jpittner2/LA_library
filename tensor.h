@@ -46,7 +46,7 @@
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
 //
-//@@@conversions to/from fourindex, optional negarive range for beta spin handling
+//@@@conversions to/from fourindex, optional negative range for beta spin handling in some cases
 //@@@use the fact that fourindex_dense is inherited from Mat/SMat and construct tensor from the (unsymmetrized) NRMat sharing data, just rewrite then the shape
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
@@ -263,6 +263,26 @@ public:
 	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=true); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
 	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=true) const; //rebuild the original tensor from Tucker
 };
+
+
+//due to template nesting and specialization limitation, this cannot be class member - the S parameter has to be the outer one
+template<fourindexsymtype S, typename T, typename I> 
+Tensor<T> fourindex2tensor(const fourindex_dense<S,T,I> &f);
+template<fourindexsymtype S, typename T, typename I>          
+void tensor2fourindex(const Tensor<T> &t, fourindex_dense<S,T,I> &f);
+
+//conversions from/to fourindex specialized by symmetry type
+template<typename T, typename I>
+Tensor<T>  fourindex2tensor(const fourindex_dense<nosymmetry,T,I> &f)
+{
+}
+
+template<typename T, typename I>
+void tensor2fourindex(const Tensor<T> &t, fourindex_dense<nosymmetry,T,I> &f)
+{
+}
+
+
 
 
 
