@@ -40,14 +40,16 @@
 
 //TODO:
 //@@@!!!!!! - implement index names  and contractions, unwinding etc. by named index list
+//@@@index names flat or in groups ?
 //
 //@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
 //
-//@@@conversions to/from fourindex
+//@@@conversions to/from fourindex, optional negarive rande for beta spin handling
+//@@@ optional distinguish covariant and contravariant check in contraction
 //
-//@@@!!!!!!!!!!!const loopover and grouploopover
+//maybe const loopover and grouploopover to avoid problems with shallowly copied tensors
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //
@@ -162,6 +164,7 @@ public:
 	NRMat<T> matrix() const {return NRMat<T>(data,data.size()/groupsizes[0],groupsizes[0],0);}; //reinterpret as matrix with column index being the tensor's leftmost index group (typically the unwound single index)
 
 	bool is_flat() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1) return false; return true;};
+	bool is_compressed() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1&&shape[i].symmetry!=0) return true; return false;};
 	void clear() {data.clear();};
 	int rank() const {return myrank;};
 	int calcrank(); //is computed from shape
@@ -240,9 +243,11 @@ public:
 //								 Note that *this tensor can be e.g. antisymmetric while rhs is not and is being antisymmetrized by the PermutationAlgebra
 //								 The efficiency is not optimal, even when avoiding the outer product, the calculation is done indexing element by element
 //								 More efficient would be applying permutation algebra symbolically and efficiently computing term by term
-	void split_index_group(int group); //formal split of a non-symmetric index group WITHOUT the need for data reorganization
+
+	void split_index_group(int group); //formal in-place split of a non-symmetric index group WITHOUT the need for data reorganization
 	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization
 	Tensor merge_index_groups(const NRVec<int> &groups) const;
+	Tensor flatten(int group= -1) const; //split and uncompress a given group or all of them
 	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=true); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
 	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=true) const; //rebuild the original tensor from Tucker
 };

@@ -3619,7 +3619,7 @@ cout << "Error "<<(u*sdiag*vt-abak).norm()<<endl;
 
 }
 
-if(1)
+if(0)
 {
 //tucker of a flat tensor
 int r,n;
@@ -3646,6 +3646,63 @@ Tensor<double> y = x.inverseTucker(dec,inv);
 cout <<"invTucker\n"<<y;
 cout <<"Error = "<<(x0-y).norm()<<endl;
 }
+
+if(0)
+{
+//tucker of a non-flat non-symmetric tensor
+int r,n;
+cin>>r>>n;
+INDEXGROUP shape;
+        {
+        shape.number=r;
+        shape.symmetry=0;
+        shape.range=n;
+        shape.offset=0;
+        }
+Tensor<double> x(shape);
+x.randomize(1.);
+cout<<x;
+Tensor<double> x0(x);
+x0.copyonwrite();
+bool inv=true;
+NRVec<NRMat<double> > dec=x.Tucker(1e-12,inv);
+cout<<"Tucker\n"<<x<<endl;
+cout<<dec;
+
+Tensor<double> y = x.inverseTucker(dec,inv);
+cout <<"invTucker\n"<<y;
+x0.split_index_group(0);
+cout <<"Error = "<<(x0-y).norm()<<endl;
+}
+
+if(1)
+{
+//tucker of a non-flat symmetric tensor
+int r,n;
+cin>>r>>n;
+INDEXGROUP shape;
+        {
+        shape.number=r;
+        shape.symmetry= -1;
+        shape.range=n;
+        shape.offset=0;
+        }
+Tensor<double> x(shape);
+x.randomize(1.);
+cout<<x;
+Tensor<double> x0(x);
+x0.copyonwrite();
+bool inv=true;
+NRVec<NRMat<double> > dec=x.Tucker(1e-12,inv);
+cout<<"Tucker\n"<<x<<endl;
+cout<<dec;
+
+Tensor<double> y = x.inverseTucker(dec,inv);
+cout <<"invTucker\n"<<y;
+Tensor<double> x1=x0.flatten();
+cout <<"Error = "<<(x1-y).norm()<<endl;
+}
+
 
 
 }//main
