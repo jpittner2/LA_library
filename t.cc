@@ -3683,7 +3683,7 @@ cin>>r>>n;
 INDEXGROUP shape;
         {
         shape.number=r;
-        shape.symmetry= -1;
+        shape.symmetry= 1;
         shape.range=n;
         shape.offset=0;
         }

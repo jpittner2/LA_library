@@ -47,6 +47,7 @@
 //@@@ will not be particularly efficient
 //
 //@@@conversions to/from fourindex, optional negarive range for beta spin handling
+//@@@use the fact that fourindex_dense is inherited from Mat/SMat and construct tensor from the (unsymmetrized) NRMat sharing data, just rewrite then the shape
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //
@@ -173,6 +174,7 @@ public:
 
 	bool is_flat() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1) return false; return true;};
 	bool is_compressed() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1&&shape[i].symmetry!=0) return true; return false;};
+	bool has_symmetry() const {for(int i=0; i<shape.size(); ++i) if(shape[i].symmetry!=0) return true; return false;};
 	void clear() {data.clear();};
 	int rank() const {return myrank;};
 	int calcrank(); //is computed from shape
