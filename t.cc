@@ -3675,7 +3675,7 @@ x0.split_index_group(0);
 cout <<"Error = "<<(x0-y).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 //tucker of a non-flat symmetric tensor
 int r,n;
@@ -3703,6 +3703,19 @@ Tensor<double> x1=x0.flatten();
 cout <<"Error = "<<(x1-y).norm()<<endl;
 }
 
+
+if(1)
+{
+int n;
+cin>>n;
+fourindex_dense<nosymmetry,double,int> f(n);
+f.randomize(1.);
+Tensor<double> t=fourindex2tensor(f);
+cout <<t;
+fourindex_dense<nosymmetry,double,int> ff;
+tensor2fourindex(t,ff);
+cout <<"Error = "<<(f-ff).norm()<<endl;
+}
 
 
 }//main

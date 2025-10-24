@@ -1142,34 +1142,36 @@ return NRSMat<T>::v[SMat_index(I,J)];
 template<class T, class I>
 class fourindex_dense<nosymmetry,T,I> : public NRMat<T> {
 protected:
-	unsigned int nn;
+	unsigned int nnbas;
 friend class explicit_t2;
 public:
-        fourindex_dense(): NRMat<T>() {nn=0;};
-	void resize(const int nnn) {nn=nnn; (*this).NRMat<T>::resize(nn*nn,nn*nn);};
-        explicit fourindex_dense(const int nnn): NRMat<T>(nnn*nnn,nnn*nnn) {nn=nnn;};
+	unsigned int nbas() const {return nnbas;};	
+        fourindex_dense(): NRMat<T>() {nnbas=0;};
+	void resize(const int nnn) {nnbas=nnn; (*this).NRMat<T>::resize(nnbas*nnbas,nnbas*nnbas);};
+        explicit fourindex_dense(const int nnn): NRMat<T>(nnn*nnn,nnn*nnn) {nnbas=nnn;};
+        explicit fourindex_dense(const int nnn, const NRMat<T> &mat): NRMat<T>(mat) {nnbas=nnn;};
 
         inline T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b)
 {
 #ifdef DEBUG
-if(i<1||i>nn ||j<1||j>nn|| a<1||a>nn||b<1||b>nn) laerror("nosymmetry fourindex out of range");
+if(i<1||i>nnbas ||j<1||j>nnbas|| a<1||a>nnbas||b<1||b>nnbas) laerror("nosymmetry fourindex out of range");
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
-return (*this).NRMat<T>::operator() ((j-1)*nn+i-1,(b-1)*nn+a-1);
+return (*this).NRMat<T>::operator() ((j-1)*nnbas+i-1,(b-1)*nnbas+a-1);
 }
         inline const T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b) const
 {
 #ifdef DEBUG
-if(i<1||i>nn ||j<1||j>nn|| a<1||a>nn||b<1||b>nn) laerror("nosymmetry fourindex out of range");
+if(i<1||i>nnbas ||j<1||j>nnbas|| a<1||a>nnbas||b<1||b>nnbas) laerror("nosymmetry fourindex out of range");
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
-return (*this).NRMat<T>::operator() ((j-1)*nn+i-1,(b-1)*nn+a-1);
+return (*this).NRMat<T>::operator() ((j-1)*nnbas+i-1,(b-1)*nnbas+a-1);
 }
 
 void print(std::ostream &out) const
 		{
 		unsigned int i,j,a,b;
-		for(i=1; i<=nn; ++i) for(j=1; j<=nn; ++j) for(a=1; a<=nn; ++a) for(b=1; b<=nn; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<std::endl;
+		for(i=1; i<=nnbas; ++i) for(j=1; j<=nnbas; ++j) for(a=1; a<=nnbas; ++a) for(b=1; b<=nnbas; ++b) out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<std::endl;
 		}
 };
 
@@ -1215,36 +1217,36 @@ return (*this).NRMat<T>::operator() ((j-1)*noca+i-1,(b-1)*nvra+a-1);
 template<class T, class I>
 class fourindex_dense<antisymtwoelectronrealdiracAB,T,I> : public NRSMat<T> {
 protected:
-	unsigned int nbas;
+	unsigned int nnbas;
 friend class explicit_t2;
 public:
-        fourindex_dense(): NRSMat<T>() {nbas=0;};
-	void resize(const int n) {nbas=n; (*this).NRSMat<T>::resize(nbas*nbas);};
-        explicit fourindex_dense(const int n): NRSMat<T>(n*n) {nbas=n;};
+        fourindex_dense(): NRSMat<T>() {nnbas=0;};
+	void resize(const int n) {nnbas=n; (*this).NRSMat<T>::resize(nnbas*nnbas);};
+        explicit fourindex_dense(const int n): NRSMat<T>(n*n) {nnbas=n;};
 
 //here i,a are alpha j,b beta
         inline T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b)
 {
 #ifdef DEBUG
-if(i<1||i>nbas ||j<1||j>nbas|| a<1||a>nbas||b<1||b>nbas) laerror("antisymtwoelectronrealdiracAB fourindex out of range");
+if(i<1||i>nnbas ||j<1||j>nnbas|| a<1||a>nnbas||b<1||b>nnbas) laerror("antisymtwoelectronrealdiracAB fourindex out of range");
 if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
-return (*this).NRSMat<T>::operator() ((j-1)*nbas+i-1,(b-1)*nbas+a-1);
+return (*this).NRSMat<T>::operator() ((j-1)*nnbas+i-1,(b-1)*nnbas+a-1);
 }
         inline const T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b) const
 {
 #ifdef DEBUG
-if(i<1||i>nbas ||j<1||j>nbas|| a<1||a>nbas||b<1||b>nbas) laerror("antisymtwoelectronrealdiracAB fourindex out of range");
+if(i<1||i>nnbas ||j<1||j>nnbas|| a<1||a>nnbas||b<1||b>nnbas) laerror("antisymtwoelectronrealdiracAB fourindex out of range");
 if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
-return (*this).NRSMat<T>::operator() ((j-1)*nbas+i-1,(b-1)*nbas+a-1);
+return (*this).NRSMat<T>::operator() ((j-1)*nnbas+i-1,(b-1)*nnbas+a-1);
 }
 
 	void print(std::ostream &out) const
 		{
 		unsigned int i,j,a,b;
-		for(i=1; i<=nbas; ++i) for(j=1; j<=nbas; ++j)
-			 for(a=1; a<=i; ++a) for(b=1; b<= (a<i?nbas:j); ++b) 
+		for(i=1; i<=nnbas; ++i) for(j=1; j<=nnbas; ++j)
+			 for(a=1; a<=i; ++a) for(b=1; b<= (a<i?nnbas:j); ++b) 
 			out << i<<" "<<j<<" "<<a<<" "<<b<<" "<<(*this)(i,j,a,b)<<std::endl;
 		}
 };
@@ -1317,12 +1319,12 @@ if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
 template<class T, class I> 
 class fourindex_dense<antisymtwoelectronrealdirac,T,I> : public NRSMat<T> {
 private: 
-	int nbas;
+	int nnbas;
 public:
 	fourindex_dense(): NRSMat<T>() {};
-	explicit fourindex_dense(const int n): nbas(n), NRSMat<T>(n*(n-1)/2) {};
-	fourindex_dense(const T &a, const int n): nbas(n), NRSMat<T>(a,n*(n-1)/2) {};
-	fourindex_dense(const T *a, const int n): nbas(n), NRSMat<T>(a,n*(n-1)/2) {};
+	explicit fourindex_dense(const int n): nnbas(n), NRSMat<T>(n*(n-1)/2) {};
+	fourindex_dense(const T &a, const int n): nnbas(n), NRSMat<T>(a,n*(n-1)/2) {};
+	fourindex_dense(const T *a, const int n): nnbas(n), NRSMat<T>(a,n*(n-1)/2) {};
 	//and also construct it from sparse and externally stored fourindex classes
 	//it seems not possible to nest template<class I> just for the two constructors
 	fourindex_dense(const fourindex<I,T> &rhs);
@@ -1332,11 +1334,11 @@ public:
 	void add(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
 	void add_unique(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem);
 	const T operator() (unsigned int i, unsigned int j, unsigned int k, unsigned int l) const;
-	void resize(const int n) {nbas=n; (*this).NRSMat<T>::resize(n*(n-1)/2);};
+	void resize(const int n) {nnbas=n; (*this).NRSMat<T>::resize(n*(n-1)/2);};
         void print(std::ostream &out) const
                 {
                 unsigned int i,j,k,l;
-		for(i=1; i<=nbas; ++i)
+		for(i=1; i<=nnbas; ++i)
        			 for(k=1;k<i; ++k)
                 		for(j=1; j<=i; ++j)
                         		for(l=1; l<j && (j==i ? l<=k : 1); ++l)
@@ -1412,7 +1414,7 @@ NRSMat<T>::v[SMat_index(I,J)] += elem;
 
 
 template<class T, class I> 
-fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : nbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
+fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : nnbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex_ext<I,T>::piterator p; //we have to run over equivalents in non-canonical order to build the antisymmetrization properly; it could be done less elegantly but more efficiently moving the if's to outer parts of the piterator loop, if needed
@@ -1429,7 +1431,7 @@ for(p= const_cast<fourindex_ext<I,T> *>(&rhs)->pbegin(); p.notend(); ++p)
 
 
 template<class T, class I>
-fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex_ext<I,T> &rhs) : nbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
+fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex_ext<I,T> &rhs) : nnbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex_ext<I,T>::piterator p; //we have to run over equivalents in non-canonical order to build the antisymmetrization properly; it could be done less elegantly but more efficiently moving the if's to outer parts of the piterator loop, if needed

@@ -275,11 +275,31 @@ void tensor2fourindex(const Tensor<T> &t, fourindex_dense<S,T,I> &f);
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<nosymmetry,T,I> &f)
 {
+NRVec<indexgroup> shape(4);
+for(int i=0; i<4; ++i)
+	{
+	shape[i].number=1;
+	shape[i].symmetry-0;
+	shape[i].offset=0;
+	shape[i].range=f.nbas();
+	}
+NRVec<T> data(f);
+return Tensor<T>(shape,data);
 }
 
 template<typename T, typename I>
 void tensor2fourindex(const Tensor<T> &t, fourindex_dense<nosymmetry,T,I> &f)
 {
+if(t.rank()!=4) laerror("wrong rank in tensor2fourindex");
+int range=t.shape[0].range;
+int offset=t.shape[0].offset;
+for(int i=0; i<t.shape.size(); ++i)
+	{
+	if(range!=t.shape[i].range) laerror("range mismatch in tensor2fourindex");
+	if(offset!=t.shape[i].offset) laerror("offset mismatch in tensor2fourindex");
+	if(0!=t.shape[i].symmetry) laerror("symmetry mismatch in tensor2fourindex");
+	}
+f=fourindex_dense<nosymmetry,T,I>(range,NRMat<T>(t.data,range*range,range*range));
 }
 
 
