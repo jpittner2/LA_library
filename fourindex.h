@@ -1221,9 +1221,11 @@ protected:
 	unsigned int nnbas;
 friend class explicit_t2;
 public:
+	unsigned int nbas() const {return nnbas;};
         fourindex_dense(): NRSMat<T>() {nnbas=0;};
 	void resize(const int n) {nnbas=n; (*this).NRSMat<T>::resize(nnbas*nnbas);};
         explicit fourindex_dense(const int n): NRSMat<T>(n*n) {nnbas=n;};
+        explicit fourindex_dense(const int n, const NRSMat<T>&data): NRSMat<T>(data) {nnbas=n; if(data.nrows()!=n*n) laerror("data size mismatch in fourindex_dense antisymtwoelectronrealdiracAB constructor");};
 
 //here i,a are alpha j,b beta
         inline T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b)
@@ -1256,11 +1258,13 @@ return (*this).NRSMat<T>::operator() ((j-1)*nnbas+i-1,(b-1)*nnbas+a-1);
 template<class T, class I>
 class fourindex_dense<T2ijab_aces,T,I> : public NRMat<T> {
 protected:
-	unsigned int nocc,nvrt,ntri;
+	unsigned int ntri;
 friend class explicit_t2;
 public:
+	 unsigned int nocc,nvrt;
         fourindex_dense(): NRMat<T>() {nocc=nvrt=ntri=0;};
         explicit fourindex_dense(const int noc, const int nvr): NRMat<T>(noc*(noc-1)/2,nvr*(nvr-1)/2) {nocc=noc; nvrt=nvr; ntri=nvr*(nvr-1)/2;};
+        explicit fourindex_dense(const int noc, const int nvr, const NRMat<T> &data): NRMat<T>(data) {nocc=noc; nvrt=nvr; ntri=nvr*(nvr-1)/2; if(data.nrows()!=noc*(noc-1)/2 || data.ncols()!=nvr*(nvr-1)/2) laerror("data size mismatch in T2ijab_aces constructor"); };
 	void resize(const int noc, const int nvr) {(*this).NRMat<T>::resize(noc*(noc-1)/2,nvr*(nvr-1)/2); nocc=noc; nvrt=nvr; ntri=nvr*(nvr-1)/2;};
 
 //we cannot return reference due to the possible sign change
@@ -1322,8 +1326,10 @@ class fourindex_dense<antisymtwoelectronrealdirac,T,I> : public NRSMat<T> {
 private: 
 	int nnbas;
 public:
+	int nbas() const {return nnbas;};
 	fourindex_dense(): NRSMat<T>() {};
 	explicit fourindex_dense(const int n): nnbas(n), NRSMat<T>(n*(n-1)/2) {};
+	explicit fourindex_dense(const int n, const  NRSMat<T> &data): nnbas(n), NRSMat<T>(data) {if(data.nrows()!=n*(n-1)/2) laerror("data size mismatch in fourindex_dense antisymtwoelectronrealdirac constructor");};
 	fourindex_dense(const T &a, const int n): nnbas(n), NRSMat<T>(a,n*(n-1)/2) {};
 	fourindex_dense(const T *a, const int n): nnbas(n), NRSMat<T>(a,n*(n-1)/2) {};
 	//and also construct it from sparse and externally stored fourindex classes

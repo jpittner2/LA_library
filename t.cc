@@ -3743,9 +3743,8 @@ tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
-//check also index order
 int n;
 cin>>n;
 fourindex_dense<T2IjAb_aces,double,int> f(n+1,n,n+3,n+2);
@@ -3757,7 +3756,49 @@ tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
 }
 
+if(0)
+{
+int n;
+cin>>n;
+fourindex_dense<T2ijab_aces,double,int> f(n,n+2);
+f.randomize(1.);
+Tensor<double> t=fourindex2tensor(f);
+cout <<t;
+fourindex_dense<T2ijab_aces,double,int> ff;
+tensor2fourindex(t,ff);
+cout <<"Error = "<<(f-ff).norm()<<endl;
+}
 
+if(0)
+{
+int n;
+cin>>n;
+fourindex_dense<antisymtwoelectronrealdiracAB,double,int> f(n);
+f.randomize(1.);
+Tensor<double> t=fourindex2tensor(f);
+cout <<t;
+fourindex_dense<antisymtwoelectronrealdiracAB,double,int> ff;
+tensor2fourindex(t,ff);
+cout <<"Error = "<<(f-ff).norm()<<endl;
+}
+
+
+if(1)
+{
+int n;
+cin>>n;
+fourindex_dense<antisymtwoelectronrealdirac,double,int> f(n);
+f.randomize(1.);
+Tensor<double> t=fourindex2tensor(f);
+cout <<t;
+fourindex_dense<antisymtwoelectronrealdirac,double,int> ff;
+tensor2fourindex(t,ff);
+cout <<"Error = "<<(f-ff).norm()<<endl;
+}
+
+
+
+//@@@check operator() for all fourindex-tensor conversions
 
 
 }//main

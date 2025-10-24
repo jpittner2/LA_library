@@ -47,7 +47,7 @@
 //@@@ will not be particularly efficient
 //
 //@@@conversions to/from fourindex, optional negative range for beta spin handling in some cases
-//@@@use the fact that fourindex_dense is inherited from Mat/SMat and construct tensor from the (unsymmetrized) NRMat sharing data, just rewrite then the shape
+//@@@check operator() for all fourindex-tensor conversions
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //
@@ -414,6 +414,109 @@ f=fourindex_dense<T2IjAb_aces,T,I>(noca,nocb,nvra,nvrb,mat);
 
 
 
+template<typename T, typename I>
+Tensor<T>  fourindex2tensor(const fourindex_dense<T2ijab_aces,T,I> &f)
+{
+NRVec<indexgroup> shape(2);
+for(int i=0; i<2; ++i)
+	{
+	shape[i].number=2;
+	shape[i].symmetry= -1;
+	shape[i].offset=1;
+	}
+shape[1].range=f.nocc;
+shape[0].range=f.nvrt;
+NRVec<T> data(f);
+return Tensor<T>(shape,data);
+}
+
+template<typename T, typename I>
+void tensor2fourindex(const Tensor<T> &t, fourindex_dense<T2ijab_aces,T,I> &f)
+{
+if(t.rank()!=4) laerror("wrong rank in tensor2fourindex");
+if(t.shape.size()!=2) laerror("wrong symmetry groups in tensor2fourindex");
+int nvrt=t.shape[0].range;
+int nocc=t.shape[1].range;
+int offset=t.shape[0].offset;
+for(int i=0; i<t.shape.size(); ++i)
+	{
+	if(offset!=t.shape[i].offset) laerror("offset mismatch in tensor2fourindex");
+	if(-1!=t.shape[i].symmetry) laerror("symmetry mismatch in tensor2fourindex");
+	}
+NRMat<T> mat(t.data,nocc*(nocc-1)/2,nvrt*(nvrt-1)/2);
+f=fourindex_dense<T2ijab_aces,T,I>(nocc,nvrt,mat);
+}
+
+
+
+template<typename T, typename I>
+Tensor<T>  fourindex2tensor(const fourindex_dense<antisymtwoelectronrealdiracAB,T,I> &f)
+{
+NRVec<indexgroup> shape(4);
+int n=f.nbas();
+for(int i=0; i<4; ++i)
+	{
+	shape[i].number=1;
+	shape[i].symmetry=0;
+	shape[i].offset=1;
+	shape[i].range=n;
+	}
+NRMat<T> data(f); //expand to full matrix
+return Tensor<T>(shape,NRVec<T>(data));
+}
+
+template<typename T, typename I>
+void tensor2fourindex(const Tensor<T> &t, fourindex_dense<antisymtwoelectronrealdiracAB,T,I> &f)
+{
+if(t.rank()!=4) laerror("wrong rank in tensor2fourindex");
+if(t.shape.size()!=4) laerror("wrong symmetry groups in tensor2fourindex");
+int range=t.shape[0].range;
+int offset=t.shape[0].offset;
+for(int i=0; i<t.shape.size(); ++i)
+	{
+	if(range!=t.shape[i].range) laerror("range mismatch in tensor2fourindex");
+	if(offset!=t.shape[i].offset) laerror("offset mismatch in tensor2fourindex");
+	if(0!=t.shape[i].symmetry) laerror("symmetry mismatch in tensor2fourindex");
+	}
+NRMat<T> mat(t.data,range*range,range*range);
+f=fourindex_dense<antisymtwoelectronrealdiracAB,T,I>(range,NRSMat<T>(mat));
+}
+
+
+
+template<typename T, typename I>
+Tensor<T>  fourindex2tensor(const fourindex_dense<antisymtwoelectronrealdirac,T,I> &f)
+{
+NRVec<indexgroup> shape(2);
+int n=f.nbas();
+for(int i=0; i<2; ++i)
+	{
+	shape[i].number=2;
+	shape[i].symmetry= -1;
+	shape[i].offset=1;
+	shape[i].range=n;
+	}
+NRMat<T> mat(f);
+NRVec<T> data(mat); //expand symmetric to full matrix for index group symmetry
+return Tensor<T>(shape,data);
+}
+
+template<typename T, typename I>
+void tensor2fourindex(const Tensor<T> &t, fourindex_dense<antisymtwoelectronrealdirac,T,I> &f)
+{
+if(t.rank()!=4) laerror("wrong rank in tensor2fourindex");
+if(t.shape.size()!=2) laerror("wrong symmetry groups in tensor2fourindex");
+int range=t.shape[0].range;
+int offset=t.shape[0].offset;
+for(int i=0; i<t.shape.size(); ++i)
+	{
+	if(range!=t.shape[i].range) laerror("range mismatch in tensor2fourindex");
+	if(offset!=t.shape[i].offset) laerror("offset mismatch in tensor2fourindex");
+	if(-1!=t.shape[i].symmetry) laerror("symmetry mismatch in tensor2fourindex");
+	}
+NRMat<T> mat(t.data,range*(range-1)/2,range*(range-1)/2);
+f=fourindex_dense<antisymtwoelectronrealdirac,T,I>(range,NRSMat<T>(mat)); //symmetrize mat 
+}
 
 
 
