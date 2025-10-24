@@ -1182,12 +1182,13 @@ void print(std::ostream &out) const
 template<class T, class I>
 class fourindex_dense<T2IjAb_aces,T,I> : public NRMat<T> {
 protected:
-	unsigned int noca,nocb,nvra,nvrb;
 friend class explicit_t2;
 public:
+	unsigned int noca,nocb,nvra,nvrb;
         fourindex_dense(): NRMat<T>() {noca=nocb=nvra=nvrb=0;};
 	void resize(const int nocca, const int noccb, const int nvrta, const int nvrtb) {noca=nocca; nocb=noccb; nvra=nvrta; nvrb=nvrtb; (*this).NRMat<T>::resize(nocca*noccb,nvrta*nvrtb);};
         explicit fourindex_dense(const int nocca, const int noccb, const int nvrta, const int nvrtb): NRMat<T>(nocca*noccb,nvrta*nvrtb) {noca=nocca; nocb=noccb; nvra=nvrta; nvrb=nvrtb;};
+        explicit fourindex_dense(const int nocca, const int noccb, const int nvrta, const int nvrtb, const NRMat<T> &data): NRMat<T>(data) {noca=nocca; nocb=noccb; nvra=nvrta; nvrb=nvrtb; if(data.nrows()!=nocca*noccb||data.ncols()!=nvrta*nvrtb) laerror("data size mismatch in fourindex_dense T2IjAb_aces constructor");};
 
 //here i,a are alpha j,b beta
         inline T& operator() (unsigned int i, unsigned int j, unsigned int a, unsigned int b)
