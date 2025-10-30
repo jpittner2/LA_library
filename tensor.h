@@ -46,8 +46,7 @@
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
 //
-//@@@conversions to/from fourindex, optional negative range for beta spin handling in some cases
-//@@@check operator() for all fourindex-tensor conversions
+//maybe optional negative range for beta spin handling in some cases of fourindex-tensor conversions
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //
@@ -67,8 +66,16 @@ T *ptr;
 int sgn;
 public:
 	Signedpointer(T *p, int s) : ptr(p),sgn(s) {};
-	//dereferencing *ptr  should intentionally segfault for sgn==0
-	T& operator=(const T rhs) {if(sgn>0) *ptr=rhs; else *ptr = -rhs; return *ptr;}
+	//dereferencing *ptr  should be ignored for sgn==0
+	const T operator=(const T rhs) 
+			{
+			if(sgn>0) *ptr = rhs; 
+			if(sgn<0) *ptr = -rhs; 
+#ifdef DEBUG
+			if(sgn==0) laerror("dereferencing lhs Signedpointer to nonexistent tensor element");
+#endif
+			return rhs;
+			}
 	T& operator*=(const T rhs) {*ptr *= rhs; return *ptr;}
 	T& operator/=(const T rhs) {*ptr /= rhs; return *ptr;}
 	T& operator+=(const T rhs) {if(sgn>0) *ptr += rhs; else *ptr -= rhs; return *ptr;}

@@ -3853,7 +3853,7 @@ for(int l=1; l<=n; ++l)
 }
 
 
-if(1)
+if(0)
 {
 int n;
 cin>>n;
@@ -3879,7 +3879,29 @@ for(int l=1; l<=n; ++l)
 
 }
 
-
+if(1)
+{
+//tensor lhs operator() and signed pointer
+int n;
+cin >>n;
+INDEXGROUP shape;
+        {
+        shape.number=3;
+        shape.symmetry= -1;
+        shape.range=n;
+        shape.offset=0;
+        }
+Tensor<double> t(shape);
+t.clear();
+for(int i=0; i<n; ++i)
+for(int j=0; j<n; ++j)
+for(int k=0; k<n; ++k)
+	{
+	//cout <<t(i,j,k)<<endl;
+	if(i!=j && i!=k &&j!=k) t.lhs(i,j,k) = 10.*random()/RAND_MAX;
+	}
+cout <<t;
+}
 
 
 
