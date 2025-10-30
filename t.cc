@@ -3715,6 +3715,16 @@ cout <<t;
 fourindex_dense<nosymmetry,double,int> ff;
 tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
+const fourindex_dense<nosymmetry,double,int> fc(f);
+const Tensor<double> tc(t);
+for(int i=1; i<=n; ++i) 
+for(int j=1; j<=n; ++j) 
+for(int k=1; k<=n; ++k) 
+for(int l=1; l<=n; ++l) 
+	{
+	cout<< "4ind "<<i<<" "<<j<<" "<<k<<" "<<l<<" : " <<fc(i,j,k,l) <<" = tensor " <<k<<" "<<l<<" "<<i<<" "<<j<<" : "<<tc(k,l,i,j)<<endl;
+	if(fc(i,j,k,l) != tc(k,l,i,j) ) laerror("operator() mismatch");
+	}
 }
 
 if(0)
@@ -3728,6 +3738,18 @@ cout <<t;
 fourindex_dense<twoelectronrealmullikanAB,double,int> ff;
 tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
+
+const fourindex_dense<twoelectronrealmullikanAB,double,int> fc(f);
+const Tensor<double> tc(t);
+for(int i=1; i<=n; ++i)
+for(int j=1; j<=n; ++j)
+for(int k=1; k<=n; ++k)
+for(int l=1; l<=n; ++l)
+        {
+        cout<< "4ind "<<i<<" "<<j<<" "<<k<<" "<<l<<" : " <<fc(i,j,k,l) <<" = tensor " <<k<<" "<<l<<" "<<i<<" "<<j<<" : "<<tc(k,l,i,j)<<endl;
+        if(fc(i,j,k,l) != tc(k,l,i,j) ) laerror("operator() mismatch");
+        if(fc(i,j,k,l) != tc(l,k,j,i) ) laerror("operator() mismatch");
+        }
 }
 
 if(0)
@@ -3741,6 +3763,18 @@ cout <<t;
 fourindex_dense<twoelectronrealmullikan,double,int> ff;
 tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
+
+const fourindex_dense<twoelectronrealmullikan,double,int> fc(f);
+const Tensor<double> tc(t);
+for(int i=1; i<=n; ++i)
+for(int j=1; j<=n; ++j)
+for(int k=1; k<=n; ++k)
+for(int l=1; l<=n; ++l)
+        {
+        cout<< "4ind "<<i<<" "<<j<<" "<<k<<" "<<l<<" : " <<fc(i,j,k,l) <<" = tensor " <<l<<" "<<k<<" "<<j<<" "<<i<<" : "<<tc(l,k,j,i)<<endl;
+        if(fc(i,j,k,l) != tc(l,k,j,i) ) laerror("operator() mismatch");
+        if(fc(i,j,k,l) != tc(i,j,k,l) ) laerror("operator() mismatch");
+        }
 }
 
 if(0)
@@ -3754,6 +3788,18 @@ cout <<t;
 fourindex_dense<T2IjAb_aces,double,int> ff;
 tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
+
+const fourindex_dense<T2IjAb_aces,double,int> fc(f);
+const Tensor<double> tc(t);
+for(int i=1; i<=n+1; ++i)
+for(int j=1; j<=n; ++j)
+for(int k=1; k<=n+3; ++k)
+for(int l=1; l<=n+2; ++l)
+        {
+        cout<< "4ind "<<i<<" "<<j<<" "<<k<<" "<<l<<" : " <<fc(i,j,k,l) <<" = tensor " <<k<<" "<<l<<" "<<i<<" "<<j<<" : "<<tc(k,l,i,j)<<endl;
+        if(fc(i,j,k,l) != tc(k,l,i,j) ) laerror("operator() mismatch");
+        }
+
 }
 
 if(0)
@@ -3767,6 +3813,18 @@ cout <<t;
 fourindex_dense<T2ijab_aces,double,int> ff;
 tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
+
+const fourindex_dense<T2ijab_aces,double,int> fc(f);
+const Tensor<double> tc(t);
+for(int i=1; i<=n; ++i)
+for(int j=1; j<=n; ++j)
+for(int k=1; k<=n+2; ++k)
+for(int l=1; l<=n+2; ++l)
+        {
+        cout<< "4ind "<<i<<" "<<j<<" "<<k<<" "<<l<<" : " <<fc(i,j,k,l) <<" = tensor " <<k<<" "<<l<<" "<<i<<" "<<j<<" : "<<tc(k,l,i,j)<<endl;
+        if(fc(i,j,k,l) != tc(k,l,i,j) ) laerror("operator() mismatch");
+        }
+
 }
 
 if(0)
@@ -3780,6 +3838,18 @@ cout <<t;
 fourindex_dense<antisymtwoelectronrealdiracAB,double,int> ff;
 tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
+
+const fourindex_dense<antisymtwoelectronrealdiracAB,double,int> fc(f);
+const Tensor<double> tc(t);
+for(int i=1; i<=n; ++i)
+for(int j=1; j<=n; ++j)
+for(int k=1; k<=n; ++k)
+for(int l=1; l<=n; ++l)
+        {
+        cout<< "4ind "<<i<<" "<<j<<" "<<k<<" "<<l<<" : " <<fc(i,j,k,l) <<" = tensor " <<k<<" "<<l<<" "<<i<<" "<<j<<" : "<<tc(k,l,i,j)<<endl;
+       if(fc(i,j,k,l) != tc(k,l,i,j) ) laerror("operator() mismatch");
+       if(fc(i,j,k,l) != tc(i,j,k,l) ) laerror("operator() mismatch");
+        }
 }
 
 
@@ -3794,11 +3864,23 @@ cout <<t;
 fourindex_dense<antisymtwoelectronrealdirac,double,int> ff;
 tensor2fourindex(t,ff);
 cout <<"Error = "<<(f-ff).norm()<<endl;
+
+const fourindex_dense<antisymtwoelectronrealdirac,double,int> fc(f);
+const Tensor<double> tc(t);
+for(int i=1; i<=n; ++i)
+for(int j=1; j<=n; ++j)
+for(int k=1; k<=n; ++k)
+for(int l=1; l<=n; ++l)
+        {
+        cout<< "4ind "<<i<<" "<<j<<" "<<k<<" "<<l<<" : " <<fc(i,j,k,l) <<" = tensor " <<k<<" "<<l<<" "<<i<<" "<<j<<" : "<<tc(k,l,i,j)<<endl;
+       if(fc(i,j,k,l) != tc(k,l,i,j) ) laerror("operator() mismatch");
+       if(fc(i,j,k,l) != tc(i,j,k,l) ) laerror("operator() mismatch");
+        }
+
 }
 
 
 
-//@@@check operator() for all fourindex-tensor conversions
 
 
 }//main

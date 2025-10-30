@@ -275,6 +275,8 @@ void tensor2fourindex(const Tensor<T> &t, fourindex_dense<S,T,I> &f);
 
 //conversions from/to fourindex specialized by symmetry type
 //NOTE also different index order due to tensor's leftmost index being the least significant
+//
+//operator() : (i,j,k,l) in fourindex -> (k,l,i,j) in tensor
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<nosymmetry,T,I> &f)
 {
@@ -307,6 +309,7 @@ f=fourindex_dense<nosymmetry,T,I>(range,NRMat<T>(t.data,range*range,range*range)
 }
 
 
+//operator() : (i,j,k,l) in fourindex -> (k,l,i,j)=(l,k,j,i) in tensor
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<twoelectronrealmullikanAB,T,I> &f)
 {
@@ -340,6 +343,7 @@ f=fourindex_dense<twoelectronrealmullikanAB,T,I>(NRMat<T>(t.data,range*(range+1)
 }
 
 
+//operator() : (i,j,k,l) in fourindex -> (i,j,k,l)=(l,k,j,i) in tensor
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<twoelectronrealmullikan,T,I> &f)
 {
@@ -375,6 +379,7 @@ f=fourindex_dense<twoelectronrealmullikan,T,I>(NRSMat<T>(mat)); //symmetrize mat
 }
 
 
+//operator() : (i,j,k,l) in fourindex -> (k,l,i,j) in tensor
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<T2IjAb_aces,T,I> &f)
 {
@@ -385,10 +390,10 @@ for(int i=0; i<4; ++i)
 	shape[i].symmetry=0;
 	shape[i].offset=1;
 	}
-shape[3].range=f.noca;
-shape[2].range=f.nocb;
-shape[1].range=f.nvra;
-shape[0].range=f.nvrb;
+shape[2].range=f.noca;
+shape[3].range=f.nocb;
+shape[0].range=f.nvra;
+shape[1].range=f.nvrb;
 NRVec<T> data(f);
 return Tensor<T>(shape,data);
 }
@@ -397,10 +402,10 @@ template<typename T, typename I>
 void tensor2fourindex(const Tensor<T> &t, fourindex_dense<T2IjAb_aces,T,I> &f)
 {
 if(t.rank()!=4 ||t.shape.size()!=4) laerror("wrong rank/shape in tensor2fourindex");
-int noca = t.shape[3].range;
-int nocb = t.shape[2].range;
-int nvra = t.shape[1].range;
-int nvrb = t.shape[0].range;
+int noca = t.shape[2].range;
+int nocb = t.shape[3].range;
+int nvra = t.shape[0].range;
+int nvrb = t.shape[1].range;
 
 int offset=t.shape[0].offset;
 for(int i=0; i<t.shape.size(); ++i)
@@ -413,7 +418,7 @@ f=fourindex_dense<T2IjAb_aces,T,I>(noca,nocb,nvra,nvrb,mat);
 }
 
 
-
+//operator() : (i,j,k,l) in fourindex -> (k,l,i,j) in tensor
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<T2ijab_aces,T,I> &f)
 {
@@ -424,8 +429,8 @@ for(int i=0; i<2; ++i)
 	shape[i].symmetry= -1;
 	shape[i].offset=1;
 	}
-shape[1].range=f.nocc;
 shape[0].range=f.nvrt;
+shape[1].range=f.nocc;
 NRVec<T> data(f);
 return Tensor<T>(shape,data);
 }
@@ -448,7 +453,7 @@ f=fourindex_dense<T2ijab_aces,T,I>(nocc,nvrt,mat);
 }
 
 
-
+//operator() : (i,j,k,l) in fourindex -> (k,l,i,j)=(i,j,k,l) in tensor
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<antisymtwoelectronrealdiracAB,T,I> &f)
 {
@@ -483,7 +488,7 @@ f=fourindex_dense<antisymtwoelectronrealdiracAB,T,I>(range,NRSMat<T>(mat));
 }
 
 
-
+//operator() : (i,j,k,l) in fourindex -> (k,l,i,j)=(i,j,k,l) in tensor
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<antisymtwoelectronrealdirac,T,I> &f)
 {
