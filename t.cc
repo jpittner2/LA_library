@@ -3901,6 +3901,14 @@ for(int k=0; k<n; ++k)
 	if(i!=j && i!=k &&j!=k) t.lhs(i,j,k) = 10.*random()/RAND_MAX;
 	}
 cout <<t;
+Tensor<double> t2=t;
+for(int i=0; i<n; ++i)
+for(int j=0; j<n; ++j)
+for(int k=0; k<n; ++k)
+        {
+        cout <<(t2(i,j,k)+t2(j,k,i)+t2(k,i,j)-t2(j,i,k)-t2(i,k,j)-t2(k,j,i))-6*t(i,j,k)<<endl;
+        }
+
 }
 
 
