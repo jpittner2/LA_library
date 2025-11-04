@@ -296,22 +296,24 @@ return index(sign,I);
 //binary I/O
 
 template<typename T>
-void Tensor<T>::put(int fd) const
+void Tensor<T>::put(int fd, bool with_names) const
 {
 shape.put(fd,true);
 groupsizes.put(fd,true);
 cumsizes.put(fd,true);
 data.put(fd,true);
+if(with_names && names.size()!=0) names.put(fd,true);
 }
 
 template<typename T>
-void Tensor<T>::get(int fd)
+void Tensor<T>::get(int fd, bool with_names)
 {
 shape.get(fd,true);
 myrank=calcrank(); //is not stored but recomputed
 groupsizes.put(fd,true);
 cumsizes.get(fd,true);
 data.get(fd,true);
+if(with_names) names.get(fd,true);
 }
 
 
@@ -557,11 +559,24 @@ return s;
 }
 
 
+std::ostream & operator<<(std::ostream &s, const INDEXNAME &n)
+{
+s<<n.name<<" ";
+return s;
+}
+
+std::istream & operator>>(std::istream &s, INDEXNAME &n)
+{
+s>>n.name;
+return s;
+}
+
 
 template<typename T>
 std::ostream & operator<<(std::ostream &s, const Tensor<T> &x)
 {
 s<<x.shape;
+s<<x.names;
 sout= &s;
 x.constloopover(&outputcallback<T>);
 return s;
@@ -571,6 +586,7 @@ template <typename T>
 std::istream & operator>>(std::istream &s, Tensor<T> &x)
 {
 s>>x.shape;
+s>>x.names;
 x.data.resize(x.calcsize()); x.calcrank();
 FLATINDEX I(x.rank());
 for(LA_largeindex i=0; i<x.data.size(); ++i)
@@ -1412,6 +1428,26 @@ if(!inverseorder)
         }
 else
 	return r;
+}
+
+
+template<typename T> 
+int Tensor<T>::findflatindex(const INDEXNAME nam) const
+{
+if(!is_named()) laerror("tensor indices were not named");
+for(int i=0; i<names.size(); ++i)
+	{
+	if(!strncmp(nam.name,names[i].name,N_INDEXNAME)) return i;
+	}
+return -1;
+}
+
+template<typename T>
+INDEX Tensor<T>::findindex(const INDEXNAME nam) const
+{
+int n=findflatindex(nam);
+if(n<0) laerror("index with this name was not found");
+return indexposition(n,shape);
 }
 
 

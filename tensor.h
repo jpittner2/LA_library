@@ -39,8 +39,8 @@
 #include "miscfunc.h"
 
 //TODO:
-//@@@!!!!!! - implement index names  and contractions, unwinding etc. by named index list
-//@@@index names flat or in groups ?
+//@@@!!!!!! - implement index names and their treatment in all operations which permute indices
+//@@@implement  contractions, unwinding etc. by named index list
 //
 //@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
@@ -91,6 +91,20 @@ typedef int LA_largeindex;
 struct INDEXNAME {
 	char name[N_INDEXNAME];
 };
+template<>
+class LA_traits<INDEXNAME> {
+        public:
+        static bool is_plaindata() {return true;};
+        static void copyonwrite(INDEXNAME& x) {};
+        typedef INDEXNAME normtype;
+        static inline int gencmp(const INDEXNAME *a, const INDEXNAME *b, int n) {return memcmp(a,b,n*sizeof(INDEXNAME));};
+        static inline void put(int fd, const INDEXNAME &x, bool dimensions=1) {if(sizeof(INDEXNAME)!=write(fd,&x,sizeof(INDEXNAME))) laerror("write error 1 in INDEXNAME put"); }
+        static inline void multiput(int nn, int fd, const INDEXNAME *x, bool dimensions=1) {if(nn*sizeof(INDEXNAME)!=write(fd,x,nn*sizeof(INDEXNAME))) laerror("write error 1 in INDEXNAME multiiput"); }
+        static inline void get(int fd, INDEXNAME &x, bool dimensions=1) {if(sizeof(INDEXNAME)!=read(fd,&x,sizeof(INDEXNAME))) laerror("read error 1 in INDEXNAME get");}
+        static inline void multiget(int nn, int fd, INDEXNAME *x, bool dimensions=1) {if(nn*sizeof(INDEXNAME)!=read(fd,x,nn*sizeof(INDEXNAME))) laerror("read error 1 in INDEXNAME get");}
+	static inline void clear(INDEXNAME *dest, size_t n) {memset(dest,0,n*sizeof(INDEXNAME));}
+};
+
 
 typedef class indexgroup {
 public:
@@ -131,7 +145,7 @@ class LA_traits<indexgroup> {
         static inline void multiput(int nn, int fd, const indexgroup *x, bool dimensions=1) {if(nn*sizeof(indexgroup)!=write(fd,x,nn*sizeof(indexgroup))) laerror("write error 1 in indexgroup multiiput"); }
         static inline void get(int fd, indexgroup &x, bool dimensions=1) {if(sizeof(indexgroup)!=read(fd,&x,sizeof(indexgroup))) laerror("read error 1 in indexgroup get");}
         static inline void multiget(int nn, int fd, indexgroup *x, bool dimensions=1) {if(nn*sizeof(indexgroup)!=read(fd,x,nn*sizeof(indexgroup))) laerror("read error 1 in indexgroup get");}
-
+	static inline void clear(indexgroup *dest, size_t n) {memset(dest,0,n*sizeof(indexgroup));}
 };
 
 
@@ -157,11 +171,11 @@ public:
 	NRVec<indexgroup> shape;
 	NRVec<T> data;	
 	int myrank;
-	//@@@??? NRVec<INDEXNAME> names;
 	NRVec<LA_largeindex> groupsizes; //group sizes of symmetry index groups (a function of shape but precomputed for efficiency)
 	NRVec<LA_largeindex> cumsizes; //cumulative sizes of symmetry index groups (a function of shape but precomputed for efficiency); always cumsizes[0]=1, index group 0 is the innermost-loop one
 
 public:
+	NRVec<INDEXNAME> names;
 	LA_largeindex index(int *sign, const SUPERINDEX &I) const; //map the tensor indices to the position in data
 	LA_largeindex index(int *sign, const  FLATINDEX &I) const; //map the tensor indices to the position in data
 	LA_largeindex vindex(int *sign, LA_index i1, va_list args) const; //map list of indices  to the position in data
@@ -170,15 +184,22 @@ public:
 	//constructors
 	Tensor() : myrank(0) {};
 	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank();}; //general tensor
+	Tensor(const NRVec<indexgroup> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize()); calcrank(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
 	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
+	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;  if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");} 
 	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank();}; //tensor with a single index group
-	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data) {};
+	Tensor(const indexgroup &g, const NRVec<INDEXNAME> &newnames) : names(newnames) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //tensor with a single index group
+	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data), names(rhs.names) {};
 	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
+	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata, const NRVec<INDEXNAME>  &xnames) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata), names(xnames) {};
+
+	//conversions from/to matrix and vector
 	explicit Tensor(const NRVec<T> &x);
 	explicit Tensor(const NRMat<T> &x, bool flat=false);
 	explicit Tensor(const NRSMat<T> &x);
 	NRMat<T> matrix() const {return NRMat<T>(data,data.size()/groupsizes[0],groupsizes[0],0);}; //reinterpret as matrix with column index being the tensor's leftmost index group (typically the unwound single index)
 
+	bool is_named() const {if(names.size()==0) return false; if(names.size()!=myrank) laerror("bad number of index names"); return true;};
 	bool is_flat() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1) return false; return true;};
 	bool is_compressed() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1&&shape[i].symmetry!=0) return true; return false;};
 	bool has_symmetry() const {for(int i=0; i<shape.size(); ++i) if(shape[i].symmetry!=0) return true; return false;};
@@ -187,9 +208,9 @@ public:
 	int calcrank(); //is computed from shape
 	LA_largeindex calcsize(); //set redundant data and return total size
 	LA_largeindex size() const {return data.size();};
-	void copyonwrite() {shape.copyonwrite(); groupsizes.copyonwrite(); cumsizes.copyonwrite(); data.copyonwrite();};
-	void resize(const NRVec<indexgroup> &s) {shape=s; data.resize(calcsize()); calcrank();};
-	void deallocate() {data.resize(0); shape.resize(0); groupsizes.resize(0); cumsizes.resize(0);};
+	void copyonwrite() {shape.copyonwrite(); groupsizes.copyonwrite(); cumsizes.copyonwrite(); data.copyonwrite(); names.copyonwrite();};
+	void resize(const NRVec<indexgroup> &s) {shape=s; data.resize(calcsize()); calcrank(); names.clear();};
+	void deallocate() {data.resize(0); shape.resize(0); groupsizes.resize(0); cumsizes.resize(0); names.resize(0);};
         inline Signedpointer<T> lhs(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
 	inline T operator()(const SUPERINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
         inline Signedpointer<T> lhs(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
@@ -197,7 +218,7 @@ public:
         inline Signedpointer<T> lhs(LA_index i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
         inline T operator()(LA_index i1...) const {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
 	
-	inline Tensor& operator=(const Tensor &rhs) {myrank=rhs.myrank; shape=rhs.shape; groupsizes=rhs.groupsizes; cumsizes=rhs.cumsizes; data=rhs.data; return *this;};
+	inline Tensor& operator=(const Tensor &rhs) {myrank=rhs.myrank; shape=rhs.shape; groupsizes=rhs.groupsizes; cumsizes=rhs.cumsizes; data=rhs.data; names=rhs.names; return *this;};
 
 	inline Tensor& operator*=(const T &a) {data*=a; return *this;};
 	inline Tensor operator*(const T &a) const {Tensor r(*this); r *=a; return r;};
@@ -206,12 +227,14 @@ public:
 
 	typename LA_traits<T>::normtype norm() const {return data.norm();};
 
-	inline Tensor operator*(const Tensor &rhs) const {return Tensor(rhs.shape.concat(shape),data.otimes2vec(rhs.data));} //outer product,  rhs indices will be the less significant 
+	inline Tensor operator*(const Tensor &rhs) const {return Tensor(rhs.shape.concat(shape),data.otimes2vec(rhs.data),rhs.names.concat(names));} //outer product,  rhs indices will be the less significant 
 
 	Tensor& conjugateme() {data.conjugateme(); return *this;};
         inline Tensor conjugate() const {Tensor r(*this); r.conjugateme(); return r;};
 
-
+	//find index by name
+	int findflatindex(const INDEXNAME nam) const;
+	INDEX findindex(const INDEXNAME nam) const;
 
 	inline Tensor& operator+=(const Tensor &rhs) 
 		{
@@ -235,8 +258,8 @@ public:
 
 	Tensor operator-() const {return Tensor(myrank,shape,groupsizes,cumsizes,-data);}; //unary-
 
-	void put(int fd) const;
-	void get(int fd);
+	void put(int fd, bool with_names=false) const;
+	void get(int fd, bool with_names=false);
 
 	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x);};
 
@@ -245,6 +268,7 @@ public:
 	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
 	void constgrouploopover(void (*callback)(const GROUPINDEX &, const T *)) const; //loop over all elements disregarding the internal structure of index groups
 
+//@@@@@@@@@implement names treatment in the following
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
 	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one (the leftmost one)
 	Tensor unwind_index(const INDEX &I) const {return unwind_index(I.group,I.index);};
@@ -263,8 +287,8 @@ public:
 //								 The efficiency is not optimal, even when avoiding the outer product, the calculation is done indexing element by element
 //								 More efficient would be applying permutation algebra symbolically and efficiently computing term by term
 
-	void split_index_group(int group); //formal in-place split of a non-symmetric index group WITHOUT the need for data reorganization
-	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization
+	void split_index_group(int group); //formal in-place split of a non-symmetric index group WITHOUT the need for data reorganization or names rearrangement
+	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization or names rearrangement
 	Tensor merge_index_groups(const NRVec<int> &groups) const;
 	Tensor flatten(int group= -1) const; //split and uncompress a given group or all of them
 	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=true); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 

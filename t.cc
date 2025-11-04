@@ -3893,6 +3893,9 @@ INDEXGROUP shape;
         }
 Tensor<double> t(shape);
 t.clear();
+INDEXNAME list[3]={"i1","i2","i3"};
+t.names=list;
+//t.names= {"i1","i2","i3"}; does not compile
 for(int i=0; i<n; ++i)
 for(int j=0; j<n; ++j)
 for(int k=0; k<n; ++k)
@@ -3909,6 +3912,7 @@ for(int k=0; k<n; ++k)
         cout <<(t2(i,j,k)+t2(j,k,i)+t2(k,i,j)-t2(j,i,k)-t2(i,k,j)-t2(k,j,i))-6*t(i,j,k)<<endl;
         }
 
+cout<<t2;
 }
 
 
