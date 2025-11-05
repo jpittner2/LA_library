@@ -19,6 +19,7 @@
 
 //a simple tensor class with arbitrary symmetry of index subgroups
 //stored in an efficient way
+//indices can optionally have names and by handled by name
 //each index group has a specific symmetry (nosym,sym,antisym)
 //additional symmetry between index groups (like in 2-electron integrals) is not supported directly, you would need to nest the class to Tensor<Tensor<T> >
 //leftmost index is least significant (changing fastest) in the storage order
@@ -39,9 +40,6 @@
 #include "miscfunc.h"
 
 //TODO:
-//@@@!!!!!! - implement index names and their treatment in all operations which permute indices
-//@@@implement  contractions, unwinding etc. by named index list
-//
 //@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
@@ -49,7 +47,7 @@
 //maybe optional negative range for beta spin handling in some cases of fourindex-tensor conversions
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
-//
+//@@@? apply_permutation_algebra if result should be symmetric/antisymmetric in such a way to compute only the nonredundant part
 //
 
 
@@ -90,6 +88,11 @@ typedef int LA_largeindex;
 #define N_INDEXNAME 8
 struct INDEXNAME {
 	char name[N_INDEXNAME];
+	INDEXNAME() {};
+	INDEXNAME(const char *n) {strncpy(name,n,N_INDEXNAME);};
+	INDEXNAME & operator=(const INDEXNAME &rhs) {strncpy(name,rhs.name,N_INDEXNAME); return *this;};
+	bool operator==(const INDEXNAME &rhs) const {return 0==strncmp(name,rhs.name,N_INDEXNAME);};
+	bool operator!=(const INDEXNAME &rhs) const {return !(rhs == *this);};
 };
 template<>
 class LA_traits<INDEXNAME> {
@@ -184,7 +187,7 @@ public:
 	//constructors
 	Tensor() : myrank(0) {};
 	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank();}; //general tensor
-	Tensor(const NRVec<indexgroup> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize()); calcrank(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
+	Tensor(const NRVec<indexgroup> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize());  calcrank(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
 	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
 	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;  if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");} 
 	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank();}; //tensor with a single index group
@@ -204,6 +207,7 @@ public:
 	bool is_compressed() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1&&shape[i].symmetry!=0) return true; return false;};
 	bool has_symmetry() const {for(int i=0; i<shape.size(); ++i) if(shape[i].symmetry!=0) return true; return false;};
 	void clear() {data.clear();};
+	void defaultnames() {names.resize(rank()); for(int i=0; i<rank(); ++i) sprintf(names[i].name,"i%03d",i);}
 	int rank() const {return myrank;};
 	int calcrank(); //is computed from shape
 	LA_largeindex calcsize(); //set redundant data and return total size
@@ -235,6 +239,7 @@ public:
 	//find index by name
 	int findflatindex(const INDEXNAME nam) const;
 	INDEX findindex(const INDEXNAME nam) const;
+	NRVec<INDEX> findindexlist(const NRVec<INDEXNAME> &names) const;
 
 	inline Tensor& operator+=(const Tensor &rhs) 
 		{
@@ -268,16 +273,27 @@ public:
 	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
 	void constgrouploopover(void (*callback)(const GROUPINDEX &, const T *)) const; //loop over all elements disregarding the internal structure of index groups
 
-//@@@@@@@@@implement names treatment in the following
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
+
 	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one (the leftmost one)
 	Tensor unwind_index(const INDEX &I) const {return unwind_index(I.group,I.index);};
+	Tensor unwind_index(const INDEXNAME &N) const {return unwind_index(findindex(N));};
+
 	Tensor unwind_indices(const INDEXLIST &il) const; //the same for a list of indices
+	Tensor unwind_indices(const NRVec<INDEXNAME> &names) const {return unwind_indices(findindexlist(names));};
+
 	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs2, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //rhs1 will have more significant non-contracted indices in the result than rhs2
+	inline void addcontraction(const Tensor &rhs1, const INDEX &I1, const Tensor &rhs2, const INDEX &I2, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, I1.group, I1.index, rhs2, I2.group, I2.index, alpha, beta, doresize, conjugate, conjugate);};
+	inline void addcontraction(const Tensor &rhs1, const Tensor &rhs2, const INDEXNAME &iname, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, rhs1.findindex(iname), rhs2, rhs2.findindex(iname), alpha, beta, doresize, conjugate, conjugate);};
+	
 	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true, conjugate1, conjugate); return r; };
+	inline Tensor contraction(const INDEX &I, const Tensor &rhs, const INDEX &RHSI, T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(I.group,I.index, rhs, RHSI.group, RHSI.index,alpha, conjugate1, conjugate);};
+	inline Tensor contraction(const Tensor &rhs, const INDEXNAME &iname,  T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(findindex(iname),rhs,rhs.findindex(iname),alpha, conjugate1, conjugate);};
 
 	void addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false);
+	inline void addcontractions(const Tensor &rhs1, const Tensor &rhs2, const NRVec<INDEXNAME> &names,  T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false) {addcontractions(rhs1, rhs1.findindexlist(names), rhs2, rhs2.findindexlist(names), alpha, beta, doresize, conjugate1,conjugate2);};
 	inline Tensor contractions( const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {Tensor<T> r; r.addcontractions(*this,il1,rhs2,il2,alpha,0,true,conjugate1, conjugate2); return r; };
+	inline Tensor contractions(const Tensor &rhs2, const NRVec<INDEXNAME> names,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {return contractions(findindexlist(names),rhs2,rhs2.findindexlist(names),alpha,conjugate1,conjugate2); };
 
 	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
 	void apply_permutation_algebra(const  NRVec<Tensor> &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //avoids explicit outer product but not vectorized, rather inefficient
@@ -289,8 +305,10 @@ public:
 
 	void split_index_group(int group); //formal in-place split of a non-symmetric index group WITHOUT the need for data reorganization or names rearrangement
 	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization or names rearrangement
-	Tensor merge_index_groups(const NRVec<int> &groups) const;
-	Tensor flatten(int group= -1) const; //split and uncompress a given group or all of them
+
+	Tensor merge_index_groups(const NRVec<int> &groups) const; 
+	Tensor flatten(int group= -1) const; //split and uncompress a given group or all of them, leaving flat index order the same
+
 	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=true); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
 	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=true) const; //rebuild the original tensor from Tucker
 };

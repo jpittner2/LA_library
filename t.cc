@@ -3256,6 +3256,8 @@ for(int i=0; i<4; ++i)
 	}
 Tensor<double> t(s);
 t.randomize(1.);
+INDEXNAME list[4]={"i","j","k","l"}; 
+t.names=list;
 cout <<t;
 NRPerm<int> p({3,1,4,2});
 Tensor<double> tt=t.permute_index_groups(p);
@@ -3267,6 +3269,26 @@ for(int i=0; i<n; ++i)
 				{
 				if(t(i,j,k,l)!=tt(k,i,l,j)) laerror("error in permute_index_groups");
 				}
+}
+
+if(0)
+{
+int n=3;
+NRVec<INDEXGROUP> s(4);
+for(int i=0; i<4; ++i) 
+	{
+	s[i].number=2;
+	s[i].symmetry=0;
+	s[i].offset=0;
+	s[i].range=n;
+	}
+Tensor<double> t(s);
+t.randomize(1.);
+INDEXNAME list[8]={"i1","i2","j1","j2","k1","k2","l1","l2"}; 
+t.names=list;
+NRPerm<int> p({3,1,4,2});
+Tensor<double> tt=t.permute_index_groups(p);
+cout <<tt;
 }
 
 
@@ -3283,6 +3305,8 @@ g.range=n;
 
 Tensor<double> e(g);
 e.randomize(1.);
+INDEXNAME list[4]={"i","j","k","l"};
+e.names=list;
 Tensor<double> eu = e.unwind_index(0,1);
 Tensor<double> eu2 = e.unwind_index(0,2);
 Tensor<double> eu3 = e.unwind_index(0,3);
@@ -3349,6 +3373,9 @@ ag.range=n;
 
 Tensor<double> a(ag);
 a.randomize(1.);
+INDEXNAME alist[4]={"i","j","k","l"};
+a.names=alist;
+
 
 INDEXGROUP bg;
 bg.number=3;
@@ -3358,14 +3385,24 @@ bg.range=n;
 
 Tensor<double> b(bg);
 b.randomize(1.);
+INDEXNAME blist[3]={"a","i","b"};
+b.names=blist;
+
 
 INDEXLIST il1(1);
 il1[0]={0,0};
 INDEXLIST il2(1);
 il2[0]={0,1};
+INDEXNAME clist[1]={"i"};
+NRVec<INDEXNAME> cl(clist);
 Tensor<double> cc = a.contractions(il1,b,il2);
-//Tensor<double> cc = a.contraction(0,0,b,0,1);
+Tensor<double> ff = a.contractions(b,cl);
+Tensor<double> dd = a.contraction(0,0,b,0,1);
+Tensor<double> ee = a.contraction(b,"i");
 cout <<cc;
+cout <<dd;
+cout <<ee;
+cout <<ff;
 
 INDEXGROUP cga;
 cga.number=3;
@@ -3392,7 +3429,10 @@ for(int i=0; i<n; ++i)
 					{
 					for(int p=0; p<n; ++p)
 						c.lhs(m,l,k,j,i) += a(p,i,j,k) * b(m,p,l);
-					if(abs(c(m,l,k,j,i)-cc(m,l,k,j,i))>1e-13) laerror("internal error in contraction");
+					if(abs(c(m,l,k,j,i)-cc(m,l,k,j,i))>1e-13) laerror("internal error in contractions");
+					if(abs(c(m,l,k,j,i)-dd(m,l,k,j,i))>1e-13) laerror("internal error in contraction");
+					if(abs(c(m,l,k,j,i)-ee(m,l,k,j,i))>1e-13) laerror("internal error in named contraction");
+					if(abs(c(m,l,k,j,i)-ff(m,l,k,j,i))>1e-13) laerror("internal error in named contractions");
 					}
 
 //cout <<c;
@@ -3411,6 +3451,10 @@ g.range=n;
 
 Tensor<double> e(g);
 e.randomize(1.);
+INDEXNAME list[4]={"i","j","k","l"};
+e.names=list;
+
+
 INDEXLIST il(2);
 il[0]= {0,1};
 il[1]= {0,3};
@@ -3893,9 +3937,9 @@ INDEXGROUP shape;
         }
 Tensor<double> t(shape);
 t.clear();
-INDEXNAME list[3]={"i1","i2","i3"};
-t.names=list;
-//t.names= {"i1","i2","i3"}; does not compile
+//INDEXNAME list[3]={"i1","i2","i3"}; t.names=list;
+//t.names= NRVec<INDEXNAME>({"i1","i2","i3"}); //does not compile
+t.defaultnames();
 for(int i=0; i<n; ++i)
 for(int j=0; j<n; ++j)
 for(int k=0; k<n; ++k)
