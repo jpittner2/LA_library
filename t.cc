@@ -3362,7 +3362,7 @@ for(int i=0; i<n; ++i)
 
 
 
-if(0)
+if(1)
 {
 int n=5;
 INDEXGROUP ag;
@@ -3923,7 +3923,7 @@ for(int l=1; l<=n; ++l)
 
 }
 
-if(1)
+if(0)
 {
 //tensor lhs operator() and signed pointer
 int n;

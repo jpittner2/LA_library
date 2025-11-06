@@ -40,6 +40,7 @@
 #include "miscfunc.h"
 
 //TODO:
+//@@@@@@how to handle contractions yielding a scalar - special treatment, support special case of rank=0 tensor?
 //@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
@@ -48,6 +49,7 @@
 //
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //@@@? apply_permutation_algebra if result should be symmetric/antisymmetric in such a way to compute only the nonredundant part
+//@@@symetrizace a antisymetrizace skupiny indexu - jak efektivneji nez pres permutationalgebra?
 //
 
 
@@ -232,6 +234,7 @@ public:
 	typename LA_traits<T>::normtype norm() const {return data.norm();};
 
 	inline Tensor operator*(const Tensor &rhs) const {return Tensor(rhs.shape.concat(shape),data.otimes2vec(rhs.data),rhs.names.concat(names));} //outer product,  rhs indices will be the less significant 
+	T dot(const Tensor &rhs) const; //scalar product (full contraction), in complex case is automatically conjugated, not for symmetric group indices
 
 	Tensor& conjugateme() {data.conjugateme(); return *this;};
         inline Tensor conjugate() const {Tensor r(*this); r.conjugateme(); return r;};
@@ -275,6 +278,7 @@ public:
 
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
 
+	Tensor unwind_index_group(int group) const; //make the index group leftmost (least significant)
 	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one (the leftmost one)
 	Tensor unwind_index(const INDEX &I) const {return unwind_index(I.group,I.index);};
 	Tensor unwind_index(const INDEXNAME &N) const {return unwind_index(findindex(N));};
@@ -295,6 +299,9 @@ public:
 	inline Tensor contractions( const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {Tensor<T> r; r.addcontractions(*this,il1,rhs2,il2,alpha,0,true,conjugate1, conjugate2); return r; };
 	inline Tensor contractions(const Tensor &rhs2, const NRVec<INDEXNAME> names,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {return contractions(findindexlist(names),rhs2,rhs2.findindexlist(names),alpha,conjugate1,conjugate2); };
 
+	 void addgroupcontraction(const Tensor &rhs1, int group, const Tensor &rhs2, int rhsgroup, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //over all indices in a group of same symmetry; rhs1 will have more significant non-contracted indices in the result than rhs2
+	 inline Tensor groupcontraction(int group, const Tensor &rhs, int rhsgroup, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addgroupcontraction(*this,group,rhs,rhsgroup,alpha,0,true, conjugate1, conjugate); return r; };
+
 	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
 	void apply_permutation_algebra(const  NRVec<Tensor> &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //avoids explicit outer product but not vectorized, rather inefficient
 //								 this *=beta; for I over this: this(I) += alpha * sum_P c_P rhs(P(I))
@@ -304,6 +311,7 @@ public:
 //								 More efficient would be applying permutation algebra symbolically and efficiently computing term by term
 
 	void split_index_group(int group); //formal in-place split of a non-symmetric index group WITHOUT the need for data reorganization or names rearrangement
+	void split_index_group1(int group); //formal in-place split of the leftmost index in a non-symmetric index group WITHOUT the need for data reorganization or names rearrangement
 	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization or names rearrangement
 
 	Tensor merge_index_groups(const NRVec<int> &groups) const; 
