@@ -3362,7 +3362,7 @@ for(int i=0; i<n; ++i)
 
 
 
-if(1)
+if(0)
 {
 int n=5;
 INDEXGROUP ag;
@@ -3959,6 +3959,41 @@ for(int k=0; k<n; ++k)
 cout<<t2;
 }
 
+if(0)
+{
+//scalar as trivial tensor rank 0 case
+Tensor<double> t(2.),u(3.);
+cout <<t<<endl;
+SUPERINDEX I;
+FLATINDEX J;
+cout <<t(I)<<endl;
+cout <<u(J)<<endl;
+cout <<t+u<<endl;
+cout <<t*u<<endl;
+cout <<t.dot(u)<<endl;
+}
+
+
+if(1)
+{
+int r,n;
+cin>>r>>n;
+INDEXGROUP shape;
+        {
+        shape.number=r;
+        //shape.symmetry= 0;
+        shape.symmetry= -1;
+        shape.range=n;
+        shape.offset=0;
+        }
+Tensor<double> x(shape);
+x.randomize(1.);
+cout<<x;
+Tensor<double> xf=x.flatten();
+cout <<xf;
+
+cout <<x.dot(x) <<" "<< xf.dot(xf)<<endl;
+}
 
 
 }//main

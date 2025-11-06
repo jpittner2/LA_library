@@ -40,7 +40,6 @@
 #include "miscfunc.h"
 
 //TODO:
-//@@@@@@how to handle contractions yielding a scalar - special treatment, support special case of rank=0 tensor?
 //@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
 //@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
 //@@@ will not be particularly efficient
@@ -187,7 +186,8 @@ public:
 	SUPERINDEX inverse_index(LA_largeindex s) const; //inefficient, but possible if needed
 
 	//constructors
-	Tensor() : myrank(0) {};
+	Tensor() : myrank(-1) {};
+	explicit Tensor(const T &x) : myrank(0), data(1) {data[0]=x;}; //scalar
 	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank();}; //general tensor
 	Tensor(const NRVec<indexgroup> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize());  calcrank(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
 	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
