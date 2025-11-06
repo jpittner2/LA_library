@@ -590,6 +590,7 @@ std::istream & operator>>(std::istream &s, Tensor<T> &x)
 s>>x.shape;
 s>>x.names;
 x.data.resize(x.calcsize()); x.calcrank();
+if(x.rank()==0) {s>>x.data[0]; return s;}
 FLATINDEX I(x.rank());
 for(LA_largeindex i=0; i<x.data.size(); ++i)
 	{
