@@ -303,7 +303,7 @@ public:
 	void addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false);
 	inline void addcontractions(const Tensor &rhs1, const Tensor &rhs2, const NRVec<INDEXNAME> &names,  T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false) {addcontractions(rhs1, rhs1.findindexlist(names), rhs2, rhs2.findindexlist(names), alpha, beta, doresize, conjugate1,conjugate2);};
 	inline Tensor contractions( const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {Tensor<T> r; r.addcontractions(*this,il1,rhs2,il2,alpha,0,true,conjugate1, conjugate2); return r; };
-	inline Tensor contractions(const Tensor &rhs2, const NRVec<INDEXNAME> names,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {return contractions(findindexlist(names),rhs2,rhs2.findindexlist(names),alpha,conjugate1,conjugate2); };
+	inline Tensor contractions(const Tensor &rhs2, const NRVec<INDEXNAME> &names,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {return contractions(findindexlist(names),rhs2,rhs2.findindexlist(names),alpha,conjugate1,conjugate2); };
 
 	 void addgroupcontraction(const Tensor &rhs1, int group, const Tensor &rhs2, int rhsgroup, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //over all indices in a group of same symmetry; rhs1 will have more significant non-contracted indices in the result than rhs2
 	 inline Tensor groupcontraction(int group, const Tensor &rhs, int rhsgroup, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addgroupcontraction(*this,group,rhs,rhsgroup,alpha,0,true, conjugate1, conjugate); return r; };
@@ -323,6 +323,7 @@ public:
 	Tensor merge_index_groups(const NRVec<int> &groups) const; 
 	Tensor flatten(int group= -1) const; //split and uncompress a given group or all of them, leaving flat index order the same
 	Tensor merge_indices(const INDEXLIST &il, int symmetry=0) const;	//opposite to flatten (merging with optional symmetrization/antisymmetrization and compression)
+	Tensor merge_indices(const NRVec<INDEXNAME> &nl, int symmetry=0) const {return merge_indices(findindexlist(nl),symmetry);};
 
 	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=true); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
 	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=true) const; //rebuild the original tensor from Tucker
