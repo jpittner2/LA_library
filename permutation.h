@@ -339,6 +339,7 @@ public:
 };
 
 //not extremely efficient but compactly represented via young operators
+//could also be done by modifying NRPerm list_all to store/not store the parity
 template <typename T>
 PermutationAlgebra<T,T> symmetrizer(int n)
 {
