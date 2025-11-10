@@ -3974,7 +3974,7 @@ cout <<t.dot(u)<<endl;
 }
 
 
-if(1)
+if(0)
 {
 //check full constractions
 int r,n;
@@ -3998,6 +3998,68 @@ for(int i=0; i<r; ++i) cl[i]={i,0};
 Tensor<double> zf = xf.contractions(cl,yf,cl,1,false,true);
 
 cout <<x.dot(y) <<" "<< xf.dot(yf)<< " "<<z<<" "<<zf<<endl;
+}
+
+
+if(0)
+{
+//check symmetrizer/antisymmetrizer with no remaining indices
+int r,n,sym;
+cin>>r>>n>>sym;
+INDEXGROUP shape;
+        {
+        shape.number=r;
+        shape.symmetry= sym;
+        shape.range=n;
+        shape.offset=0;
+        }
+Tensor<double> x(shape); x.randomize(1.);
+//cout <<x;
+Tensor<double> xf=x.flatten();
+
+INDEXLIST il(r);
+for(int i=0; i<r; ++i) il[i]= {i,0};
+Tensor<double> xx = xf.merge_indices(il,sym);
+//cout <<xx;
+cout <<"Error = "<<(xx-x).norm()<<endl;
+
+}
+
+if(1)
+{
+//check symmetrizer/antisymmetrizer in general case
+int r,n,sym;
+cin>>r>>n>>sym;
+NRVec<INDEXGROUP> shape(3);
+	shape[0].number=2; 
+        shape[0].symmetry=0;
+        shape[0].range=n+1;
+        shape[0].offset=0;
+
+        shape[1].number=r;
+        shape[1].symmetry= sym;
+        shape[1].range=n;
+        shape[1].offset=0;
+
+        shape[2].number=2;
+        shape[2].symmetry=0;
+        shape[2].range=n+2;
+        shape[2].offset=0;
+
+
+Tensor<double> x(shape); x.randomize(1.);
+cout <<"x= "<<x.shape;
+Tensor<double> xf=x.flatten(1);
+cout <<"xf= "<<xf.shape;
+Tensor<double> xxx=x.unwind_index_group(1);
+cout <<"xxx= "<<xxx.shape<<endl;
+
+INDEXLIST il(r);
+for(int i=0; i<r; ++i) il[i]= {1+i,0};
+Tensor<double> xx = xf.merge_indices(il,sym);
+cout <<"xx = "<<xx.shape;
+cout <<"Error = "<<(xx-xxx).norm()<<endl;
+
 }
 
 

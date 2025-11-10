@@ -41,15 +41,11 @@
 
 //TODO:
 //@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
-//@@@ will need to store vector of INDEX to the original tensor for the result's flatindex
-//@@@ will not be particularly efficient
-//
-//maybe optional negative range for beta spin handling in some cases of fourindex-tensor conversions
-//
+//@@@ will need to store vector of INDEX to the original tensor for the result's flatindex, will not be particularly efficient
+//@@@?maybe optional negative range for beta spin handling in some cases of fourindex-tensor conversions
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
-//@@@? apply_permutation_algebra if result should be symmetric/antisymmetric in such a way to compute only the nonredundant part
-//@@@symetrizace a antisymetrizace skupiny indexu - jak efektivneji nez pres permutationalgebra?
-//
+//@@@ is that needed? we can flatten the relevant groups and permute index groups alternatively - maybe implement on high level this way for convenience
+
 
 
 //do not distinguish covariant/contravariant indices
@@ -160,8 +156,13 @@ struct  INDEX
 {
 int group;
 int index;
+bool operator==(const INDEX &rhs) const {return group==rhs.group && index==rhs.index;};
 };
 typedef NRVec<INDEX> INDEXLIST; //collection of several indices
+
+std::ostream & operator<<(std::ostream &s, const INDEX &x);
+std::istream & operator>>(std::istream &s, INDEX &x);
+
 
 int flatposition(int group, int index, const NRVec<indexgroup> &shape);
 int flatposition(const INDEX &i, const NRVec<indexgroup> &shape); //position of that index in FLATINDEX
@@ -188,12 +189,12 @@ public:
 	//constructors
 	Tensor() : myrank(-1) {};
 	explicit Tensor(const T &x) : myrank(0), data(1) {data[0]=x;}; //scalar
-	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank();}; //general tensor
-	Tensor(const NRVec<indexgroup> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize());  calcrank(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
-	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
-	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { LA_largeindex dsize=calcsize(); calcrank(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;  if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");} 
-	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank();}; //tensor with a single index group
-	Tensor(const indexgroup &g, const NRVec<INDEXNAME> &newnames) : names(newnames) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //tensor with a single index group
+	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank(); canonicalize_shape();}; //general tensor
+	Tensor(const NRVec<indexgroup> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize());  calcrank(); canonicalize_shape(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
+	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); canonicalize_shape(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
+	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { LA_largeindex dsize=calcsize(); calcrank(); canonicalize_shape(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;  if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");} 
+	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); canonicalize_shape();}; //tensor with a single index group
+	Tensor(const indexgroup &g, const NRVec<INDEXNAME> &newnames) : names(newnames) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); canonicalize_shape(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //tensor with a single index group
 	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data), names(rhs.names) {};
 	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
 	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata, const NRVec<INDEXNAME>  &xnames) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata), names(xnames) {};
@@ -212,6 +213,7 @@ public:
 	void defaultnames() {names.resize(rank()); for(int i=0; i<rank(); ++i) sprintf(names[i].name,"i%03d",i);}
 	int rank() const {return myrank;};
 	int calcrank(); //is computed from shape
+	void canonicalize_shape(); 
 	LA_largeindex calcsize(); //set redundant data and return total size
 	LA_largeindex size() const {return data.size();};
 	void copyonwrite() {shape.copyonwrite(); groupsizes.copyonwrite(); cumsizes.copyonwrite(); data.copyonwrite(); names.copyonwrite();};
@@ -316,6 +318,7 @@ public:
 
 	Tensor merge_index_groups(const NRVec<int> &groups) const; 
 	Tensor flatten(int group= -1) const; //split and uncompress a given group or all of them, leaving flat index order the same
+	Tensor merge_indices(const INDEXLIST &il, int symmetry=0) const;	//opposite to flatten (merging with optional symmetrization/antisymmetrization and compression)
 
 	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=true); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
 	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=true) const; //rebuild the original tensor from Tucker
