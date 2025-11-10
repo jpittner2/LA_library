@@ -338,6 +338,29 @@ public:
 
 };
 
+//not extremely efficient but compactly represented via young operators
+template <typename T>
+PermutationAlgebra<T,T> symmetrizer(int n)
+{
+Partition<T> p(n);
+p[1]=n; for(int i=2; i<=n;++i) p[i]=0;
+YoungTableaux<T> y(p);
+for(int i=1; i<=n; ++i) y[1][i]=i;
+return y.young_operator();
+}
+
+template <typename T>
+PermutationAlgebra<T,T> antisymmetrizer(int n)
+{
+Partition<T> p(n);
+for(int i=1; i<=n;++i) p[i]=1;
+YoungTableaux<T> y(p);
+for(int i=1; i<=n; ++i) y[i][1]=i;
+return y.young_operator();
+}
+
+
+
 template <typename T>
 std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x);
 
