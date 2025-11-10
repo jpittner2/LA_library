@@ -4048,16 +4048,17 @@ NRVec<INDEXGROUP> shape(3);
 
 
 Tensor<double> x(shape); x.randomize(1.);
-cout <<"x= "<<x.shape;
+x.defaultnames();
+cout <<"x= "<<x.shape << " "<<x.names<<endl;
 Tensor<double> xf=x.flatten(1);
-cout <<"xf= "<<xf.shape;
+cout <<"xf= "<<xf.shape << " "<<xf.names<<endl;
 Tensor<double> xxx=x.unwind_index_group(1);
-cout <<"xxx= "<<xxx.shape<<endl;
+cout <<"xxx= "<<xxx.shape<<" "<<xxx.names<<endl;
 
 INDEXLIST il(r);
 for(int i=0; i<r; ++i) il[i]= {1+i,0};
 Tensor<double> xx = xf.merge_indices(il,sym);
-cout <<"xx = "<<xx.shape;
+cout <<"xx = "<<xx.shape<< " "<<xx.names<<endl;
 cout <<"Error = "<<(xx-xxx).norm()<<endl;
 
 }

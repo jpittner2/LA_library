@@ -1746,6 +1746,7 @@ else
 
 Tensor<T> r(newshape);
 r.apply_permutation_algebra(*this,pa,false,(T)1/(T)pa.size(),0);
+if(is_named()) r.names=names.permuted(basicperm,true);	
 return r;
 }
 

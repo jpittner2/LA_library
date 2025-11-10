@@ -132,6 +132,10 @@ bool upperindex;
 std::ostream & operator<<(std::ostream &s, const INDEXGROUP &x);
 std::istream & operator>>(std::istream &s, INDEXGROUP &x);
 
+std::ostream & operator<<(std::ostream &s, const INDEXNAME &x);
+std::istream & operator>>(std::istream &s, INDEXNAME &x);
+
+
 
 
 template<>
