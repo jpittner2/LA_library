@@ -4091,7 +4091,7 @@ for(int i=0;i<n+1;++i) for(int j=0;j<n+2;++j)
 cout <<"Error= "<<e<<endl;
 }
 
-if(1)
+if(0)
 {
 int r=4;
 int n=5;
@@ -4119,6 +4119,27 @@ for(int k=0; k<n; ++k)
 Tensor<double> ss(s);
 cout <<"Error= "<<ss-xc<<endl;
 }
+
+if(1)
+{
+int r=1;
+int n=5;
+NRVec<INDEXGROUP> sh(r);
+for(int i=0; i<r; ++i)
+        {
+        sh[i].number=1;
+        sh[i].symmetry=0;
+        sh[i].range=n;
+        sh[i].offset=0;
+        }
+Tensor<double> x(sh); x.randomize(1.);
+Tensor<double> s1(2.);
+Tensor<double> s2(3.);
+cout <<s1*x<<endl;
+cout <<x*s1<<endl;
+cout<<s1*s2<<endl;
+}
+
 
 
 }//main

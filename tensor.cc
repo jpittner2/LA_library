@@ -1831,6 +1831,7 @@ return r;
 template<typename T>
 void Tensor<T>::canonicalize_shape()
 {
+if(shape.size()==0) return;
 const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[0];
 for(int i=0; i<shape.size(); ++i)
 	{
