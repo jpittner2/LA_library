@@ -4025,7 +4025,7 @@ cout <<"Error = "<<(xx-x).norm()<<endl;
 
 }
 
-if(1)
+if(0)
 {
 //check symmetrizer/antisymmetrizer in general case
 int r,n,sym;
@@ -4060,7 +4060,64 @@ for(int i=0; i<r; ++i) il[i]= {1+i,0};
 Tensor<double> xx = xf.merge_indices(il,sym);
 cout <<"xx = "<<xx.shape<< " "<<xx.names<<endl;
 cout <<"Error = "<<(xx-xxx).norm()<<endl;
+}
 
+if(0)
+{
+int r=4;
+int n=3;
+NRVec<INDEXGROUP> s(r);
+for(int i=0; i<r; ++i)
+	{
+	s[i].number=1;
+	s[i].symmetry=0;
+	s[i].range=n;
+	s[i].offset=0;
+	}
+s[0].range ++;
+s[3].range+=2;
+Tensor<double> x(s); x.randomize(1.);
+x.defaultnames();
+INDEX i1={1,0};
+INDEX i2={2,0};
+Tensor<double> xc=x.innercontraction(i1,i2);
+double e=0;
+for(int i=0;i<n+1;++i) for(int j=0;j<n+2;++j)
+	{
+	double s=0;
+	for(int k=0; k<n; ++k) s+= x(i,k,k,j);
+	e += abs(s-xc(i,j));
+	}
+cout <<"Error= "<<e<<endl;
+}
+
+if(1)
+{
+int r=4;
+int n=5;
+NRVec<INDEXGROUP> sh(r);
+for(int i=0; i<r; ++i)
+	{
+	sh[i].number=1;
+	sh[i].symmetry=0;
+	sh[i].range=n;
+	sh[i].offset=0;
+	}
+Tensor<double> x(sh); x.randomize(1.);
+x.defaultnames();
+INDEX i0={0,0};
+INDEX i1={1,0};
+INDEX i2={2,0};
+INDEX i3={3,0};
+NRVec<INDEX> il1({i1,i2});
+NRVec<INDEX> il2({i0,i3});
+Tensor<double> xc=x.innercontraction(il1,il2);
+double s=0;
+for(int k=0; k<n; ++k) 
+	for(int l=0; l<n; ++l) 
+		s+= x(k,k,l,l);
+Tensor<double> ss(s);
+cout <<"Error= "<<ss-xc<<endl;
 }
 
 

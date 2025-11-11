@@ -40,12 +40,9 @@
 #include "miscfunc.h"
 
 //TODO:
-//@@@contraction inside one tensor - compute resulting shape, loopover the shape, create index into the original tensor + loop over the contr. index, do the summation, store result
-//@@@ will need to store vector of INDEX to the original tensor for the result's flatindex, will not be particularly efficient
-//@@@?maybe optional negative range for beta spin handling in some cases of fourindex-tensor conversions
 //@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
 //@@@ is that needed? we can flatten the relevant groups and permute index groups alternatively - maybe implement on high level this way for convenience
-
+//?maybe optional negative range for beta spin handling in some cases of fourindex-tensor conversions combining AA and AB etc. cases - if needed
 
 
 //do not distinguish covariant/contravariant indices
@@ -106,7 +103,7 @@ class LA_traits<INDEXNAME> {
 };
 
 
-typedef class indexgroup {
+typedef class INDEXGROUP {
 public:
 int number; //number of indices
 int symmetry; //-1 0 or 1, later 2 for hermitian and -2 for antihermitian? - would need change in operator() and Signedpointer
@@ -120,12 +117,12 @@ LA_index range;  //indices span this range
 bool upperindex;
 #endif
 
-	bool operator==(const indexgroup &rhs) const {return number==rhs.number && symmetry==rhs.symmetry && offset==rhs.offset && range==rhs.range
+	bool operator==(const INDEXGROUP &rhs) const {return number==rhs.number && symmetry==rhs.symmetry && offset==rhs.offset && range==rhs.range
 #ifdef LA_TENSOR_INDEXPOSITION
 	&& upperindex == rhs.upperindex
 #endif
 	;};
-	inline bool operator!=(const indexgroup &rhs) const {return !((*this)==rhs);};
+	inline bool operator!=(const INDEXGROUP &rhs) const {return !((*this)==rhs);};
 } INDEXGROUP;
 
 
@@ -139,17 +136,17 @@ std::istream & operator>>(std::istream &s, INDEXNAME &x);
 
 
 template<>
-class LA_traits<indexgroup> {
+class LA_traits<INDEXGROUP> {
 	public:
 	static bool is_plaindata() {return true;};
-	static void copyonwrite(indexgroup& x) {};
+	static void copyonwrite(INDEXGROUP& x) {};
 	typedef INDEXGROUP normtype;
-	static inline int gencmp(const indexgroup *a, const indexgroup *b, int n) {return memcmp(a,b,n*sizeof(indexgroup));};
-        static inline void put(int fd, const indexgroup &x, bool dimensions=1) {if(sizeof(indexgroup)!=write(fd,&x,sizeof(indexgroup))) laerror("write error 1 in indexgroup put"); }
-        static inline void multiput(int nn, int fd, const indexgroup *x, bool dimensions=1) {if(nn*sizeof(indexgroup)!=write(fd,x,nn*sizeof(indexgroup))) laerror("write error 1 in indexgroup multiiput"); }
-        static inline void get(int fd, indexgroup &x, bool dimensions=1) {if(sizeof(indexgroup)!=read(fd,&x,sizeof(indexgroup))) laerror("read error 1 in indexgroup get");}
-        static inline void multiget(int nn, int fd, indexgroup *x, bool dimensions=1) {if(nn*sizeof(indexgroup)!=read(fd,x,nn*sizeof(indexgroup))) laerror("read error 1 in indexgroup get");}
-	static inline void clear(indexgroup *dest, size_t n) {memset(dest,0,n*sizeof(indexgroup));}
+	static inline int gencmp(const INDEXGROUP *a, const INDEXGROUP *b, int n) {return memcmp(a,b,n*sizeof(INDEXGROUP));};
+        static inline void put(int fd, const INDEXGROUP &x, bool dimensions=1) {if(sizeof(INDEXGROUP)!=write(fd,&x,sizeof(INDEXGROUP))) laerror("write error 1 in INDEXGROUP put"); }
+        static inline void multiput(int nn, int fd, const INDEXGROUP *x, bool dimensions=1) {if(nn*sizeof(INDEXGROUP)!=write(fd,x,nn*sizeof(INDEXGROUP))) laerror("write error 1 in INDEXGROUP multiiput"); }
+        static inline void get(int fd, INDEXGROUP &x, bool dimensions=1) {if(sizeof(INDEXGROUP)!=read(fd,&x,sizeof(INDEXGROUP))) laerror("read error 1 in INDEXGROUP get");}
+        static inline void multiget(int nn, int fd, INDEXGROUP *x, bool dimensions=1) {if(nn*sizeof(INDEXGROUP)!=read(fd,x,nn*sizeof(INDEXGROUP))) laerror("read error 1 in INDEXGROUP get");}
+	static inline void clear(INDEXGROUP *dest, size_t n) {memset(dest,0,n*sizeof(INDEXGROUP));}
 };
 
 
@@ -168,16 +165,36 @@ std::ostream & operator<<(std::ostream &s, const INDEX &x);
 std::istream & operator>>(std::istream &s, INDEX &x);
 
 
-int flatposition(int group, int index, const NRVec<indexgroup> &shape);
-int flatposition(const INDEX &i, const NRVec<indexgroup> &shape); //position of that index in FLATINDEX
-INDEX indexposition(int flatindex, const NRVec<indexgroup> &shape); //inverse to flatposition
+template<>
+class LA_traits<INDEX> {
+        public:
+        static bool is_plaindata() {return true;};
+        static void copyonwrite(INDEX& x) {};
+        typedef INDEX normtype;
+        static inline int gencmp(const INDEX *a, const INDEX *b, int n) {return memcmp(a,b,n*sizeof(INDEX));};
+        static inline void put(int fd, const INDEX &x, bool dimensions=1) {if(sizeof(INDEX)!=write(fd,&x,sizeof(INDEX))) laerror("write error 1 in INDEX put"); }
+        static inline void multiput(int nn, int fd, const INDEX *x, bool dimensions=1) {if(nn*sizeof(INDEX)!=write(fd,x,nn*sizeof(INDEX))) laerror("write error 1 in INDEX multiiput"); }
+        static inline void get(int fd, INDEX &x, bool dimensions=1) {if(sizeof(INDEX)!=read(fd,&x,sizeof(INDEX))) laerror("read error 1 in INDEX get");}
+        static inline void multiget(int nn, int fd, INDEX *x, bool dimensions=1) {if(nn*sizeof(INDEX)!=read(fd,x,nn*sizeof(INDEX))) laerror("read error 1 in INDEX get");}
+        static inline void clear(INDEX *dest, size_t n) {memset(dest,0,n*sizeof(INDEX));}
+};
+
+
+
+
+
+
+
+int flatposition(int group, int index, const NRVec<INDEXGROUP> &shape);
+int flatposition(const INDEX &i, const NRVec<INDEXGROUP> &shape); //position of that index in FLATINDEX
+INDEX indexposition(int flatindex, const NRVec<INDEXGROUP> &shape); //inverse to flatposition
 
 FLATINDEX superindex2flat(const SUPERINDEX &I);
 
 template<typename T>
 class Tensor {
 public:
-	NRVec<indexgroup> shape;
+	NRVec<INDEXGROUP> shape;
 	NRVec<T> data;	
 	int myrank;
 	NRVec<LA_largeindex> groupsizes; //group sizes of symmetry index groups (a function of shape but precomputed for efficiency)
@@ -193,15 +210,15 @@ public:
 	//constructors
 	Tensor() : myrank(-1) {};
 	explicit Tensor(const T &x) : myrank(0), data(1) {data[0]=x;}; //scalar
-	Tensor(const NRVec<indexgroup> &s) : shape(s) { data.resize(calcsize()); calcrank(); canonicalize_shape();}; //general tensor
-	Tensor(const NRVec<indexgroup> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize());  calcrank(); canonicalize_shape(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
-	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); canonicalize_shape(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
-	Tensor(const NRVec<indexgroup> &s, const NRVec<T> &mydata, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { LA_largeindex dsize=calcsize(); calcrank(); canonicalize_shape(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;  if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");} 
-	Tensor(const indexgroup &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); canonicalize_shape();}; //tensor with a single index group
-	Tensor(const indexgroup &g, const NRVec<INDEXNAME> &newnames) : names(newnames) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); canonicalize_shape(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //tensor with a single index group
+	Tensor(const NRVec<INDEXGROUP> &s) : shape(s) { data.resize(calcsize()); calcrank(); canonicalize_shape();}; //general tensor
+	Tensor(const NRVec<INDEXGROUP> &s, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { data.resize(calcsize());  calcrank(); canonicalize_shape(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //general tensor
+	Tensor(const NRVec<INDEXGROUP> &s, const NRVec<T> &mydata) : shape(s) { LA_largeindex dsize=calcsize(); calcrank(); canonicalize_shape(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;} 
+	Tensor(const NRVec<INDEXGROUP> &s, const NRVec<T> &mydata, const NRVec<INDEXNAME> &newnames) : shape(s), names(newnames) { LA_largeindex dsize=calcsize(); calcrank(); canonicalize_shape(); if(mydata.size()!=dsize) laerror("inconsistent data size with shape"); data=mydata;  if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");} 
+	Tensor(const INDEXGROUP &g) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); canonicalize_shape();}; //tensor with a single index group
+	Tensor(const INDEXGROUP &g, const NRVec<INDEXNAME> &newnames) : names(newnames) {shape.resize(1); shape[0]=g; data.resize(calcsize()); calcrank(); canonicalize_shape(); if(names.size()!=myrank && names.size()!=0) laerror("bad number of index names");}; //tensor with a single index group
 	Tensor(const Tensor &rhs): myrank(rhs.myrank), shape(rhs.shape), groupsizes(rhs.groupsizes), cumsizes(rhs.cumsizes), data(rhs.data), names(rhs.names) {};
-	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
-	Tensor(int xrank, const NRVec<indexgroup> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata, const NRVec<INDEXNAME>  &xnames) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata), names(xnames) {};
+	Tensor(int xrank, const NRVec<INDEXGROUP> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
+	Tensor(int xrank, const NRVec<INDEXGROUP> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata, const NRVec<INDEXNAME>  &xnames) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata), names(xnames) {};
 
 	//conversions from/to matrix and vector
 	explicit Tensor(const NRVec<T> &x);
@@ -221,7 +238,7 @@ public:
 	LA_largeindex calcsize(); //set redundant data and return total size
 	LA_largeindex size() const {return data.size();};
 	void copyonwrite() {shape.copyonwrite(); groupsizes.copyonwrite(); cumsizes.copyonwrite(); data.copyonwrite(); names.copyonwrite();};
-	void resize(const NRVec<indexgroup> &s) {shape=s; data.resize(calcsize()); calcrank(); names.clear();};
+	void resize(const NRVec<INDEXGROUP> &s) {shape=s; data.resize(calcsize()); calcrank(); names.clear();};
 	void deallocate() {data.resize(0); shape.resize(0); groupsizes.resize(0); cumsizes.resize(0); names.resize(0);};
         inline Signedpointer<T> lhs(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
 	inline T operator()(const SUPERINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; return sign>0 ?data[i] : -data[i];};
@@ -295,7 +312,6 @@ public:
 	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs2, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //rhs1 will have more significant non-contracted indices in the result than rhs2
 	inline void addcontraction(const Tensor &rhs1, const INDEX &I1, const Tensor &rhs2, const INDEX &I2, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, I1.group, I1.index, rhs2, I2.group, I2.index, alpha, beta, doresize, conjugate, conjugate);};
 	inline void addcontraction(const Tensor &rhs1, const Tensor &rhs2, const INDEXNAME &iname, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, rhs1.findindex(iname), rhs2, rhs2.findindex(iname), alpha, beta, doresize, conjugate, conjugate);};
-	
 	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true, conjugate1, conjugate); return r; };
 	inline Tensor contraction(const INDEX &I, const Tensor &rhs, const INDEX &RHSI, T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(I.group,I.index, rhs, RHSI.group, RHSI.index,alpha, conjugate1, conjugate);};
 	inline Tensor contraction(const Tensor &rhs, const INDEXNAME &iname,  T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(findindex(iname),rhs,rhs.findindex(iname),alpha, conjugate1, conjugate);};
@@ -307,6 +323,11 @@ public:
 
 	 void addgroupcontraction(const Tensor &rhs1, int group, const Tensor &rhs2, int rhsgroup, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //over all indices in a group of same symmetry; rhs1 will have more significant non-contracted indices in the result than rhs2
 	 inline Tensor groupcontraction(int group, const Tensor &rhs, int rhsgroup, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addgroupcontraction(*this,group,rhs,rhsgroup,alpha,0,true, conjugate1, conjugate); return r; };
+
+	Tensor innercontraction(const INDEXLIST &il1, const INDEXLIST &il2) const; //contraction(s) inside this tensor
+	Tensor innercontraction(const INDEX &i1, const INDEX &i2) const {INDEXLIST il1(1); il1[0]=i1; INDEXLIST il2(1); il2[0]=i2; return innercontraction(il1,il2);};
+	Tensor innercontraction(const NRVec<INDEXNAME> &nl1, const NRVec<INDEXNAME> &nl2) const {return innercontraction(findindexlist(nl1),findindexlist(nl2));};
+	Tensor innercontraction(const INDEXNAME &n1, const INDEXNAME &n2) const {return innercontraction(findindex(n1),findindex(n2));};
 
 	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
 	void apply_permutation_algebra(const  NRVec<Tensor> &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //avoids explicit outer product but not vectorized, rather inefficient
@@ -345,7 +366,7 @@ void tensor2fourindex(const Tensor<T> &t, fourindex_dense<S,T,I> &f);
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<nosymmetry,T,I> &f)
 {
-NRVec<indexgroup> shape(4);
+NRVec<INDEXGROUP> shape(4);
 int n=f.nbas();
 for(int i=0; i<4; ++i)
 	{
@@ -378,7 +399,7 @@ f=fourindex_dense<nosymmetry,T,I>(range,NRMat<T>(t.data,range*range,range*range)
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<twoelectronrealmullikanAB,T,I> &f)
 {
-NRVec<indexgroup> shape(2);
+NRVec<INDEXGROUP> shape(2);
 int n=f.nbas();
 for(int i=0; i<2; ++i)
 	{
@@ -412,7 +433,7 @@ f=fourindex_dense<twoelectronrealmullikanAB,T,I>(NRMat<T>(t.data,range*(range+1)
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<twoelectronrealmullikan,T,I> &f)
 {
-NRVec<indexgroup> shape(2);
+NRVec<INDEXGROUP> shape(2);
 int n=f.nbas();
 for(int i=0; i<2; ++i)
 	{
@@ -448,7 +469,7 @@ f=fourindex_dense<twoelectronrealmullikan,T,I>(NRSMat<T>(mat)); //symmetrize mat
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<T2IjAb_aces,T,I> &f)
 {
-NRVec<indexgroup> shape(4);
+NRVec<INDEXGROUP> shape(4);
 for(int i=0; i<4; ++i)
 	{
 	shape[i].number=1;
@@ -487,7 +508,7 @@ f=fourindex_dense<T2IjAb_aces,T,I>(noca,nocb,nvra,nvrb,mat);
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<T2ijab_aces,T,I> &f)
 {
-NRVec<indexgroup> shape(2);
+NRVec<INDEXGROUP> shape(2);
 for(int i=0; i<2; ++i)
 	{
 	shape[i].number=2;
@@ -522,7 +543,7 @@ f=fourindex_dense<T2ijab_aces,T,I>(nocc,nvrt,mat);
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<antisymtwoelectronrealdiracAB,T,I> &f)
 {
-NRVec<indexgroup> shape(4);
+NRVec<INDEXGROUP> shape(4);
 int n=f.nbas();
 for(int i=0; i<4; ++i)
 	{
@@ -557,7 +578,7 @@ f=fourindex_dense<antisymtwoelectronrealdiracAB,T,I>(range,NRSMat<T>(mat));
 template<typename T, typename I>
 Tensor<T>  fourindex2tensor(const fourindex_dense<antisymtwoelectronrealdirac,T,I> &f)
 {
-NRVec<indexgroup> shape(2);
+NRVec<INDEXGROUP> shape(2);
 int n=f.nbas();
 for(int i=0; i<2; ++i)
 	{

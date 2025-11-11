@@ -33,7 +33,7 @@ int Tensor<T>:: calcrank()
 int r=0;
 for(int i=0; i<shape.size(); ++i)
         {
-	const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[i];
+	const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[i];
         if(sh->number<=0) laerror("empty index group"); //scalar must have shape.size()==0, not empty index group
         r+=sh->number;
         }
@@ -52,7 +52,7 @@ cumsizes.resize(shape.size());
 LA_largeindex s=1;
 for(int i=0; i<shape.size(); ++i)
         {
-	const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[i];
+	const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[i];
         if(sh->number==0) laerror("empty index group");
         if(sh->range==0) return 0;
         cumsizes[i]=s;
@@ -396,7 +396,7 @@ template<typename T>
 void loopingroups(Tensor<T> &t, int ngroup, int igroup, T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, T *))
 {
 LA_index istart,iend;
-const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&t.shape))[ngroup];
+const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&t.shape))[ngroup];
 switch(sh->symmetry)
 	{
 	case 0:
@@ -431,7 +431,7 @@ for(LA_index i = istart; i<=iend; ++i)
 		if(newigroup<0)
 			{
 			--newngroup;
-			const indexgroup *sh2 = &(* const_cast<const NRVec<indexgroup> *>(&t.shape))[newngroup];
+			const INDEXGROUP *sh2 = &(* const_cast<const NRVec<INDEXGROUP> *>(&t.shape))[newngroup];
 			newigroup=sh2->number-1;
 			}
 		loopingroups(t,newngroup,newigroup,p,I,callback);
@@ -446,13 +446,13 @@ void Tensor<T>::loopover(void (*callback)(const SUPERINDEX &, T *))
 SUPERINDEX I(shape.size());
 for(int i=0; i<I.size(); ++i)
 	{
-	const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[i];
+	const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[i];
 	I[i].resize(sh->number); 
 	I[i] = sh->offset;
 	}
 T *pp=&data[0];
 int ss=shape.size()-1;
-const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[ss];
+const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[ss];
 loopingroups(*this,ss,sh->number-1,&pp,I,callback);
 }
 
@@ -461,7 +461,7 @@ template<typename T>
 void constloopingroups(const Tensor<T> &t, int ngroup, int igroup, const T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, const T *))
 {
 LA_index istart,iend;
-const indexgroup *sh = &t.shape[ngroup];
+const INDEXGROUP *sh = &t.shape[ngroup];
 switch(sh->symmetry)
 	{
 	case 0:
@@ -496,7 +496,7 @@ for(LA_index i = istart; i<=iend; ++i)
 		if(newigroup<0)
 			{
 			--newngroup;
-			const indexgroup *sh2 = &(* const_cast<const NRVec<indexgroup> *>(&t.shape))[newngroup];
+			const INDEXGROUP *sh2 = &(* const_cast<const NRVec<INDEXGROUP> *>(&t.shape))[newngroup];
 			newigroup=sh2->number-1;
 			}
 		constloopingroups(t,newngroup,newigroup,p,I,callback);
@@ -511,13 +511,13 @@ void Tensor<T>::constloopover(void (*callback)(const SUPERINDEX &, const T *)) c
 SUPERINDEX I(shape.size());
 for(int i=0; i<I.size(); ++i)
 	{
-	const indexgroup *sh = &shape[i];
+	const INDEXGROUP *sh = &shape[i];
 	I[i].resize(sh->number); 
 	I[i] = sh->offset;
 	}
 const T *pp=&data[0];
 int ss=shape.size()-1;
-const indexgroup *sh = &shape[ss];
+const INDEXGROUP *sh = &shape[ss];
 constloopingroups(*this,ss,sh->number-1,&pp,I,callback);
 }
 
@@ -664,7 +664,7 @@ help_t<T>->data[target] = *v;
 
 
 //permutation of individual indices from permutation of index groups
-NRPerm<int> group2flat_perm(const NRVec<indexgroup> &shape, const  NRPerm<int> &p)
+NRPerm<int> group2flat_perm(const NRVec<INDEXGROUP> &shape, const  NRPerm<int> &p)
 {
 int rank=0;
 for(int i=0; i<shape.size(); ++i) rank+=shape[i].number;
@@ -686,7 +686,7 @@ template<typename T>
 Tensor<T> Tensor<T>::permute_index_groups(const NRPerm<int> &p) const
 {
 //std::cout <<"permute_index_groups permutation = "<<p<<std::endl;
-NRVec<indexgroup> newshape=shape.permuted(p,true);
+NRVec<INDEXGROUP> newshape=shape.permuted(p,true);
 //std::cout <<"permute_index_groups newshape = "<<newshape<<std::endl;
 Tensor<T> r(newshape);
 if(is_named()) 
@@ -718,10 +718,10 @@ for(int i=0; i<I.size(); ++i)
 return J;
 }
 
-int flatposition(const INDEX &i, const NRVec<indexgroup> &shape) 
+int flatposition(const INDEX &i, const NRVec<INDEXGROUP> &shape) 
 {return flatposition(i.group,i.index,shape);}
 
-int flatposition(int group, int index, const NRVec<indexgroup> &shape)
+int flatposition(int group, int index, const NRVec<INDEXGROUP> &shape)
 {
 int ii=0;
 for(int g=0; g<group; ++g) ii+= shape[g].number;
@@ -729,7 +729,7 @@ ii += index;
 return ii;
 }
 
-INDEX indexposition(int flatindex, const NRVec<indexgroup> &shape)
+INDEX indexposition(int flatindex, const NRVec<INDEXGROUP> &shape)
 {
 INDEX I={0,0};
 if(flatindex<0) laerror("illegal index in indexposition");
@@ -792,7 +792,7 @@ if(group==0 && index==0 && shape[0].symmetry==0) //formal split of 1 index witho
 if(shape[group].number==1) return unwind_index_group(group); //single index in the group
 
 //general case - recalculate the shape and allocate the new tensor
-NRVec<indexgroup> newshape(shape.size()+1);
+NRVec<INDEXGROUP> newshape(shape.size()+1);
 newshape[0].number=1;
 newshape[0].symmetry=0;
 newshape[0].range=shape[group].range;
@@ -914,7 +914,7 @@ if(group<0) newsize=rank();
 else newsize=shape.size()+shape[group].number-1;
 
 //build new shape
-NRVec<indexgroup> newshape(newsize);
+NRVec<INDEXGROUP> newshape(newsize);
 int gg=0;
 for(int g=0; g<shape.size(); ++g)
 	{
@@ -1000,9 +1000,9 @@ if(sologroups)
 
 
 //general case - recalculate the shape and allocate the new tensor
-NRVec<indexgroup> oldshape(shape); 
+NRVec<INDEXGROUP> oldshape(shape); 
 oldshape.copyonwrite();
-NRVec<indexgroup> newshape(shape.size()+nonsolo);
+NRVec<INDEXGROUP> newshape(shape.size()+nonsolo);
 
 //first the unwound indices as solo groups
 for(int i=0; i<il.size(); ++i)
@@ -1122,7 +1122,7 @@ if(rhs1.shape[group].upperindex ^ rhs.shape[rhsgroup].upperindex == false) laerr
 const Tensor<T> u = conjugate1? (rhs1.unwind_index_group(group)).conjugate() : rhs1.unwind_index_group(group);
 const Tensor<T> rhsu = rhs.unwind_index_group(rhsgroup);
 
-NRVec<indexgroup> newshape(u.shape.size()+rhsu.shape.size()-2);
+NRVec<INDEXGROUP> newshape(u.shape.size()+rhsu.shape.size()-2);
 int ii=0;
 for(int i=1; i<rhsu.shape.size(); ++i) newshape[ii++] = rhsu.shape[i];
 for(int i=1; i<u.shape.size(); ++i) newshape[ii++] = u.shape[i]; //this tensor will have more significant indices than the rhs one
@@ -1189,7 +1189,7 @@ const Tensor<T> u = conjugate1? (rhs1.unwind_index(group,index)).conjugate() : r
 const Tensor<T> rhsu = rhs.unwind_index(rhsgroup,rhsindex);
 
 
-NRVec<indexgroup> newshape(u.shape.size()+rhsu.shape.size()-2);
+NRVec<INDEXGROUP> newshape(u.shape.size()+rhsu.shape.size()-2);
 int ii=0;
 for(int i=1; i<rhsu.shape.size(); ++i) newshape[ii++] = rhsu.shape[i];
 for(int i=1; i<u.shape.size(); ++i) newshape[ii++] = u.shape[i]; //this tensor will have more significant indices than the rhs one
@@ -1230,8 +1230,14 @@ auxmatmult<T>(nn,mm,kk,&data[0],&u.data[0], &rhsu.data[0],alpha,beta,conjugate);
 template<typename T>
 void Tensor<T>::addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha, T beta, bool doresize, bool conjugate1, bool conjugate2)
 {
-if(il1.size()==0) laerror("empty contraction - outer product not implemented");
 if(il1.size()!=il2.size()) laerror("mismatch in index lists in addcontractions");
+if(il1.size()==0) //add just outer product
+	{
+	if(beta!=(T)0) *this *= beta; else this->clear();
+	*this += (conjugate1?rhs1.conjugate():rhs1) * (conjugate2?rhs2.conjugate():rhs2) * alpha;
+	return;
+	} 
+
 for(int i=0; i<il1.size(); ++i)
 	{
 	if(il1[i].group<0||il1[i].group>=rhs1.shape.size()) laerror("wrong group1 number in contractions");
@@ -1250,7 +1256,7 @@ const Tensor<T> u = conjugate1? (rhs1.unwind_indices(il1)).conjugateme() : rhs1.
 const Tensor<T> rhsu = rhs2.unwind_indices(il2);
 
 
-NRVec<indexgroup> newshape(u.shape.size()+rhsu.shape.size()-2*il1.size());
+NRVec<INDEXGROUP> newshape(u.shape.size()+rhsu.shape.size()-2*il1.size());
 int ii=0;
 for(int i=il1.size(); i<rhsu.shape.size(); ++i) newshape[ii++] = rhsu.shape[i];
 for(int i=il1.size(); i<u.shape.size(); ++i) newshape[ii++] = u.shape[i]; //this tensor will have more significant indices than the rhs one
@@ -1294,6 +1300,78 @@ data.copyonwrite();
 auxmatmult<T>(nn,mm,kk,&data[0],&u.data[0], &rhsu.data[0],alpha,beta,conjugate2);
 }
 
+
+int help_tdim;
+const SUPERINDEX *help_dummyindex;
+
+template<typename T>
+static void innercontraction_callback(const SUPERINDEX &I, T *r)
+{       
+//compute address like in operarator() but we need true address
+//this could be done more efficiently if needed, avoiding explicit SUPERINDEX J
+SUPERINDEX J = help_dummyindex->concat(I);
+int sign; 
+LA_largeindex ii=help_tt<T>->index(&sign,J); 
+if(sign<0) laerror("internal error in innercontraction");
+const T *matrix00 = &help_tt<T>->data[ii];
+*r = 0;
+for(int i=0; i<help_tdim; ++i) *r += matrix00[i*help_tdim+i]; //trace
+}                       
+                
+
+
+template<typename T>
+Tensor<T> Tensor<T>::innercontraction(const INDEXLIST &il1, const INDEXLIST &il2) const
+{
+if(il1.size()!=il2.size()) laerror("mismatch in index lists in innercontraction");
+if(il1.size()==0) return *this;
+for(int i=0; i<il1.size(); ++i)
+        {
+        if(il1[i].group<0||il1[i].group>=shape.size()) laerror("wrong group1 number in innercontraction");
+        if(il2[i].group<0||il2[i].group>=shape.size()) laerror("wrong group2 number in innercontraction");
+        if(il1[i].index<0||il1[i].index>=shape[il1[i].group].number)  laerror("wrong index1 number in innerconntraction");
+        if(il2[i].index<0||il2[i].index>=shape[il2[i].group].number)  laerror("wrong index2 number in innerconntraction");
+        if(shape[il1[i].group].offset != shape[il2[i].group].offset) laerror("incompatible index offset in innercontraction");
+        if(shape[il1[i].group].range  != shape[il2[i].group].range) laerror("incompatible index range in innercontraction");
+#ifdef LA_TENSOR_INDEXPOSITION
+        if(shape[il1[i].group].upperindex ^ shape[il2[i].group].upperindex == false) laerror("can contact only upper with lower index");
+#endif
+        for(int j=0; j<i; ++j) if(il1[i]==il1[j]||il2[i]==il2[j]) laerror("repeated index in the innercontraction list");
+	 for(int j=0; j<il1.size(); ++j) if(il1[i]==il2[j])  laerror("repeated index between the innercontraction lists");
+        }
+
+INDEXLIST il=il1.concat(il2);
+const Tensor u = unwind_indices(il);
+int tracedim = u.cumsizes[il1.size()];
+//std::cout <<"trace dim = "<<tracedim<<" unwound shape = "<<u.shape<<std::endl;
+
+if(il.size()>(u.shape).size()) laerror("larger innercontraction index list than tensor rank");
+if(il.size()==(u.shape).size()) //result is scalar
+	{
+	T s=0;
+	for(int i=0; i<tracedim; ++i) s += u.data[i*tracedim+i]; //trace
+	return Tensor<T>(s);
+	}
+
+//result is tensor
+NRVec<INDEXGROUP> newshape = (u.shape).subvector(il.size(),(u.shape).size()-1);
+//std::cout <<"new shape = "<<newshape<<std::endl;
+
+Tensor r(newshape);
+if(u.is_named()) r.names=(u.names).subvector(il.size(),(u.shape).size()-1);
+//loop over result's elements and do matrix trace
+help_tt<T> = &u;
+help_tdim = tracedim;
+SUPERINDEX dummyindex(il.size());
+for(int i=0; i<il.size(); ++i)
+	{
+	dummyindex[i].resize(1);
+	dummyindex[i][0]=u.shape[i].offset; 
+	}
+help_dummyindex = &dummyindex;
+r.loopover(innercontraction_callback);
+return r;
+}
 
 
 
@@ -1387,12 +1465,12 @@ loopover(permutationalgebra_callback2);
 template<typename T>
 void Tensor<T>::split_index_group(int group)
 {
-const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[0];
+const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[0];
 if(group<0||group >= shape.size()) laerror("illegal index group number");
 if(sh[group].number==1) return; //nothing to split
 if(sh[group].symmetry!=0) laerror("only non-symmetric index group can be splitted, use flatten instead");
 
-NRVec<indexgroup> newshape(shape.size()+sh[group].number-1);
+NRVec<INDEXGROUP> newshape(shape.size()+sh[group].number-1);
 int gg=0;
 for(int g=0; g<shape.size(); ++g)
 	{
@@ -1422,7 +1500,7 @@ if(group<0||group >= shape.size()) laerror("illegal index group number");
 if(shape[group].number==1) return; //nothing to split
 if(shape[group].symmetry!=0) laerror("only non-symmetric index group can be splitted, use flatten instead");
 
-NRVec<indexgroup> newshape(shape.size()+1);
+NRVec<INDEXGROUP> newshape(shape.size()+1);
 int gg=0;
 for(int g=0; g<shape.size(); ++g)
 	{
@@ -1462,7 +1540,7 @@ for(int g=groupfrom; g<=groupto; ++g)
 	newnumber += shape[g].number;
 	}
 
-NRVec<indexgroup> newshape(shape.size()-(groupto-groupfrom+1)+1);
+NRVec<INDEXGROUP> newshape(shape.size()-(groupto-groupfrom+1)+1);
 for(int g=0; g<=groupfrom; ++g) newshape[g]=shape[g];
 newshape[groupfrom].number=newnumber;
 for(int g=groupfrom+1; g<newshape.size(); ++g) newshape[g]=shape[g+groupto-groupfrom];
@@ -1544,7 +1622,7 @@ for(int i=0; i<r; ++i)
 	{
 	INDEX I=indexposition(i,shape);
 	NRMat<T> um;
-	NRVec<indexgroup> ushape;
+	NRVec<INDEXGROUP> ushape;
 	{
 	Tensor<T> uu=unwind_index(I);
 	ushape=uu.shape; //ushape.copyonwrite(); should not be needed
@@ -1682,7 +1760,7 @@ if(samegroup && isordered && il.size()==shape[il[0].group].number) return unwind
 
 
 //calculate new shape and flat index permutation
-NRVec<indexgroup> workshape(shape); 
+NRVec<INDEXGROUP> workshape(shape); 
 workshape.copyonwrite();
 NRPerm<int> basicperm(rank());
 
@@ -1698,7 +1776,7 @@ for(int i=0; i<il.size(); ++i)
 int newshapesize=1; //newly created group
 for(int i=0; i<workshape.size(); ++i) if(workshape[i].number>0) ++newshapesize; //this group survived index removal
 
-NRVec<indexgroup> newshape(newshapesize);
+NRVec<INDEXGROUP> newshape(newshapesize);
 newshape[0].number=il.size();
 newshape[0].symmetry=sym;
 newshape[0].offset=shape[il[0].group].offset;
@@ -1753,7 +1831,7 @@ return r;
 template<typename T>
 void Tensor<T>::canonicalize_shape()
 {
-const indexgroup *sh = &(* const_cast<const NRVec<indexgroup> *>(&shape))[0];
+const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[0];
 for(int i=0; i<shape.size(); ++i)
 	{
 	if(sh[i].number==1 && sh[i].symmetry!=0) {shape.copyonwrite(); shape[i].symmetry=0;}
