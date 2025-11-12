@@ -871,8 +871,7 @@ if(is_flat())
 	if(has_symmetry()) //get rid of formal symemtry
 		{
 		Tensor<T> r(*this);
-		r.shape.copyonwrite();
-                for(int g=0; g<r.shape.size(); ++g) r.shape[g].symmetry=0;
+		r.canonicalize_shape();
                 return r;
 		}
 	else
