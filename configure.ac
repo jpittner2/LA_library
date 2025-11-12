@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([libla],[1.3],[jiri@pittnerovi.com])
+AC_INIT([libla],[1.4],[jiri@pittnerovi.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_PROG_AR
