@@ -40,8 +40,6 @@
 #include "miscfunc.h"
 
 //TODO:
-//@@@?general permutation of individual indices - check the indices in sym groups remain adjacent, calculate result's shape, loopover the result and permute using unwind_callback
-//@@@ is that needed? we can flatten the relevant groups and permute index groups alternatively - maybe implement on high level this way for convenience
 //?maybe optional negative range for beta spin handling in some cases of fourindex-tensor conversions combining AA and AB etc. cases - if needed
 
 
@@ -299,7 +297,8 @@ public:
 	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
 	void constgrouploopover(void (*callback)(const GROUPINDEX &, const T *)) const; //loop over all elements disregarding the internal structure of index groups
 
-	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole
+	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole: result_i = source_p_i
+	Tensor permute_index_groups(const NRVec<INDEXNAME> &names) const; //permute to requested order of group's first indices (or permute individual indices of a flat tensor)
 
 	Tensor unwind_index_group(int group) const; //make the index group leftmost (least significant)
 	Tensor unwind_index(int group, int index) const; //separate an index from a group and expand it to full range as the least significant one (the leftmost one)

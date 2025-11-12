@@ -705,6 +705,23 @@ return r;
 }
 
 
+template<typename T>
+Tensor<T> Tensor<T>::permute_index_groups(const NRVec<INDEXNAME> &names) const
+{
+NRPerm<int> p(shape.size());
+if(names.size()!=shape.size()) laerror("names list does not match shape in permute_index_groups");
+for(int i=0; i<names.size(); ++i)
+	{
+	INDEX ii=findindex(names[i]);
+	if(ii.index>0) laerror("indices inside groups cannot be permuted in permute_index_groups, define permutation by first group's index name or flatten the tensor first");
+	p[1+i] = 1+ii.group;
+	}
+if(!p.is_valid()) laerror("illegal permutation from names in permute_index_groups, perhaps repeated or not unique names?");
+return permute_index_groups(p);
+}
+
+
+
 FLATINDEX superindex2flat(const SUPERINDEX &I)
 {
 int rank=0;

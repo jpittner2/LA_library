@@ -4120,7 +4120,7 @@ Tensor<double> ss(s);
 cout <<"Error= "<<ss-xc<<endl;
 }
 
-if(1)
+if(0)
 {
 int r=1;
 int n=5;
@@ -4138,6 +4138,29 @@ Tensor<double> s2(3.);
 cout <<s1*x<<endl;
 cout <<x*s1<<endl;
 cout<<s1*s2<<endl;
+}
+
+if(1)
+{
+int r;
+int n;
+cin>>r>>n;
+NRVec<INDEXGROUP> s(r);
+for(int i=0; i<r; ++i)
+        {
+        s[i].number=1;
+        s[i].symmetry=0;
+        s[i].range=n;
+        s[i].offset=0;
+        }
+Tensor<double> x(s); x.randomize(1.);
+x.defaultnames();
+NRVec<INDEXNAME> names(r);
+NRPerm<int> p(r); p.randomize();
+for(int i=0; i<r; ++i) sprintf(names[i].name,"i%03d",p[i+1]-1);
+cout <<"requested index order = "<<names<<endl;
+Tensor<double> y = x.permute_index_groups(names);
+cout<<"resulting index order = "<<y.names<<endl;
 }
 
 
