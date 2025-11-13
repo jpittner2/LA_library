@@ -1242,6 +1242,15 @@ auxmatmult<T>(nn,mm,kk,&data[0],&u.data[0], &rhsu.data[0],alpha,beta,conjugate);
 }
 
 
+template<typename T>
+bool Tensor<T>::is_uniquely_named() const
+{
+if(!is_named()) return false;
+bool r=true;
+for(int i=1; i<names.size();++i) for(int j=0; j<i; ++j) if(names[i]==names[j]) r=false;
+return r;
+}
+
 
 template<typename T>
 void Tensor<T>::addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha, T beta, bool doresize, bool conjugate1, bool conjugate2)
@@ -1406,14 +1415,14 @@ FLATINDEX J = superindex2flat(I);
 for(int p=0; p<help_pa<T>->size(); ++p)
 	{
 	FLATINDEX Jp = J.permuted((*help_pa<T>)[p].perm,help_inverse);
-	*v += help_alpha<T> * (*help_pa<T>)[p].weight * (*help_t<T>)(Jp);
+	*v += help_alpha<T> * (*help_pa<T>)[p].weight * (*help_tt<T>)(Jp);
 	}
 }
 
 
 static int help_tn;
 template<typename T>
-static Tensor<T> *help_tv;
+static const Tensor<T> *help_tv;
 
 template<typename T>
 static void permutationalgebra_callback2(const SUPERINDEX &I, T *v)
@@ -1447,7 +1456,18 @@ copyonwrite();
 
 if(rank()!=rhs.rank()) laerror("rank mismatch in apply_permutation_algebra");
 
-help_t<T> = const_cast<Tensor<T> *>(&rhs);
+if(rhs.is_named())
+	{
+	NRVec<INDEXNAME> namperm = rhs.names.permuted(pa[0].perm,inverse);
+	if(is_named())
+		{
+		if(names!=namperm) laerror("inconsistent index names in apply_permutation_algebra");
+		}
+	else	
+		names=namperm;
+	}
+
+help_tt<T> = &rhs;
 help_pa<T> = &pa;
 help_inverse = inverse;
 help_alpha<T> = alpha;
@@ -1466,7 +1486,22 @@ int totrank=0;
 for(int i=0; i<rhsvec.size(); ++i) totrank+=rhsvec[i].rank();
 if(totrank!=rank()) laerror("rank mismatch in apply_permutation_algebra");
 
-help_tv<T> = const_cast<Tensor<T> *>(&rhsvec[0]);
+bool allnamed=true;
+for(int i=0; i<rhsvec.size(); ++i) if(!rhsvec[i].is_named()) allnamed=false;
+if(allnamed)
+	{
+	NRVec<INDEXNAME> allrhsnames=rhsvec[0].names;
+	for(int i=1; i<rhsvec.size(); ++i) allrhsnames.concatme(rhsvec[i].names);
+	NRVec<INDEXNAME> namperm = allrhsnames.permuted(pa[0].perm,inverse);
+        if(is_named())
+                {
+                if(names!=namperm) laerror("inconsistent index names in apply_permutation_algebra");
+                }
+        else
+                names=namperm;
+	}
+
+help_tv<T> = &rhsvec[0];
 help_tn = rhsvec.size();
 help_pa<T> = &pa;
 help_inverse = inverse;
@@ -1512,9 +1547,10 @@ if(data.size()!=newsize) laerror("internal error in split_index_group");
 template<typename T>
 void Tensor<T>::split_index_group1(int group)
 {
+const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[0];
 if(group<0||group >= shape.size()) laerror("illegal index group number");
-if(shape[group].number==1) return; //nothing to split
-if(shape[group].symmetry!=0) laerror("only non-symmetric index group can be splitted, use flatten instead");
+if(sh[group].number==1) return; //nothing to split
+if(sh[group].symmetry!=0) laerror("only non-symmetric index group can be splitted, use flatten instead");
 
 NRVec<INDEXGROUP> newshape(shape.size()+1);
 int gg=0;
@@ -1522,15 +1558,15 @@ for(int g=0; g<shape.size(); ++g)
 	{
 	if(g==group)
 		{
-		newshape[gg] = shape[group]; 
+		newshape[gg] = sh[group]; 
 		newshape[gg].number = 1;
 		gg++;
-		newshape[gg] = shape[group]; 
+		newshape[gg] = sh[group]; 
                 newshape[gg].number -= 1;
                 gg++;
 		}
 	else
-		newshape[gg++] = shape[g];
+		newshape[gg++] = sh[g];
 	}
 
 shape=newshape;

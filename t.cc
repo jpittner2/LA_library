@@ -3568,7 +3568,7 @@ v.printsorted(cout,1,false);
 }
 
 
-if(0)
+if(1)
 {
 //grassmann product of n identical rank=2 tensors in m-dim space
 int n,m;
@@ -4140,7 +4140,7 @@ cout <<x*s1<<endl;
 cout<<s1*s2<<endl;
 }
 
-if(1)
+if(0)
 {
 int r;
 int n;

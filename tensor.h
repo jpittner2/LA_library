@@ -225,6 +225,7 @@ public:
 	NRMat<T> matrix() const {return NRMat<T>(data,data.size()/groupsizes[0],groupsizes[0],0);}; //reinterpret as matrix with column index being the tensor's leftmost index group (typically the unwound single index)
 
 	bool is_named() const {if(names.size()==0) return false; if(names.size()!=myrank) laerror("bad number of index names"); return true;};
+	bool is_uniquely_named() const; //no repeated names
 	bool is_flat() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1) return false; return true;};
 	bool is_compressed() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1&&shape[i].symmetry!=0) return true; return false;};
 	bool has_symmetry() const {for(int i=0; i<shape.size(); ++i) if(shape[i].symmetry!=0) return true; return false;};
@@ -264,6 +265,7 @@ public:
 	int findflatindex(const INDEXNAME nam) const;
 	INDEX findindex(const INDEXNAME nam) const;
 	NRVec<INDEX> findindexlist(const NRVec<INDEXNAME> &names) const;
+	void renameindex(const  INDEXNAME namfrom, const INDEXNAME nameto) {int i=findflatindex(namfrom); names[i]=nameto;};
 
 	inline Tensor& operator+=(const Tensor &rhs) 
 		{
