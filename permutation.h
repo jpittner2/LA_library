@@ -65,8 +65,11 @@ public:
 	NRPerm reverse() const; //backward order
 	NRPerm operator&(const NRPerm &rhs) const; //concatenate the permutations this,rhs, renumbering rhs (not commutative)
 	NRPerm operator|(const NRPerm &rhs) const; //concatenate the permutations rhs,this, renumbering rhs (not commutative)
+	NRPerm cutleft(int n) const; //remove left identity subset and renumber
+	NRPerm cutright(int n) const; //remove right identity subset
 	NRPerm operator*(const NRPerm &q) const; //q is rhs and applied first, this applied second
 	NRPerm operator*(const CyclePerm<T> &r) const;
+	template<typename R> PermutationAlgebra<T,R> operator*(const  PermutationAlgebra<T,R> &pa) const;
 	NRPerm multiply(const NRPerm<T> &q, bool inverse) const; //multiplication but optionally q inversed
 	NRPerm conjugate_by(const NRPerm &q, bool reverse=false) const; //q^-1 p q or q p q^-1
 	NRPerm commutator(const NRPerm &q, bool inverse=false) const;  //p^-1 q^-1 p q or q^-1 p^-1 q p
@@ -117,13 +120,12 @@ public:
 	bool is_identity() const {return weight==1 && is_scaledidentity();}
 	bool is_plaindata() const {return false;};
 	WeightPermutation() : weight(0) {};
-	WeightPermutation(const R w, const NRPerm<T> &p) : weight(w), perm(p) {};
-	WeightPermutation(const NRPerm<T> &p) : perm(p) {weight= p.parity();};
+	explicit WeightPermutation(const NRPerm<T> &p, const R w=1) : weight(w), perm(p) {};
 	void copyonwrite() {perm.copyonwrite();};
-	WeightPermutation  operator&(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm&rhs.perm);};
-	WeightPermutation  operator|(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm|rhs.perm);};
-	WeightPermutation  operator*(const WeightPermutation &rhs) const {return WeightPermutation(weight*rhs.weight,perm*rhs.perm);};
-	WeightPermutation operator*(const R &x) const {return WeightPermutation(weight*x,perm); }
+	WeightPermutation  operator&(const WeightPermutation &rhs) const {return WeightPermutation(perm&rhs.perm,weight*rhs.weight);};
+	WeightPermutation  operator|(const WeightPermutation &rhs) const {return WeightPermutation(perm|rhs.perm,weight*rhs.weight);};
+	WeightPermutation  operator*(const WeightPermutation &rhs) const {return WeightPermutation(perm*rhs.perm,weight*rhs.weight);};
+	WeightPermutation operator*(const R &x) const {return WeightPermutation(perm,weight*x); }
 
 	bool operator==(const WeightPermutation &rhs) const {return this->perm == rhs.perm;}; //NOTE for sorting, compares only the permutation not the weight!
 	bool operator!=(const WeightPermutation &rhs) const {return !(*this==rhs);} //NOTE: compares only the permutation
@@ -186,9 +188,14 @@ public:
 	void copyonwrite() {NRVec<WeightPermutation<T,R> >::copyonwrite();};
 	int sort(int direction = 0, int from = 0, int to = -1, int *permut = NULL, bool stable=false) {return NRVec<WeightPermutation<T,R> >::sort(direction,from, to,permut,stable);};
 
-	PermutationAlgebra operator&(const PermutationAlgebra &rhs) const;
-	PermutationAlgebra operator|(const PermutationAlgebra &rhs) const;
-	PermutationAlgebra operator*(const PermutationAlgebra &rhs) const; 
+	PermutationAlgebra operator&(const NRPerm<T> &rhs) const; //applied to all terms
+        PermutationAlgebra operator|(const NRPerm<T> &rhs) const;  //applied to all terms
+        PermutationAlgebra operator*(const NRPerm<T> &rhs) const;  //applied to all terms
+	PermutationAlgebra cutleft(int n) const; //applied to all terms
+	PermutationAlgebra cutright(int n) const; //applied to all terms
+	PermutationAlgebra operator&(const PermutationAlgebra &rhs) const; //each term with each
+	PermutationAlgebra operator|(const PermutationAlgebra &rhs) const; //each term with each
+	PermutationAlgebra operator*(const PermutationAlgebra &rhs) const; //each term with each
 	PermutationAlgebra operator+(const PermutationAlgebra &rhs) const;
 	PermutationAlgebra &operator*=(const R &x) {this->copyonwrite(); for(int i=1; i<=size(); ++i) (*this)[i].weight *= x; return *this;};
 	PermutationAlgebra operator*(const R &x) const {PermutationAlgebra r(*this); return r*=x;};

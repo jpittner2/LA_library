@@ -96,6 +96,39 @@ for(T i=1; i<=this->size(); ++i) q[i]=(*this)[this->size()-i+1];
 return q;
 }
 
+
+template <typename T>
+NRPerm<T> NRPerm<T>::cutleft(int n) const
+{
+if(n<0||n>size()) laerror("illegal n in ::cutleft");
+if(n==0) return *this;
+for(int i=1; i<=n; ++i) if((*this)[i]!=i) laerror("left subset is not identity permutation");
+if(n==size()) return NRPerm<T>();
+NRPerm<T> res(size()-n);
+for(int i=n+1; i<=size(); ++i) res[i-n] = (*this)[i]-n;
+#ifdef DEBUG
+if(!res.is_valid()) laerror("inetrnal error in cutleft");
+#endif
+return res;
+}
+
+template <typename T>
+NRPerm<T> NRPerm<T>::cutright(int n) const
+{
+if(n<0||n>size()) laerror("illegal n in ::cutright");
+if(n==0) return *this;
+for(int i=size(); i>size()-n; --i) if((*this)[i]!=i) laerror("right subset is not identity permutation");
+if(n==size()) return NRPerm<T>();
+NRPerm<T> res(size()-n);
+for(int i=1; i<=size()-n; ++i) res[i] = (*this)[i];
+#ifdef DEBUG
+if(!res.is_valid()) laerror("inetrnal error in cutleft");
+#endif
+return res;
+}
+
+
+
 template <typename T>
 NRPerm<T> NRPerm<T>::operator&(const NRPerm<T> &q) const
 {
@@ -729,6 +762,56 @@ for(k=n-1; k>=0; --k)
 
 *this =  NRPerm(3,inv);
 }
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::cutleft(int n) const
+{
+PermutationAlgebra<T,R> res(this->size());
+for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm.cutleft(n) ; res[i].weight=(*this)[i].weight;}
+return res;
+}
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::cutright(int n) const
+{
+PermutationAlgebra<T,R> res(this->size());
+for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm.cutright(n) ; res[i].weight=(*this)[i].weight;}
+return res;
+}
+
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator&(const NRPerm<T> &rhs) const
+{
+PermutationAlgebra<T,R> res(this->size());
+for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm & rhs; res[i].weight=(*this)[i].weight;}
+return res;
+}
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator|(const NRPerm<T> &rhs) const
+{
+PermutationAlgebra<T,R> res(this->size());
+for(int i=0; i<this->size(); ++i)  {res[i].perm = (*this)[i].perm | rhs; res[i].weight=(*this)[i].weight;}
+return res;
+}
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator*(const NRPerm<T> &rhs) const
+{
+PermutationAlgebra<T,R> res(this->size());
+for(int i=0; i<this->size(); ++i)  {res[i].perm = (*this)[i].perm * rhs; res[i].weight=(*this)[i].weight;}
+return res;
+}
+
+template <typename T> template<typename R>
+PermutationAlgebra<T,R> NRPerm<T>::operator*(const  PermutationAlgebra<T,R> &pa) const
+{
+PermutationAlgebra<T,R> res(pa.size());
+for(int i=0; i<pa.size(); ++i) {res[i].perm = *this * pa[i]; res[i].weight= pa[i].weight;}
+return res;
+}
+
 
 
 
