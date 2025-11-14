@@ -84,7 +84,7 @@ public:
 	PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&)); //recursive method, also not lexicographic
 	PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&)); //generate in lex order using next()
 	PERM_RANK_TYPE generate_restricted(void (*callback)(const NRPerm<T>&), const NRVec_from1<T> &classes, int restriction_type=0);
-	PermutationAlgebra<T,T>  list_restricted(const NRVec_from1<T> &classes, int restriction_type=0, bool inverted=false); //weight is set to parity (antisymmetrizer) by default
+	PermutationAlgebra<T,T>  list_restricted(const NRVec_from1<T> &classes, int restriction_type=0, bool inverted=false); //weight is set to parity (antisymmetrizer) by default, indices are 1...n, classes[index] indicate that it belongs to an equivalence class not to be permuted within
 	PERM_RANK_TYPE rank() const; //counted from 0 to n!-1
 	NRVec_from1<T> inversions(const int type, PERM_RANK_TYPE *prank=NULL) const; //inversion tables
 	explicit NRPerm(const int type, const NRVec_from1<T> &inversions); //compute permutation from inversions
@@ -194,6 +194,8 @@ public:
         PermutationAlgebra operator*(const NRPerm<T> &rhs) const;  //applied to all terms
 	PermutationAlgebra cutleft(int n) const; //applied to all terms
 	PermutationAlgebra cutright(int n) const; //applied to all terms
+	PermutationAlgebra conjugate_by(const NRPerm<T> &q, bool reverse=false) const; //q^-1 p q or q p q^-1 , applied to all terms
+        PermutationAlgebra commutator(const NRPerm<T> &q, bool inverse=false) const; //applied to all terms
 	PermutationAlgebra operator&(const PermutationAlgebra &rhs) const; //each term with each
 	PermutationAlgebra operator|(const PermutationAlgebra &rhs) const; //each term with each
 	PermutationAlgebra operator*(const PermutationAlgebra &rhs) const; //each term with each
@@ -435,8 +437,9 @@ template<typename T, typename R>
 NRMat<R> RegularRepresentation(const PermutationAlgebra<T,R> &a, const NRMat<PERM_RANK_TYPE> &mtable);
 
 
+//generates a direct product of list_restricted antisymmetrizers
 template<typename T>
-PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &groups, int restriction_type=0, bool inverted=false);
+PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &classgroups, int restriction_type=0, bool inverted=false);
 
 template <typename T, typename R, typename U>
 void cast_permutation_algebra(PermutationAlgebra<T,R> &lhs, const PermutationAlgebra<T,U> &rhs)

@@ -779,6 +779,22 @@ for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm.cutright(n) ; r
 return res;
 }
 
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::conjugate_by(const NRPerm<T> &q, bool reverse) const
+{
+PermutationAlgebra<T,R> res(this->size());
+for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm.conjugate_by(q,reverse); res[i].weight=(*this)[i].weight;}
+return res;
+}
+
+template <typename T, typename R>
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::commutator(const NRPerm<T> &q, bool reverse) const
+{
+PermutationAlgebra<T,R> res(this->size());
+for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm.commutator(q,reverse); res[i].weight=(*this)[i].weight;}
+return res;
+}
+
 
 template <typename T, typename R>
 PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator&(const NRPerm<T> &rhs) const
