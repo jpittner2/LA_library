@@ -230,7 +230,7 @@ public:
 	bool is_compressed() const {for(int i=0; i<shape.size(); ++i) if(shape[i].number>1&&shape[i].symmetry!=0) return true; return false;};
 	bool has_symmetry() const {for(int i=0; i<shape.size(); ++i) if(shape[i].symmetry!=0) return true; return false;};
 	void clear() {data.clear();};
-	void defaultnames() {names.resize(rank()); for(int i=0; i<rank(); ++i) sprintf(names[i].name,"i%03d",i);}
+	void defaultnames(const char *basename="i") {names.resize(rank()); for(int i=0; i<rank(); ++i) sprintf(names[i].name,"%s%03d",basename,i);}
 	int rank() const {return myrank;};
 	int calcrank(); //is computed from shape
 	void canonicalize_shape(); 
@@ -322,8 +322,11 @@ public:
 	inline Tensor contractions( const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {Tensor<T> r; r.addcontractions(*this,il1,rhs2,il2,alpha,0,true,conjugate1, conjugate2); return r; };
 	inline Tensor contractions(const Tensor &rhs2, const NRVec<INDEXNAME> &names,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {return contractions(findindexlist(names),rhs2,rhs2.findindexlist(names),alpha,conjugate1,conjugate2); };
 
-	 void addgroupcontraction(const Tensor &rhs1, int group, const Tensor &rhs2, int rhsgroup, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //over all indices in a group of same symmetry; rhs1 will have more significant non-contracted indices in the result than rhs2
-	 inline Tensor groupcontraction(int group, const Tensor &rhs, int rhsgroup, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addgroupcontraction(*this,group,rhs,rhsgroup,alpha,0,true, conjugate1, conjugate); return r; };
+	void addgroupcontraction(const Tensor &rhs1, int group, const Tensor &rhs2, int rhsgroup, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //over all indices in a group of same symmetry; rhs1 will have more significant non-contracted indices in the result than rhs2
+	inline Tensor groupcontraction(int group, const Tensor &rhs, int rhsgroup, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addgroupcontraction(*this,group,rhs,rhsgroup,alpha,0,true, conjugate1, conjugate); return r; };
+
+	void add_permuted_contractions(const char *antisymmetrizer, const Tensor &rhs1, const Tensor &rhs2, T alpha=1, T beta=1, bool conjugate1=false, bool conjugate2=false); //must be used on named tensors, finds repeated indices to contract and antisymmetrizes and permutes remaining indices to match *this
+
 
 	Tensor innercontraction(const INDEXLIST &il1, const INDEXLIST &il2) const; //contraction(s) inside this tensor
 	Tensor innercontraction(const INDEX &i1, const INDEX &i2) const {INDEXLIST il1(1); il1[0]=i1; INDEXLIST il2(1); il2[0]=i2; return innercontraction(il1,il2);};
