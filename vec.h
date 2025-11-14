@@ -133,7 +133,7 @@ public:
 	//inline NRVec(const T &a, const int n);
 	inline NRVec(const T &a, const int n, const GPUID loc = undefined);
 
-	//! inlined constructor creating vector froman array
+	//! inlined constructor creating vector from an array
 	template<int SIZE> inline NRVec(const T (&a)[SIZE]);
 	
 	//! inlined constructor creating vector of given size filled with data located at given memory location 
@@ -2096,7 +2096,7 @@ for(int next=1; next<x.size(); ++next)
 int newsize2=0;
 for(int next=0; next<newsize; ++next)
 	{
-	if(next==0 && alwayskeepfirst || !(LA_traits<T>::coefficient(x[next])==0 || LA_traits<T>::abscoefficient(x[next]) <thr))
+	if(next==0 && alwayskeepfirst || !(LA_traits<T>::coefficient(x[next])==(typename LA_traits<T>::elementtype)0 || LA_traits<T>::abscoefficient(x[next]) <thr))
 		{
 		if(next!=newsize2) x[newsize2] = x[next];
 		++newsize2;

@@ -108,6 +108,7 @@ return r;
 }
 
 
+
 template <typename T, typename R> 
 class WeightPermutation {
 public:
@@ -115,11 +116,11 @@ public:
 	NRPerm<T> perm;
 	
 	int size() const {return perm.size();};
-	bool is_zero() const {return weight==0;}
+	bool is_zero() const {return weight==(R)0;}
 	bool is_scaledidentity() const {return perm.is_identity();}
-	bool is_identity() const {return weight==1 && is_scaledidentity();}
+	bool is_identity() const {return weight==(R)1 && is_scaledidentity();}
 	bool is_plaindata() const {return false;};
-	WeightPermutation() : weight(0) {};
+	WeightPermutation() : weight((R)0) {};
 	explicit WeightPermutation(const NRPerm<T> &p, const R w=1) : weight(w), perm(p) {};
 	void copyonwrite() {perm.copyonwrite();};
 	WeightPermutation  operator&(const WeightPermutation &rhs) const {return WeightPermutation(perm&rhs.perm,weight*rhs.weight);};
@@ -147,7 +148,7 @@ public:
         static void copyonwrite(WeightPermutation<T,R>& x) {x.perm.copyonwrite();};
 	typedef typename LA_traits<R>::normtype  normtype;
 	typedef R coefficienttype;
-	typedef NRPerm<T> elementtype;
+	typedef R elementtype; //is needed for nrvec::simplify(), not typedef NRPerm<T> elementtype;
 	static inline bool smaller(const WeightPermutation<T,R>& x, const WeightPermutation<T,R>& y) {return x.perm<y.perm;};
 	static inline bool bigger(const WeightPermutation<T,R>& x, const WeightPermutation<T,R>& y) {return x.perm>y.perm;};
 	static R coefficient(const WeightPermutation<T,R>& x){return x.weight;};
@@ -447,6 +448,16 @@ for(int i=0; i<rhs.size(); ++i)
 	lhs[i].perm= rhs[i].perm;
 	}
 }
+
+//this must be in header as the double template will not be pre-instantiated
+template <typename T> template<typename R>
+PermutationAlgebra<T,R> NRPerm<T>::operator*(const  PermutationAlgebra<T,R> &pa) const
+{       
+PermutationAlgebra<T,R> res(pa.size());
+for(int i=0; i<pa.size(); ++i) {res[i].perm = *this * pa[i].perm; res[i].weight= pa[i].weight;}
+return res;
+}
+
 
 }//namespace
 #endif

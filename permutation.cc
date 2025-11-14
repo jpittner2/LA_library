@@ -804,16 +804,6 @@ for(int i=0; i<this->size(); ++i)  {res[i].perm = (*this)[i].perm * rhs; res[i].
 return res;
 }
 
-template <typename T> template<typename R>
-PermutationAlgebra<T,R> NRPerm<T>::operator*(const  PermutationAlgebra<T,R> &pa) const
-{
-PermutationAlgebra<T,R> res(pa.size());
-for(int i=0; i<pa.size(); ++i) {res[i].perm = *this * pa[i]; res[i].weight= pa[i].weight;}
-return res;
-}
-
-
-
 
 template <typename T, typename R>
 PermutationAlgebra<T,R> PermutationAlgebra<T,R>::operator&(const PermutationAlgebra<T,R> &rhs) const
@@ -2201,8 +2191,7 @@ INSTANTIZE(unsigned int)
 
 
 INSTANTIZE2(int,int)
-
-
 INSTANTIZE2(int,double)
+INSTANTIZE2(int,std::complex<double>)
 
 }//namespace
