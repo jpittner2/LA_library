@@ -620,7 +620,8 @@ template <typename T>
 inline T& NRVec_from1<T>::operator[](const int i) {
 #ifdef DEBUG
         if(_LA_count_check && *NRVec<T>::count != 1) laerror("possible use of NRVec[] with count>1 as l-value");
-        if(i < 1 || i > NRVec<T>::nn) laerror("out of range");
+        if(i < 1) laerror("out of range - low");
+        if(i > NRVec<T>::nn) laerror("out of range - high");
         if(!NRVec<T>::v) laerror("unallocated NRVec");
 #endif
         NOT_GPU(*this);
@@ -637,7 +638,8 @@ inline T& NRVec_from1<T>::operator[](const int i) {
 template <typename T>
 inline const T& NRVec_from1<T>::operator[](const int i) const {
 #ifdef DEBUG
-        if(i < 1 || i > NRVec<T>::nn) laerror("out of range");
+        if(i < 1) laerror("out of range - low");
+        if(i > NRVec<T>::nn) laerror("out of range - high");
         if(!NRVec<T>::v) laerror("unallocated NRVec");
 #endif
         NOT_GPU(*this);
@@ -1080,7 +1082,8 @@ template <typename T>
 inline T& NRVec<T>::operator[](const int i) {
 #ifdef DEBUG
 	if(_LA_count_check && *count != 1) laerror("possible use of NRVec[] with count>1 as l-value");
-	if(i < 0 || i >= nn) laerror("out of range");
+	if(i < 0) laerror("out of range - low");
+	if(i >= nn) laerror("out of range - high");
 	if(!v) laerror("unallocated NRVec");
 #endif
 	NOT_GPU(*this);
@@ -1097,7 +1100,8 @@ inline T& NRVec<T>::operator[](const int i) {
 template <typename T>
 inline const T& NRVec<T>::operator[](const int i) const {
 #ifdef DEBUG
-	if(i < 0 || i >= nn) laerror("out of range");
+	if(i < 0) laerror("out of range - low");
+	if(i >= nn) laerror("out of range - high");
 	if(!v) laerror("unallocated NRVec");
 #endif
 	NOT_GPU(*this);

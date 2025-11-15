@@ -626,7 +626,8 @@ template <typename T>
 inline T& NRSMat<T>::operator[](const size_t ij) {
 #ifdef DEBUG
 	if(_LA_count_check && *count != 1) laerror("T& NRSMat<T>::operator[] used for matrix with count>1");
-	if(ij<0 || ij>=NN2) laerror("T& NRSMat<T>::operator[] out of range");
+	if(ij<0) laerror("T& NRSMat<T>::operator[] out of range - low");
+	if(ij>=NN2) laerror("T& NRSMat<T>::operator[] out of range - high");
 	if(!v) laerror("T& NRSMat<T>::operator[] used for unallocated NRSmat<T> object");
 #endif
 	NOT_GPU(*this);
@@ -645,7 +646,8 @@ inline T& NRSMat<T>::operator[](const size_t ij) {
 template <typename T>
 inline const T & NRSMat<T>::operator[](const size_t ij) const {
 #ifdef DEBUG
-	if(ij<0 || ij>=NN2) laerror("T& NRSMat<T>::operator[] out of range");
+        if(ij<0) laerror("T& NRSMat<T>::operator[] out of range - low");
+        if(ij>=NN2) laerror("T& NRSMat<T>::operator[] out of range - high");
 	if(!v) laerror("T& NRSMat<T>::operator[] used for unallocated NRSmat<T> object");
 #endif
 	NOT_GPU(*this);
@@ -752,7 +754,10 @@ template <typename T>
 inline T & NRSMat<T>::operator()(const int i, const int j) {
 #ifdef DEBUG
 	if(_LA_count_check && *count != 1) laerror("T & NRSMat<T>::operator()(const int, const int) used for matrix with count > 1");
-	if(i<0 || i>=nn || j<0 || j>=nn) laerror("T & NRSMat<T>::operator()(const int, const int) out of range");
+	if(i<0) laerror("T & NRSMat<T>::operator()(const int, const int) first index out of range - low");
+	if(i>=nn) laerror("T & NRSMat<T>::operator()(const int, const int) first index out of range - high");
+	if(j<0) laerror("T & NRSMat<T>::operator()(const int, const int) second index out of range - low");
+	if(j>=nn) laerror("T & NRSMat<T>::operator()(const int, const int) second index out of range - high");
 	if(!v) laerror("T & NRSMat<T>::operator()(const int, const int) used for unallocated NRSmat<T> object");
 #endif
 	NOT_GPU(*this);
@@ -770,7 +775,11 @@ inline T & NRSMat<T>::operator()(const int i, const int j) {
 template <typename T>
 inline const T & NRSMat<T>::operator()(const int i, const int j) const {
 #ifdef DEBUG
-	if(i<0 || i>=nn || j<0 || j>=nn) laerror("T & NRSMat<T>::operator()(const int, const int) out of range");
+        if(i<0) laerror("T & NRSMat<T>::operator()(const int, const int) first index out of range - low");
+        if(i>=nn) laerror("T & NRSMat<T>::operator()(const int, const int) first index out of range - high");
+        if(j<0) laerror("T & NRSMat<T>::operator()(const int, const int) second index out of range - low");
+        if(j>=nn) laerror("T & NRSMat<T>::operator()(const int, const int) second index out of range - high");
+        if(!v) laerror("T & NRSMat<T>::operator()(const int, const int) used for unallocated NRSmat<T> object");
 	if(!v) laerror("T & NRSMat<T>::operator()(const int, const int) used for unallocated NRSmat<T> object");
 #endif
 	NOT_GPU(*this);
@@ -1304,14 +1313,20 @@ public:
 
 	inline const T& operator() (const int i, const int j) const {
 	#ifdef DEBUG
-		if(i<=0||j<=0||i>NRSMat<T>::nn||j>NRSMat<T>::nn) laerror("index in const T& NRSMat<T>::operator() (const int, const int) out of range");
+		if(i<=0) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) first indexout of range - low");
+		if(i>NRSMat<T>::nn) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) first indexout of range - high");
+		if(j<=0) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) second index out of range - low");
+		if(j>NRSMat<T>::nn) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) second index out of range - high");
 	#endif
 		return NRSMat<T>::v[SMat_index_1(i,j)];
 	}
 	
 	inline  T& operator() (const int i, const int j){
 	#ifdef DEBUG
-		if(i<=0||j<=0||i>NRSMat<T>::nn||j>NRSMat<T>::nn) laerror("index in T& NRSMat<T>::operator() (const int, const int) out of range");
+                if(i<=0) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) first indexout of range - low");
+                if(i>NRSMat<T>::nn) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) first indexout of range - high");
+                if(j<=0) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) second index out of range - low");
+                if(j>NRSMat<T>::nn) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) second index out of range - high");
 	#endif
 		return NRSMat<T>::v[SMat_index_1(i,j)];
 	}

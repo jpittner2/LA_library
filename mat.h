@@ -744,7 +744,8 @@ template <typename T>
 inline T* NRMat<T>::operator[](const int i) {
 #ifdef DEBUG
 	if (_LA_count_check && *count != 1) laerror("matrix with *count>1 used as l-value");
-	if (i < 0 || i >= nn) laerror("Mat [] out of range");
+	if (i < 0) laerror("Mat [] out of range - low");
+	if (i >= nn) laerror("Mat [] out of range - high");
 	if (!v) laerror("unallocated matrix");
 #endif
 	#ifdef MATPTR
@@ -761,7 +762,8 @@ inline T* NRMat<T>::operator[](const int i) {
 template <typename T>
 inline const T* NRMat<T>::operator[](const int i) const {
 #ifdef DEBUG
-	if (i < 0 || i >= nn) laerror("index out of range");
+	if (i < 0) laerror("index out of range - low");
+	if (i >= nn) laerror("index out of range - high");
 	if (!v) laerror("unallocated matrix");
 #endif
 	NOT_GPU(*this);
@@ -783,7 +785,10 @@ template <typename T>
 inline T& NRMat<T>::operator()(const int i, const int j){
 #ifdef DEBUG
 	if (_LA_count_check && *count != 1) laerror("NRMat::operator(,) used as l-value for a matrix with count > 1");
-	if (i < 0 || i >= nn && nn > 0 || j < 0 || j >= mm && mm > 0) laerror("index out of range");
+	if (i < 0) laerror("first index out of range - low");
+	if (i >= nn) laerror("first index out of range - high");
+	if (j < 0) laerror("second index out of range - low");
+	if (j >= mm) laerror("second index out of range - high");
 	if (!v) laerror("unallocated matrix");
 #endif
 	NOT_GPU(*this);
@@ -804,7 +809,10 @@ template <typename T>
 inline const T& NRMat<T>::operator()(const int i, const int j) const{
 	T ret;
 #ifdef DEBUG
-	if (i<0 || i>=nn && nn>0 || j<0 || j>=mm && mm>0) laerror("index out of range");
+        if (i < 0) laerror("first index out of range - low");
+        if (i >= nn) laerror("first index out of range - high");
+        if (j < 0) laerror("second index out of range - low");
+        if (j >= mm) laerror("second index out of range - high");
 	if (!v) laerror("unallocated matrix");
 #endif
 	NOT_GPU(*this);
@@ -825,7 +833,10 @@ template <typename T>
 inline const T NRMat<T>::get_ij(const int i, const int j) const{
 	T ret;
 #ifdef DEBUG
-	if (i<0 || i>=nn || j<0 || j>=mm) laerror("index out of range");
+        if (i < 0) laerror("first index out of range - low");
+        if (i >= nn) laerror("first index out of range - high");
+        if (j < 0) laerror("second index out of range - low");
+        if (j >= mm) laerror("second index out of range - high");
 	if (!v) laerror("unallocated matrix");
 #endif
 #ifdef CUDALA
@@ -1388,8 +1399,11 @@ public:
 
 	inline const T& operator() (const int i, const int j) const {
 	#ifdef DEBUG
-		if (i<1 || i>NRMat<T>::nn || j<1 || j>NRMat<T>::mm) laerror("index out of range");
-		if (!NRMat<T>::v) laerror("unallocated matrix");
+        if (i < 1) laerror("first index out of range - low");
+        if (i > NRMat<T>::nn) laerror("first index out of range - high");
+        if (j < 1) laerror("second index out of range - low");
+        if (j > NRMat<T>::mm) laerror("second index out of range - high");
+	if (!NRMat<T>::v) laerror("unallocated matrix");
 	#endif
 		NOT_GPU(*this);
 	#ifdef MATPTR
@@ -1402,7 +1416,10 @@ public:
 	inline  T& operator() (const int i, const int j) {
 	#ifdef DEBUG
 		if (_LA_count_check && *NRMat<T>::count != 1) laerror("matrix with *count > 1 used as l-value");
-	        if (i<1 || i>NRMat<T>::nn || j<1 || j>NRMat<T>::mm) laerror("index out of range");
+        if (i < 1) laerror("first index out of range - low");
+        if (i > NRMat<T>::nn) laerror("first index out of range - high");
+        if (j < 1) laerror("second index out of range - low");
+        if (j > NRMat<T>::mm) laerror("second index out of range - high");
 		if (!NRMat<T>::v) laerror("unallocated matrix");
 	#endif
 		NOT_GPU(*this);
@@ -1416,7 +1433,10 @@ public:
 	inline const T get_ij(const int i, const int j) const {
 		T ret;
 	#ifdef DEBUG
-		if (i<1 || i>NRMat<T>::nn || j<1 || j>NRMat<T>::mm) laerror("index out of range");
+        if (i < 1) laerror("first index out of range - low");
+        if (i > NRMat<T>::nn) laerror("first index out of range - high");
+        if (j < 1) laerror("second index out of range - low");
+        if (j > NRMat<T>::mm) laerror("second index out of range - high");
 		if (!NRMat<T>::v) laerror("unallocated matrix");
 	#endif
 	#ifdef CUDALA
