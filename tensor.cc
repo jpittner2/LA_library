@@ -23,6 +23,7 @@
 #include "miscfunc.h"
 #include <complex>
 #include "bitvector.h"
+#include <string.h>
 
 
 namespace LA {
@@ -1908,6 +1909,109 @@ s>>x.group>>x.index;
 return s;
 }
 
+static NRPerm<int> find_indexperm(const NRVec<INDEXNAME> &what, const NRVec<INDEXNAME> &where)
+{
+if(what.size()!=where.size()) laerror("sizes of index name vectors do not match in find_indexperm");
+NRPerm<int> basicperm(what.size());
+basicperm.clear();
+for(int i=0; i<what.size(); ++i) 
+	{
+	for(int j=0; j<what.size(); ++j)
+             if(what[i] == where[j])
+		{
+		basicperm[i+1]=j+1;
+		break;
+		}
+	}
+if(!basicperm.is_valid()) laerror("indices mismatch between lhs and rhs in add_permuted_contractions");
+return basicperm;
+}
+
+
+static void parse_antisymmetrizer(const char *txt0, NRVec<NRVec_from1<int> > &groups0, NRVec<INDEXNAME> &names0)
+{
+int igroup= -1;
+int iname= -1;
+int iclass=0;
+
+char *txt=strdup(txt0);
+char *p=txt;
+std::list<std::list<int> > groups;
+std::list<INDEXNAME> names;
+std::list<int> currentgroup;
+
+foundspace:
+	while(isspace(*p)) ++p;
+	if(*p==0) goto finished;
+	if(!isalpha(*p)) laerror("letter expected in parse_antisymmetrizer");
+	++iname;
+	++igroup;
+	++iclass;
+foundname:
+	{
+	INDEXNAME n;
+	int i=0;
+	while(isalnum(*p)) 
+		{
+		n.name[i]=*p;
+		++i;
+		if(i>N_INDEXNAME) laerror("too long index name in parse_antisymmetrizer");
+		++p;
+		}
+	if(i>=N_INDEXNAME) laerror("too long index name in parse_antisymmetrizer");
+	n.name[i]=0;
+
+	//store
+	names.push_back(n);	
+	currentgroup.push_back(iclass);
+	
+	//now decide based on next character
+	if(*p==',')
+		{
+		++iname;
+		++p;
+		if(!isalpha(*p)) laerror("letter expected in parse_antisymmetrizer");
+		goto foundname;
+		}
+	if(*p=='/')
+		{
+		++iname;
+		++p;
+		++iclass;
+		if(!isalpha(*p)) laerror("letter expected in parse_antisymmetrizer");
+                goto foundname;
+		}
+	if(isspace(*p))
+		{
+		groups.push_back(currentgroup);
+		currentgroup.clear();
+		++p;
+		goto foundspace;
+		}
+	if(*p==0) 
+		{
+		groups.push_back(currentgroup);
+		goto finished;
+		}
+	laerror("unexpected character in parse_antisymmetrizer");
+	}
+	
+finished:
+
+names0= NRVec<INDEXNAME> (names);
+std::cout <<"names parsed "<<names0;
+
+groups0.resize(groups.size());
+int i=0;
+for(typename std::list<std::list<int> >::const_iterator ii=groups.begin(); ii!=groups.end(); ++ii)
+	{
+	groups0[i++] = NRVec_from1<int>(*ii);
+	}
+std::cout<<"groups parsed "<<groups0;
+
+free(txt);
+}
+
 
 template<typename T>
 void Tensor<T>::add_permuted_contractions(const char *antisymmetrizer, const Tensor &rhs1, const Tensor &rhs2, T alpha, T beta, bool conjugate1, bool conjugate2)
@@ -1945,33 +2049,76 @@ Tensor<T> tmp=rhs1.contractions(il1,rhs2,il2,alpha,conjugate1,conjugate2);
 if(rank()!=tmp.rank()) laerror("rank mismatch in add_permuted_contractions");
 
 //generate the antisymmetrizer, adding also indices not involved as a constant subpermutation
-//@@@
-PermutationAlgebra<int,T> pa(1);
-pa[0].weight=1;
-pa[0].perm.resize(rank());
-pa[0].perm.identity();
+//
+//first parse the antisymmetrizer
+NRVec<INDEXNAME> antinames;
+NRVec<NRVec_from1<int> > antigroups;
+parse_antisymmetrizer(antisymmetrizer,antigroups,antinames);
+
+//check the names make sense and fill in the possibly missing ones as separate group
+if(antinames.size()>tmp.names.size()) laerror("too many indices in the antisymmetrizet");
+bitvector isexplicit(tmp.names.size());
+isexplicit.clear();
+for(int i=0; i<antinames.size(); ++i)
+	{
+	for(int j=0; j<i; ++j) if(antinames[i]==antinames[j]) laerror("repeated names in the antisymmetrizer");
+	for(int j=0; j<tmp.names.size(); ++j) 
+            if(antinames[i]==tmp.names[j]) 
+		{
+		isexplicit.set(j);
+		goto namefound;
+		}
+	laerror("index name from the antisymmetrized not found in tensor");
+	namefound: ;
+	}
+if(isexplicit.population()!=antinames.size()) laerror("internal error in add_permuted_contractions");
+
+//fill in additional names
+if(antinames.size()<tmp.names.size())
+	{
+	int lastgroup=antigroups.size()-1;
+	int lastclass;
+	if(antigroups.size()==0) lastclass=0;
+	else lastclass=antigroups[antigroups.size()-1][antigroups[antigroups.size()-1].size()];
+	int lastname=antinames.size()-1;
+	antinames.resize(tmp.names.size(),true);
+	antigroups.resize(antigroups.size()+tmp.names.size()-antinames.size(),true);
+	for(int j=0; j<names.size(); ++j)
+		if(!isexplicit[j])
+			{
+			++lastclass;
+			++lastname;
+			++lastgroup;
+			antigroups[lastgroup].resize(1);
+			antigroups[lastgroup][0]=lastclass;
+			antinames[lastname] = tmp.names[j];
+			}
+	}
+std::cout <<"final antisymmmetrizer names and groups"<<antinames<<antigroups;
+
+//prepare the antisymmetrizer
+PermutationAlgebra<int,int> pa = general_antisymmetrizer(antigroups,-2,true);
+
+//find permutation between antisym and TMP index order 
+NRPerm<int> antiperm=find_indexperm(antinames,tmp.names);
+
+//@@@conjugate the PA by antiperm or its inverse
+
+//@@@recast the PA
+
+//@@@permutationalgebra::is_identity() a pokd ano, neaplikovat ale vratit tmp tenzor resp. s nim udelat axpy
 
 //std::cout <<"LHS names = "<<names<<std::endl;
 //std::cout <<"TMP names = "<<tmp.names<<std::endl;
 
 //find permutation which will bring indices of tmp to the order as in *this: this->names[i] == tmp.names[p[i]]
-NRPerm<int> basicperm(rank());
-basicperm.clear();
-for(int i=0; i<rank(); ++i) 
-	{
-	for(int j=0; j<tmp.rank(); ++j)
-             if((* const_cast<const NRVec<INDEXNAME> *>(&names))[i] == tmp.names[j])
-		{
-		basicperm[i+1]=j+1;
-		break;
-		}
-	}
-if(!basicperm.is_valid()) laerror("indices mismatch between lhs and rhs in add_permuted_contractions");
+NRPerm<int> basicperm=find_indexperm(names,tmp.names);
 std::cout <<"Basic permutation = "<<basicperm<<std::endl;
 
+//@@@probably only onw of those will work
 PermutationAlgebra<int,T> pb = basicperm*pa;
 apply_permutation_algebra(tmp,pb,false,(T)1/(T)pb.size(),beta);
-//equivalently possible 
+//equivalently possible (for trivial pa)
 //PermutationAlgebra<int,T> pb = basicperm.inverse()*pa;
 //apply_permutation_algebra(tmp,pb,true,(T)1/(T)pb.size(),beta);
 }

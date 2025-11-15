@@ -3135,20 +3135,25 @@ generate antisymmetrization operator for Brandow diagrams in the Kucharski conve
                 #correspond to already existing antisymmetry
                 #in principle it would be more logical to printout permutation of places rather than indices
                 #but this is more convenient for further processing
+P "i/j,k l" input is 
+2
+3 1 2 2
+1 3
 */
 
 NRVec<NRVec_from1<int> > groups;
 cin >> groups;
 int ntot=0;
 for(int i=0; i<groups.size(); ++i) ntot+=groups[i].size();
-NRVec_from1<string> indices(ntot);
-cin >>indices;
+NRVec_from1<INDEXNAME> indices(ntot);
+for(int i=1; i<=ntot; ++i) sprintf(indices[i].name,"%c",'i'+i-1);
 
 PermutationAlgebra<int,int> a=general_antisymmetrizer(groups,-2,true);
+cout <<"PA = "<<a<<endl;
 for(int i=0; i<a.size(); ++i)
 	{
 	cout << (a[i].weight==1?'+':'-');
-	NRVec_from1<string> pindices=applypermutation(a[i].perm,indices,false);
+	NRVec_from1<INDEXNAME> pindices=applypermutation(a[i].perm,indices,false);
 	for(int j=1; j<=pindices.size(); ++j) cout <<pindices[j];
 	cout <<endl;
 	}
@@ -4164,7 +4169,7 @@ cout<<"resulting index order = "<<y.names<<endl;
 }
 
 
-if(1)
+if(0)
 {
 int nn;
 cin>>nn;
@@ -4208,6 +4213,51 @@ for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int 
 	}
 
 cout <<"Error = "<<(z-zz).norm()<<endl;
+}
+
+if(1)
+{
+int nn;
+cin>>nn;
+int r=4;
+NRVec<INDEXGROUP> s(r);
+for(int i=0; i<r; ++i)
+        {
+        s[i].number=1;
+        s[i].symmetry=0;
+        s[i].range=nn;
+        s[i].offset=0;
+        }
+Tensor<double> x(s); x.randomize(1.);
+INDEXNAME xlist[] = {"i","j","k","l"};
+x.names=NRVec<INDEXNAME>(xlist);
+Tensor<double> y(s); y.randomize(1.);
+INDEXNAME ylist[] = {"n","m","j","i"};
+y.names=NRVec<INDEXNAME>(ylist);
+
+Tensor<double>z(s); z.clear();
+INDEXNAME zlist[] = {"k","l","m","n"};
+z.names=NRVec<INDEXNAME>(zlist);
+Tensor<double>zz(z);
+
+
+z.add_permuted_contractions("k/l,m",x,y,1,0,false,false);
+
+zz.copyonwrite();
+for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int n=0; n<nn; ++n)
+	{
+	double s=0;
+	for(int i=0; i<nn; ++i) for(int j=0; j<nn; ++j) s += x(i,j,k,l)*y(n,m,j,i);
+	zz.lhs(k,l,m,n) = s;
+	}
+
+Tensor<double> zzz(s);
+for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int n=0; n<nn; ++n)
+	{
+	zzz.lhs(k,l,m,n) = 1/3.*(zz(k,l,m,n)-zz(l,k,m,n)+zz(m,k,l,n));
+	}
+
+cout <<"Error = "<<(z-zzz).norm()<<endl;
 
 }
 
