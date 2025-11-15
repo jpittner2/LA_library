@@ -530,6 +530,7 @@ public:
 	NRVec_from1(const NRVec<T> &rhs): NRVec<T>(rhs) {};//!< be able to convert the parent class transparently to this
 	NRVec_from1(const T &a, const int n): NRVec<T>(a, n) {};
 	NRVec_from1(const T *a, const int n): NRVec<T>(a, n) {};
+	explicit NRVec_from1(const std::list<T> l) : NRVec<T>(l) {};
 	inline const T& operator[] (const int i) const;
         inline T& operator[] (const int i);
 };
