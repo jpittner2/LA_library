@@ -56,8 +56,10 @@ public:
 	explicit NRPerm(const CyclePerm<T> &rhs, const int n=0); 
 
 	//specific operations
+	void resize(int n) {NRVec_from1<T>::resize(n);};
 	int size() const {return NRVec_from1<T>::size();};
 	void identity();
+	void identity(int n) {resize(n); identity();};
 	bool is_valid() const; //is it really a permutation
 	bool is_identity() const;
 	CompressedPartition<T> cycles() const {return CyclePerm<T>(*this).cycles(size());};
@@ -120,6 +122,8 @@ public:
 	bool is_scaledidentity() const {return perm.is_identity();}
 	bool is_identity() const {return weight==(R)1 && is_scaledidentity();}
 	bool is_plaindata() const {return false;};
+	void identity() {weight=(R)1; perm.identity();};
+	void identity(int n) {weight=(R)1; perm.resize(n); perm.identity();};
 	WeightPermutation() : weight((R)0) {};
 	explicit WeightPermutation(const NRPerm<T> &p, const R w=1) : weight(w), perm(p) {};
 	void copyonwrite() {perm.copyonwrite();};
@@ -186,6 +190,7 @@ public:
 	template <typename U> PermutationAlgebra(const PermutationAlgebra<T,U> &rhs) : NRVec<WeightPermutation<T,R> >(rhs.size()) 
 		{for(int i=0; i<rhs.size(); ++i) { (*this)[i].weight= (R) rhs[i].weight; (*this)[i].perm= rhs[i].perm; } };
 	int size() const {return NRVec<WeightPermutation<T,R> >::size();};
+	void resize(int n) { NRVec<WeightPermutation<T,R> >::resize(n);};
 	void copyonwrite() {NRVec<WeightPermutation<T,R> >::copyonwrite();};
 	int sort(int direction = 0, int from = 0, int to = -1, int *permut = NULL, bool stable=false) {return NRVec<WeightPermutation<T,R> >::sort(direction,from, to,permut,stable);};
 
@@ -207,6 +212,7 @@ public:
 	bool is_zero() const {return size()==0;}; //assume it was simplified
 	bool is_scaled_identity() const {return size()==1 && (*this)[0].is_scaledidentity();}; //assume it was simplified
 	bool is_identity() const {return size()==1 && (*this)[0].is_identity();}; //assume it was simplified
+	void identity(int n) {resize(1); (*this)[0].identity(n);};
 };
 
 
