@@ -189,7 +189,7 @@ return r;
 
 
 template <typename T>
-NRPerm<T> NRPerm<T>::conjugate_by(const NRPerm<T> &q, bool inverse) const
+NRPerm<T> NRPerm<T>::conjugated_by(const NRPerm<T> &q, bool inverse) const
 {
 #ifdef DEBUG
         if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
@@ -224,7 +224,7 @@ return r;
 
 
 template <typename T>
-CyclePerm<T> CyclePerm<T>::conjugate_by(const CyclePerm<T> &q) const
+CyclePerm<T> CyclePerm<T>::conjugated_by(const CyclePerm<T> &q) const
 {
 #ifdef DEBUG
         if(!this->is_valid() || !q.is_valid()) laerror("multiplication of invalid permutation");
@@ -780,10 +780,10 @@ return res;
 }
 
 template <typename T, typename R>
-PermutationAlgebra<T,R> PermutationAlgebra<T,R>::conjugate_by(const NRPerm<T> &q, bool reverse) const
+PermutationAlgebra<T,R> PermutationAlgebra<T,R>::conjugated_by(const NRPerm<T> &q, bool reverse) const
 {
 PermutationAlgebra<T,R> res(this->size());
-for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm.conjugate_by(q,reverse); res[i].weight=(*this)[i].weight;}
+for(int i=0; i<this->size(); ++i) {res[i].perm = (*this)[i].perm.conjugated_by(q,reverse); res[i].weight=(*this)[i].weight;}
 return res;
 }
 

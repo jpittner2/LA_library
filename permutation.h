@@ -73,7 +73,7 @@ public:
 	NRPerm operator*(const CyclePerm<T> &r) const;
 	template<typename R> PermutationAlgebra<T,R> operator*(const  PermutationAlgebra<T,R> &pa) const;
 	NRPerm multiply(const NRPerm<T> &q, bool inverse) const; //multiplication but optionally q inversed
-	NRPerm conjugate_by(const NRPerm &q, bool reverse=false) const; //q^-1 p q or q p q^-1
+	NRPerm conjugated_by(const NRPerm &q, bool reverse=false) const; //q^-1 p q or q p q^-1
 	NRPerm commutator(const NRPerm &q, bool inverse=false) const;  //p^-1 q^-1 p q or q^-1 p^-1 q p
 	int parity() const; //returns +/- 1
 	void randomize(void); //uniformly random by Fisher-Yates shuffle
@@ -199,7 +199,7 @@ public:
         PermutationAlgebra operator*(const NRPerm<T> &rhs) const;  //applied to all terms
 	PermutationAlgebra cutleft(int n) const; //applied to all terms
 	PermutationAlgebra cutright(int n) const; //applied to all terms
-	PermutationAlgebra conjugate_by(const NRPerm<T> &q, bool reverse=false) const; //q^-1 p q or q p q^-1 , applied to all terms
+	PermutationAlgebra conjugated_by(const NRPerm<T> &q, bool reverse=false) const; //q^-1 p q or q p q^-1 , applied to all terms
         PermutationAlgebra commutator(const NRPerm<T> &q, bool inverse=false) const; //applied to all terms
 	PermutationAlgebra operator&(const PermutationAlgebra &rhs) const; //each term with each
 	PermutationAlgebra operator|(const PermutationAlgebra &rhs) const; //each term with each
@@ -237,7 +237,7 @@ public:
 	void readfrom(const std::string &line);
 	CyclePerm operator*(const CyclePerm &q) const; //q is rhs and applied first, this applied second
 	NRPerm<T> operator*(const NRPerm<T> &r) const;
-	CyclePerm conjugate_by(const CyclePerm &q) const; //q^-1 p q
+	CyclePerm conjugated_by(const CyclePerm &q) const; //q^-1 p q
 	PERM_RANK_TYPE order() const; //lcm of cycle lengths
 	bool operator==(const CyclePerm &rhs) const {return NRPerm<T>(*this) == NRPerm<T>(rhs);}; //cycle representation is not unique, cannot inherit operator== from NRVec
 	void simplify(bool keep1=false); //remove cycles of size 0 or 1
