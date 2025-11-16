@@ -267,23 +267,29 @@ public:
 	NRVec<INDEX> findindexlist(const NRVec<INDEXNAME> &names) const;
 	void renameindex(const  INDEXNAME namfrom, const INDEXNAME nameto) {int i=findflatindex(namfrom); names[i]=nameto;};
 
-	inline Tensor& operator+=(const Tensor &rhs) 
+	Tensor& operator+=(const Tensor &rhs) 
 		{
-#ifdef DEBUG
 		if(shape!=rhs.shape) laerror("incompatible tensors for operation"); 
-#endif
+		if(is_named() && rhs.is_named() && names!=rhs.names) laerror("incompatible names for operation");
 		data+=rhs.data; 
 		return *this;
 		}
 
-        inline Tensor& operator-=(const Tensor &rhs) 
+        Tensor& operator-=(const Tensor &rhs) 
                 {
-#ifdef DEBUG
                 if(shape!=rhs.shape) laerror("incompatible tensors for operation"); 
-#endif
+		if(is_named() && rhs.is_named() && names!=rhs.names) laerror("incompatible names for operation");
                 data-=rhs.data; 
                 return *this;
                 }
+
+	Tensor& axpy(const T alpha, const Tensor &rhs) 
+		{
+		if(shape!=rhs.shape) laerror("incompatible tensors for operation");
+                if(is_named() && rhs.is_named() && names!=rhs.names) laerror("incompatible names for operation");
+		data.axpy(alpha,rhs.data);
+                return *this;
+		}
 	inline Tensor operator+(const Tensor &rhs) const {Tensor r(*this); r+=rhs; return r;};
 	inline Tensor operator-(const Tensor &rhs) const {Tensor r(*this); r-=rhs; return r;};
 
@@ -613,7 +619,7 @@ NRMat<T> mat(t.data,range*(range-1)/2,range*(range-1)/2);
 f=fourindex_dense<antisymtwoelectronrealdirac,T,I>(range,NRSMat<T>(mat)); //symmetrize mat 
 }
 
-
+//@@@formal permutation of names inside a sym/antisy group (with possible sign change)
 
 
 template <typename T>

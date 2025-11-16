@@ -4254,7 +4254,7 @@ for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int 
 Tensor<double> zzz(s);
 for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int n=0; n<nn; ++n)
 	{
-	zzz.lhs(k,l,m,n) = 1/3.*(zz(k,l,m,n)-zz(l,k,m,n)+zz(m,k,l,n));
+	zzz.lhs(k,l,m,n) = (zz(k,l,m,n)-zz(l,k,m,n)+zz(m,k,l,n));
 	}
 
 cout <<"Error = "<<(z-zzz).norm()<<endl;
