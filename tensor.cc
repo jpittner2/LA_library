@@ -142,8 +142,8 @@ switch(I.size()) //a few special cases for efficiency
 		NRVec<LA_index> II(I);
 		II.copyonwrite();
 		if(g.offset!=0) II -= g.offset;
-		int parity=netsort(II.size(),&II[0]);
-		*sign= (parity&1) ? g.symmetry : 1;
+		int nswaps=netsort(II.size(),&II[0]);
+		*sign= (nswaps&1) ? g.symmetry : 1;
 		if(g.symmetry == -1) //antisymmetric - do not store zero diagonal
 			{
 			for(int i=0; i<I.size()-1; ++i) 
@@ -2164,6 +2164,40 @@ if(tmp.names!=tmpnames) laerror("internal error in add_permuted_contractions");
 apply_permutation_algebra(tmp,pb,true,(T)1,beta);
 }
         
+
+template<typename T>
+void Tensor<T>::permute_inside_group(int g, const NRPerm<int> &p, bool inverse)
+{
+if(g<0||g>=shape.size()) laerror("group out of range");
+if(shape[g].symmetry==0) laerror("permutation possible only inside symmetric index groups");
+if(shape[g].number!=p.size()) laerror("permutation size mismatch to index number");
+if(!p.is_valid()) laerror("invalid permutation in permute_inside_group");
+int par=p.parity();
+if(par<0)
+	{
+	switch(shape[g].symmetry)
+		{
+		case 1:
+			break;
+		case -1:
+			data.negateme();
+			break;
+		case 2:
+			data.conjugateme();
+			break;
+		case -2:
+			data.negateconjugateme();
+			break;
+		}
+	}
+if(is_named())
+	{
+	int ii=0;
+	for(int i=0; i<g; ++i) ii+= shape[i].number;
+	NRVec<INDEXNAME> tmp=(names.subvector(ii,ii+p.size()-1)).permuted(p,inverse);
+	for(int i=0; i<p.size(); ++i) names[ii+i]=tmp[i];
+	}
+}
 
 
 

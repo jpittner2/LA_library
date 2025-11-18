@@ -2137,6 +2137,8 @@ NRMat< std::complex<double> >::operator*(const NRSMat< std::complex<double> > &r
  ******************************************************************************/
 template<typename T>
 NRMat<T>& NRMat<T>::conjugateme() {
+if(!LA_traits<T>::is_complex()) return *this;
+copyonwrite();
 #ifdef CUDALA
         if(location != cpu) laerror("general conjugation only on CPU");
 #endif          

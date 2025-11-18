@@ -384,6 +384,7 @@ public:
 	void split_index_group(int group); //formal in-place split of a non-symmetric index group WITHOUT the need for data reorganization or names rearrangement
 	void split_index_group1(int group); //formal in-place split of the leftmost index in a non-symmetric index group WITHOUT the need for data reorganization or names rearrangement
 	void merge_adjacent_index_groups(int groupfrom, int groupto); //formal merge of non-symmetric index groups  WITHOUT the need for data reorganization or names rearrangement
+	void permute_inside_group(int group, const NRPerm<int> &p, bool inverse=false); //permute indices inside a symmetric index group only
 
 	Tensor merge_index_groups(const NRVec<int> &groups) const; 
 	Tensor flatten(int group= -1) const; //split and uncompress a given group or all of them, leaving flat index order the same
@@ -653,7 +654,6 @@ NRMat<T> mat(t.data,range*(range-1)/2,range*(range-1)/2);
 f=fourindex_dense<antisymtwoelectronrealdirac,T,I>(range,NRSMat<T>(mat)); //symmetrize mat 
 }
 
-//@@@formal permutation of names inside a sym/antisy group (with possible sign change)
 
 
 template <typename T>

@@ -303,6 +303,9 @@ public:
         NRVec& conjugateme();
         inline NRVec conjugate() const {NRVec r(*this); r.conjugateme(); return r;};
 
+	NRVec& negateconjugateme();
+	NRVec& negateme();	
+
 	//! determine the actual value of the reference counter 
 	inline int getcount() const {return count?*count:0;}
 

@@ -869,6 +869,7 @@ return -1;
  ******************************************************************************/
 template<typename T>
 NRVec<T>& NRVec<T>::conjugateme() {
+if(!LA_traits<T>::is_complex()) return *this;
 copyonwrite();
 #ifdef CUDALA
         if(location != cpu) laerror("general conjugation only on CPU");
@@ -876,6 +877,29 @@ copyonwrite();
 	for(int i=0; i<nn; ++i) v[i] =  LA_traits<T>::conjugate(v[i]);
         return *this;
 }
+
+template<typename T>
+NRVec<T>& NRVec<T>::negateconjugateme() {
+if(!LA_traits<T>::is_complex()) negateme();
+copyonwrite();
+#ifdef CUDALA
+        if(location != cpu) laerror("general conjugation only on CPU");
+#endif
+	for(int i=0; i<nn; ++i) v[i] =  -LA_traits<T>::conjugate(v[i]);
+        return *this;
+}
+
+
+template<typename T>
+NRVec<T>& NRVec<T>::negateme() {
+copyonwrite();
+#ifdef CUDALA
+        if(location != cpu) laerror("general conjugation only on CPU");
+#endif
+        for(int i=0; i<nn; ++i) v[i] =  -v[i]; 
+        return *this;
+}
+
 
 
 /***************************************************************************//**
@@ -907,6 +931,96 @@ NRVec<std::complex<float> >& NRVec<std::complex<float> >::conjugateme() {
 #ifdef CUDALA
         }else{
                 cublasSscal((size_t)nn, -1.0, ((float *)v) + 1, 2);
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRVec<std::complex<double> >& NRVec<std::complex<double> >::negateconjugateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_dscal((size_t)nn, -1.0, ((double *)v) , 2);
+#ifdef CUDALA
+        }else{
+                cublasDscal((size_t)nn, -1.0, ((double *)v) , 2);
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRVec<std::complex<float> >& NRVec<std::complex<float> >::negateconjugateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_sscal((size_t)nn, -1.0, ((float *)v) , 2);
+#ifdef CUDALA
+        }else{
+                cublasSscal((size_t)nn, -1.0, ((float *)v) , 2);
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRVec<std::complex<double> >& NRVec<std::complex<double> >::negateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_dscal((size_t)nn*2, -1.0, ((double *)v) , 1);
+#ifdef CUDALA
+        }else{
+                cublasDscal((size_t)nn*2, -1.0, ((double *)v) , 1);
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRVec<std::complex<float> >& NRVec<std::complex<float> >::negateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_sscal((size_t)nn*2, -1.0, ((float *)v) , 1);
+#ifdef CUDALA
+        }else{
+                cublasSscal((size_t)nn*2, -1.0, ((float *)v) , 1);
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRVec<double>& NRVec<double>::negateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_dscal((size_t)nn, -1.0, v , 1);
+#ifdef CUDALA
+        }else{
+                cublasDscal((size_t)nn, -1.0, v , 1);
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRVec<float>& NRVec<float>::negateme() {
+        copyonwrite();
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                cblas_sscal((size_t)nn, -1.0, v , 1);
+#ifdef CUDALA
+        }else{
+                cublasSscal((size_t)nn, -1.0, v , 1);
         }
 #endif
         return *this;

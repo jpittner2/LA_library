@@ -872,6 +872,9 @@ NRSMat<std::complex<double> >  NRSMat<std::complex<double> >::inverse() {return 
  ******************************************************************************/
 template<typename T>
 NRSMat<T>& NRSMat<T>::conjugateme() {
+if(!LA_traits<T>::is_complex()) return *this;
+copyonwrite();
+
 #ifdef CUDALA
         if(location != cpu) laerror("general conjugation only on CPU");
 #endif
