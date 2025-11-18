@@ -154,6 +154,8 @@ public:
 	inline const T& operator[](const size_t ij) const;
 	inline T& operator[](const size_t ij);
 
+	//NOTE: it stores the matrix as symemtric and operator() assumes it is symmetric, does not support complex hermitean as that would require a smart pointer for l-value version
+	//complex conjugation options are available for BLAS routines to facilitate hermitan matrices  
 	inline const T& operator()(const int i, const int j) const;
 	inline T& operator()(const int i, const int j);
 

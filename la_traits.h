@@ -300,6 +300,7 @@ static void copy(std::complex<C> *dest, std::complex<C> *src, size_t n) {memcpy(
 static void clear(std::complex<C> *dest, size_t n) {memset(dest,0,n*sizeof(std::complex<C>));}
 static void copyonwrite(std::complex<C> &x) {};
 static bool is_plaindata() {return true;}
+static bool is_complex() {return true;}
 static void clearme(std::complex<C> &x) {x=0;};
 static void deallocate(std::complex<C> &x) {};
 static inline std::complex<C> conjugate(const std::complex<C> &x) {return std::complex<C>(x.real(),-x.imag());};
@@ -357,6 +358,7 @@ static void copy(C *dest, C *src, size_t n) {memcpy(dest,src,n*sizeof(C));}
 static void clear(C *dest, size_t n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
 static bool is_plaindata() {return true;}
+static bool is_complex() {return false;}
 static void clearme(C &x) {x=0;};
 static void deallocate(C &x) {};
 static inline C conjugate(const C &x) {return x;};
@@ -394,6 +396,7 @@ static void copy(X<C> *dest, X<C> *src, size_t n) {for(size_t i=0; i<n; ++i) des
 static void clear(X<C> *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
 static bool is_plaindata() {return false;}\
+static bool is_complex() {return LA_traits<C>::is_complex();}\
 static void clearme(X<C> &x) {x.clear();}\
 static void deallocate(X<C> &x) {x.dealloc();}\
 };
@@ -436,6 +439,7 @@ static void copy(C *dest, C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=s
 static void clear(C *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \
 static bool is_plaindata() {return false;}\
+static bool is_complex() {return LA_traits<C>::is_complex();}\
 static void clearme(X<C> &x) {x.clear();} \
 static void deallocate(X<C> &x) {x.dealloc();} \
 };

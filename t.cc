@@ -4030,6 +4030,7 @@ cout <<"Error = "<<(xx-x).norm()<<endl;
 
 }
 
+
 if(0)
 {
 //check symmetrizer/antisymmetrizer in general case
@@ -4066,6 +4067,7 @@ Tensor<double> xx = xf.merge_indices(il,sym);
 cout <<"xx = "<<xx.shape<< " "<<xx.names<<endl;
 cout <<"Error = "<<(xx-xxx).norm()<<endl;
 }
+
 
 if(0)
 {
