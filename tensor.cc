@@ -2107,44 +2107,37 @@ if(antinames.size()<tmpnames.size())
 			antinames[lastname] = tmpnames[j];
 			}
 	}
-std::cout <<"final antisymmmetrizer names and groups"<<antinames<<antigroups;
+//std::cout <<"final antisymmmetrizer names and groups"<<antinames<<antigroups;
 //std::cout <<"LHS names = "<<names<<std::endl; 
 //std::cout <<"TMP names = "<<tmpnames<<std::endl;
 
 //prepare the antisymmetrizer
 PermutationAlgebra<int,int> pa = general_antisymmetrizer(antigroups,-2,true);
-std::cout <<"initial antisymmetrizer = "<<pa;
+//std::cout <<"initial antisymmetrizer = "<<pa;
 
 //find permutation between antisym and TMP index order 
 NRPerm<int> antiperm=find_indexperm(antinames,tmpnames);
-std::cout<<"permutation from rhs to antisymmetrizer = "<<antiperm<<std::endl;
+//std::cout<<"permutation from rhs to antisymmetrizer = "<<antiperm<<std::endl;
 
 //conjugate the PA by antiperm or its inverse
-pa= pa.conjugated_by(antiperm,true);//@@@ or false?
+pa= pa.conjugated_by(antiperm,true);
 
 //find permutation which will bring indices of tmp to the order as in *this: this->names[i] == tmpnames[p[i]]
 NRPerm<int> basicperm=find_indexperm(names,tmpnames);
-std::cout <<"permutation from rhs to lhs = "<<basicperm<<std::endl;
-
-//@@@PermutationAlgebra<int,T> pb = basicperm*pa; //for apply_permutation_algebra(tmp,pb,false,(T)1,beta);
 PermutationAlgebra<int,T> pb = basicperm.inverse()*pa;
-//@@@ OR PermutationAlgebra<int,T> pb = basicperm.inverse()*pa; apply_permutation_algebra(tmp,pb,true,(T)1,beta);
+//std::cout <<"permutation from rhs to lhs = "<<basicperm<<std::endl;
 
-//save some work if the PA is trivial
+//save some work if the PA is trivial - contract only
 if(pb.is_identity())
 	{
-std::cout <<"simplified version\n";
 	addcontractions(rhs1,il1,rhs2,il2,alpha,beta,false,conjugate1,conjugate2);
 	return;
 	}
 
-std::cout <<"full version\n";
-//create an intermediate contracted tensir and the permute it
+//create an intermediate contracted tensor and the permute it
 Tensor<T> tmp=rhs1.contractions(il1,rhs2,il2,alpha,conjugate1,conjugate2);
 if(rank()!=tmp.rank()) laerror("rank mismatch in add_permuted_contractions");
 if(tmp.names!=tmpnames) laerror("internal error in add_permuted_contractions");
-
-//@@@apply_permutation_algebra(tmp,pb,false,(T)1,beta);
 apply_permutation_algebra(tmp,pb,true,(T)1,beta);
 }
         

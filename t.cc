@@ -4186,6 +4186,52 @@ Tensor<double> x(s); x.randomize(1.);
 INDEXNAME xlist[] = {"i","j","k","l"};
 x.names=NRVec<INDEXNAME>(xlist);
 Tensor<double> y(s); y.randomize(1.);
+INDEXNAME ylist[] = {"m","n","j","i"};
+y.names=NRVec<INDEXNAME>(ylist);
+
+Tensor<double>z(s); z.clear();
+INDEXNAME zlist[] = {"m","n","k","l"};
+z.names=NRVec<INDEXNAME>(zlist);
+Tensor<double>zz(z);
+
+INDEX i1[]={{0,0},{1,0}};
+INDEX i2[]={{3,0},{2,0}};
+NRVec<INDEX> il1(i1);
+NRVec<INDEX> il2(i2);
+Tensor<double> zzz = x.contractions(il1,y,il2,1,false,false);
+//cout <<"zzz names = "<<zzz.names<<endl;
+
+z.add_permuted_contractions("",x,y,1,0,false,false);
+
+zz.copyonwrite();
+for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int n=0; n<nn; ++n)
+	{
+	double s=0;
+	for(int i=0; i<nn; ++i) for(int j=0; j<nn; ++j) s += x(i,j,k,l)*y(m,n,j,i);
+	zz.lhs(m,n,k,l) = s;
+	//cout <<"test "<<k<<" "<<l<<" "<<m<<" "<<n<<" "<<zz(k,l,m,n)<<" "<<zzz(m,n,k,l)<< " : "<<z(m,n,k,l) <<endl;
+	}
+
+cout <<"Error = "<<(z-zz).norm()<<endl;
+}
+
+if(0)
+{
+int nn;
+cin>>nn;
+int r=4;
+NRVec<INDEXGROUP> s(r);
+for(int i=0; i<r; ++i)
+        {
+        s[i].number=1;
+        s[i].symmetry=0;
+        s[i].range=nn;
+        s[i].offset=0;
+        }
+Tensor<double> x(s); x.randomize(1.);
+INDEXNAME xlist[] = {"i","j","k","l"};
+x.names=NRVec<INDEXNAME>(xlist);
+Tensor<double> y(s); y.randomize(1.);
 INDEXNAME ylist[] = {"n","m","j","i"};
 y.names=NRVec<INDEXNAME>(ylist);
 
