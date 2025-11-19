@@ -4346,7 +4346,7 @@ cout <<"xx = "<<xx.shape<< " "<<xx.names<<endl;
 cout <<"Error = "<<(xx-xxx).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int nn;
 cin>>nn;
@@ -4389,6 +4389,37 @@ for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int 
 	}
 
 cout <<"Error = "<<(z-zzz).norm()<<endl;
+
+}
+
+if(1)
+{
+//for profiling
+int nn;
+cin>>nn;
+int r=4;
+NRVec<INDEXGROUP> s(r);
+for(int i=0; i<r; ++i)
+        {
+        s[i].number=1;
+        s[i].symmetry=0;
+        s[i].range=nn;
+        s[i].offset=0;
+        }
+Tensor<double> x(s); x.randomize(1.);
+INDEXNAME xlist[] = {"i","j","k","l"};
+x.names=NRVec<INDEXNAME>(xlist);
+Tensor<double> y(s); y.randomize(1.);
+INDEXNAME ylist[] = {"n","m","j","i"};
+y.names=NRVec<INDEXNAME>(ylist);
+
+Tensor<double>z(s); z.clear();
+INDEXNAME zlist[] = {"k","l","m","n"};
+z.names=NRVec<INDEXNAME>(zlist);
+
+z.add_permuted_contractions("k/l,m",x,y,1,0,false,false);
+
+cout <<z.norm()<<endl;
 
 }
 
