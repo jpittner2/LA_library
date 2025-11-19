@@ -61,4 +61,5 @@ test_regsurf
 *.gcda
 *.gcno
 *.gcov
+gmon.out
 # CVS default ignores end
