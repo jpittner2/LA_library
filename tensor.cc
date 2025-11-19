@@ -24,6 +24,7 @@
 #include <complex>
 #include "bitvector.h"
 #include <string.h>
+#include <bits/stdc++.h>
 
 
 namespace LA {
@@ -899,7 +900,7 @@ template<typename T>
 static void flatten_callback(const SUPERINDEX &I, T *v)
 {
 FLATINDEX J = superindex2flat(I);
-//std::cout <<"TEST flatten_callback: from "<<JP<<" TO "<<J<<std::endl;
+//std::cout <<"TEST flatten_callback: "<<J<<std::endl;
 *v = (*help_tt<T>)(J); //rhs operator() generates the redundant elements for the unwinded lhs tensor
 }       
 //
@@ -1432,6 +1433,7 @@ template<typename T>
 static const PermutationAlgebra<int,T> *help_pa;
 
 static bool help_inverse;
+static bool help_conjugate;
 
 template<typename T>
 static T help_alpha;
@@ -1443,7 +1445,10 @@ FLATINDEX J = superindex2flat(I);
 for(int p=0; p<help_pa<T>->size(); ++p)
 	{
 	FLATINDEX Jp = J.permuted((*help_pa<T>)[p].perm,help_inverse);
-	*v += help_alpha<T> * (*help_pa<T>)[p].weight * (*help_tt<T>)(Jp);
+	bool conj=false;
+	if(help_conjugate) conj= ((*help_pa<T>)[p].perm).parity()<0;
+	T tmp= (*help_tt<T>)(Jp);
+	*v += help_alpha<T> * (*help_pa<T>)[p].weight * (conj ? LA_traits<T>::conjugate(tmp) : tmp);
 	}
 }
 
@@ -1476,7 +1481,7 @@ for(int p=0; p<help_pa<T>->size(); ++p)
 
 
 template<typename T>
-void Tensor<T>::apply_permutation_algebra(const Tensor<T> &rhs, const PermutationAlgebra<int,T> &pa, bool inverse, T alpha, T beta)
+void Tensor<T>::apply_permutation_algebra(const Tensor<T> &rhs, const PermutationAlgebra<int,T> &pa, bool inverse, T alpha, T beta, bool conjugate)
 {
 if(beta!=(T)0) {if(beta!=(T)1) *this *= beta;} else clear();
 if(alpha==(T)0) return;
@@ -1500,6 +1505,7 @@ if(rhs.is_named())
 help_tt<T> = &rhs;
 help_pa<T> = &pa;
 help_inverse = inverse;
+help_conjugate= LA_traits<T>::is_complex() ? conjugate : false;
 help_alpha<T> = alpha;
 loopover(permutationalgebra_callback);
 }
@@ -1882,6 +1888,7 @@ if(!basicperm.is_valid()) laerror("internal error in merge_indices");
 
 //prepare permutation algebra
 PermutationAlgebra<int,T> pa;
+bool doconjugate=false;
 if(sym==0)
 	{
 	pa.resize(1);
@@ -1890,6 +1897,7 @@ if(sym==0)
 	}
 else
 	{
+	doconjugate = sym>=2||sym<= -2;
 	PermutationAlgebra<int,int> sa = sym>0 ? symmetrizer<int>(il.size()) : antisymmetrizer<int>(il.size());
 	//std::cout <<"SA = "<<sa<<std::endl;
 	pa.resize(sa.size());
@@ -1905,7 +1913,7 @@ else
 //std::cout <<"Use PA = "<<pa<<std::endl;
 
 Tensor<T> r(newshape);
-r.apply_permutation_algebra(*this,pa,false,(T)1/(T)pa.size(),0);
+r.apply_permutation_algebra(*this,pa,false,(T)1/(T)pa.size(),0,doconjugate);
 if(is_named()) r.names=names.permuted(basicperm,true);	
 return r;
 }
@@ -2197,6 +2205,82 @@ if(is_named())
 	NRVec<INDEXNAME> tmp=(names.subvector(ii,ii+p.size()-1)).permuted(p,inverse);
 	for(int i=0; i<p.size(); ++i) names[ii+i]=tmp[i];
 	}
+}
+
+
+static void checkindex(const NRVec<INDEXGROUP> &shape, const  SUPERINDEX &I, bool &zeroreal, bool &zeroimag)
+{
+#ifdef DEBUG
+if(shape.size()!=I.size()) laerror("inconsistent shape and index in checkindex");
+#endif
+zeroreal=zeroimag=false;
+for(int g=0; g<I.size(); ++g)
+	{
+#ifdef DEBUG
+	if(I[g].size()!=shape[g].number) laerror("inconsistent2 shape and index in checkindex");
+#endif
+	if(shape[g].symmetry == 2 || shape[g].symmetry == -2)
+		{
+		bool sameindex=false;
+		for(int i=1; i<shape[g].number; ++i) for(int j=0; j<i; ++j)
+			if(I[g][i]==I[g][j]) 
+				{
+				sameindex=true;
+				goto checkfailed; //for this group, but do the remaining ones for further restrictions
+				}
+		
+		checkfailed:
+		if(sameindex)
+			{
+			if(shape[g].symmetry == 2) zeroimag=true;
+			if(shape[g].symmetry == -2) zeroreal=true;
+			}
+		}
+	}
+}
+
+
+template<typename T>
+static void hermiticity_callback(const SUPERINDEX &I, T *v)
+{
+bool zeroimag;
+bool zeroreal;
+checkindex(help_t<T>->shape,I,zeroreal,zeroimag);
+if(zeroreal) LA_traits<T>::setrealpart(*v,0);
+if(zeroimag) LA_traits<T>::setimagpart(*v,0);
+}
+
+
+template<typename T>
+static void hermiticity_callback2(const SUPERINDEX &I, const T *v)
+{
+bool zeroimag;
+bool zeroreal;
+checkindex(help_tt<T>->shape,I,zeroreal,zeroimag);
+if(zeroreal && LA_traits<T>::realpart(*v)!=(T)0 || zeroimag  &&  LA_traits<T>::imagpart(*v)!=(T)0) throw true;
+}
+
+
+
+template<typename T>
+void Tensor<T>::enforce_hermiticity()
+{
+if(!has_hermiticity()) return;
+help_t<T> = this;
+loopover(hermiticity_callback);
+}
+
+
+template<typename T>
+bool Tensor<T>::fulfills_hermiticity() const
+{
+if(!has_hermiticity()) return true;
+help_tt<T> = this;
+try	{
+	constloopover(hermiticity_callback2);
+	}
+catch(bool failed) {return false;}
+return true;
 }
 
 

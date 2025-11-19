@@ -306,6 +306,8 @@ static void deallocate(std::complex<C> &x) {};
 static inline std::complex<C> conjugate(const std::complex<C> &x) {return std::complex<C>(x.real(),-x.imag());};
 static inline C realpart(const std::complex<C> &x) {return x.real();}
 static inline C imagpart(const std::complex<C> &x) {return x.imag();}
+static inline void setrealpart(std::complex<C> &x, const C &y) {reinterpret_cast<C(&)[2]>(x)[0]=y;}
+static inline void setimagpart(std::complex<C> &x, const C &y) {reinterpret_cast<C(&)[2]>(x)[1]=y;}
 };
 
 
@@ -364,6 +366,8 @@ static void deallocate(C &x) {};
 static inline C conjugate(const C &x) {return x;};
 static inline C realpart(const C &x) {return x;}
 static inline C imagpart(const C &x) {return 0;}
+static inline void setrealpart(C &x, const C &y) {x=y;}
+static inline void setimagpart(C &x, const C &y) {}
 };
 
 

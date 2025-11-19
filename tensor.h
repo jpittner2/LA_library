@@ -50,7 +50,7 @@
 namespace LA {
 
 template<typename T>
-inline T signeddata(const int sgn, const T data, const bool lhs=false)
+static inline T signeddata(const int sgn, const T &data)
 {
 if(LA_traits<T>::is_complex()) //condition known at compile time
                                 {
@@ -69,9 +69,6 @@ if(LA_traits<T>::is_complex()) //condition known at compile time
                                                 return -LA_traits<T>::conjugate(data);
                                                 break;
                                         case 0:
-#ifdef DEBUG
-                                                if(lhs) laerror("dereferencing lhs Signedpointer to nonexistent tensor element");
-#endif                  
 						return 0;
 						break;
                                         }
@@ -81,9 +78,6 @@ if(LA_traits<T>::is_complex()) //condition known at compile time
                                 {
                                 if(sgn>0) return data;
                                 if(sgn<0) return -data;
-#ifdef DEBUG    
-                                if(sgn==0 && lhs) laerror("dereferencing lhs Signedpointer to nonexistent tensor element");
-#endif
 				return 0;
                                 }
 
@@ -273,12 +267,24 @@ public:
 	void resize(const NRVec<INDEXGROUP> &s) {shape=s; data.resize(calcsize()); calcrank(); names.clear();};
 	void deallocate() {data.resize(0); shape.resize(0); groupsizes.resize(0); cumsizes.resize(0); names.resize(0);};
 
-        inline Signedpointer<T> lhs(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
-	inline T operator()(const SUPERINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); return signeddata(sign,data[i]);};
-        inline Signedpointer<T> lhs(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); return Signedpointer<T>(&data[i],sign);};
-        inline T operator()(const FLATINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); return signeddata(sign,data[i]);};
-        inline Signedpointer<T> lhs(LA_index i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  return Signedpointer<T>(&data[i],sign); };
-        inline T operator()(LA_index i1...) const {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args); return signeddata(sign,data[i]);};
+        inline Signedpointer<T> lhs(const SUPERINDEX &I) {int sign; LA_largeindex i=index(&sign,I);
+#ifdef DEBUG
+				if(sign==0) laerror("l-value pointer to nonexistent tensor element"); 
+#endif
+				 return Signedpointer<T>(&data[i],sign);};
+	inline T operator()(const SUPERINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; else return signeddata(sign,data[i]);};
+        inline Signedpointer<T> lhs(const FLATINDEX &I) {int sign; LA_largeindex i=index(&sign,I); 
+#ifdef DEBUG
+                                if(sign==0) laerror("l-value pointer to nonexistent tensor element");
+#endif
+				return Signedpointer<T>(&data[i],sign);};
+        inline T operator()(const FLATINDEX &I) const {int sign; LA_largeindex i=index(&sign,I); if(sign==0) return 0; else return signeddata(sign,data[i]);};
+        inline Signedpointer<T> lhs(LA_index i1...) {va_list args; int sign; LA_largeindex i; va_start(args,i1); i= vindex(&sign, i1,args);  
+#ifdef DEBUG
+                                if(sign==0) laerror("l-value pointer to nonexistent tensor element");
+#endif
+				return Signedpointer<T>(&data[i],sign); };
+        inline T operator()(LA_index i1...) const {va_list args; ; int sign; LA_largeindex i; va_start(args,i1);  i= vindex(&sign, i1,args);  if(sign==0) return 0; else return signeddata(sign,data[i]);};
 	
 	inline Tensor& operator=(const Tensor &rhs) {myrank=rhs.myrank; shape=rhs.shape; groupsizes=rhs.groupsizes; cumsizes=rhs.cumsizes; data=rhs.data; names=rhs.names; return *this;};
 
@@ -332,7 +338,9 @@ public:
 	void put(int fd, bool with_names=false) const;
 	void get(int fd, bool with_names=false);
 
-	inline void randomize(const typename LA_traits<T>::normtype &x) {if(has_hermiticity()) laerror("randomization does not support correct treatment of hermitean/antihermitean index groups"); data.randomize(x);};
+	void enforce_hermiticity(); //zero out real/imag parts for repeated indices appropriately
+	bool fulfills_hermiticity() const; //check it is so
+	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x); enforce_hermiticity();};
 
 	void loopover(void (*callback)(const SUPERINDEX &, T *)); //loop over all elements
 	void constloopover(void (*callback)(const SUPERINDEX &, const T *)) const; //loop over all elements
@@ -373,7 +381,7 @@ public:
 	Tensor innercontraction(const NRVec<INDEXNAME> &nl1, const NRVec<INDEXNAME> &nl2) const {return innercontraction(findindexlist(nl1),findindexlist(nl2));};
 	Tensor innercontraction(const INDEXNAME &n1, const INDEXNAME &n2) const {return innercontraction(findindex(n1),findindex(n2));};
 
-	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
+	void apply_permutation_algebra(const  Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0, bool conjugate_by_parity=false); //general (not optimally efficient) symmetrizers, antisymmetrizers etc. acting on the flattened index list:
 	void apply_permutation_algebra(const  NRVec<Tensor> &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0); //avoids explicit outer product but not vectorized, rather inefficient
 //								 this *=beta; for I over this: this(I) += alpha * sum_P c_P rhs(P(I))
 //								 PermutationAlgebra can represent e.g. general_antisymmetrizer in Kucharski-Bartlett notation, or Grassmann products building RDM from cumulants

@@ -4263,7 +4263,7 @@ for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int 
 cout <<"Error = "<<(z-zz).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int nn;
 cin>>nn;
@@ -4300,6 +4300,89 @@ for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int 
 	}
 
 Tensor<double> zzz(s);
+for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int n=0; n<nn; ++n)
+	{
+	zzz.lhs(k,l,m,n) = (zz(k,l,m,n)-zz(l,k,m,n)+zz(m,k,l,n));
+	}
+
+cout <<"Error = "<<(z-zzz).norm()<<endl;
+
+}
+
+if(0)
+{
+//check symmetrizer/antisymmetrizer in general case
+int r,n,sym;
+cin>>r>>n>>sym;
+NRVec<INDEXGROUP> shape(3);
+	shape[0].number=2; 
+        shape[0].symmetry=0;
+        shape[0].range=n+1;
+        shape[0].offset=0;
+
+        shape[1].number=r;
+        shape[1].symmetry= sym;
+        shape[1].range=n;
+        shape[1].offset=0;
+
+        shape[2].number=2;
+        shape[2].symmetry=0;
+        shape[2].range=n+2;
+        shape[2].offset=0;
+
+
+Tensor<complex<double> > x(shape); x.randomize(1.);
+x.defaultnames();
+cout <<"x= "<<x.shape << " "<<x.names<<endl;
+Tensor<complex<double> > xf=x.flatten(1);
+cout <<"xf= "<<xf.shape << " "<<xf.names<<endl;
+Tensor<complex<double> > xxx=x.unwind_index_group(1);
+cout <<"xxx= "<<xxx.shape<<" "<<xxx.names<<endl;
+
+INDEXLIST il(r);
+for(int i=0; i<r; ++i) il[i]= {1+i,0};
+Tensor<complex<double> > xx = xf.merge_indices(il,sym);
+cout <<"xx = "<<xx.shape<< " "<<xx.names<<endl;
+cout <<"Error = "<<(xx-xxx).norm()<<endl;
+}
+
+if(1)
+{
+int nn;
+cin>>nn;
+int r=4;
+NRVec<INDEXGROUP> s(r);
+for(int i=0; i<r; ++i)
+        {
+        s[i].number=1;
+        s[i].symmetry=0;
+        s[i].range=nn;
+        s[i].offset=0;
+        }
+Tensor<complex<double> > x(s); x.randomize(1.);
+INDEXNAME xlist[] = {"i","j","k","l"};
+x.names=NRVec<INDEXNAME>(xlist);
+Tensor<complex<double> > y(s); y.randomize(1.);
+INDEXNAME ylist[] = {"n","m","j","i"};
+y.names=NRVec<INDEXNAME>(ylist);
+
+Tensor<complex<double> >z(s); z.clear();
+INDEXNAME zlist[] = {"k","l","m","n"};
+z.names=NRVec<INDEXNAME>(zlist);
+Tensor<complex<double> >zz(z);
+
+
+z.add_permuted_contractions("k/l,m",x,y,1,0,false,false);
+
+zz.copyonwrite();
+for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int n=0; n<nn; ++n)
+	{
+	complex<double>  s=0;
+	for(int i=0; i<nn; ++i) for(int j=0; j<nn; ++j) s += x(i,j,k,l)*y(n,m,j,i);
+	zz.lhs(k,l,m,n) = s;
+	}
+
+Tensor<complex<double> > zzz(s);
 for(int k=0; k<nn; ++k) for(int l=0; l<nn; ++l) for(int m=0; m<nn; ++m) for(int n=0; n<nn; ++n)
 	{
 	zzz.lhs(k,l,m,n) = (zz(k,l,m,n)-zz(l,k,m,n)+zz(m,k,l,n));
