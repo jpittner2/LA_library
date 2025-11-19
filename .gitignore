@@ -58,4 +58,7 @@ test_reg
 test_regsurf
 *.tar.bz2
 .*.swp
+*.gcda
+*.gcno
+*.gcov
 # CVS default ignores end
