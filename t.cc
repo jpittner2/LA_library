@@ -4394,7 +4394,7 @@ cout <<"Error = "<<(z-zzz).norm()<<endl;
 
 if(1)
 {
-//for profiling
+//for profiling and timing
 int nn;
 cin>>nn;
 int r=4;

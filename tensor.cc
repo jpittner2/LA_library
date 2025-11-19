@@ -25,6 +25,7 @@
 #include "bitvector.h"
 #include <string.h>
 #include <bits/stdc++.h>
+#include <time.h>
 
 
 namespace LA {
@@ -1138,13 +1139,21 @@ for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j)
 template<>
 void auxmatmult<double>(int nn, int mm, int kk, double *r, const double *a, const double *b, double alpha, double beta, bool conjugate)
 {
+clock_t t0=clock();
 cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nn, mm, kk, alpha, a, kk, b, kk, beta, r, mm);
+#ifdef TIMING
+std::cout<<"cblas_dgemm CPU time " << (clock()-t0)/(double)CLOCKS_PER_SEC<<std::endl;
+#endif
 }
 
 template<>
 void auxmatmult<std::complex<double> >(int nn, int mm, int kk, std::complex<double> *r, const std::complex<double> *a, const std::complex<double> *b,  std::complex<double> alpha,  std::complex<double> beta, bool conjugate)
 {
+clock_t t0=clock();
 cblas_zgemm(CblasRowMajor, CblasNoTrans, (conjugate?CblasConjTrans:CblasTrans), nn, mm, kk, &alpha, a, kk, b, kk, &beta, r, mm);
+#ifdef TIMING
+std::cout<<"cblas_zgemm CPU time " << (clock()-t0)/(double)CLOCKS_PER_SEC<<std::endl;
+#endif
 }
 
 
@@ -1306,8 +1315,12 @@ for(int i=0; i<il1.size(); ++i)
 	for(int j=0; j<i; ++j) if(il1[i]==il1[j]||il2[i]==il2[j]) laerror("repeated index in the list");
 	}
 
+clock_t t0=clock();
 const Tensor<T> u = conjugate1? (rhs1.unwind_indices(il1)).conjugateme() : rhs1.unwind_indices(il1);
 const Tensor<T> rhsu = rhs2.unwind_indices(il2);
+#ifdef TIMING
+std::cout <<"unwinding CPU time = "<<(clock()-t0)/(double)CLOCKS_PER_SEC<<std::endl;
+#endif
 
 
 NRVec<INDEXGROUP> newshape(u.shape.size()+rhsu.shape.size()-2*il1.size());
@@ -1494,9 +1507,12 @@ if(rhs.is_named())
 	NRVec<INDEXNAME> namperm = rhs.names.permuted(pa[0].perm,!inverse);
 	if(is_named())
 		{
-		std::cout <<"LHS names = "<<names<<std::endl;
-		std::cout <<"permuted RHS names = "<<namperm<<std::endl;
-		if(names!=namperm) laerror("inconsistent index names in apply_permutation_algebra");
+		if(names!=namperm) 
+			{
+			std::cout <<"LHS names = "<<names<<std::endl;
+			std::cout <<"permuted RHS names = "<<namperm<<std::endl;
+			laerror("inconsistent index names in apply_permutation_algebra");
+			}
 		}
 	else	
 		names=namperm;
@@ -2166,10 +2182,19 @@ if(pb.is_identity())
 	}
 
 //create an intermediate contracted tensor and the permute it
+clock_t t0=clock();
 Tensor<T> tmp=rhs1.contractions(il1,rhs2,il2,alpha,conjugate1,conjugate2);
+#ifdef TIMING
+std::cout<<"contractions CPU time = "<<(1.*clock()-t0)/CLOCKS_PER_SEC<<std::endl;
+#endif
+
 if(rank()!=tmp.rank()) laerror("rank mismatch in add_permuted_contractions");
 if(tmp.names!=tmpnames) laerror("internal error in add_permuted_contractions");
+clock_t t1=clock();
 apply_permutation_algebra(tmp,pb,true,(T)1,beta);
+#ifdef TIMING
+std::cout<<"apply_permutation_algebra CPU time = "<<(1.*clock()-t1)/CLOCKS_PER_SEC<<std::endl;
+#endif
 }
         
 
