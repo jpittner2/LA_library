@@ -1723,6 +1723,7 @@ if(r==1) //create an analogous output for the trivial case
 
 //loop over all indices; relies on the fact that unwinding does not change order of remaining indices
 //for inverseorder=false, to avoid inverting order by permute_index_groups we repeatedly unwind the LAST index, and all indices rotate at this position with the first one in the last iteration due to the unwind!
+NRVec<INDEXNAME> names_saved = names;
 for(int i=0; i<r; ++i)
 	{
 	INDEX I= inverseorder? indexposition(i,shape) : indexposition(r-1,shape);
@@ -1765,9 +1766,17 @@ for(int i=0; i<r; ++i)
 	NRVec<T> newdata(umnew);
 	umnew.resize(0,0);//deallocate
 	*this = Tensor(ushape,newdata);
+	names=names_saved;
 	}
 	}
 if(!is_flat()) laerror("this should not happen");
+if(inverseorder)
+	{
+	NRPerm<int> p(rank()); p.identity();
+	names=names_saved.permuted(p.reverse());
+	}
+else 
+	names=names_saved;
 return ret;
 }
 
@@ -1776,6 +1785,7 @@ template<typename T>
 Tensor<T> Tensor<T>::inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder) const
 {
 if(rank()!=x.size()) laerror("input of inverseTucker does not match rank");
+NRVec<INDEXNAME> names_saved = names;
 Tensor<T> tmp(*this);
 Tensor<T> r;
 if(!is_flat()) laerror("inverseTucker only for flat tensors as produced by Tucker");
@@ -1805,6 +1815,13 @@ for(int i=rank()-1; i>=0; --i)
                 }
         }
 }
+if(inverseorder)
+        {
+        NRPerm<int> p(rank()); p.identity();
+        r.names=names_saved.permuted(p.reverse());
+        }
+else
+        r.names=names_saved;
 return r;
 }
 

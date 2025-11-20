@@ -4440,6 +4440,7 @@ for(int i=0; i<r; ++i)
 	}
 Tensor<double> x(shape);
 x.randomize(1.);
+x.defaultnames();
 cout<<x;
 Tensor<double> x0(x);
 x0.copyonwrite();
