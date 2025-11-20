@@ -1731,7 +1731,7 @@ for(int i=0; i<r; ++i)
 	{
 	Tensor<T> uu=unwind_index(I);
 	ushape=uu.shape; 
-	um=uu.matrix();
+	um=uu.matrix(1);
 	}
 	int mini=um.nrows(); if(um.ncols()<mini) mini=um.ncols(); //compact SVD, expect descendingly sorted values
 	NRMat<T> u(um.nrows(),mini),vt(mini,um.ncols());

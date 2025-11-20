@@ -248,7 +248,12 @@ public:
 	explicit Tensor(const NRVec<T> &x);
 	explicit Tensor(const NRMat<T> &x, bool flat=false);
 	explicit Tensor(const NRSMat<T> &x);
-	NRMat<T> matrix() const {return NRMat<T>(data,data.size()/groupsizes[0],groupsizes[0],0);}; //reinterpret as matrix with column index being the tensor's leftmost index group (typically the unwound single index) //@@@generalize to column index being n leftmost tensor index groups
+	NRMat<T> matrix(int n=1) const //reinterpret as matrix with column index being the tensor's n leftmost index groups (typically the unwound single index)
+		{
+		if(n<0||n>shape.size()) laerror("wrong number n in tensor:: matrix()");
+		LA_largeindex ncol = (n==shape.size()) ? data.size() : cumsizes[n];
+		return NRMat<T>(data,data.size()/ncol,ncol,0);
+		};
 
 	bool is_named() const {if(names.size()==0) return false; if(names.size()!=myrank) laerror("bad number of index names"); return true;};
 	bool is_uniquely_named() const; //no repeated names
