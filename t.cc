@@ -4497,6 +4497,7 @@ for(int i=0; i<n+2; ++i) for(int j=0; j<n+2; ++j) for(int k=0; k<n+2; ++k) for(i
 		y.lhs(i,j,k,l) += x(ii,jj,kk,ll) * t[0](i,ii) * t[0](j,jj) * t[0](k,kk) * t[1](l,ll) ;
 	}
 cout <<"Error = "<<(xt-y).norm()<<endl;
+
 }
 
 }//main

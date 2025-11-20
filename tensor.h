@@ -84,10 +84,16 @@ if(LA_traits<T>::is_complex()) //condition known at compile time
 }
 
 
+static bool didwarn=false;
 static inline bool ptr_ok(void *ptr)
 {
 #ifdef DEBUG
-if(ptr==NULL) std::cout<<"Warning: write to nonexistent tensor element ignored\n";
+if(ptr==NULL && !didwarn) 
+	{
+	std::cout<<"Warning: write to zero element of antisym tensor ignored\n";
+	std::cerr<<"Warning: write to zero element of antisym tensor ignored\n";
+	didwarn=true;
+	}
 #endif
 return (bool)ptr;
 }
