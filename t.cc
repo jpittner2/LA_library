@@ -4424,7 +4424,7 @@ cout <<z.norm()<<endl;
 
 }
 
-if(1)
+if(0)
 {
 //tucker test order
 int r,n;
@@ -4451,7 +4451,52 @@ cout<<dec;
 Tensor<double> y = x.inverseTucker(dec,inv);
 cout <<"invTucker\n"<<y;
 cout <<"Error = "<<(x0-y).norm()<<endl;
+
+if(inv==false)
+	{
+	Tensor<double> z = x.linear_transform(dec);
+	cout <<"Error2 = "<<(x0-z).norm()<<endl;
+	}
 }
 
+
+if(1)
+{
+//test linear transform
+int r=3;
+int n,sym;
+cin>>n>>sym;
+NRVec<INDEXGROUP> shape(2);
+        {
+        shape[0].number=r;
+        shape[0].symmetry=sym;
+        shape[0].range=n;
+        shape[0].offset=0;
+        shape[1].number=1;
+        shape[1].symmetry=0;
+        shape[1].range=n;
+        shape[1].offset=0;
+
+        }
+Tensor<double> x(shape);
+x.randomize(1.);
+NRVec<NRMat<double> > t(2);
+t[0].resize(n+2,n); t[0].randomize(1.);
+t[1].resize(n+2,n); t[1].randomize(1.);
+
+Tensor<double> xt=x.linear_transform(t);
+shape.copyonwrite();
+shape[0].range=n+2;
+shape[1].range=n+2;
+Tensor<double> y(shape);
+//this is the most stupid way to compute the transform ;-)
+for(int i=0; i<n+2; ++i) for(int j=0; j<n+2; ++j) for(int k=0; k<n+2; ++k) for(int l=0; l<n+2; ++l)
+	{
+	y.lhs(i,j,k,l)=0;
+	for(int ii=0; ii<n; ++ii) for(int jj=0; jj<n; ++jj) for(int kk=0; kk<n; ++kk) for(int ll=0; ll<n; ++ll)
+		y.lhs(i,j,k,l) += x(ii,jj,kk,ll) * t[0](i,ii) * t[0](j,jj) * t[0](k,kk) * t[1](l,ll) ;
+	}
+cout <<"Error = "<<(xt-y).norm()<<endl;
+}
 
 }//main
