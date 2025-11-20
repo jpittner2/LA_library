@@ -767,7 +767,7 @@ return(bern[n]);
 //
 //enlarge storage size if needed
 //
-#define SIMPLICIAL_MAXD 8
+#define SIMPLICIAL_MAXD 16
 #define SIMPLICIAL_MAXN 1024
 
 unsigned long long simplicial(int d, int n)
@@ -783,7 +783,7 @@ if(d==1) return n;
 //resize precomputed part as needed
 if(n>maxn)
 	{
-	if(n>=SIMPLICIAL_MAXN) laerror("storage overflow in simplicial");
+	if(n>=SIMPLICIAL_MAXN) laerror("storage overflow in simplicial, increase MAXN");
 	int newdim=2*n; 
 	if(newdim<2*maxn) newdim=2*maxn;
 	if(newdim>=SIMPLICIAL_MAXN) newdim=SIMPLICIAL_MAXN-1;
@@ -797,7 +797,7 @@ if(n>maxn)
 
 if(d>maxd)
 	{
-	if(d>=SIMPLICIAL_MAXD) laerror("storage overflow in simplicial");
+	if(d>=SIMPLICIAL_MAXD) laerror("storage overflow in simplicial, increase MAXD");
 	for(int dd=maxd+1; dd<=d; ++dd)
 		{
 		stored[dd-2][0]=0;
@@ -817,7 +817,7 @@ int inverse_simplicial(int d,  unsigned long long s)
 if(s==0) return 0;
 if(d==0 || s==1) return 1;
 if(d==1) return (int)s;
-if(d>=SIMPLICIAL_MAXD) laerror("storage overflow in inverse_simplicial");
+if(d>=SIMPLICIAL_MAXD) laerror("storage overflow in inverse_simplicial - increase MAXD");
 
 static int maxd=0;
 static Polynomial<double> polynomials[SIMPLICIAL_MAXD];
