@@ -356,6 +356,35 @@ int parity=0;
 return parity;
 }
 
+template<typename T>
+inline int netsort_7(T *data)
+{
+int parity=0;
+CONDSWAP(0,6);CONDSWAP(2,3);CONDSWAP(4,5);
+CONDSWAP(0,2);CONDSWAP(1,4);CONDSWAP(3,6);
+CONDSWAP(0,1);CONDSWAP(2,5);CONDSWAP(3,4);
+CONDSWAP(1,2);CONDSWAP(4,6);
+CONDSWAP(2,3);CONDSWAP(4,5);
+CONDSWAP(1,2);CONDSWAP(3,4);CONDSWAP(5,6);
+return parity;
+}
+
+template<typename T>
+inline int netsort_8(T *data)
+{
+int parity=0;
+CONDSWAP(0,2);CONDSWAP(1,3);CONDSWAP(4,6);CONDSWAP(5,7);
+CONDSWAP(0,4);CONDSWAP(1,5);CONDSWAP(2,6);CONDSWAP(3,7);
+CONDSWAP(0,1);CONDSWAP(2,3);CONDSWAP(4,5);CONDSWAP(6,7);
+CONDSWAP(2,4);CONDSWAP(3,5);
+CONDSWAP(1,4);CONDSWAP(3,6);
+CONDSWAP(1,2);CONDSWAP(3,4);CONDSWAP(5,6);
+return parity;
+}
+
+//see https://bertdobbelaere.github.io/sorting_networks.html for more
+
+
 #undef CONDSWAP
 
 
@@ -384,6 +413,12 @@ switch(n)
 	case 6:
 		return netsort_6(data);
 		break;
+        case 7:
+                return netsort_7(data);
+                break;
+        case 8:
+                return netsort_8(data);
+                break;
 	default:
 		return ptrqsortup<T,int>(data,data+n-1);
 		break;
