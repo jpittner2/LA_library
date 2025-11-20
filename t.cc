@@ -3733,6 +3733,7 @@ INDEXGROUP shape;
         {
         shape.number=r;
         shape.symmetry= 1;
+        //shape.symmetry= -1;
         shape.range=n;
         shape.offset=0;
         }
@@ -4392,7 +4393,7 @@ cout <<"Error = "<<(z-zzz).norm()<<endl;
 
 }
 
-if(1)
+if(0)
 {
 //for profiling and timing
 int nn;
@@ -4421,6 +4422,34 @@ z.add_permuted_contractions("k/l,m",x,y,1,0,false,false);
 
 cout <<z.norm()<<endl;
 
+}
+
+if(1)
+{
+//tucker test order
+int r,n;
+bool inv;
+cin>>r>>n>>inv;
+NRVec<INDEXGROUP> shape(r);
+for(int i=0; i<r; ++i)
+	{
+	shape[i].number=1;
+	shape[i].symmetry=0;
+	shape[i].range=n+i;
+	shape[i].offset=0;
+	}
+Tensor<double> x(shape);
+x.randomize(1.);
+cout<<x;
+Tensor<double> x0(x);
+x0.copyonwrite();
+NRVec<NRMat<double> > dec=x.Tucker(1e-12,inv);
+cout<<"Tucker\n"<<x<<endl;
+cout<<dec;
+
+Tensor<double> y = x.inverseTucker(dec,inv);
+cout <<"invTucker\n"<<y;
+cout <<"Error = "<<(x0-y).norm()<<endl;
 }
 
 

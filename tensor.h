@@ -248,7 +248,7 @@ public:
 	explicit Tensor(const NRVec<T> &x);
 	explicit Tensor(const NRMat<T> &x, bool flat=false);
 	explicit Tensor(const NRSMat<T> &x);
-	NRMat<T> matrix() const {return NRMat<T>(data,data.size()/groupsizes[0],groupsizes[0],0);}; //reinterpret as matrix with column index being the tensor's leftmost index group (typically the unwound single index)
+	NRMat<T> matrix() const {return NRMat<T>(data,data.size()/groupsizes[0],groupsizes[0],0);}; //reinterpret as matrix with column index being the tensor's leftmost index group (typically the unwound single index) //@@@generalize to column index being n leftmost tensor index groups
 
 	bool is_named() const {if(names.size()==0) return false; if(names.size()!=myrank) laerror("bad number of index names"); return true;};
 	bool is_uniquely_named() const; //no repeated names
@@ -399,8 +399,8 @@ public:
 	Tensor merge_indices(const INDEXLIST &il, int symmetry=0) const;	//opposite to flatten (merging with optional symmetrization/antisymmetrization and compression)
 	Tensor merge_indices(const NRVec<INDEXNAME> &nl, int symmetry=0) const {return merge_indices(findindexlist(nl),symmetry);};
 
-	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=true); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
-	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=true) const; //rebuild the original tensor from Tucker
+	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=false); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
+	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=false) const; //rebuild the original tensor from Tucker
 };
 
 

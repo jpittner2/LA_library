@@ -1722,14 +1722,15 @@ if(r==1) //create an analogous output for the trivial case
 	}
 
 //loop over all indices; relies on the fact that unwinding does not change order of remaining indices
+//for inverseorder=false, to avoid inverting order by permute_index_groups we repeatedly unwind the LAST index, and all indices rotate at this position with the first one in the last iteration due to the unwind!
 for(int i=0; i<r; ++i)
 	{
-	INDEX I=indexposition(i,shape);
+	INDEX I= inverseorder? indexposition(i,shape) : indexposition(r-1,shape);
 	NRMat<T> um;
 	NRVec<INDEXGROUP> ushape;
 	{
 	Tensor<T> uu=unwind_index(I);
-	ushape=uu.shape; //ushape.copyonwrite(); should not be needed
+	ushape=uu.shape; 
 	um=uu.matrix();
 	}
 	int mini=um.nrows(); if(um.ncols()<mini) mini=um.ncols(); //compact SVD, expect descendingly sorted values
@@ -1755,9 +1756,10 @@ for(int i=0; i<r; ++i)
 		umnew=u.submatrix(0,umnr-1,0,preserve-1);
 		}
 	else umnew=u;
-	ret[(inverseorder? r-i-1 : i)]=vt.transpose(true);
+	ret[r-i-1]=vt.transpose(true);
 	umnew.diagmultr(w);
 	//rebuild tensor of the preserved shape from matrix
+	ushape.copyonwrite();
 	ushape[0].range=preserve;
 	{
 	NRVec<T> newdata(umnew);
@@ -1766,15 +1768,8 @@ for(int i=0; i<r; ++i)
 	}
 	}
 if(!is_flat()) laerror("this should not happen");
-if(!inverseorder)
-	{
-	NRPerm<int> p(r);
-	for(int i=1; i<=r; ++i) p[r-i+1]=i;
-	*this =  permute_index_groups(p);
-	}
 return ret;
 }
-
 
 
 template<typename T>
@@ -1784,9 +1779,11 @@ if(rank()!=x.size()) laerror("input of inverseTucker does not match rank");
 Tensor<T> tmp(*this);
 Tensor<T> r;
 if(!is_flat()) laerror("inverseTucker only for flat tensors as produced by Tucker");
+if(inverseorder)
+{
 for(int i=0; i<rank(); ++i)
 	{
-	Tensor<T> mat(x[i],true);
+	Tensor<T> mat(x[i],true); //flat tensor from a matrix
 	r= tmp.contraction(i,0,mat,0,0,(T)1,false,false);
 	if(i<rank()-1) 
 		{
@@ -1794,14 +1791,21 @@ for(int i=0; i<rank(); ++i)
 		r.deallocate();
 		}
 	}
-if(!inverseorder)
+}
+else //not inverseroder
+{
+for(int i=rank()-1; i>=0; --i)
         {
-        NRPerm<int> p(r.rank());
-        for(int i=1; i<=r.rank(); ++i) p[r.rank()-i+1]=i;
-        return r.permute_index_groups(p);
+        Tensor<T> mat(x[i],true); //flat tensor from a matrix
+        r= tmp.contraction(rank()-1,0,mat,0,0,(T)1,false,false); //the current index will be the last after previous contractions
+        if(i>0)
+                {
+                tmp=r;
+                r.deallocate();
+                }
         }
-else
-	return r;
+}
+return r;
 }
 
 
@@ -2116,7 +2120,7 @@ NRVec<NRVec_from1<int> > antigroups;
 parse_antisymmetrizer(antisymmetrizer,antigroups,antinames);
 
 //check the names make sense and fill in the possibly missing ones as separate group
-if(antinames.size()>tmpnames.size()) laerror("too many indices in the antisymmetrizet");
+if(antinames.size()>tmpnames.size()) laerror("too many indices in the antisymmetrizer");
 bitvector isexplicit(tmpnames.size());
 isexplicit.clear();
 for(int i=0; i<antinames.size(); ++i)
