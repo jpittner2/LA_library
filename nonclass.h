@@ -68,19 +68,40 @@ return positive_power(z,i);
 
 
 template <class T>
-const NRSMat<T> twoside_transform(const NRSMat<T> &S, const NRMat<T> &C, bool transp=0) //calculate C^dagger S C
+const NRSMat<T> twoside_transform(const NRSMat<T> &S, const NRMat<T> &C, bool transp=0) //calculate C^dagger S C for symmetric/hermitian S
 {
+char tchar='t';
+if(LA_traits<T>::is_complex()) tchar='c';
 if(transp)
 	{
 	NRMat<T> tmp =  C * S;
 	NRMat<T> result(C.nrows(),C.nrows());
-	result.gemm((T)0,tmp,'n',C,'t',(T)1);
+	result.gemm((T)0,tmp,'n',C,tchar,(T)1);
 	return NRSMat<T>(result);
 	}
 NRMat<T> tmp = S * C;
 NRMat<T> result(C.ncols(),C.ncols());
-result.gemm((T)0,C,'t',tmp,'n',(T)1);
+result.gemm((T)0,C,tchar,tmp,'n',(T)1);
 return NRSMat<T>(result);
+}
+
+
+template <class T>
+const NRMat<T> twoside_transform(const NRMat<T> &S, const NRMat<T> &C, bool transp=0) //calculate C^dagger S C for non-symmetric S
+{
+char tchar='t';
+if(LA_traits<T>::is_complex()) tchar='c';
+if(transp)
+	{
+	NRMat<T> tmp =  C * S;
+	NRMat<T> result(C.nrows(),C.nrows());
+	result.gemm((T)0,tmp,'n',C,tchar,(T)1);
+	return result;
+	}
+NRMat<T> tmp = S * C;
+NRMat<T> result(C.ncols(),C.ncols());
+result.gemm((T)0,C,tchar,tmp,'n',(T)1);
+return result;
 }
 
 
