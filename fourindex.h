@@ -1244,7 +1244,7 @@ if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
 #endif
 return (*this).NRSMat<T>::operator() ((j-1)*nnbas+i-1,(b-1)*nnbas+a-1);
 }
-
+	inline void set(unsigned int i, unsigned int j, unsigned int k, unsigned int l, T elem) {this->operator()(i,j,k,l)=elem;};
 	void print(std::ostream &out) const
 		{
 		unsigned int i,j,a,b;
