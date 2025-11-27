@@ -1385,7 +1385,12 @@ if(i<j) elem = -elem;
 if(k<l) elem = -elem;
 int I = ASMat_index_1(i,j);
 int J = ASMat_index_1(k,l);
-if (I<0 || J<0) laerror("assignment to nonexisting element");
+if (I<0 || J<0) 
+#ifdef FORBID_NONEXISTENT_ASSIGNMENTS
+	laerror("assignment to nonexisting element");
+#else
+	return;
+#endif
 #ifdef DEBUG
 if (I>=NRSMat<T>::nn || J>=NRSMat<T>::nn) laerror("index out of range");
 if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
@@ -1401,7 +1406,12 @@ if(i<j) elem = -elem;
 if(k<l) elem = -elem;
 int I = ASMat_index_1(i,j);
 int J = ASMat_index_1(k,l);
-if (I<0 || J<0) laerror("assignment to nonexisting element");
+if (I<0 || J<0) 
+#ifdef FORBID_NONEXISTENT_ASSIGNMENTS
+	laerror("assignment to nonexisting element");
+#else
+	return;
+#endif
 #ifdef DEBUG
 if (I>=NRSMat<T>::nn || J>=NRSMat<T>::nn) laerror("index out of range");
 if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
