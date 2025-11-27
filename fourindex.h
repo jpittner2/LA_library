@@ -133,7 +133,7 @@ typedef enum {
 	T2ijab_unitary=7, 
 	T2IjAb_unitary=8, 
 	antisymtwoelectronrealdiracAB=9,rdm2AB=9,twoelectroncomplexmullikan_without_conjugation=9,
-	twoelectronrealmullikanreducedsymAA=10,
+	twoelectronrealmullikanreducedsymAA=10, rdm2SS=10,
 	twoelectronrealmullikanreducedsymAB=11,
 	twoelectroncomplexmullikan=12,
 } fourindexsymtype; //only permutation-nonequivalent elements are stored
@@ -155,7 +155,7 @@ static const int fourindex_permutations[fourindex_n_symmetrytypes][max_fourindex
 		{{0,1,2,3,1},{2,3,0,1,-1}}, //T2IjAb_unitary (antihermitian exponent)
 		{{0,1,2,3,1},{2,3,0,1,1}}, //antisymtwoelectronrealdiracAB
 		{{0,1,2,3,1},{2,3,0,1,1},{1,0,3,2,1},{3,2,1,0,1}}, //twoelectronrealmullikanreducedsymAA (e.g. unitary downfolded CC eff. integrals)
-		{{0,1,2,3,1},{1,0,3,2,1}}, //twoelectronrealmullikanreducedsymAB (e.g. unitary downfolded CC eff. integrals)
+		{{0,1,2,3,1},{1,0,3,2,1}}, //twoelectronrealmullikanreducedsymAB (e.g. unitary downfolded CC eff. integrals, or RDM2 spin-summed)
 		{{0,1,2,3,1},{2,3,0,1,1},{1,0,3,2,2},{3,2,1,0,2}}, //twoelectroncomplexmullikan ... 2 means complex conjugation
 		};
 
