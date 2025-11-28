@@ -455,12 +455,12 @@ public:
 	//! routine for formatted output 
 	void fprintf(FILE *f, const char *format, const int modulo) const;
 	//! routine for unformatted output 
-        void put(int fd, bool dimensions=1, bool transp=0) const;
+        void put(int fd, bool dimensions=1, bool transp=0, bool orca_format=false) const;
 	
 	//! routine for formatted input 
 	void fscanf(FILE *f, const char *format);
 	//! routine for unformatted input 
-        void get(int fd, bool dimensions=1, bool transp=0);
+        void get(int fd, bool dimensions=1, bool transp=0, bool orca_format=false);
 
 	//! constructor creating vector from sparse matrix
 	explicit NRVec(const SparseMat<T> &rhs);
@@ -2015,12 +2015,12 @@ inline const std::complex<double> NRVec<std::complex<double> >::amin() const {
  * @see NRMat<T>::put()
  ******************************************************************************/
 template <typename T>
-void NRVec<T>::put(int fd, bool dim, bool transp) const {
+void NRVec<T>::put(int fd, bool dim, bool transp, bool orcaformat) const {
 #ifdef CUDALA
 	if(location != cpu){
 		NRVec<T> tmp = *this;
 		tmp.moveto(cpu);
-		tmp.put(fd,dim,transp);
+		tmp.put(fd,dim,transp,orcaformat);
 		return;
 	}
 #endif
@@ -2028,7 +2028,15 @@ void NRVec<T>::put(int fd, bool dim, bool transp) const {
 	int pad(1); //align at least 8-byte
 	if(dim){
 		if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("write failed");
-		if(sizeof(int) != write(fd,&pad,sizeof(int))) laerror("write failed");
+		if(!orcaformat) 
+			{
+			if(sizeof(int) != write(fd,&pad,sizeof(int))) laerror("write failed");
+			}
+		if(orcaformat)
+			{
+			int tmp=sizeof(T);
+			if(sizeof(int) != write(fd,&tmp,sizeof(int))) laerror("write failed");
+			}
 	}
 	LA_traits<T>::multiput(nn,fd,v,dim);
 }
@@ -2041,12 +2049,12 @@ void NRVec<T>::put(int fd, bool dim, bool transp) const {
  * @see NRMat<T>::get(), copyonwrite()
  ******************************************************************************/
 template <typename T>
-void NRVec<T>::get(int fd, bool dim, bool transp) {
+void NRVec<T>::get(int fd, bool dim, bool transp, bool orcaformat) {
 #ifdef CUDALA
 	if(location != cpu){
 		NRVec<T> tmp;
 		tmp.moveto(cpu);
-		tmp.get(fd,dim,transp);
+		tmp.get(fd,dim,transp,orcaformat);
 		tmp.moveto(location);
 		*this = tmp;
 		return;
@@ -2055,7 +2063,14 @@ void NRVec<T>::get(int fd, bool dim, bool transp) {
 	int nn0[2]; //align at least 8-byte
 	errno = 0;
 	if(dim){
-		if(2*sizeof(int) != read(fd,&nn0,2*sizeof(int))) laerror("read failed");
+		int ndims=orcaformat?1:2;
+		if(ndims*sizeof(int) != read(fd,&nn0,ndims*sizeof(int))) laerror("read failed");
+		if(orcaformat)
+			{
+			int tmp;
+			if(sizeof(int) != read(fd,&tmp,sizeof(int))) laerror("read failed");
+			if(tmp!=sizeof(T)) laerror("mismatch in orca format");
+			}
 		resize(nn0[0]);
 	}else{
 		copyonwrite();

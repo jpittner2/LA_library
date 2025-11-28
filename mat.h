@@ -305,9 +305,9 @@ public:
 	inline size_t size() const;
 
 	//! unformatted input
-        void get(int fd, bool dimensions = 1, bool transposed = false);
+        void get(int fd, bool dimensions = 1, bool transposed = false, bool orcaformat=false);
 	//! unformatted output
-        void put(int fd, bool dimensions = 1, bool transposed = false) const;
+        void put(int fd, bool dimensions = 1, bool transposed = false, bool orcaformat=false) const;
 	//! formatted output
 	void fprintf(FILE *f, const char *format, const int modulo) const;
 	//! formatted input

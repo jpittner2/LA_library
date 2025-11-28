@@ -41,12 +41,12 @@ namespace LA {
  * @see NRMat<T>::get(), NRSMat<T>::copyonwrite()
  ******************************************************************************/
 template <typename T>
-void NRSMat<T>::put(int fd, bool dim, bool transp) const {
+void NRSMat<T>::put(int fd, bool dim, bool transp, bool orcaformat) const {
 #ifdef CUDALA
 	if(location != cpu){
 		NRSMat<T> tmp= *this;
 		tmp.moveto(cpu);
-		tmp.put(fd,dim,transp);
+		tmp.put(fd,dim,transp,orcaformat);
 		return;
 	}
 #endif
@@ -54,6 +54,11 @@ void NRSMat<T>::put(int fd, bool dim, bool transp) const {
 	if(dim){
 		if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
 		if(sizeof(int) != write(fd,&nn,sizeof(int))) laerror("cannot write");
+		if(orcaformat)
+			{
+			int tmp=sizeof(T);
+			if(sizeof(int) != write(fd,&tmp,sizeof(int))) laerror("cannot write");
+			}
 	}
 	LA_traits<T>::multiput((size_t)nn*(nn+1)/2,fd,v,dim);
 }
@@ -66,12 +71,12 @@ void NRSMat<T>::put(int fd, bool dim, bool transp) const {
  * @see NRSMat<T>::put(), NRSMat<T>::copyonwrite()
  ******************************************************************************/
 template <typename T>
-void NRSMat<T>::get(int fd, bool dim, bool transp) {
+void NRSMat<T>::get(int fd, bool dim, bool transp, bool orcaformat) {
 #ifdef CUDALA
 	if(location != cpu){
 		NRSMat<T> tmp;
 		tmp.moveto(cpu);
-		tmp.get(fd,dim,transp);
+		tmp.get(fd,dim,transp,orcaformat);
 		tmp.moveto(location);
 		*this = tmp;
 		return;
@@ -82,6 +87,12 @@ void NRSMat<T>::get(int fd, bool dim, bool transp) {
 	errno = 0;
 	if(dim){
 		if(2*sizeof(int) != read(fd,&nn0,2*sizeof(int))) laerror("cannot read");
+		if(orcaformat)
+			{
+			int tmp;
+			if(sizeof(int) != read(fd,&tmp,sizeof(int))) laerror("cannot read");
+			if(tmp!=sizeof(T)) laerror("mismatch in orca format");
+			}
 		resize(nn0[0]);
 	}else{
 		copyonwrite();

@@ -183,8 +183,8 @@ public:
 
 
 	const T trace() const;
-	void get(int fd, bool dimensions = 1, bool transp = 0);
-        void put(int fd, bool dimensions = 1, bool transp = 0) const;
+	void get(int fd, bool dimensions = 1, bool transp = 0, bool orcaformat=false);
+        void put(int fd, bool dimensions = 1, bool transp = 0, bool orcaformat=false) const;
 
 	void copyonwrite(bool detachonly=false, bool deep=true);
 

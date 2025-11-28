@@ -392,10 +392,10 @@ static inline bool bigger(const  X<C> &x, const X<C> &y) {return x>y;} \
 static inline bool smaller(const  X<C> &x, const X<C> &y) {return x<y;} \
 static inline normtype norm (const X<C> &x) {return x.norm();} \
 static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);} \
-static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions,transp);} \
-static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions,transp);} \
-static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions);} \
-static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions);} \
+static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0, bool orcaformat=false) {x.put(fd,dimensions,transp,orcaformat);} \
+static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0, bool orcaformat=false) {x.get(fd,dimensions,transp,orcaformat);} \
+static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions,false,orcaformat);} \
+static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions,false,orcaformat);} \
 static void copy(X<C> *dest, X<C> *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];} \
 static void clear(X<C> *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
@@ -435,10 +435,10 @@ static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \
 static inline normtype norm (const X<C> &x) {return x.norm();}  \
 static inline void axpy (X<C>&s, const X<C> &x, const C c) {s.axpy(c,x);}  \
-static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0) {x.put(fd,dimensions);}  \
-static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0) {x.get(fd,dimensions);}  \
-static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions);}  \
-static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions);}  \
+static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0, bool orcaformat=false) {x.put(fd,dimensions,false,orcaformat);}  \
+static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0, bool orcaformat=false) {x.get(fd,dimensions,false,orcaformat);}  \
+static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions,false,orcaformat);}  \
+static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions,false,orcaformat);}  \
 static void copy(C *dest, C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];}  \
 static void clear(C *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \

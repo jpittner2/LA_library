@@ -121,12 +121,12 @@ const NRVec<T> NRMat<T>::row(const int i, int l) const {
  * @see NRVec<T>::put()
  ******************************************************************************/
 template <typename T>
-void NRMat<T>::put(int fd, bool dim, bool transp) const {
+void NRMat<T>::put(int fd, bool dim, bool transp, bool orcaformat) const {
 #ifdef CUDALA
 	if(location != cpu) {
 		NRMat<T> tmp = *this;
 		tmp.moveto(cpu);
-		tmp.put(fd, dim, transp);
+		tmp.put(fd, dim, transp, orcaformat);
 		return;
 	}
 #endif
@@ -134,6 +134,11 @@ void NRMat<T>::put(int fd, bool dim, bool transp) const {
 	if(dim){
 		if(sizeof(int) != write(fd,&(transp?mm:nn),sizeof(int))) laerror("write failed");
 		if(sizeof(int) != write(fd,&(transp?nn:mm),sizeof(int))) laerror("write failed");
+		if(orcaformat)
+			{
+			int tmp=sizeof(T);
+			if(sizeof(int) != write(fd,&tmp,sizeof(int))) laerror("write failed");
+			}
 	}
 
 	if(transp){  //not particularly efficient
@@ -167,12 +172,12 @@ void NRMat<T>::put(int fd, bool dim, bool transp) const {
  * @see NRVec<T>::get(), copyonwrite()
  ******************************************************************************/
 template <typename T>
-void NRMat<T>::get(int fd, bool dim, bool transp){
+void NRMat<T>::get(int fd, bool dim, bool transp, bool orcaformat){
 #ifdef CUDALA
 	if(location != cpu){
 		NRMat<T> tmp;
 		tmp.moveto(cpu);
-		tmp.get(fd, dim, transp);
+		tmp.get(fd, dim, transp,orcaformat);
 		tmp.moveto(getlocation());
 		*this = tmp;
 		return;
@@ -183,6 +188,12 @@ void NRMat<T>::get(int fd, bool dim, bool transp){
 	if(dim){
 		if(sizeof(int) != read(fd, &nn0, sizeof(int))) laerror("read failed");
 		if(sizeof(int) != read(fd, &mm0, sizeof(int))) laerror("read failed");
+		if(orcaformat)
+			{
+			int tmp;
+			if(sizeof(int) != read(fd, &tmp, sizeof(int))) laerror("read failed");
+			if(tmp!=sizeof(T)) laerror("mismatch in orca format");
+			}
 		if(transp) resize(mm0, nn0); else resize(nn0, mm0);
 	}else{
 		copyonwrite();
