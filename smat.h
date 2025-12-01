@@ -181,6 +181,19 @@ public:
 		return s;
 		}
 
+	const NRVec<T> rsum() const
+		{
+		NRVec<T> r(nn);
+		for(int i=0; i<nn;++i)
+			{
+			r[i]=(T)0;
+			for(int j=0; j<nn; ++j) r[i] += (*this)(i,j);
+			}
+		return r;
+		}
+
+	const NRVec<T> csum() const {return rsum();};
+
 
 	const T trace() const;
 	void get(int fd, bool dimensions = 1, bool transp = 0, bool orcaformat=false);
