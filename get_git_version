@@ -1,4 +1,4 @@
-#!/bin/csh -f
+#!/bin/bash
 cat <<!
 #include "LA_version.h"
 const char LA::version[] = 
