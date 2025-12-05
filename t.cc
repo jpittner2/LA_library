@@ -1137,7 +1137,7 @@ if(0)
 {
 int n,m;
 cin>>n >>m;
-NRSMat<double> a(n,n);
+NRSMat<double> a(n);
 NRVec<double> rr(n);
 
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
@@ -4460,7 +4460,7 @@ if(inv==false)
 }
 
 
-if(1)
+if(0)
 {
 //test linear transform
 int r=3;
@@ -4497,6 +4497,43 @@ for(int i=0; i<n+2; ++i) for(int j=0; j<n+2; ++j) for(int k=0; k<n+2; ++k) for(i
 		y.lhs(i,j,k,l) += x(ii,jj,kk,ll) * t[0](i,ii) * t[0](j,jj) * t[0](k,kk) * t[1](l,ll) ;
 	}
 cout <<"Error = "<<(xt-y).norm()<<endl;
+
+}
+
+if(1)
+{
+//n must not be too small
+int n,m;
+cin>>n >>m;
+NRSMat<complex<double> > a(n);
+a.randomize(.5);
+
+for(int i=0;i<n;++i)
+        {
+	a(i,i)=  RANDDOUBLE() +  .2*(i-n);
+        }
+//cout <<"test matrix = "<<a;
+
+NRVec<double> rr(n);
+NRSMat<complex<double> > aa;
+NRMat<complex<double> > vv(n,n);
+aa=a; diagonalize(aa,rr,&vv);
+cout <<"Exact energies "<<rr;
+
+NRVec<complex<double> > r(m);
+NRVec<complex<double> > *eivecs = new NRVec<complex<double> >[m];
+davidson(a,r,eivecs,NULL,m,true,1e-6,true,10*n,n*10);
+
+cout <<"Davidson energies " <<r;
+cout <<"Exact energies "<<rr;
+
+cout <<"Eigenvectors compare:\n";
+for(int i=0; i<m; ++i) 
+	{
+	cout <<eivecs[i];
+	for(int j=0; j<n;++j) cout <<vv[j][i]<<" ";
+	cout <<endl;
+	}
 
 }
 

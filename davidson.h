@@ -33,7 +33,7 @@ namespace LA {
 //Note that for efficiency in a direct CI case the diagonalof() should cache its result
 
 
-//@@@should work for complex hermitian-only too, but was not tested yet (maybe somwhere complex conjugation will have to be added)
+//works for complex hermitian-only too, but does not converge sowell for more than 1 root
 //@@@ for large krylov spaces >200 it can occur 'convergence problem in sygv/syev in diagonalize()'
 //@@@options: left eigenvectors by matrix transpose, overridesymmetric (for nrmat)
 //@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
@@ -158,12 +158,19 @@ else
 typename LA_traits<T>::normtype eival_n=r[nroot];
 oldnroot=nroot;
 typename LA_traits<T>::normtype test=std::abs(smallV(krylovsize,nroot));
+//std::cout <<"NROOT = "<<nroot<<" TEST = "<<test<<std::endl;
+if(test>100.)
+	{
+	std::cout <<"Divergence in Davidson\n";
+	flag=1;
+	goto finished;
+	}
 if(test<eps) nroot++;
 if(it==0) nroot = 0;
 for(int iroot=0; iroot<=std::min(krylovsize,nroots-1); ++iroot)
 	{
         test = std::abs(smallV(krylovsize,iroot));
-        if(test>eps) nroot=std::min(nroot,iroot);
+        if(test>eps) nroot=std::min(nroot,iroot); //return to previous root
         if(verbose && iroot<=std::max(oldnroot,nroot)) 
 		{
 		std::cout <<"Davidson: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" eigenvalue="<<r[iroot]<<"\n";
@@ -229,7 +236,8 @@ for(j=0; j<=krylovsize; ++j)
 	typename LA_traits<T>::normtype vnorm2;
         if(!incore) s0->get(vec2,j);
 	do	{
-          	T ab = vec1*(incore?v0[j]:vec2) /smallS(j,j);
+		 // For COMPLEX the order matters, the first one gets conjuagted, changed vec1 to the right!
+          	T ab = (incore?v0[j]:vec2)*vec1 /smallS(j,j);
             	vec1.axpy(-ab,incore?v0[j]:vec2);
 		vnorm2 = vec1.norm();
 		if(vnorm2==0) 

@@ -311,10 +311,10 @@ public:
 
 	//! compute the Euclidean inner product (with conjugation in complex case) 
 	inline const T operator*(const NRVec &rhs) const;
-	inline const T dot(const NRVec &rhs) const {return *this * rhs;};
 
 	//! compute the Euclidean inner product (with conjugation in complex case) with a stride-vector
-	inline const T dot(const T *a, const int stride = 1) const;
+	inline const T dot(const T *a, const int stride = 1, bool conjugate=true) const;
+	inline const T dot(const NRVec &rhs, bool conjugate=true) const {return dot(&((*this)[0]),1,conjugate);};
 
 	void gemv(const T beta, const NRMat<T> &a, const char trans, const T alpha, const NRVec &x);
 	void gemv(const T beta, const NRSMat<T> &a, const char trans /**< just for compatibility reasons */, const T alpha, const NRVec &x);
@@ -1073,9 +1073,24 @@ inline const T NRVec<T>::operator*(const NRVec<T> &rhs) const {
 	NOT_GPU(rhs);
 
 	T dot(0);
-	for(register int i=0; i<nn; ++i) dot += v[i]*rhs.v[i];
+	if(LA_traits<T>::is_complex()) for(register int i=0; i<nn; ++i) dot += LA_traits<T>::conjugate(v[i])*rhs.v[i];
+	else for(register int i=0; i<nn; ++i) dot += v[i]*rhs.v[i];
 	return dot;
 }
+
+/***************************************************************************
+ * compute dot product with optional conjugation
+ */
+template<typename T>
+inline const T NRVec<T>::dot(const T *a, const int stride , bool conjugate) const
+{
+	 NOT_GPU(*this);
+	T dot(0);
+        if(LA_traits<T>::is_complex() && conjugate) for(register int i=0; i<nn; ++i) dot += LA_traits<T>::conjugate(v[i])*a[i*stride];
+        else for(register int i=0; i<nn; ++i) dot += v[i]*a[i*stride];
+        return dot; 
+}
+
 
 /***************************************************************************//**
  * indexing operator giving the element at given position with range checking in
@@ -1801,9 +1816,9 @@ inline const std::complex<double> NRVec<std::complex<double> >::operator*(const 
  * @return \f$\sum_{i=1}^N\vec{x}_{i}\cdot y_{\mathrm{stride}\cdot(i-1) + 1}\f$
  ******************************************************************************/
 template<>
-inline const double NRVec<double>::dot(const double *y, const int stride) const {
+inline const double NRVec<double>::dot(const double *y, const int stride, bool conjugate) const {
 	NOT_GPU(*this);
-	return cblas_ddot(nn, y, stride, v, 1);
+	return cblas_ddot(nn,v, 1,y,stride);
 }
 
 /***************************************************************************//**
@@ -1813,10 +1828,11 @@ inline const double NRVec<double>::dot(const double *y, const int stride) const 
  * @return \f$\sum_{i=1}^N\vec{x}_{i}\cdot \overbar{y_{\mathrm{stride}\cdot(i-1) + 1}}\f$
  ******************************************************************************/
 template<>
-inline const std::complex<double> NRVec<std::complex<double> >::dot(const std::complex<double> *y, const int stride) const {
+inline const std::complex<double> NRVec<std::complex<double> >::dot(const std::complex<double> *y, const int stride, bool conjugate) const {
         std::complex<double> dot;
 	NOT_GPU(*this);
-        cblas_zdotc_sub(nn, y, stride, v, 1, &dot);
+        if(conjugate) cblas_zdotc_sub(nn, v,1,y, stride, &dot);
+	else cblas_zdotc_sub(nn, v,1,y, stride, &dot);
         return dot;
 }
 
