@@ -944,7 +944,31 @@ extern "C" void FORNAME(zggev)(const char *JOBVL, const char *JOBVR, const FINT 
                 std::complex<double> *VL, const FINT *LDVL,  std::complex<double> *VR, const FINT *LDVR,
                 std::complex<double> *WORK, const FINT *LWORK, double *RWORK, FINT *INFO );
 
+//tridiagonal
+extern "C" void FORNAME(dsteqr)(const char *compz, const  FINT *n, double *d, double *d1, double *z, const FINT *ldz,  double *work, FINT *info);
 
+void diagonalize3(NRVec<double> &d, NRVec<double> &d1, NRMat<double> *v, const bool corder)
+{
+	FINT n = d.size();
+	if(d1.size()!=n) laerror("inconsistent dimensions in diagonalize3");
+	if(v) {if(n!=v->nrows()||n!=v->ncols()) laerror("inconsistent dimensions in diagonalize3");}
+	d.copyonwrite();
+	d1.copyonwrite();
+	if(v) v->copyonwrite();
+	
+	FINT ldz=n;
+	FINT info;
+	int worksize=2*n-2;
+	if(worksize<1) worksize=1;
+        double *work = new double[worksize];
+	char job=v?'i':'n';
+	FORNAME(dsteqr)(&job,&n,&d[0],&d1[0],(v?&(*v)(0,0):NULL),&ldz,work,&info);
+	delete[] work;
+	if (v && corder) v->transposeme();
+
+	if (info < 0) laerror("illegal argument in dsteqr() fo diagonalize3");
+	if (info > 0) laerror("convergence problem in dsteqr() fo diagonalize3");
+}
 
 
 //statics for sorting

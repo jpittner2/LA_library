@@ -183,6 +183,9 @@ extern void gdiagonalize(NRMat<std::complex<double> > &a, NRVec<double> &wr, NRV
                 NRMat<std::complex<double> > *vl=NULL, NRMat<std::complex<double> > *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
                 NRMat<std::complex<double> > *b=NULL, NRVec<std::complex<double> > *beta=NULL);
 
+//diagonalization of symmetric real tridiagonal matrix
+extern void diagonalize3(NRVec<double> &d, NRVec<double> &d1, NRMat<double> *v, const bool corder=1);
+
 //complex,real,imaginary parts of various entities
 template<typename T>
 extern const typename LA_traits<T>::realtype realpart(const T&);
