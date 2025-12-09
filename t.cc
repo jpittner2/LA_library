@@ -4500,7 +4500,7 @@ cout <<"Error = "<<(xt-y).norm()<<endl;
 
 }
 
-if(1)
+if(0)
 {
 //n must not be too small
 int n,m;
@@ -4535,6 +4535,31 @@ for(int i=0; i<m; ++i)
 	cout <<endl;
 	}
 
+}
+
+if(1)
+{
+int n,m;
+cin>>n >>m;
+NRSMat<double> a(n);
+NRVec<double> rr(n);
+
+for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
+        {
+        a(i,j)= RANDDOUBLE();
+	if(i==j) a(i,i)+= .5*(i-n*.5);
+        }
+
+NRSMat<double> aa;
+NRMat<double> vv(n,n);
+aa=a; diagonalize(aa,rr,&vv);
+NRVec<double> r(m);
+NRVec<double> *eivecs = new NRVec<double>[m];
+double target= 0;
+cout <<"Exact energies " <<rr<<endl;
+
+davidson(a,r,eivecs,NULL,m,1,1e-6,1,200,300,(void (*)(LA::NRVec<double>&))NULL,&target);
+cout <<"Davidson energies " <<r;
 }
 
 }//main

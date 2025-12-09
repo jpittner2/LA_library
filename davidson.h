@@ -33,7 +33,7 @@ namespace LA {
 //Note that for efficiency in a direct CI case the diagonalof() should cache its result
 
 
-//works for complex hermitian-only too, but does not converge sowell for more than 1 root
+//works for complex hermitian-only too, but does not converge so well for more than 1 root
 //@@@ for large krylov spaces >200 it can occur 'convergence problem in sygv/syev in diagonalize()'
 //@@@options: left eigenvectors by matrix transpose, overridesymmetric (for nrmat)
 //@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
@@ -48,7 +48,7 @@ template <typename T, typename Matrix>
 extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=1e-6,
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 500,
-		void (*initguess)(NRVec<T> &)=NULL)
+		void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)
 {
 bool flag=0;
 int n=bigmat.nrows();
@@ -153,6 +153,24 @@ else
 	//the following is definitely NOT OK for non-hermitian complex matrices, but we do not support these
 	//it is just to make the code compilable for T both real and complex
 	for(int i=0; i<=krylovsize; ++i) {r[i]/=LA_traits<T>::realpart(beta[i]); ri[i]/=LA_traits<T>::realpart(beta[i]);}
+	}
+
+if(target) //resort eigenpairs by distance from the target
+	{
+	NRVec<typename LA_traits<T>::normtype> key(krylovsize+1);
+	for(int i=0; i<=krylovsize; ++i) key[i] = abs(r[i] - *target);
+	NRPerm<int> p(krylovsize+1);
+	key.sort(0,p);
+	
+	NRVec<typename LA_traits<T>::normtype> rp(maxkrylov);
+	NRMat<T> smallVp(maxkrylov,maxkrylov);
+	for(int i=0; i<=krylovsize; ++i)
+		{
+		rp[i]= r[p[i+1]-1];
+		for(int j=0; j<=krylovsize; ++j) smallVp(j,i) = smallV(j,p[i+1]-1);
+		}
+	r = rp;
+	smallV = smallVp;
 	}
 
 typename LA_traits<T>::normtype eival_n=r[nroot];
