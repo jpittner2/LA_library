@@ -314,7 +314,7 @@ public:
 
 	//! compute the Euclidean inner product (with conjugation in complex case) with a stride-vector
 	inline const T dot(const T *a, const int stride = 1, bool conjugate=true) const;
-	inline const T dot(const NRVec &rhs, bool conjugate=true) const {return dot(&((*this)[0]),1,conjugate);};
+	inline const T dot(const NRVec &rhs, bool conjugate=true) const {return dot(&(rhs[0]),1,conjugate);};
 
 	void gemv(const T beta, const NRMat<T> &a, const char trans, const T alpha, const NRVec &x);
 	void gemv(const T beta, const NRSMat<T> &a, const char trans /**< just for compatibility reasons */, const T alpha, const NRVec &x);
@@ -1832,7 +1832,7 @@ inline const std::complex<double> NRVec<std::complex<double> >::dot(const std::c
         std::complex<double> dot;
 	NOT_GPU(*this);
         if(conjugate) cblas_zdotc_sub(nn, v,1,y, stride, &dot);
-	else cblas_zdotc_sub(nn, v,1,y, stride, &dot);
+	else cblas_zdotu_sub(nn, v,1,y, stride, &dot);
         return dot;
 }
 

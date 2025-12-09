@@ -4506,11 +4506,11 @@ if(0)
 int n,m;
 cin>>n >>m;
 NRSMat<complex<double> > a(n);
-a.randomize(.5);
+a.randomize(.1);
 
 for(int i=0;i<n;++i)
         {
-	a(i,i)=  RANDDOUBLE() +  .2*(i-n);
+	a(i,i)=  RANDDOUBLE() +  .5*(i-n);
         }
 //cout <<"test matrix = "<<a;
 
@@ -4522,7 +4522,7 @@ cout <<"Exact energies "<<rr;
 
 NRVec<complex<double> > r(m);
 NRVec<complex<double> > *eivecs = new NRVec<complex<double> >[m];
-davidson(a,r,eivecs,NULL,m,true,1e-6,true,10*n,n*10);
+davidson(a,r,eivecs,NULL,m,true,1e-5,true,10*n,n);
 
 cout <<"Davidson energies " <<r;
 cout <<"Exact energies "<<rr;
