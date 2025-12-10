@@ -947,10 +947,10 @@ extern "C" void FORNAME(zggev)(const char *JOBVL, const char *JOBVR, const FINT 
 //tridiagonal
 extern "C" void FORNAME(dsteqr)(const char *compz, const  FINT *n, double *d, double *d1, double *z, const FINT *ldz,  double *work, FINT *info);
 
-void diagonalize3(NRVec<double> &d, NRVec<double> &d1, NRMat<double> *v, const bool corder)
+void diagonalize3(NRVec<double> &d, NRVec<double> &d1, NRMat<double> *v, const bool corder, int n0)
 {
-	FINT n = d.size();
-	if(d1.size()!=n) laerror("inconsistent dimensions in diagonalize3");
+	FINT n = n0? n0: d.size();
+	if(d1.size()<n-1) laerror("inconsistent dimensions in diagonalize3");
 	if(v) {if(n!=v->nrows()||n!=v->ncols()) laerror("inconsistent dimensions in diagonalize3");}
 	d.copyonwrite();
 	d1.copyonwrite();
