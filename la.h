@@ -28,6 +28,7 @@
 #include "bitvector.h"
 #include "conjgrad.h"
 #include "davidson.h"
+#include "lanczos.h"
 #include "diis.h"
 #include "fourindex.h"
 #include "gmres.h"
