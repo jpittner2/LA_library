@@ -4502,9 +4502,44 @@ cout <<"Error = "<<(xt-y).norm()<<endl;
 
 if(0)
 {
+int n,m;
+bool which;
+cin>>n >>m >>which;
+NRSMat<double> a(n);
+NRVec<double> rr(n);
+
+for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
+        {
+        a(i,j)= RANDDOUBLE();
+	if(i==j) a(i,i)+= .5*(i-n*.5);
+        }
+
+NRSMat<double> aa;
+NRMat<double> vv(n,n);
+aa=a; diagonalize(aa,rr,&vv);
+NRVec<double> r(m);
+NRVec<double> *eivecs = new NRVec<double>[m];
+cout <<"Exact energies " <<rr<<endl;
+
+if(which) lanczos(a,r,eivecs,NULL,m,1,1e-6,1,200,300);
+else davidson(a,r,eivecs,NULL,m,1,1e-6,1,200,300);
+cout <<"Iterative energies " <<r;
+cout <<"Eigenvectors compare:\n";
+for(int i=0; i<m; ++i)
+        {
+        cout <<eivecs[i];
+        for(int j=0; j<n;++j) cout <<vv[j][i]<<" ";
+        cout <<endl;
+        }
+
+}
+
+if(1)
+{
 //n must not be too small
 int n,m;
-cin>>n >>m;
+bool which;
+cin>>n >>m>>which ;
 NRSMat<complex<double> > a(n);
 a.randomize(.1);
 
@@ -4522,9 +4557,10 @@ cout <<"Exact energies "<<rr;
 
 NRVec<complex<double> > r(m);
 NRVec<complex<double> > *eivecs = new NRVec<complex<double> >[m];
-davidson(a,r,eivecs,NULL,m,true,1e-5,true,10*n,n);
+if(which) lanczos(a,r,eivecs,NULL,m,true,1e-5,true,10*n,n);
+else davidson(a,r,eivecs,NULL,m,true,1e-5,true,10*n,n);
 
-cout <<"Davidson energies " <<r;
+cout <<"Davidson/Lanczos energies " <<r;
 cout <<"Exact energies "<<rr;
 
 cout <<"Eigenvectors compare:\n";
@@ -4535,31 +4571,6 @@ for(int i=0; i<m; ++i)
 	cout <<endl;
 	}
 
-}
-
-if(1)
-{
-int n,m;
-cin>>n >>m;
-NRSMat<double> a(n);
-NRVec<double> rr(n);
-
-for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
-        {
-        a(i,j)= RANDDOUBLE();
-	if(i==j) a(i,i)+= .5*(i-n*.5);
-        }
-
-NRSMat<double> aa;
-NRMat<double> vv(n,n);
-aa=a; diagonalize(aa,rr,&vv);
-NRVec<double> r(m);
-NRVec<double> *eivecs = new NRVec<double>[m];
-double target= 0;
-cout <<"Exact energies " <<rr<<endl;
-
-davidson(a,r,eivecs,NULL,m,1,1e-6,1,200,300,(void (*)(LA::NRVec<double>&))NULL,&target);
-cout <<"Davidson energies " <<r;
 }
 
 }//main

@@ -24,6 +24,11 @@
 #include "nonclass.h"
 #include "auxstorage.h"
 
+//TODO:
+//@@@convergece test by residual norm rather than by energy difference
+//@@@implement restart when Krylov space is exceeded
+//@@@implement inital guess of more than 1 vector (also in davidson)
+
 namespace LA {
 
 //Lanczos diagonalization of hermitean matrix 
@@ -36,7 +41,7 @@ namespace LA {
 template <typename T, typename Matrix>
 extern void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=1e-6,
-	 	const bool incore=1, int maxit=100, const int maxkrylov = 500,
+	 	const bool incore=1, int maxit=100, const int maxkrylov = 1000,
 		void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)
 {
 if(!bigmat.issymmetric()) laerror("lanczos only for hermitean matrices");
@@ -46,19 +51,16 @@ if ( n!= (int)bigmat.ncols()) laerror("non-square matrix in lanczos");
 if(eivals.size()<nroots) laerror("too small eivals dimension in lanczos");
 
 NRVec<T> vec1(n),vec2(n);
-NRVec<typename LA_traits<T>::normtype> r(maxkrylov);
 NRVec<T> *v0,*v1;
 AuxStorage<T> *s0,*s1;
 
 if(incore)
 	{
 	v0 = new NRVec<T>[maxkrylov];
-	v1 = new NRVec<T>[maxkrylov];
 	}
 else
 	{
 	s0 = new AuxStorage<T>;
-	s1 = new AuxStorage<T>;
 	}
 
 int i,j;
@@ -67,8 +69,6 @@ if(nroots>=maxkrylov) nroots =maxkrylov-1;
 int  nroot=0;
 int oldnroot;
 
-//@@@@@@@@@@
-#if 0
 
 //default guess based on lowest diagonal element of the matrix
 if(initguess) initguess(vec1);
@@ -81,36 +81,96 @@ else
 	vec1[j]=1;
 	}
 
+NRVec<typename LA_traits<T>::normtype> alpha(maxkrylov),beta(maxkrylov-1);
+
 //initial step
 vec1.normalize();
-bigmat.gemv(0,vec2,'n',1,vec1); //avoid bigmat.operator*(vec), since that needs to allocate another n-sized vector
 if(incore) v0[0]=vec1; else s0->put(vec1,0); 
-if(incore) v1[0]=vec2; else s1->put(vec2,0);
+bigmat.gemv(0,vec2,'n',1,vec1); //avoid bigmat.operator*(vec), since that needs to allocate another n-sized vector
+{
+T tmp=vec2*vec1;
+alpha[0]= LA_traits<T>::realpart(tmp);
+if(LA_traits<T>::imagpart(tmp)>1e-6) laerror("matrix probably not hermitian in lanczos");
+}
+vec2.axpy(-alpha[0],vec1); 
 
-
+NRVec<typename LA_traits<T>::normtype> r(1); r[0]=alpha[0];
+NRVec<typename LA_traits<T>::normtype> rold;
+NRMat<typename LA_traits<T>::normtype> smallV;
+int krylovsize=1;
 //iterative Lanczos
 int it=0;
-for(k=2; k<=maxkrylov;++k)
+for(j=1; j<maxkrylov;++j)
 	{
-	diagonalize3(smallV,r,1,1,krylovsize+1,&smallSwork,1); //for symmetric matrix they have already been sorted to ascending order in lapack
+	++it;		
+	if(it>maxit) {std::cout <<"too many interations in lanczos\n"; flag=1; goto finished;}
+	++krylovsize;
+	//extend the Krylov space (last w vector expected in vec2, last v vector in vec1)
+	beta[j-1] = vec2.norm();
+	if(beta[j-1] > 0)
+		{
+		vec2 /= beta[j-1];
+		}
+	else
+		{
+		laerror("zero norm in lanczos");
+		//could generate an arbitrary vector and orthonormalize it
+		}
+	if(incore) v0[j]=vec2; else s0->put(vec2,j);
+	vec1 *= -beta[j-1];
+	bigmat.gemv(1,vec1,'n',1,vec2);
+	{
+	T tmp=vec1*vec2;
+	alpha[j]= LA_traits<T>::realpart(tmp);
+	if(LA_traits<T>::imagpart(tmp)>1e-6) laerror("matrix probably not hermitian in lanczos");
+	}
+	vec1.axpy(-alpha[j],vec2);
+	vec1.swap(vec2); //move new w vector to vec2, new v vector to vec1
+
+	//diagonalize the tridiagonal
+	smallV.resize(j+1,j+1);
+	rold=r;
+	r=alpha.subvector(0,j);
+	NRVec<typename LA_traits<T>::normtype> rr=beta.subvector(0,j-1);
+	diagonalize3(r,rr,&smallV); 
 	if(target) //resort eigenpairs by distance from the target
 		{
-		NRVec<typename LA_traits<T>::normtype> key(krylovsize+1);
-		for(int i=0; i<=krylovsize; ++i) key[i] = abs(r[i] - *target);
-		NRPerm<int> p(krylovsize+1);
+		NRVec<typename LA_traits<T>::normtype> key(j+1);
+		for(int i=0; i<=j; ++i) key[i] = abs(r[i] - *target);
+		NRPerm<int> p(j+1);
 		key.sort(0,p);
 	
-		NRVec<typename LA_traits<T>::normtype> rp(maxkrylov);
-		NRMat<T> smallVp(maxkrylov,maxkrylov);
-		for(int i=0; i<=krylovsize; ++i)
+		NRVec<typename LA_traits<T>::normtype> rp(j+1);
+		NRMat<typename LA_traits<T>::normtype> smallVp(j+1,j+1);
+		for(int i=0; i<=j; ++i)
 			{
 			rp[i]= r[p[i+1]-1];
-			for(int j=0; j<=krylovsize; ++j) smallVp(j,i) = smallV(j,p[i+1]-1);
+			for(int k=0; k<=j; ++k) smallVp(k,i) = smallV(k,p[i+1]-1);
 			}
 		r = rp;
 		smallV = smallVp;
 		}
 
+       	  if(verbose)
+      	    {
+	    for(int iroot=0; iroot<=std::min(krylovsize,nroots-1); ++iroot)
+       	         {
+       	         std::cout <<"Lanczos: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" eigenvalue="<<r[iroot]<<"\n";
+       	         }
+       	   std::cout.flush();
+       	   }
+	//convergence test when we have enough roots even in rold
+	if(krylovsize>nroots)
+		{
+		bool conv=true;
+		for(int  iroot=0; iroot<nroots; ++iroot)
+			if(abs(r[iroot]-rold[iroot])>eps) conv=false;
+		if(conv)
+			{
+			flag=0;
+			goto converged;
+			}
+		}
 	}
 flag=1;
 goto finished;
@@ -125,7 +185,7 @@ for(nroot=0; nroot<nroots; ++nroot)
 	if(eivecs)
 		{
 		vec1=0;
-		for(j=0; j<=krylovsize; ++j )
+		for(j=0; j<krylovsize; ++j )
 			{
             		if(!incore) s0->get(vec2,j);
 			vec1.axpy(smallV(j,nroot),incore?v0[j]:vec2);
@@ -141,12 +201,10 @@ for(nroot=0; nroot<nroots; ++nroot)
 
 if(eivecsfile) delete ev;
 
-//@@@@
-#endif
 
 finished:
-if(incore) {delete[] v0; delete[] v1;}
-else  {delete s0; delete s1;}
+if(incore) {delete[] v0;}
+else  {delete s0;}
 
 if(flag) laerror("no convergence in lanczos");
 }
