@@ -39,6 +39,7 @@ namespace LA {
 //@@@small matrix gdiagonalize - shift complex roots up (option to gdiagonalize?)
 //@@@test gdiagonalize whether it sorts the roots and what for complex ones
 //@@@implement left eigenvectors for nonsymmetric case
+//@@@implement start from larger Krylov space than a single vector - useful for multiroot solutions
 
 
 //Davidson algorithm: J. Comp. Phys. 17:817 (1975) 
