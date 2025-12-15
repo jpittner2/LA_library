@@ -4536,7 +4536,6 @@ for(int i=0; i<m; ++i)
 
 if(1)
 {
-//n must not be too small
 int n,m;
 bool which;
 cin>>n >>m>>which ;

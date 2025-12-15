@@ -25,9 +25,8 @@
 #include "auxstorage.h"
 
 //TODO:
-//@@@convergece test by residual norm rather than by energy difference
 //@@@implement restart when Krylov space is exceeded
-//@@@implement inital guess of more than 1 vector (also in davidson)
+//@@@implement inital guess of more than 1 vector (also in davidson) and block version of the methods
 
 namespace LA {
 
@@ -153,7 +152,7 @@ for(j=1; j<maxkrylov;++j)
 
        	  if(verbose)
       	    {
-	    for(int iroot=0; iroot<=std::min(krylovsize,nroots-1); ++iroot)
+	    for(int iroot=0; iroot<std::min(krylovsize,nroots); ++iroot)
        	         {
        	         std::cout <<"Lanczos: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" eigenvalue="<<r[iroot]<<"\n";
        	         }
