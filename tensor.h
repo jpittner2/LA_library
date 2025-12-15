@@ -421,6 +421,8 @@ public:
 	NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=false); //HOSVD-Tucker decomposition, return core tensor in *this, flattened 
 	Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=false) const; //rebuild the original tensor from Tucker
 	Tensor linear_transform(const NRVec<NRMat<T> > &x) const; //linear transform by a different matrix per each index group, preserving group symmetries
+	Tensor linear_transform(const int g, const Tensor<T> &x) const; //linear transform a single group, preserve its position and symmetry, x must be rank-2 flat tensor (this is useful for raising/lowering indices)
+	Tensor linear_transform(const int g, const NRMat<T> &x) const {Tensor<T> mat(x,true); return linear_transform(g,mat);}; //linear transform a single group, preserve its position and symmetry
 };
 
 

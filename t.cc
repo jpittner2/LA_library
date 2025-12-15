@@ -4534,7 +4534,7 @@ for(int i=0; i<m; ++i)
 
 }
 
-if(1)
+if(0)
 {
 int n,m;
 bool which;
@@ -4569,6 +4569,56 @@ for(int i=0; i<m; ++i)
 	for(int j=0; j<n;++j) cout <<vv[j][i]<<" ";
 	cout <<endl;
 	}
+
+}
+
+if(1)
+{
+int r,n,sym;
+cin>>r>>n>>sym;
+NRVec<INDEXGROUP> shape(3);
+	shape[0].number=2; 
+        shape[0].symmetry=0;
+        shape[0].range=n+1;
+        shape[0].offset=0;
+
+        shape[1].number=r;
+        shape[1].symmetry= sym;
+        shape[1].range=n;
+        shape[1].offset=0;
+
+        shape[2].number=2;
+        shape[2].symmetry=0;
+        shape[2].range=n+2;
+        shape[2].offset=0;
+
+
+Tensor<double> x(shape); x.randomize(1.);
+x.defaultnames();
+cout <<"x= "<<x.shape << " "<<x.names<<endl;
+
+NRVec<INDEXGROUP> yshape(2);
+        yshape[0].number=1; 
+        yshape[0].symmetry=0;
+        yshape[0].range=n;
+        yshape[0].offset=0;
+        
+        yshape[1].number=1; 
+        yshape[1].symmetry= 0;
+        yshape[1].range=n+3;
+        yshape[1].offset=0;
+
+Tensor<double> y(yshape); y.randomize(1.);
+
+INDEX posit(1,0);
+//Tensor<double> z=x.unwind_index(1,1);
+//Tensor<double> z=x.contraction(INDEX(1,1),y,INDEX(0,0),1,false,false);
+Tensor<double> z=x.linear_transform(1,y);
+
+cout <<z.shape;
+
+//check
+
 
 }
 
