@@ -384,6 +384,9 @@ public:
 	inline Tensor contraction(const INDEX &I, const Tensor &rhs, const INDEX &RHSI, T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(I.group,I.index, rhs, RHSI.group, RHSI.index,alpha, conjugate1, conjugate);};
 	inline Tensor contraction(const Tensor &rhs, const INDEXNAME &iname,  T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(findindex(iname),rhs,rhs.findindex(iname),alpha, conjugate1, conjugate);};
 
+	//NOTE: (add)contractions() performs all listed contractions in a single matrix multiplication step
+	//it might be more efficient to perform the contractions subsequently one at a time
+	//this routine does not care about this, it is the responsibility of the user to generate optimal contraction sequence
 	void addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false);
 	inline void addcontractions(const Tensor &rhs1, const Tensor &rhs2, const NRVec<INDEXNAME> &names,  T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false) {addcontractions(rhs1, rhs1.findindexlist(names), rhs2, rhs2.findindexlist(names), alpha, beta, doresize, conjugate1,conjugate2);};
 	inline Tensor contractions( const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2,  T alpha=1, bool conjugate1=false, bool conjugate2=false) const {Tensor<T> r; r.addcontractions(*this,il1,rhs2,il2,alpha,0,true,conjugate1, conjugate2); return r; };
