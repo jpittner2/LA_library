@@ -190,8 +190,9 @@ class LA_traits<INDEXGROUP> {
 
 
 typedef NRVec<LA_index> FLATINDEX; //all indices but in a single vector
-typedef NRVec<NRVec<LA_index> > SUPERINDEX; //all indices in the INDEXGROUP structure
+typedef NRVec<FLATINDEX> SUPERINDEX; //all indices in the INDEXGROUP structure
 typedef NRVec<LA_largeindex> GROUPINDEX; //set of indices in the symmetry groups
+typedef NRMat<LA_index> INDEXMATRIX; //list of FLATINDEXes (rows of the matrix) of all tensor elements - convenient to be able to run over the whole tensor in a for loop rather than via recursive loopovers with a callback
 struct  INDEX
 {
 int group;
@@ -229,6 +230,11 @@ class LA_traits<INDEX> {
 int flatposition(int group, int index, const NRVec<INDEXGROUP> &shape);
 int flatposition(const INDEX &i, const NRVec<INDEXGROUP> &shape); //position of that index in FLATINDEX
 INDEX indexposition(int flatindex, const NRVec<INDEXGROUP> &shape); //inverse to flatposition
+
+//useful for negative offsets and 0 index excluded
+bool zero_in_index(const FLATINDEX &);
+bool zero_in_index(const SUPERINDEX &);
+bool zero_in_index(const INDEXMATRIX &, const LA_largeindex row);
 
 FLATINDEX superindex2flat(const SUPERINDEX &I);
 
@@ -361,10 +367,13 @@ public:
 	bool fulfills_hermiticity() const; //check it is so
 	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x); enforce_hermiticity();};
 
-	void loopover(void (*callback)(const SUPERINDEX &, T *)); //loop over all elements
-	void constloopover(void (*callback)(const SUPERINDEX &, const T *)) const; //loop over all elements
+
+	void loopover(void (*callback)(const SUPERINDEX &, T *), bool skipzeros=false); //loop over all elements, optionally skip zero indices (i.e. run over ...-2,-1,1,2...) which is useful for special applications
+	void constloopover(void (*callback)(const SUPERINDEX &, const T *), bool skipzeros=false) const; //loop over all elements
 	void grouploopover(void (*callback)(const GROUPINDEX &, T *)); //loop over all elements disregarding the internal structure of index groups
 	void constgrouploopover(void (*callback)(const GROUPINDEX &, const T *)) const; //loop over all elements disregarding the internal structure of index groups
+
+	INDEXMATRIX indexmatrix() const; //get indexmatrix - rows store FLATINDEXes matching data[]
 
 	Tensor permute_index_groups(const NRPerm<int> &p) const; //rearrange the tensor storage permuting index groups as a whole: result_i = source_p_i
 	Tensor permute_index_groups(const NRVec<INDEXNAME> &names) const; //permute to requested order of group's first indices (or permute individual indices of a flat tensor)

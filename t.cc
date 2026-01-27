@@ -4597,6 +4597,8 @@ Tensor<double> x(shape); x.randomize(1.);
 x.defaultnames();
 cout <<"x= "<<x.shape << " "<<x.names<<endl;
 
+cout <<"indexmatrix of x = "<<x.indexmatrix();
+
 NRVec<INDEXGROUP> yshape(2);
         yshape[0].number=1; 
         yshape[0].symmetry=0;

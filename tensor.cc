@@ -417,7 +417,7 @@ calcsize();
 
 
 template<typename T>
-void loopingroups(Tensor<T> &t, int ngroup, int igroup, T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, T *))
+void loopingroups(Tensor<T> &t, int ngroup, int igroup, T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, T *), bool skipzeros)
 {
 LA_index istart,iend;
 const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&t.shape))[ngroup];
@@ -443,6 +443,8 @@ switch(sh->symmetry)
 
 for(LA_index i = istart; i<=iend; ++i)
 	{
+	if(skipzeros && i==0) continue;
+
 	I[ngroup][igroup]=i;
 	if(ngroup==0 && igroup==0) 
 		{
@@ -460,14 +462,14 @@ for(LA_index i = istart; i<=iend; ++i)
 			const INDEXGROUP *sh2 = &(* const_cast<const NRVec<INDEXGROUP> *>(&t.shape))[newngroup];
 			newigroup=sh2->number-1;
 			}
-		loopingroups(t,newngroup,newigroup,p,I,callback);
+		loopingroups(t,newngroup,newigroup,p,I,callback,skipzeros);
 		}
 	}
 }
 
 
 template<typename T>
-void Tensor<T>::loopover(void (*callback)(const SUPERINDEX &, T *))
+void Tensor<T>::loopover(void (*callback)(const SUPERINDEX &, T *), bool skipzeros)
 {
 SUPERINDEX I(shape.size());
 for(int i=0; i<I.size(); ++i)
@@ -479,12 +481,12 @@ for(int i=0; i<I.size(); ++i)
 T *pp=&data[0];
 int ss=shape.size()-1;
 const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[ss];
-loopingroups(*this,ss,sh->number-1,&pp,I,callback);
+loopingroups(*this,ss,sh->number-1,&pp,I,callback,skipzeros);
 }
 
 
 template<typename T>
-void constloopingroups(const Tensor<T> &t, int ngroup, int igroup, const T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, const T *))
+void constloopingroups(const Tensor<T> &t, int ngroup, int igroup, const T **p, SUPERINDEX &I, void (*callback)(const SUPERINDEX &, const T *), bool skipzeros)
 {
 LA_index istart,iend;
 const INDEXGROUP *sh = &t.shape[ngroup];
@@ -510,6 +512,8 @@ switch(sh->symmetry)
 
 for(LA_index i = istart; i<=iend; ++i)
 	{
+        if(skipzeros && i==0) continue;
+
 	I[ngroup][igroup]=i;
 	if(ngroup==0 && igroup==0) 
 		{
@@ -527,14 +531,14 @@ for(LA_index i = istart; i<=iend; ++i)
 			const INDEXGROUP *sh2 = &(* const_cast<const NRVec<INDEXGROUP> *>(&t.shape))[newngroup];
 			newigroup=sh2->number-1;
 			}
-		constloopingroups(t,newngroup,newigroup,p,I,callback);
+		constloopingroups(t,newngroup,newigroup,p,I,callback,skipzeros);
 		}
 	}
 }
 
 
 template<typename T>
-void Tensor<T>::constloopover(void (*callback)(const SUPERINDEX &, const T *)) const
+void Tensor<T>::constloopover(void (*callback)(const SUPERINDEX &, const T *), bool skipzeros) const
 {
 SUPERINDEX I(shape.size());
 for(int i=0; i<I.size(); ++i)
@@ -546,7 +550,28 @@ for(int i=0; i<I.size(); ++i)
 const T *pp=&data[0];
 int ss=shape.size()-1;
 const INDEXGROUP *sh = &shape[ss];
-constloopingroups(*this,ss,sh->number-1,&pp,I,callback);
+constloopingroups(*this,ss,sh->number-1,&pp,I,callback,skipzeros);
+}
+
+static INDEXMATRIX *indexmat_p;
+static LA_largeindex indexmat_row;
+
+template<typename T>
+static void indexmatrix_callback(const SUPERINDEX &I, const T *p)
+{
+FLATINDEX f=superindex2flat(I);
+indexmat_p->rowset(f,indexmat_row++);
+}
+
+template<typename T>
+INDEXMATRIX  Tensor<T>::indexmatrix() const
+{
+INDEXMATRIX r;
+r.resize(size(),rank());
+indexmat_p = &r;
+indexmat_row = 0;
+constloopover(indexmatrix_callback<T>,false);
+return r;
 }
 
 
@@ -2438,6 +2463,27 @@ catch(bool failed) {return false;}
 return true;
 }
 
+
+bool zero_in_index(const FLATINDEX &I)
+{
+for(int i=0; i<I.size(); ++i) if(I[i]==0) return true;
+return false;
+}
+
+bool zero_in_index(const INDEXMATRIX &m, const LA_largeindex row) 
+{
+const LA_index *p = &m(row,0);
+for(int i=0; i<m.ncols(); ++i) if(p[i]==0) return true;
+return false;
+}
+
+
+
+bool zero_in_index(const SUPERINDEX &I)
+{
+for(int i=0; i<I.size(); ++i) if(zero_in_index(I[i])) return true;
+return false;
+}
 
 
 template class Tensor<double>;
