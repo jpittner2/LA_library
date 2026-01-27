@@ -113,6 +113,29 @@ const NRVec<T> NRMat<T>::row(const int i, int l) const {
 	return r;
 }
 
+
+/***************************************************************************//**
+ * store given row of this matrix of general type <code>T</code>
+ * @param[in] i row index starting from zero
+ * @param[in] l consider this value as the count of columns
+ ******************************************************************************/
+template <typename T>
+void NRMat<T>::rowset(const NRVec<T> &r, const int i, int l) {
+#ifdef DEBUG
+	if(i < 0 || i >= nn) laerror("illegal index");
+#endif
+	if(l < 0) l = mm;
+	LA_traits<T>::copy(
+#ifdef MATPTR
+	        v[i]
+#else
+		v + i*(size_t)l
+#endif
+		, &r[0], l);
+}
+
+
+
 /***************************************************************************//**
  * routine for raw output
  * @param[in] fd file descriptor for output

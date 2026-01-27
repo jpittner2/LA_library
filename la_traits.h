@@ -296,7 +296,7 @@ static void multiput(size_t n, int fd, const std::complex<C> *x, bool dimensions
 	  }
 	while(total < n);
 	}
-static void copy(std::complex<C> *dest, std::complex<C> *src, size_t n) {memcpy(dest,src,n*sizeof(std::complex<C>));}
+static void copy(std::complex<C> *dest, const std::complex<C> *src, size_t n) {memcpy(dest,src,n*sizeof(std::complex<C>));}
 static void clear(std::complex<C> *dest, size_t n) {memset(dest,0,n*sizeof(std::complex<C>));}
 static void copyonwrite(std::complex<C> &x) {};
 static bool is_plaindata() {return true;}
@@ -356,7 +356,7 @@ static void multiput(size_t n, int fd, const C *x, bool dimensions=0)
 	  }
 	while(total < n);
 	}
-static void copy(C *dest, C *src, size_t n) {memcpy(dest,src,n*sizeof(C));}
+static void copy(C *dest, const C *src, size_t n) {memcpy(dest,src,n*sizeof(C));}
 static void clear(C *dest, size_t n) {memset(dest,0,n*sizeof(C));}
 static void copyonwrite(C &x) {};
 static bool is_plaindata() {return true;}
@@ -396,7 +396,7 @@ static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0, bool or
 static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0, bool orcaformat=false) {x.get(fd,dimensions,transp,orcaformat);} \
 static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions,false,orcaformat);} \
 static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions,false,orcaformat);} \
-static void copy(X<C> *dest, X<C> *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];} \
+static void copy(X<C> *dest, const X<C> *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];} \
 static void clear(X<C> *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();}\
 static void copyonwrite(X<C> &x) {x.copyonwrite();}\
 static bool is_plaindata() {return false;}\
@@ -439,7 +439,7 @@ static void put(int fd, const X<C> &x, bool dimensions=1, bool transp=0, bool or
 static void get(int fd, X<C> &x, bool dimensions=1, bool transp=0, bool orcaformat=false) {x.get(fd,dimensions,false,orcaformat);}  \
 static void multiput(size_t n,int fd, const X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].put(fd,dimensions,false,orcaformat);}  \
 static void multiget(size_t n,int fd, X<C> *x, bool dimensions=1, bool orcaformat=false) {for(size_t i=0; i<n; ++i) x[i].get(fd,dimensions,false,orcaformat);}  \
-static void copy(C *dest, C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];}  \
+static void copy(C *dest, const C *src, size_t n) {for(size_t i=0; i<n; ++i) dest[i]=src[i];}  \
 static void clear(C *dest, size_t n) {for(size_t i=0; i<n; ++i) dest[i].clear();} \
 static void copyonwrite(X<C> &x) {x.copyonwrite();} \
 static bool is_plaindata() {return false;}\

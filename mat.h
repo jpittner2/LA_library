@@ -266,6 +266,9 @@ public:
 	//! get the i<sup>th</sup> row
 	const NRVec<T> row(const int i, int l = -1) const;
 
+	//! set the i<sup>th</sup> row
+	void rowset(const NRVec<T> &r, const int i, int l = -1);
+
 	//! get the j<sup>th</sup> column
 	const NRVec<T> column(const int j, int l = -1) const {
 		NOT_GPU(*this);
@@ -273,6 +276,13 @@ public:
 		NRVec<T> r(l);
 		for(register int i=0; i<l; ++i) r[i] = (*this)(i,j);
 		return r;
+	};
+
+	//! set the j<sup>th</sup> column
+	void columnset(const NRVec<T> &r, const int j, int l = -1) {
+		NOT_GPU(*this);
+		if(l < 0) l = nn;
+		for(register int i=0; i<l; ++i) (*this)(i,j) = r[i];
 	};
 
 	//! extract the digonal elements of this matrix and store them into a vector
