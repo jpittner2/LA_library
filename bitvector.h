@@ -97,7 +97,7 @@ public:
 		};
 	const bool assign(const unsigned int i, const bool r) {if(r) set(i); else reset(i); return r;};
 	void clear() {copyonwrite(true); memset(v,0,nn*sizeof(bitvector_block));};
-	void fill() {memset(v,0xff,nn*sizeof(bitvector_block));};
+	void fill() {copyonwrite(true); memset(v,0xff,nn*sizeof(bitvector_block));};
 	void zero_padding() const; 
 	bool is_zero() const {zero_padding(); for(int i=0; i<nn; ++i) if(v[i]) return false; return true;};
 	bool is_one() const {zero_padding(); if(v[0]!=1) return false; for(int i=1; i<nn; ++i) if(v[i]) return false;return true;};
