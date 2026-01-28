@@ -568,9 +568,12 @@ INDEXMATRIX  Tensor<T>::indexmatrix() const
 {
 INDEXMATRIX r;
 r.resize(size(),rank());
-indexmat_p = &r;
-indexmat_row = 0;
-constloopover(indexmatrix_callback<T>,false);
+if(rank()>0)
+	{
+	indexmat_p = &r;
+	indexmat_row = 0;
+	constloopover(indexmatrix_callback<T>,false);
+	}
 return r;
 }
 
