@@ -231,10 +231,13 @@ int flatposition(int group, int index, const NRVec<INDEXGROUP> &shape);
 int flatposition(const INDEX &i, const NRVec<INDEXGROUP> &shape); //position of that index in FLATINDEX
 INDEX indexposition(int flatindex, const NRVec<INDEXGROUP> &shape); //inverse to flatposition
 
+
 //useful for negative offsets and 0 index excluded
 bool zero_in_index(const FLATINDEX &);
 bool zero_in_index(const SUPERINDEX &);
 bool zero_in_index(const INDEXMATRIX &, const LA_largeindex row);
+
+bool shares_index(const FLATINDEX &I, const FLATINDEX &J);
 
 FLATINDEX superindex2flat(const SUPERINDEX &I);
 

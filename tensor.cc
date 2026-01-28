@@ -2485,6 +2485,13 @@ for(int i=0; i<I.size(); ++i) if(zero_in_index(I[i])) return true;
 return false;
 }
 
+bool  shares_index(const FLATINDEX &I, const FLATINDEX &J)
+{
+for(int i=0; i<I.size(); ++i) for(int j=0; j<J.size(); ++j)
+	if(I[i]==J[j]) return true;
+return false;
+}
+
 
 template class Tensor<double>;
 template class Tensor<std::complex<double> >;
