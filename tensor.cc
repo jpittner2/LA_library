@@ -631,7 +631,7 @@ std::ostream & operator<<(std::ostream &s, const Tensor<T> &x)
 {
 s<<x.shape;
 s<<x.names;
-if(x.rank()==0) {s<<x.data[0]; return s;}
+if(x.rank()==0) {s<<x.data[0]<<std::endl; return s;}
 sout= &s;
 x.constloopover(&outputcallback<T>);
 return s;
