@@ -19,9 +19,11 @@
 #ifndef _BITVECTOR_H_
 #define _BITVECTOR_H_
 
+#include "la_traits.h"
 #include "vec.h"
 #include "numbers.h"
 #include "laerror.h"
+
 #include <stdint.h>
 
 //TODO: if efficiency is requires, make also a monic_bitvector, which will not store the leading 1 explicitly
@@ -250,6 +252,18 @@ public:
 	const bool assign(const unsigned int i, const bool r) {return bitvector::assign(i-1,r);};
 	unsigned int population(const unsigned int before=0) const {return bitvector::population(before?before-1:0);};
 	};
+
+
+//some necessary traits of the non-scalar class to be able to use LA methods
+template<>
+class LA_traits<bitvector> {
+public: 
+        static bool is_plaindata() {return false;};
+        static void copyonwrite(bitvector& x) {x.copyonwrite();};
+	typedef bool elementtype; 
+	typedef bool normtype; 
+};
+
 
 }//namespace
 #endif
