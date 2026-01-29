@@ -97,17 +97,18 @@ const NRMat<T> NRMat<T>::otimes(const NRMat<T> &rhs, bool reversecolumns) const 
  * @return extracted elements as a NRVec<T> object
  ******************************************************************************/
 template <typename T>
-const NRVec<T> NRMat<T>::row(const int i, int l) const {
+const NRVec<T> NRMat<T>::row(const int i, int l, int offset) const {
+	if(l < 0) l = mm;
 #ifdef DEBUG
 	if(i < 0 || i >= nn) laerror("illegal index");
+	if(offset<0||l+offset>mm) laerror("illegal len/offset");
 #endif
-	if(l < 0) l = mm;
 	NRVec<T> r(l);
 	LA_traits<T>::copy(&r[0],
 #ifdef MATPTR
-	        v[i]
+	        v[i]+offset
 #else
-		v + i*(size_t)l
+		v + i*(size_t)mm + offset
 #endif
 		, l);
 	return r;
@@ -120,16 +121,17 @@ const NRVec<T> NRMat<T>::row(const int i, int l) const {
  * @param[in] l consider this value as the count of columns
  ******************************************************************************/
 template <typename T>
-void NRMat<T>::rowset(const NRVec<T> &r, const int i, int l) {
+void NRMat<T>::rowset(const NRVec<T> &r, const int i, int l, int offset) {
+	if(l < 0) l = mm;
 #ifdef DEBUG
 	if(i < 0 || i >= nn) laerror("illegal index");
+	if(offset<0||l+offset>mm) laerror("illegal len/offset");
 #endif
-	if(l < 0) l = mm;
 	LA_traits<T>::copy(
 #ifdef MATPTR
-	        v[i]
+	        v[i]+offset
 #else
-		v + i*(size_t)l
+		v + i*(size_t)mm  + offset
 #endif
 		, &r[0], l);
 }

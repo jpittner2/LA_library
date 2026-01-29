@@ -264,10 +264,10 @@ public:
 	void orthonormalize(const bool rowcol, const NRSMat<T> *metric = NULL);
 
 	//! get the i<sup>th</sup> row
-	const NRVec<T> row(const int i, int l = -1) const;
+	const NRVec<T> row(const int i, int len = -1, int offset=0) const;
 
 	//! set the i<sup>th</sup> row
-	void rowset(const NRVec<T> &r, const int i, int l = -1);
+	void rowset(const NRVec<T> &r, const int i, int len = -1, int offset=0);
 
 	//! get the j<sup>th</sup> column
 	const NRVec<T> column(const int j, int l = -1) const {
