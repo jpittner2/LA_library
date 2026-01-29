@@ -231,6 +231,9 @@ int flatposition(int group, int index, const NRVec<INDEXGROUP> &shape);
 int flatposition(const INDEX &i, const NRVec<INDEXGROUP> &shape); //position of that index in FLATINDEX
 INDEX indexposition(int flatindex, const NRVec<INDEXGROUP> &shape); //inverse to flatposition
 
+LA_largeindex subindex(int *sign, const INDEXGROUP &g, const NRVec<LA_index> &I); //index of one subgroup
+NRVec<LA_index>  inverse_subindex(const INDEXGROUP &g, LA_largeindex s);
+
 
 //useful for negative offsets and 0 index excluded
 bool zero_in_index(const FLATINDEX &);
