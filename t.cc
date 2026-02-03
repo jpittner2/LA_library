@@ -4639,6 +4639,7 @@ davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,0,300,300);
 cout <<r;
 if(n<=20)
 	{
+	cout<<aa;
 	NRMat a(aa);
 	NRVec<double> b(n);
 	cout <<a;

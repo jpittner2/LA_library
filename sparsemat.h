@@ -326,10 +326,9 @@ return *this;
 template <typename T>
 class SemiSparseMat {
 	friend class NRMat<T>;
-protected:
+public:
 	NRVec<T> diagonal;
 	SparseMat<T> offdiagonal;
-public:
         SemiSparseMat() {};
         SemiSparseMat(const SPMatindex n, const SPMatindex m) : offdiagonal(n,m) {if(n==m) diagonal.resize(n);};
         SPMatindex nrows() const {return offdiagonal.nrows();}
@@ -360,6 +359,14 @@ public:
 	void copyonwrite() {diagonal.copyonwrite(); offdiagonal.copyonwrite();}
 	void resize(const SPMatindex n, const SPMatindex m) {offdiagonal.resize(n,m); diagonal.resize(n==m?n:0);}
 };
+
+template <class T>
+std::ostream& operator<<(std::ostream &s, const SemiSparseMat<T> &x)
+                {
+		s << "diagonal= "<<x.diagonal;
+		s << "offdiagonal= "<<x.offdiagonal;
+                return s;
+                }
 
 
 }//namespace
