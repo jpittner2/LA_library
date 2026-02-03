@@ -344,6 +344,7 @@ public:
 			for(int i=0; i<diagonal.size(); ++i) r[i] += alpha * diagonal[i]*x[i];
 			}
 		}
+	NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nrows()); gemv((T)0,result,'n',(T)1,rhs); return result;};
 	const T* diagonalof(NRVec<T> &x, const bool divide=0, bool cache=false) const
 		{
 		if(diagonal.size()>0) //we ASSUME the diagonal is ONLY in the vector
