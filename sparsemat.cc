@@ -557,6 +557,16 @@ for(i=0;i<nn;++i)
 		}
 }
 
+template <class T>
+NRMat<T>::NRMat(const SemiSparseMat<T> &rhs)
+		: NRMat(rhs.offdiagonal)
+		{
+		if(rhs.diagonal.size()>0)
+			{
+			for(int i=0; i<nn; ++i) (*this)(i,i) += rhs.diagonal[i];
+			}
+		}
+
 
 //get diagonal, do not construct a new object, but store in existing one, important for huge CI matrices
 // with the divide option is used as a preconditioner, another choice of preconditioner is possible
@@ -1397,8 +1407,12 @@ INSTANTIZE(std::complex<double>) //some functions are not OK for hermitean matri
 //// forced instantization in the corresponding object file
 template class SparseMat<double>;
 template class SparseMat<std::complex<double> >;
+template class SemiSparseMat<double>;
+template class SemiSparseMat<std::complex<double> >;
+
 
 #define INSTANTIZE(T) \
+template NRMat<T>::NRMat(const SemiSparseMat<T> &rhs); \
 template NRMat<T>::NRMat(const SparseMat<T> &rhs); \
 template NRSMat<T>::NRSMat(const SparseMat<T> &rhs); \
 template NRVec<T>::NRVec(const SparseMat<T> &rhs); \

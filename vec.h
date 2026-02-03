@@ -1436,7 +1436,7 @@ return;
 
 
 /***************************************************************************//**
- * perfrom deep copy
+ * perform a deep copy
  * @param[in] rhs vector being copied
  * @see NRVec<T>::copyonwrite()
  ******************************************************************************/

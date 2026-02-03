@@ -4572,7 +4572,7 @@ for(int i=0; i<m; ++i)
 
 }
 
-if(1)
+if(0)
 {
 int r,n,sym;
 cin>>r>>n>>sym;
@@ -4623,5 +4623,31 @@ cout <<z.shape;
 
 
 }
+
+#undef sparsity
+#define sparsity (n*2)
+if(1)
+{
+int n,m;
+cin >>n>>m;
+	SemiSparseMat<double> aa(n,n);
+	aa.setsymmetric();
+	for(int i=0; i<sparsity;i++) aa.add(randind(n),randind(n),RANDDOUBLE());
+	for(int i=0; i<n; ++i) aa.add(i,i,500*RANDDOUBLE());
+NRVec<double> r(m);
+davidson(aa,r,(NRVec<double> *)NULL,"eivecs",m,1,1e-5,0,300,300);
+cout <<r;
+if(n<=20)
+	{
+	NRMat a(aa);
+	NRVec<double> b(n);
+	cout <<a;
+	diagonalize(a,b);
+	cout <<a;
+	cout <<b;
+
+	}
+}
+
 
 }//main

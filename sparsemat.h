@@ -321,5 +321,46 @@ while(l)
 return *this;
 }
 
+
+//a rudimentary class for sparse matrix with a dense diagonal - implemented just enough to call davidson etc. on it
+template <typename T>
+class SemiSparseMat {
+	friend class NRMat<T>;
+protected:
+	NRVec<T> diagonal;
+	SparseMat<T> offdiagonal;
+public:
+        SemiSparseMat() {};
+        SemiSparseMat(const SPMatindex n, const SPMatindex m) : offdiagonal(n,m) {if(n==m) diagonal.resize(n);};
+        SPMatindex nrows() const {return offdiagonal.nrows();}
+        SPMatindex ncols() const {return offdiagonal.ncols();}
+        SPMatindex issymmetric() const {return offdiagonal.issymmetric();}
+	void setsymmetric() {offdiagonal.setsymmetric();}
+	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x, bool treat_as_symmetric=false) const
+		{
+		offdiagonal.gemv(beta,r,trans,alpha,x,treat_as_symmetric);
+		if(diagonal.size()>0 && alpha!=(T)0)
+			{
+			if(diagonal.size()!=r.size()) laerror("mismatch in diagonal size");
+			for(int i=0; i<diagonal.size(); ++i) r[i] += alpha * diagonal[i]*x[i];
+			}
+		}
+	const T* diagonalof(NRVec<T> &x, const bool divide=0, bool cache=false) const
+		{
+		if(diagonal.size()>0) //we ASSUME the diagonal is ONLY in the vector
+			{
+			if(diagonal.size()!=x.size()) laerror("mismatch in diagonal size");
+			if(divide) {x.copyonwrite(); for (int i=1; i<x.size(); ++i) x[i]/=diagonal[i]; return NULL;}
+			else	{x|=diagonal; return &x[0];}
+			}
+		return offdiagonal.diagonalof(x,divide,cache);
+		}
+	void add(const SPMatindex n, const SPMatindex m, const T elem) {if(diagonal.size()>0 && n==m) diagonal[n]+=elem; else offdiagonal.add(n,m,elem);}
+	void clear() {diagonal.clear(); offdiagonal.clear();}
+	void copyonwrite() {diagonal.copyonwrite(); offdiagonal.copyonwrite();}
+	void resize(const SPMatindex n, const SPMatindex m) {offdiagonal.resize(n,m); diagonal.resize(n==m?n:0);}
+};
+
+
 }//namespace
 #endif

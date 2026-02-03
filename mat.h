@@ -35,6 +35,9 @@ template<typename T, typename R> class WeightPermutation;
 template<typename T, typename R> class PermutationAlgebra;
 template<typename T> class CyclePerm;
 template<typename T> class NRMat_from1;
+template<typename T> class SparseMat;
+template<typename T> class SparseSMat;
+template<typename T> class SemiSparseMat;
 
 
 /***************************************************************************//**
@@ -404,6 +407,8 @@ public:
 	explicit NRMat(const SparseSMat<T> &rhs);
 	//! explicit constructor converting sparse CSR matrix into \c NRMat<T> object
         explicit NRMat(const CSRMat<T> &rhs);
+	//! explicit constructor converting sparse matrix into \c NRMat<T> object
+	explicit NRMat(const SemiSparseMat<T> &rhs);
 
 	//! add up given sparse matrix
 	NRMat & operator+=(const SparseMat<T> &rhs);
