@@ -109,8 +109,8 @@ void laerror2(const char *s1, const char *s2)
   std::cerr.flush();
   if(s1)
   {
-    std::cerr <<"LA:ERROR - "<< s2 << ": " << s1 << "\n";
-    std::cout <<"LA:ERROR - "<< s2 << ": " << s1 << "\n";
+    std::cerr <<"LA:ERROR - "<< s1 << "\nCalled from " << s2 << "\n";
+    std::cout <<"LA:ERROR - "<< s1 << "\nCalled from " << s2 << "\n";
   }
   else 
 	{
