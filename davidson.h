@@ -46,7 +46,7 @@ namespace LA {
 
 
 template <typename T, typename Matrix>
-extern void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
+void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=1e-6,
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 500,
 		void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)
@@ -309,6 +309,25 @@ if(incore) {delete[] v0; delete[] v1;}
 else  {delete s0; delete s1;}
 
 if(flag) laerror("no convergence in davidson");
+} //davidson
+
+
+//reconstruction of explicit dense matrix from the implicit one (useful for debugging)
+template <typename T, typename Matrix>
+NRMat<T> explicit_matrix(const Matrix &bigmat) 
+{
+NRMat<T> r(bigmat.nrows(), bigmat.ncols());
+for(int i=0; i<bigmat.ncols(); ++i)
+        {
+	NRVec<T> ket(bigmat.ncols());
+        ket.clear();
+        ket[i]=(T)1;
+        NRVec<T> hket(bigmat.nrows());
+        bigmat.gemv((T)0,hket,'n',(T)1,ket);
+	for(int l=0; l<bigmat.nrows(); ++l) r(l,i) = hket[l];
+        }
+
+return r;
 }
 
 }//namespace

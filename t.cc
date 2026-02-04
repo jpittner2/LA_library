@@ -4626,7 +4626,7 @@ cout <<z.shape;
 
 #undef sparsity
 #define sparsity (n*2)
-if(1)
+if(0)
 {
 int n,m;
 cin >>n>>m;
@@ -4650,5 +4650,14 @@ if(n<=20)
 	}
 }
 
+if(1);
+{
+int n,m;
+cin>> n>>m;
+NRMat<double> a(n,m);
+a.randomize(1.);
+NRMat<double> b = explicit_matrix<double,NRMat<double> >(a);
+cout <<"Error = "<<(a-b).norm()<<endl;
+}
 
 }//main
