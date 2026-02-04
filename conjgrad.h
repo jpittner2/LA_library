@@ -67,9 +67,9 @@ for(int iter=0; iter<= itmax; iter++)
 	double err=p.norm();
 	if(verbose) 
 		{
-		std::cout << "conjgrad: iter= "<<iter<<" err= "<<
-		std::setiosflags(std::ios::scientific)<<std::setprecision(8) <<err<<
-		std::resetiosflags(std::ios::scientific)<<std::setprecision(12)<<"\n";
+		std::cout << "conjgrad: iter= "<<iter<<" err= "<< err<<std::endl;
+		//std::setiosflags(std::ios::scientific)<<std::setprecision(8) <<err<<
+		//std::resetiosflags(std::ios::scientific)<<std::setprecision(12)<<"\n";
 		std::cout.flush();
 		}
 	if(err <= tol)
