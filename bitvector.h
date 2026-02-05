@@ -81,7 +81,7 @@ public:
 #ifdef DEBUG
 		if(i>=size()) 
 			{
-			std::cout<<"birvector index 0 < "<<i<<" "<<size()<<std::endl;
+			std::cout<<"bitvector index 0 < "<<i<<" "<<size()<<std::endl;
 			laerror("bitvector index out of range in");
 			}
 #endif
@@ -92,7 +92,7 @@ public:
 #ifdef DEBUG    
 if(i>=size()) 
                         {
-                        std::cout<<"birvector index 0 < "<<i<<" "<<size()<<std::endl;
+                        std::cout<<"bitvector index 0 < "<<i<<" "<<size()<<std::endl;
                         laerror("bitvector index out of range in");
                         }
 #endif
@@ -103,7 +103,7 @@ if(i>=size())
 #ifdef DEBUG    
 		if(i>=size()) 
                         {
-                        std::cout<<"birvector index 0 < "<<i<<" "<<size()<<std::endl;
+                        std::cout<<"bitvector index 0 < "<<i<<" "<<size()<<std::endl;
                         laerror("bitvector index out of range in");
                         }
 #endif
