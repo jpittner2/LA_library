@@ -79,21 +79,33 @@ public:
 	void set(const unsigned int i) 
 		{
 #ifdef DEBUG
-		if(i>=size()) laerror("bitvector index out of range in");
+		if(i>=size()) 
+			{
+			std::cout<<"birvector index 0 < "<<i<<" "<<size()<<std::endl;
+			laerror("bitvector index out of range in");
+			}
 #endif
 		v[i/blockbits] |= (1UL<<(i%blockbits));
 		};
 	void reset(const unsigned int i) 
 		{
 #ifdef DEBUG    
-                if(i>=size()) laerror("bitvector index out of range in");
+if(i>=size()) 
+                        {
+                        std::cout<<"birvector index 0 < "<<i<<" "<<size()<<std::endl;
+                        laerror("bitvector index out of range in");
+                        }
 #endif
 		v[i/blockbits] &= ~(1UL<<(i%blockbits));
 		};
 	void flip(const unsigned int i) 
 		{
 #ifdef DEBUG    
-                if(i>=size()) laerror("bitvector index out of range in");
+		if(i>=size()) 
+                        {
+                        std::cout<<"birvector index 0 < "<<i<<" "<<size()<<std::endl;
+                        laerror("bitvector index out of range in");
+                        }
 #endif
 		v[i/blockbits] ^= (1UL<<(i%blockbits));
 		};
