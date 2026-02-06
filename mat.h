@@ -758,6 +758,7 @@ inline const NRMat<T> NRMat<T>::operator-(const NRSMat<T> &rhs) const {
 template <typename T>
 inline T* NRMat<T>::operator[](const int i) {
 #ifdef DEBUG
+	if(nn==0||mm==0) laerror("operator[] on unallocated matrix");
 	if (_LA_count_check && *count != 1) laerror("matrix with *count>1 used as l-value");
 	if(i<0||i>=nn) std::cout<<"INDEX PROBLEM "<<0<<" "<<i<<" "<<nn-1<<std::endl;
 	if (i < 0) laerror("Mat [] out of range - low");
@@ -801,6 +802,7 @@ inline const T* NRMat<T>::operator[](const int i) const {
 template <typename T>
 inline T& NRMat<T>::operator()(const int i, const int j){
 #ifdef DEBUG
+	if(nn==0||mm==0) laerror("operator() of unallocated matrix");
 	if (_LA_count_check && *count != 1) laerror("NRMat::operator(,) used as l-value for a matrix with count > 1");
 	if(i<0||i>=nn||j<0||j>mm) std::cout<<"INDEX PROBLEM "<<0<<" "<<i<<" "<<nn-1<<" "<<0<<" "<<j<<" "<<mm-1<<std::endl;
 	if (i < 0) laerror("first index out of range - low");

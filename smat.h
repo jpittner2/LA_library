@@ -770,6 +770,7 @@ return (i>j)? (i-2)*(i-1)/2+j-1 : (j-2)*(j-1)/2+i-1;
 template <typename T>
 inline T & NRSMat<T>::operator()(const int i, const int j) {
 #ifdef DEBUG
+	if(nn==0) laerror("operator() of unallocated smatrix");
 	if(_LA_count_check && *count != 1) laerror("T & NRSMat<T>::operator()(const int, const int) used for matrix with count > 1");
 	if(i<0||i>=nn||j<0||j>=nn) std::cout<<"INDEX PROBLEM "<<0<<" "<<i<<" "<<nn-1<<" "<<0<<" "<<j<<" "<<nn-1<<std::endl;
 	if(i<0) laerror("T & NRSMat<T>::operator()(const int, const int) first index out of range - low");

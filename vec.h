@@ -1101,6 +1101,7 @@ inline const T NRVec<T>::dot(const T *a, const int stride , bool conjugate) cons
 template <typename T>
 inline T& NRVec<T>::operator[](const int i) {
 #ifdef DEBUG
+	if(nn==0) laerror("operator[] of unallocated vector");
 	if(_LA_count_check && *count != 1) laerror("possible use of NRVec[] with count>1 as l-value");
 	if(i<0||i >= nn) std::cout<<"INDEX PROBLEM "<<0<<" "<<i<<" "<<nn-1<<std::endl;
 	if(i < 0) laerror("out of range - low");
