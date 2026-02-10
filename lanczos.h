@@ -114,11 +114,21 @@ for(j=1; j<maxkrylov;++j)
 		{
 		//generate an arbitrary vector and orthonormalize it to all previous v_j
 		vec2.randomize(1.);
-		NRVec<T> vec3(n);
 		for(int k=0; k<j; ++k)
 			{
-			T f = vec3.dot(vec2);
-			vec2.axpy(-f,vec3);
+			T f;
+			if(incore) 
+				{
+				f = v0[k].dot(vec2);
+				vec2.axpy(-f,v0[k]);
+				}
+			else
+				{
+				NRVec<T> vec3(n);
+				s0->get(vec3,k);
+                                f = vec3.dot(vec2);
+                                vec2.axpy(-f,vec3);
+				}
 			}
 		vec2.normalize();
 		}

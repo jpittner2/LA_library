@@ -61,6 +61,11 @@ inline int randind(const int n)
 
 complex<double> mycident (const complex<double>&x) {return x;}
 
+void randomguess(NRVec<double> &v)
+{
+v.randomize(1);
+}
+
 void printme(const NRPerm<int> &p)
 {
 PERM_RANK_TYPE rank=p.rank();
@@ -4678,8 +4683,8 @@ NRVec<double> r(m);
 NRVec<double> *eivecs = new NRVec<double>[m];
 cout <<"Exact energies " <<rr<<endl;
 
-if(which) lanczos(a,r,eivecs,NULL,m,1,1e-6,1,200,300);
-else davidson(a,r,eivecs,NULL,m,1,1e-6,1,200,300);
+if(which) lanczos(a,r,eivecs,NULL,m,1,1e-6,1,500,500,randomguess);
+else davidson(a,r,eivecs,NULL,m,1,1e-6,1,500,500,randomguess);
 cout <<"Iterative energies " <<r;
 cout <<"Eigenvectors compare:\n";
 for(int i=0; i<m; ++i)
