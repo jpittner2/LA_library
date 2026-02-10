@@ -4650,7 +4650,7 @@ if(n<=20)
 	}
 }
 
-if(1);
+if(0)
 {
 int n,m;
 cin>> n>>m;
@@ -4659,5 +4659,37 @@ a.randomize(1.);
 NRMat<double> b = explicit_matrix<double,NRMat<double> >(a);
 cout <<"Error = "<<(a-b).norm()<<endl;
 }
+
+if(1)
+{
+int m;
+int which;
+cin>>m >>which;
+cout <<"here\n";
+NRSMat<double> a;
+cin>>a;
+int n=a.nrows();
+NRVec<double> rr(n);
+
+NRSMat<double> aa(a);
+NRMat<double> vv(n,n);
+diagonalize(aa,rr,&vv);
+NRVec<double> r(m);
+NRVec<double> *eivecs = new NRVec<double>[m];
+cout <<"Exact energies " <<rr<<endl;
+
+if(which) lanczos(a,r,eivecs,NULL,m,1,1e-6,1,200,300);
+else davidson(a,r,eivecs,NULL,m,1,1e-6,1,200,300);
+cout <<"Iterative energies " <<r;
+cout <<"Eigenvectors compare:\n";
+for(int i=0; i<m; ++i)
+        {
+        cout <<eivecs[i];
+        for(int j=0; j<n;++j) cout <<vv[j][i]<<" ";
+        cout <<endl;
+        }
+
+}
+
 
 }//main

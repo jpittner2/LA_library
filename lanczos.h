@@ -50,7 +50,7 @@ if ( n!= (int)bigmat.ncols()) laerror("non-square matrix in lanczos");
 if(eivals.size()<nroots) laerror("too small eivals dimension in lanczos");
 
 NRVec<T> vec1(n),vec2(n);
-NRVec<T> *v0,*v1;
+NRVec<T> *v0;
 AuxStorage<T> *s0,*s1;
 
 if(incore)
@@ -112,9 +112,17 @@ for(j=1; j<maxkrylov;++j)
 		}
 	else
 		{
-		laerror("zero norm in lanczos");
-		//could generate an arbitrary vector and orthonormalize it
+		//generate an arbitrary vector and orthonormalize it to all previous v_j
+		vec2.randomize(1.);
+		NRVec<T> vec3(n);
+		for(int k=0; k<j; ++k)
+			{
+			T f = vec3.dot(vec2);
+			vec2.axpy(-f,vec3);
+			}
+		vec2.normalize();
 		}
+	//vec2 now stores v_j
 	if(incore) v0[j]=vec2; else s0->put(vec2,j);
 	vec1 *= -beta[j-1];
 	bigmat.gemv(1,vec1,'n',1,vec2);
