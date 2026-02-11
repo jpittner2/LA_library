@@ -4665,7 +4665,7 @@ NRMat<double> b = explicit_matrix<double,NRMat<double> >(a);
 cout <<"Error = "<<(a-b).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int m;
 int which;
@@ -4694,6 +4694,28 @@ for(int i=0; i<m; ++i)
         cout <<endl;
         }
 
+}
+
+if(0)
+{
+NRMat<double> a;
+NRVec<double> b;
+cin >>a>>b;
+NRMat<double> aa(a);
+NRVec<double> x = svd_solve(aa,b);
+cout <<x;
+cout <<"Error = "<< (a*x-b).norm()<<endl;
+}
+
+if(1)
+{
+NRMat<double> a;
+NRMat<double> b;
+cin >>a>>b;
+NRMat<double> aa(a);
+NRMat<double> x = svd_solve(aa,b);
+cout <<x;
+cout <<"Error = "<< (a*x-b).norm()<<endl;
 }
 
 

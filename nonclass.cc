@@ -918,9 +918,6 @@ void singular_decomposition(NRMat<std::complex<double> > &a, NRMat<std::complex<
 }
 
 
-
-
-
 //QR decomposition
 //extern "C" void FORNAME(dgeqrf)(const int *M, const int *N, double *A, const int *LDA, double *TAU, double *WORK, int *LWORK, int *INFO);
 

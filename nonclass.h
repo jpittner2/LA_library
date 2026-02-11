@@ -158,12 +158,49 @@ extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
 extern void diagonalize(NRMat<T> &a, NRVec<LA_traits<T>::normtype> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1); \
 extern void diagonalize(NRSMat<T> &a, NRVec<LA_traits<T>::normtype> &w, NRMat<T> *v, const bool corder=1, int n=0, NRSMat<T> *b=NULL, const int itype=1);\
-extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<LA_traits<T>::normtype> &s, NRMat<T> *v, const bool vnotdagger=0, int m=0, int n=0);
+extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<LA_traits<T>::normtype> &s, NRMat<T> *v, const bool vnotdagger=0, int m=0, int n=0); \
 
 /*NOTE!!! all versions of diagonalize DESTROY A and generalized diagonalize also B matrix */
 
 declare_la(double)
 declare_la(std::complex<double>)
+
+
+
+//svd_solve without contamination from nullspace, b is n x nrhs, result returns in b, A is destroyed
+template<typename T>
+NRVec<T> svd_solve(NRMat<T> &a, const NRVec<T> &b, double thres=1e-12)
+{
+if(b.size()!=a.nrows()) laerror("size mismatch in svd_solve");
+NRVec<double> w(a.ncols());
+NRMat<T> u(a.nrows(),a.ncols());
+NRMat<T> vt(a.ncols(),a.ncols());
+singular_decomposition(a,&u,w,&vt,false);
+NRVec<T> utb = b*u;
+for(int i=0; i<w.size(); ++i) utb[i] =  w[i]>thres ? utb[i]/w[i] : 0.;
+return utb*vt;
+}
+
+
+template<typename T>
+NRMat<T> svd_solve(NRMat<T> &a, const NRMat<T> &b, double thres=1e-12)
+{
+if(b.nrows()!=a.nrows()) laerror("size mismatch in svd_solve");
+NRVec<double> w(a.ncols());
+NRMat<T> u(a.nrows(),a.ncols());
+NRMat<T> vt(a.ncols(),a.ncols());
+singular_decomposition(a,&u,w,&vt,false);
+NRVec<T> ww(w.size());
+for(int i=0; i<w.size(); ++i) ww[i] =  w[i]>thres ? 1./w[i] : 0.;
+NRMat<T> utb(a.ncols(),b.ncols());
+utb.gemm((T)0,u,'c',b,'n',(T)1);
+utb.diagmultl(ww);
+NRMat<T> res(a.ncols(),b.ncols());
+res.gemm((T)0,vt,'c',utb,'n',(T)1);
+return res;
+}
+
+
 
 // Separate declarations
 //general nonsymmetric matrix and generalized diagonalization
