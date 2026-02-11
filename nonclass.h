@@ -169,29 +169,39 @@ declare_la(std::complex<double>)
 
 //svd_solve without contamination from nullspace, b is n x nrhs, result returns in b, A is destroyed
 template<typename T>
-NRVec<T> svd_solve(NRMat<T> &a, const NRVec<T> &b, double thres=1e-12)
+NRVec<T> svd_solve(NRMat<T> &a, const NRVec<T> &b, double thres=1e-12, int *nullity = NULL)
 {
 if(b.size()!=a.nrows()) laerror("size mismatch in svd_solve");
+if(nullity) *nullity=0;
 NRVec<double> w(a.ncols());
 NRMat<T> u(a.nrows(),a.ncols());
 NRMat<T> vt(a.ncols(),a.ncols());
 singular_decomposition(a,&u,w,&vt,false);
 NRVec<T> utb = b*u;
-for(int i=0; i<w.size(); ++i) utb[i] =  w[i]>thres ? utb[i]/w[i] : 0.;
+for(int i=0; i<w.size(); ++i) 
+	{
+	if(w[i]>thres) utb[i] /= w[i];
+	else {utb[i]=0; if(nullity) ++*nullity;}
+	}
 return utb*vt;
 }
 
 
 template<typename T>
-NRMat<T> svd_solve(NRMat<T> &a, const NRMat<T> &b, double thres=1e-12)
+NRMat<T> svd_solve(NRMat<T> &a, const NRMat<T> &b, double thres=1e-12, int *nullity = NULL)
 {
 if(b.nrows()!=a.nrows()) laerror("size mismatch in svd_solve");
+if(nullity) *nullity=0;
 NRVec<double> w(a.ncols());
 NRMat<T> u(a.nrows(),a.ncols());
 NRMat<T> vt(a.ncols(),a.ncols());
 singular_decomposition(a,&u,w,&vt,false);
 NRVec<T> ww(w.size());
-for(int i=0; i<w.size(); ++i) ww[i] =  w[i]>thres ? 1./w[i] : 0.;
+for(int i=0; i<w.size(); ++i)
+	{
+	if(w[i]>thres)   ww[i] =  1./w[i];
+	else {ww[i]=0; if(nullity) ++*nullity;}
+	}
 NRMat<T> utb(a.ncols(),b.ncols());
 utb.gemm((T)0,u,'c',b,'n',(T)1);
 utb.diagmultl(ww);
