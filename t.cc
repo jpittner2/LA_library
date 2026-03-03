@@ -4707,7 +4707,7 @@ cout <<x;
 cout <<"Error = "<< (a*x-b).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 NRMat<double> a;
 NRMat<double> b;
@@ -4716,6 +4716,34 @@ NRMat<double> aa(a);
 NRMat<double> x = svd_solve(aa,b);
 cout <<x;
 cout <<"Error = "<< (a*x-b).norm()<<endl;
+}
+
+if(0)
+{
+int n;
+cin>>n;
+NRMat<double> a(n,n);
+a.randomize(.5);
+NRMat<double>  ae = exp(a);
+NRMat<double> aa = log(ae);
+cout <<a;
+cout <<aa;
+cout <<"Error = "<<(a-aa).norm()<<endl;
+}
+
+
+if(1)
+{
+int n;
+cin>>n;
+NRMat<double> a(n,n);
+a.randomize(.5);
+NRMat<double>  ax = a.transpose()*a;
+NRMat<double> al = log(ax);
+NRMat<double> aa = exp(al);
+cout <<ax;
+cout <<aa;
+cout <<"Error = "<<(ax-aa).norm()<<endl;
 }
 
 
