@@ -140,15 +140,23 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	int r, *ipiv;
 	int iswap=0;
 
-	
+	if(nrhs==0) std::cout<<"Warning: some dgesv implementations might skip LU decomposition when nrhs==0\n";	
 	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
 	A.copyonwrite();
 	ipiv = new int[A.nrows()];
 #ifdef IPIV_DEBUG
 	for(int i=0; i<A.nrows(); ++i) ipiv[i]=123456789;
+	std::cout <<"canary ipiv initialized\n";
+	std::cout <<"A before clapack_dgesv = "<<A<<std::endl;
+	std::cout <<"Active dimension n= "<<n<<std::endl;
 #endif
 	r = clapack_dgesv(CblasRowMajor, n, nrhs, &A(0,0), A.ncols(), ipiv, B , ldb);
-//	std::cout <<"A after clapack_dgesv = "<<A<<std::endl;
+#ifdef IPIV_DEBUG
+	std::cout <<"A after clapack_dgesv = "<<A<<std::endl;
+	std::cout <<"ipiv = ";
+	for (int i=0; i<n; ++i) std::cout <<ipiv[i]<<" ";
+	std::cout <<std::endl;
+#endif
 	if (r < 0) {
 		delete[] ipiv;
 		laerror("illegal argument in lapack_gesv");
@@ -177,10 +185,6 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	if(det && r>0) *det = 0;
 #ifdef IPIV_DEBUG
        std::cout <<"iswap = "<<iswap<<std::endl;
-
-	std::cout <<"ipiv = ";
-	for (int i=0; i<n; ++i) std::cout <<ipiv[i]<<" ";
-	std::cout <<std::endl;
 #endif
 
 	delete [] ipiv;
@@ -212,6 +216,7 @@ extern "C" void FORNAME(dspsv)(const char *UPLO, const FINT *N, const FINT *NRHS
 
 static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const int ldb, double *det, int n)
 {
+ if(nrhs==0) std::cout<<"Warning: some dspsv implementations might skip LU decomposition when nrhs==0\n";
 	FINT r, *ipiv;
 	a.copyonwrite();
 	ipiv = new FINT[n];

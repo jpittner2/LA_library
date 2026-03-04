@@ -272,16 +272,9 @@ typename LA_traits<MAT>::normtype MatrixNorm(const MAT  &A, const char norm);
 template<class MAT>
 typename LA_traits<MAT>::normtype CondNumber(const MAT  &A, const char norm);
 
-
-//general determinant
-template<class MAT>
-const typename LA_traits<MAT>::elementtype determinant(MAT a)//passed by value
-{
-typename LA_traits<MAT>::elementtype det;
-if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
-linear_solve(a,NULL,&det);
-return det;
-}
+#ifdef HAS_MKL
+#define NO_OPENBLAS_WORKAROUND
+#endif
 
 //general determinant destructive on input 
 template<class MAT>
@@ -289,8 +282,25 @@ const typename LA_traits<MAT>::elementtype determinant_destroy(MAT &a) //passed 
 {
 typename LA_traits<MAT>::elementtype det;
 if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
+
+//for openblas 0.3.31 we have to fake some RHS otherwise LU decomp. is not performed
+#ifdef NO_OPENBLAS_WORKAROUND
 linear_solve(a,NULL,&det);
+#else
+//fake rhs
+NRVec<typename LA_traits<MAT>::elementtype> b(a.ncols());
+for(int i=0; i<b.size(); ++i) b[i] = (typename LA_traits<MAT>::elementtype)i;
+linear_solve(a,b,&det);
+#endif
 return det;
+}
+
+//general determinant
+template<class MAT>
+const typename LA_traits<MAT>::elementtype determinant(MAT a)//passed by value
+{
+a.copyonwrite();
+return determinant_destroy(a);
 }
 
 
