@@ -648,7 +648,7 @@ int clapack_dgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
 		double *A, const int lda, int *ipiv,
 		double *B, const int ldb)
 {
-std::cout <<"In MY clapack_dgesv, N and NRHS = "<< N<<" "<< NRHS<<"\n";
+//std::cout <<"In MY clapack_dgesv, N and NRHS = "<< N<<" "<< NRHS<<"\n";
 	FINT INFO=0;
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	//B should be in the same physical order, just transpose A in place and the LU result on output
