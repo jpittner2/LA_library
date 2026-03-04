@@ -1084,13 +1084,13 @@ NRMat<complex<double> > b=exp(a);
 cout <<b;
 }
 
-if(0)
+if(1)
 {
 int n;
 double d;
 cin >>n;
-//NRMat<double> a(n,n);
-NRSMat<double> a(n);
+NRMat<double> a(n,n);
+//NRSMat<double> a(n);
 for(int i=0;i<n;++i) for(int j=0;j<=i;++j)
         {
         a(j,i)=a(i,j)=RANDDOUBLE()*(i==j?10.:1.);
@@ -4732,7 +4732,7 @@ cout <<"Error = "<<(a-aa).norm()<<endl;
 }
 
 
-if(1)
+if(0)
 {
 int n;
 cin>>n;

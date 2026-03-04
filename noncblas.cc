@@ -657,8 +657,9 @@ int clapack_dgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
 	const FINT nrhstmp=NRHS;
 	const FINT ldatmp=lda;
 	const FINT ldbtmp=ldb;
-	FINT ipivtmp=*ipiv;
-	FORNAME(dgesv) (&ntmp,&nrhstmp,A,&ldatmp,&ipivtmp,B,&ldbtmp,&INFO);
+	FINT ipivtmp[N];
+	FORNAME(dgesv) (&ntmp,&nrhstmp,A,&ldatmp,ipivtmp,B,&ldbtmp,&INFO);
+	for(int i=0; i<N; ++i) ipiv[i]=ipivtmp[i];
 #else
 	FORNAME(dgesv) (&N,&NRHS,A,&lda,ipiv,B,&ldb,&INFO);
 #endif
@@ -672,6 +673,7 @@ int clapack_sgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
 		float *A, const int lda, int *ipiv,
 		float *B, const int ldb)
 {
+std::cout <<"In my clapack_sgesv\n";
 	FINT INFO=0;
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	//B should be in the same physical order, just transpose A in place and the LU result on output
@@ -681,8 +683,9 @@ int clapack_sgesv(const CBLAS_ORDER Order, const int N, const int NRHS,
 	const FINT nrhstmp=NRHS;
 	const FINT ldatmp=lda;
 	const FINT ldbtmp=ldb;
-	FINT ipivtmp=*ipiv;
-	FORNAME(sgesv) (&ntmp,&nrhstmp,A,&ldatmp,&ipivtmp,B,&ldbtmp,&INFO);
+	FINT ipivtmp[N];
+	FORNAME(sgesv) (&ntmp,&nrhstmp,A,&ldatmp,ipivtmp,B,&ldbtmp,&INFO);
+	for(int i=0; i<N; ++i) ipiv[i]=ipivtmp[i];
 #else
 	FORNAME(sgesv) (&N,&NRHS,A,&lda,ipiv,B,&ldb,&INFO);
 #endif

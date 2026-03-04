@@ -26,7 +26,7 @@
 #include "qsort.h"
 #include "fortran.h"
 
-#undef IPIV_DEBUG
+//#define IPIV_DEBUG
 
 
 namespace LA {
@@ -144,7 +144,11 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
 	A.copyonwrite();
 	ipiv = new int[A.nrows()];
-	r = clapack_dgesv(CblasRowMajor, n, nrhs, A[0], A.ncols(), ipiv, B , ldb);
+#ifdef IPIV_DEBUG
+	for(int i=0; i<A.nrows(); ++i) ipiv[i]=123456789;
+#endif
+	r = clapack_dgesv(CblasRowMajor, n, nrhs, &A(0,0), A.ncols(), ipiv, B , ldb);
+//	std::cout <<"A after clapack_dgesv = "<<A<<std::endl;
 	if (r < 0) {
 		delete[] ipiv;
 		laerror("illegal argument in lapack_gesv");
@@ -158,7 +162,11 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	        for (int i=0; i<n; ++i)
 			{
 			if(ipiv[i]==0) shift=0;
-			if(ipiv[i]<0 || ipiv[i]>n) laerror("problem with ipiv in clapack_dgesv");
+			if(ipiv[i]<0 || ipiv[i]>n) 
+				{
+				std::cout <<"IPIV["<<i<<"] = "<<ipiv[i]<<std::endl;
+				laerror("problem with ipiv in clapack_dgesv");
+				}
 			}
 #ifdef IPIV_DEBUG
        std::cout <<"shift = "<<shift<<std::endl;
@@ -216,13 +224,14 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 #else	
 	FORNAME(dspsv)(&U, &n, &nrhs, a, ipiv, b, &ldb,&r);
 #endif	
+//	std::cout <<"A after dspsv = "<<a<<std::endl;
 	if (r < 0) {
 		delete[] ipiv;
 		laerror("illegal argument in spsv() call of linear_solve()");
 	}
 	if (det && r == 0) {
 		*det = 1.;
-		for (int i=1; i<n; i++) {double t=a(i,i); if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;}
+		for (int i=0; i<n; i++) {double t=a(i,i); if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;}
 		//do not use ipiv, since the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
 	}
         if (det && r>0)  *det = 0;
@@ -282,7 +291,11 @@ void linear_solve(NRMat< std::complex<double> > &A, NRMat< std::complex<double> 
                 for (int i=0; i<n; ++i)
                         {
                         if(ipiv[i]==0) shift=0;
-                        if(ipiv[i]<0 || ipiv[i]>n) laerror("problem with ipiv in zgesv");
+                        if(ipiv[i]<0 || ipiv[i]>n) 
+                                {
+                                std::cout <<"IPIV["<<i<<"] = "<<ipiv[i]<<std::endl;
+                                laerror("problem with ipiv in zgesv");
+                                }
                         }
 #ifdef IPIV_DEBUG
        std::cout <<"shift = "<<shift<<std::endl;
