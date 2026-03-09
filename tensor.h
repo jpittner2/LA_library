@@ -276,6 +276,9 @@ public:
 	Tensor(int xrank, const NRVec<INDEXGROUP> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata) {};
 	Tensor(int xrank, const NRVec<INDEXGROUP> &xshape, const NRVec<LA_largeindex> &xgroupsizes,  const  NRVec<LA_largeindex> xcumsizes, const  NRVec<T> &xdata, const NRVec<INDEXNAME>  &xnames) :  myrank(xrank), shape(xshape), groupsizes(xgroupsizes), cumsizes(xcumsizes), data(xdata), names(xnames) {};
 
+	//subtensor - todo: more general versions
+	Tensor subtensor1(int i) const; //for one value of rightmost index
+
 	//conversions from/to matrix and vector
 	explicit Tensor(const NRVec<T> &x);
 	explicit Tensor(const NRMat<T> &x, bool flat=false);

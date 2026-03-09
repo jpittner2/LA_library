@@ -2496,6 +2496,26 @@ return false;
 }
 
 
+template<typename T>
+Tensor<T> Tensor<T>::subtensor1(int i) const
+{
+int ind=shape.size();
+if(ind==0) laerror("subtensor of a scalar");
+--ind;
+if(shape[ind].number>1) laerror("last index must be standalone in subtensor1");
+i -= shape[ind].offset;
+if(i<0||i>=shape[ind].range) laerror("index out of range in subtensor1");
+if(ind==0) return Tensor(data[i]); //results is a scalar
+NRVec<INDEXGROUP> newshape = shape.subvector(0,ind-1);
+Tensor<T> r(newshape);
+memcpy(&r.data[0],&data[i*cumsizes[ind]],cumsizes[ind]*sizeof(T));
+if(is_named()) r.names = names.subvector(0,ind-1);
+return r;
+}
+
+
+
+
 template class Tensor<double>;
 template class Tensor<std::complex<double> >;
 template std::ostream & operator<<(std::ostream &s, const Tensor<double> &x);

@@ -1084,7 +1084,7 @@ NRMat<complex<double> > b=exp(a);
 cout <<b;
 }
 
-if(1)
+if(0)
 {
 int n;
 double d;
@@ -4744,6 +4744,26 @@ NRMat<double> aa = exp(al);
 cout <<ax;
 cout <<aa;
 cout <<"Error = "<<(ax-aa).norm()<<endl;
+}
+
+if(1)
+{
+int n=3;
+NRVec<INDEXGROUP> s(4);
+for(int i=0; i<4; ++i) 
+	{
+	s[i].number=1;
+	s[i].symmetry=0;
+	s[i].offset=0;
+	s[i].range=n;
+	}
+Tensor<double> t(s);
+t.randomize(1.);
+INDEXNAME list[4]={"i","j","k","l"}; 
+t.names=list;
+cout <<t;
+Tensor<double> t1 = t.subtensor1(2);
+cout <<t1;
 }
 
 
