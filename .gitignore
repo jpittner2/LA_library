@@ -63,4 +63,5 @@ test_regsurf
 *.gcov
 gmon.out
 npytest
+*.npy
 # CVS default ignores end

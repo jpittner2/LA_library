@@ -279,6 +279,10 @@ public:
 	//subtensor - todo: more general versions
 	Tensor subtensor1(int i) const; //for one value of rightmost index
 
+	//numpy interface
+	void numpy_write(const char *name, const char *descr="<f8") const;
+	void numpy_read(const char *name);	
+
 	//conversions from/to matrix and vector
 	explicit Tensor(const NRVec<T> &x);
 	explicit Tensor(const NRMat<T> &x, bool flat=false);

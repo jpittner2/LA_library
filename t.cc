@@ -159,7 +159,7 @@ cout <<y;
 
 
 
-int main()
+int main(int argc, char **argv)
 {
 sigtraceback(SIGSEGV,1);
 sigtraceback(SIGABRT,1);
@@ -4746,7 +4746,7 @@ cout <<aa;
 cout <<"Error = "<<(ax-aa).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 int n=3;
 NRVec<INDEXGROUP> s(4);
@@ -4766,5 +4766,36 @@ Tensor<double> t1 = t.subtensor1(2);
 cout <<t1;
 }
 
+if(0)
+{
+int n=2;
+NRVec<INDEXGROUP> s(4);
+for(int i=0; i<4; ++i) 
+	{
+	s[i].number=1;
+	s[i].symmetry=0;
+	s[i].offset=0;
+	s[i].range=n+i;
+	}
+Tensor<double> t(s);
+t.randomize(1.);
+t.numpy_write("test.npy","<f8");
+
+Tensor<double> tt;
+tt.numpy_read("test.npy");
+cout<<t;
+cout<<tt;
+cout <<"Error = "<<(t-tt).norm()<<endl;
+}
+
+if(1)
+{
+Tensor<double> tt;
+tt.numpy_read(argv[1]);
+//cout<<tt;
+cout<<"part\n"<<tt.subtensor1(0);
+cout<<"part\n"<<tt.subtensor1(1);
+cout<<"part\n"<<tt.subtensor1(2);
+}
 
 }//main
