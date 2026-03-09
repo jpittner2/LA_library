@@ -62,4 +62,5 @@ test_regsurf
 *.gcno
 *.gcov
 gmon.out
+npytest
 # CVS default ignores end

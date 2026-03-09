@@ -195,6 +195,9 @@ public:
 	//! perform deep-copy of given vector 
 	NRVec& operator|=(const NRVec &rhs);
 
+	//! return vector with reversed order of elements
+	NRVec reverse() const {NRVec r(nn); for(int i=0; i<nn; ++i) r[i]= v[nn-1-i]; return r;}
+
         //! extract specified subvector
         const NRVec subvector(const int from, const int to) const;
 	const NRVec subvector(const NRVec<int> &selection) const;
