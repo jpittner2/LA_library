@@ -445,7 +445,9 @@ public:
 	const int findthr(const T &val, const  typename LA_traits<T>::normtype &thr=0) const;
 
 	//! determine the maximal element (in the absolute value) of this vector 
+	inline int iamax() const;
 	inline const T amax() const;
+
 	//! determine the minimal element (in the absolute value) of this vector 
 	inline const T amin() const;
 
@@ -539,6 +541,7 @@ public:
 	explicit NRVec_from1(const std::list<T> l) : NRVec<T>(l) {};
 	inline const T& operator[] (const int i) const;
         inline T& operator[] (const int i);
+	inline int iamax() const {return NRVec<T>::iamax() + 1;};
 };
 
 
@@ -1944,6 +1947,23 @@ inline const double NRVec<double>::amax() const {
 	return ret;
 }
 
+template<>
+inline int NRVec<double>::iamax() const {
+        int ret;
+#ifdef CUDALA
+        if(location == cpu){
+#endif  
+                ret = cblas_idamax(nn, v, 1);
+#ifdef CUDALA
+        }else{
+                ret = cublasIdamax(nn, v, 1) ;
+                TEST_CUBLAS("cublasIdamax");
+        }
+#endif  
+        return ret; 
+}       
+
+
 /***************************************************************************//**
  * for this real vector \f$\vec{x}\f$ determine the element with smallest absolute value
  * @return \f$\vec{x}_i\f$ where \f$\left|\vec{x]_i\right|=\mathrm{min}_{j}\left|\vec{x}_{j}\right|\f$
@@ -1993,6 +2013,23 @@ inline const std::complex<double> NRVec<std::complex<double> >::amax() const {
 #endif
 	return ret;
 }
+
+template<>
+inline int NRVec<std::complex<double> >::iamax() const {
+	int ret;
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                ret = cblas_izamax(nn, v, 1);
+#ifdef CUDALA
+        }else{
+                ret = cublasIzamax(nn, (cuDoubleComplex*)v, 1);
+                TEST_CUBLAS("cublasIzamax");
+        }
+#endif
+        return ret;
+}
+
 
 /***************************************************************************//**
  * for a given complex vector \f$\vec{v}\f$, determine the smallest index of the minimum 
