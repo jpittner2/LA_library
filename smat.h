@@ -1293,7 +1293,7 @@ template<typename T>
 void NRSMat<T>::printsorted(std::ostream &s, int direction, bool absvalue, bool stable, typename LA_traits<T>::normtype thr, int topmax) const
 {
 NRMat<int> indexmap(NN2,2);
-NRVec tmp(*this);
+NRVec<T> tmp(*this);
 int ii=0;
 for(int i=0; i<nn; ++i) for(int j=0; j<=i; ++j) {indexmap[ii][1]=i; indexmap[ii][0]=j; ii++;}
 tmp.printsorted(s,direction,absvalue,stable,thr,topmax,&indexmap);

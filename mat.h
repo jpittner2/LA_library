@@ -1634,7 +1634,7 @@ for(int i=0; i<b.nrows(); ++i)
 template<typename T>
 void NRMat<T>::printsorted(std::ostream &s, int direction, bool absvalue, bool stable, typename LA_traits<T>::normtype thr, int topmax) const                                                                                                                                {
 NRMat<int> indexmap(nn*mm,2);
-NRVec tmp(*this);
+NRVec<T> tmp(*this);
 int ii=0;
 for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j) {indexmap[ii][0]=i; indexmap[ii][1]=j; ii++;}
 tmp.printsorted(s,direction,absvalue,stable,thr,topmax,&indexmap);
