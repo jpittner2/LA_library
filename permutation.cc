@@ -72,6 +72,48 @@ for(T i=1; i<=n; ++i) if(used[i]!=1) return 0;
 return 1;
 }
 
+
+
+
+//in-place o(n^2) cf. arxiv 1901.01926v2
+//better alg. exists but more complicated
+template <typename T>
+void NRPerm<T>::reverse_cycle(int start)
+{
+int cur=(*this)[start];
+int prev=start;
+while(cur!=start)
+	{
+	int next=(*this)[cur];
+	(*this)[cur]=prev;
+	prev=cur;
+	cur=next;
+	}
+(*this)[start]=prev;
+}
+
+
+template <typename T>
+int NRPerm<T>::cycle_leader(int start) const
+{
+int cur=(*this)[start];
+int smallest=start;
+while(cur!=start)
+	{
+	if(cur<smallest) smallest=cur;
+	cur=(*this)[cur];
+	}
+return smallest;
+}
+
+
+template <typename T>
+void NRPerm<T>::inverseme()
+{
+for(int i=1; i<=size(); ++i) if(cycle_leader(i)==i) reverse_cycle(i);
+}
+
+
 template <typename T>
 NRPerm<T> NRPerm<T>::inverse() const
 {

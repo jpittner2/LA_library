@@ -64,6 +64,9 @@ public:
 	bool is_identity() const;
 	CompressedPartition<T> cycles() const {return CyclePerm<T>(*this).cycles(size());};
 	NRPerm inverse() const;
+	void reverse_cycle(int i); //aux for inverseme
+	int cycle_leader(int i) const; //aux for inverseme
+	void inverseme(); //in-place
 	NRPerm reverse() const; //backward order
 	NRPerm operator&(const NRPerm &rhs) const; //concatenate the permutations this,rhs, renumbering rhs (not commutative)
 	NRPerm operator|(const NRPerm &rhs) const; //concatenate the permutations rhs,this, renumbering rhs (not commutative)

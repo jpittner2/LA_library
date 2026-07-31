@@ -4788,7 +4788,7 @@ cout<<tt;
 cout <<"Error = "<<(t-tt).norm()<<endl;
 }
 
-if(1)
+if(0)
 {
 Tensor<double> tt;
 tt.numpy_read(argv[1]);
@@ -4796,6 +4796,17 @@ tt.numpy_read(argv[1]);
 cout<<"part\n"<<tt.subtensor1(0);
 cout<<"part\n"<<tt.subtensor1(1);
 cout<<"part\n"<<tt.subtensor1(2);
+}
+
+if(1)
+{
+int n;
+cin >>n;
+NRPerm<int> p(n); p.randomize();
+NRPerm<int> q=p.inverse();
+p.inverseme();
+if(p!=q) laerror("inverseme failed");
+else cout <<p<<"OK\n";
 }
 
 }//main
