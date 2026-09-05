@@ -3495,20 +3495,31 @@ copyonwrite();
 }
 
 
-
+//cannot be in mat.h - would be undefined for intereger types
 template<>
-NRMat<double> NRMat<double>::inverse()
+NRMat<double> NRMat<double>::inverse() const
 {
-NRMat<double> tmp(*this);
-return calcinverse(tmp);
+return calcinverse(*this);
 }
 
 template<>
-NRMat<std::complex<double> > NRMat<std::complex<double> >::inverse()
+NRMat<std::complex<double> > NRMat<std::complex<double> >::inverse() const
 {
-NRMat<std::complex<double> >  tmp(*this);
-return calcinverse(tmp);
+return calcinverse(*this);
 }       
+
+template<>
+NRMat<double> NRMat<double>::svdinverse(const double thr) const
+{
+return calcsvdinverse(*this,thr);
+}
+
+template<>
+NRMat<std::complex<double> > NRMat<std::complex<double> >::svdinverse(const double thr) const
+{
+return calcsvdinverse(*this,thr);
+}
+
 
 
 

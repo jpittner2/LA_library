@@ -249,13 +249,11 @@ extern const typename LA_traits<T>::complextype complexmatrix (const T&, const T
 extern void cholesky(NRMat<double> &a, bool upper=1);
 extern void cholesky(NRMat<std::complex<double> > &a, bool upper=1);
 
-//inverse by means of linear solve, preserving rhs intact
+//inverse by means of linear solve, pass by value to preserve argument intact
 template<typename T>
 const NRMat<T> calcinverse(NRMat<T> a, T *det=NULL)
 {
-#ifdef DEBUG
 	if(a.nrows()!=a.ncols()) laerror("inverse() for non-square matrix");
-#endif
 	NRMat<T> result(a.nrows(),a.nrows());
 	result = (T)1.;
 	a.copyonwrite();
@@ -263,6 +261,24 @@ const NRMat<T> calcinverse(NRMat<T> a, T *det=NULL)
 	result.transposeme(); //tested with noncblas
 	return result;
 }
+
+
+//inverse by means of SVD , pass by value to preserve argument intact
+template<typename T>
+const NRMat<T> calcsvdinverse(NRMat<T> a, double thr=0)
+{
+        if(a.nrows()!=a.ncols()) laerror("svdinverse() for non-square matrix");
+	int n=a.nrows();
+        a.copyonwrite();
+	NRMat<T> u(n,n),v(n,n);
+	NRVec<double> w(n);
+	singular_decomposition(a,&u,w,&v,true);
+	for(int i=0; i<n; ++i) w[i] = (w[i]<thr)? 0. : 1./w[i];
+	v.diagmultr(w);
+	u.transposeme();
+        return v*u; //could use gemm instead of separate transpose too
+}
+
 
 //several matrix norms
 template<class MAT>

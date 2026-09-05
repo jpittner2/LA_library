@@ -173,7 +173,10 @@ public:
 	void identity() {*this = (T)1;}
 
 	//! inverse matrix
-	NRMat inverse();
+	NRMat inverse() const;
+
+	//! pseudo-svd-inverse matrix
+        NRMat svdinverse(const LA_traits<T>::normtype thr=0) const;
 
 	//! add scalar value to the diagonal elements
 	NRMat & operator+=(const T &a);

@@ -4798,7 +4798,7 @@ cout<<"part\n"<<tt.subtensor1(1);
 cout<<"part\n"<<tt.subtensor1(2);
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n;
@@ -4808,5 +4808,19 @@ p.inverseme();
 if(p!=q) laerror("inverseme failed");
 else cout <<p<<"OK\n";
 }
+
+if(1)
+{
+int n;
+cin >>n;
+NRMat<double> a(n,n);
+a.randomize(1.);
+NRMat<double> b=a.inverse();
+NRMat<double> c=a.svdinverse(1e-14);
+cout<< "inverses diff = "<<(b-c).norm()<<endl;
+cout<< "inverse error = "<<(a*b).norm(1.)<<endl;
+cout<< "svdinverse error = "<<(a*c).norm(1.)<<endl;
+}
+
 
 }//main
