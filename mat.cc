@@ -3511,13 +3511,28 @@ return calcinverse(*this);
 template<>
 NRMat<double> NRMat<double>::svdinverse(const double thr) const
 {
-return calcsvdinverse(*this,thr);
+return calcsvdinverse(*this,thr,false);
 }
 
 template<>
 NRMat<std::complex<double> > NRMat<std::complex<double> >::svdinverse(const double thr) const
 {
-return calcsvdinverse(*this,thr);
+return calcsvdinverse(*this,thr,false);
+}
+
+
+
+
+template<>
+NRMat<double> NRMat<double>::absadjoint(const double thr) const
+{
+return calcsvdinverse(*this,thr,true);
+}
+
+template<>
+NRMat<std::complex<double> > NRMat<std::complex<double> >::absadjoint(const double thr) const
+{
+return calcsvdinverse(*this,thr,true);
 }
 
 

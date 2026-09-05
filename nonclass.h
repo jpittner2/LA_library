@@ -265,16 +265,25 @@ const NRMat<T> calcinverse(NRMat<T> a, T *det=NULL)
 
 //inverse by means of SVD , pass by value to preserve argument intact
 template<typename T>
-const NRMat<T> calcsvdinverse(NRMat<T> a, double thr=0)
+const NRMat<T> calcsvdinverse(NRMat<T> a, double thr=0, bool do_absadjoint=false)
 {
         if(a.nrows()!=a.ncols()) laerror("svdinverse() for non-square matrix");
 	int n=a.nrows();
         a.copyonwrite();
 	NRMat<T> u(n,n),v(n,n);
-	NRVec<double> w(n);
+	NRVec<double> w(n),s(n);
 	singular_decomposition(a,&u,w,&v,true);
-	for(int i=0; i<n; ++i) w[i] = (w[i]<thr)? 0. : 1./w[i];
-	v.diagmultr(w);
+	if(do_absadjoint) //absadjoint matrix - missing det(U)*det(V) to be full adjoint - a sign or complex phase
+		{
+		for(int i=0; i<n; ++i)
+			{
+			s[i] = 1;
+			for(int j=0; j<n; ++j) if(j!=i) s[i] *= w[j];
+			}
+		}
+	else //inverse
+		for(int i=0; i<n; ++i) s[i] = (w[i]<thr)? 0. : 1./w[i];
+	v.diagmultr(s);
 	u.transposeme();
         return v*u; //could use gemm instead of separate transpose too
 }

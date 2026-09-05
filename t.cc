@@ -4820,6 +4820,14 @@ NRMat<double> c=a.svdinverse(1e-14);
 cout<< "inverses diff = "<<(b-c).norm()<<endl;
 cout<< "inverse error = "<<(a*b).norm(1.)<<endl;
 cout<< "svdinverse error = "<<(a*c).norm(1.)<<endl;
+
+NRMat<double> aa(a);
+double det=determinant_destroy(aa);
+
+NRMat<double> adj=a.absadjoint();
+cout <<"det = "<<det<<endl;
+cout <<"adjoint error = "<<(a*adj).norm(abs(det))<<endl;
+
 }
 
 
