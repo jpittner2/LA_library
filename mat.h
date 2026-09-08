@@ -176,10 +176,10 @@ public:
 	NRMat inverse() const;
 
 	//! pseudo-svd-inverse matrix
-        NRMat svdinverse(const LA_traits<T>::normtype thr=0) const;
+        NRMat svdinverse(const typename LA_traits<T>::normtype thr=0) const;
 
 	//! adjoint matrix (transposed cofactor matrix)
-	NRMat absadjoint(const LA_traits<T>::normtype thr=0) const;
+	NRMat absadjoint(const typename LA_traits<T>::normtype thr=0) const;
 
 	//! add scalar value to the diagonal elements
 	NRMat & operator+=(const T &a);
