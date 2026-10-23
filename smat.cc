@@ -678,6 +678,45 @@ const double NRSMat< std::complex<double> >::norm(const std::complex<double> sca
 
 
 /***************************************************************************//**
+ * symmetric (hermitian) rank-2 update of this matrix stored in packed form
+ * \f[S \leftarrow \alpha x y^H + \alpha^* y x^H + S\f]
+ * generic version, BLAS-based specializations for double and complex<double> follow
+ ******************************************************************************/
+template <typename T>
+void NRSMat<T>::rank2update(const T alpha, const NRVec<T> &x, const NRVec<T> &y) {
+#ifdef DEBUG
+	if(nn != x.size() || nn != y.size()) laerror("incompatible dimensions in NRSMat<T>::rank2update");
+#endif
+	NOT_GPU(*this); NOT_GPU(x); NOT_GPU(y);
+	copyonwrite();
+	const T alphac = LA_traits<T>::conjugate(alpha);
+	T *p = v;
+	for(int i=0; i<nn; ++i) for(int j=0; j<=i; ++j)
+		*p++ += alpha*x[i]*LA_traits<T>::conjugate(y[j]) + alphac*y[i]*LA_traits<T>::conjugate(x[j]);
+}
+
+template<>
+void NRSMat<double>::rank2update(const double alpha, const NRVec<double> &x, const NRVec<double> &y) {
+#ifdef DEBUG
+	if(nn != x.size() || nn != y.size()) laerror("incompatible dimensions in NRSMat<double>::rank2update");
+#endif
+	NOT_GPU(*this); NOT_GPU(x); NOT_GPU(y);
+	copyonwrite();
+	cblas_dspr2(CblasRowMajor, CblasLower, nn, alpha, x, 1, y, 1, v);
+}
+
+template<>
+void NRSMat<std::complex<double> >::rank2update(const std::complex<double> alpha, const NRVec<std::complex<double> > &x, const NRVec<std::complex<double> > &y) {
+#ifdef DEBUG
+	if(nn != x.size() || nn != y.size()) laerror("incompatible dimensions in NRSMat<std::complex<double> >::rank2update");
+#endif
+	NOT_GPU(*this); NOT_GPU(x); NOT_GPU(y);
+	copyonwrite();
+	cblas_zhpr2(CblasRowMajor, CblasLower, nn, &alpha, x, 1, y, 1, v);
+}
+
+
+/***************************************************************************//**
  * for this real double-precision symmetric matrix \f$S\f$ stored in packed form,
  * real scalar value \f$\alpha\f$ and real double-precision symmetric matrix \f$T\f$, compute
  * \f[S \leftarrow \alpha T + S\f]

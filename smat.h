@@ -166,6 +166,7 @@ public:
 	inline bool transp(const int i, const int j) const {return i>j;} //this can be used for compact storage of matrices, which are actually not symmetric, but one triangle of them is redundant
 	const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const;
 	void axpy(const T alpha, const NRSMat &x); // this+= a*x
+	void rank2update(const T alpha, const NRVec<T> &x, const NRVec<T> &y); // this+= a*x*y^H + conj(a)*y*x^H, for real T this+= a*(x*y^T + y*x^T)
 	
 
 	inline const T amax() const;
