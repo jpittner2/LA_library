@@ -244,29 +244,52 @@ float cblas_scnrm2(const int N, const void *X, const int incX){
 
 
 
-//the following ones are f2c-compatible, but is it truly portable???
+//Fortran functions returning complex: gfortran (and most current compilers) return the value as C99 complex,
+//the old f2c/g77 convention (and gfortran -ff2c) passes a hidden pointer to the result as the first argument - define F2C_COMPLEX_RETURN for that case
+#ifdef F2C_COMPLEX_RETURN
 extern "C" void FORNAME(zdotu) (void *retval, const FINT *n, const void *x, const FINT *incx, const void *y, const FINT *incy);
+extern "C" void FORNAME(zdotc) (void *retval, const FINT *n, const void *x, const FINT *incx, const void *y, const FINT *incy);
+#else
+extern "C" std::complex<double> FORNAME(zdotu) (const FINT *n, const void *x, const FINT *incx, const void *y, const FINT *incy);
+extern "C" std::complex<double> FORNAME(zdotc) (const FINT *n, const void *x, const FINT *incx, const void *y, const FINT *incy);
+#endif
+
 void cblas_zdotu_sub(const int N, const void *X, const int incX, const void *Y, const int incY, void *dotu){
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
+#ifdef F2C_COMPLEX_RETURN
 	FORNAME(zdotu) (dotu,&ntmp,X,&incxtmp,Y,&incytmp);
 #else
+	*(std::complex<double> *)dotu = FORNAME(zdotu) (&ntmp,X,&incxtmp,Y,&incytmp);
+#endif
+#else
+#ifdef F2C_COMPLEX_RETURN
 	FORNAME(zdotu) (dotu,&N,X,&incX,Y,&incY);
+#else
+	*(std::complex<double> *)dotu = FORNAME(zdotu) (&N,X,&incX,Y,&incY);
+#endif
 #endif
 }
 
 
-extern "C" void FORNAME(zdotc) (void *retval, const FINT *n, const void *x, const FINT *incx, const void *y, const FINT *incy);
 void cblas_zdotc_sub(const int N, const void *X, const int incX, const void *Y, const int incY, void *dotc){
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
+#ifdef F2C_COMPLEX_RETURN
 	FORNAME(zdotc) (dotc,&ntmp,X,&incxtmp,Y,&incytmp);
 #else
+	*(std::complex<double> *)dotc = FORNAME(zdotc) (&ntmp,X,&incxtmp,Y,&incytmp);
+#endif
+#else
+#ifdef F2C_COMPLEX_RETURN
 	FORNAME(zdotc) (dotc,&N,X,&incX,Y,&incY);
+#else
+	*(std::complex<double> *)dotc = FORNAME(zdotc) (&N,X,&incX,Y,&incY);
+#endif
 #endif
 }
 
@@ -327,14 +350,72 @@ void cblas_zhpmv(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
 	if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
 	char U = BLAS_FORTRANCASE('u');
+//row-major lower packed hermitian H is column-major upper packed conj(H), therefore
+//conj(y) = conj(beta) conj(y) + conj(alpha) conj(H) conj(x) is computed by zhpmv on conjugated vectors and scalars
+std::complex<double> alphac = std::conj(*(const std::complex<double> *)alpha);
+std::complex<double> betac = std::conj(*(const std::complex<double> *)beta);
+std::complex<double> *p;
+p= (std::complex<double> *) X; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incX;}
+p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incY;}
 #ifdef FORINT
 	const FINT ntmp=N;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
-	FORNAME(zhpmv) (&U,&ntmp, alpha, Ap, X, &incxtmp, beta, Y, &incytmp);
+	FORNAME(zhpmv) (&U,&ntmp, &alphac, Ap, X, &incxtmp, &betac, Y, &incytmp);
 #else
-	FORNAME(zhpmv) (&U,&N, alpha, Ap, X, &incX, beta, Y, &incY);
+	FORNAME(zhpmv) (&U,&N, &alphac, Ap, X, &incX, &betac, Y, &incY);
 #endif
+//conjugate back
+p= (std::complex<double> *) X; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incX;}
+p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incY;}
+}
+
+
+extern "C" void FORNAME(dspr2) (const char *uplo, const FINT *n, const double *alpha, const double *x, const FINT *incx, const double *y, const FINT *incy, double *ap);
+void cblas_dspr2(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
+		const int N, const double alpha, const double *X,
+		const int incX, const double *Y, const int incY, double *Ap)
+{
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+	if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+	char U = BLAS_FORTRANCASE('u');
+#ifdef FORINT
+	const FINT ntmp=N;
+	const FINT incxtmp=incX;
+	const FINT incytmp=incY;
+	FORNAME(dspr2) (&U,&ntmp, &alpha, X, &incxtmp, Y, &incytmp, Ap);
+#else
+	FORNAME(dspr2) (&U,&N, &alpha, X, &incX, Y, &incY, Ap);
+#endif
+}
+
+
+//row-major lower packed hermitian H is column-major upper packed conj(H), therefore
+//conj(H) += conj(a) conj(x) conj(y)^H + a conj(y) conj(x)^H is computed by zhpr2 with alpha=a and conjugated swapped vectors
+extern "C" void FORNAME(zhpr2) (const char *uplo, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *ap);
+void cblas_zhpr2(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo, const int N,
+		const void *alpha, const void *X, const int incX,
+		const void *Y, const int incY, void *Ap)
+{
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
+	if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
+	char U = BLAS_FORTRANCASE('u');
+bool same = (X==Y && incX==incY);
+//conjugate x and y
+std::complex<double> *p;
+p= (std::complex<double> *) X; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incX;}
+if(!same) {p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incY;}}
+#ifdef FORINT
+	const FINT ntmp=N;
+	const FINT incxtmp=incX;
+	const FINT incytmp=incY;
+	FORNAME(zhpr2) (&U,&ntmp, alpha, Y, &incytmp, X, &incxtmp, Ap);
+#else
+	FORNAME(zhpr2) (&U,&N, alpha, Y, &incY, X, &incX, Ap);
+#endif
+//conjugate back
+p= (std::complex<double> *) X; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incX;}
+if(!same) {p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incY;}}
 }
 
 
@@ -381,7 +462,8 @@ void cblas_sger(const CBLAS_ORDER Order, const int M, const int N,
 
 
 
-extern "C" void FORNAME(zgerc)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
+extern "C" void FORNAME(zgeru)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
+//row-major A += alpha x y^H is column-major A^T += alpha conj(y) x^T, i.e. zgeru with conjugated y
 void cblas_zgerc(const CBLAS_ORDER Order, const int M, const int N,
 		const void *alpha, const void *X, const int incX,
 		const void *Y, const int incY, void *A, const int lda)
@@ -396,16 +478,15 @@ p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= 
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
 	const FINT ldatmp=lda;
-	FORNAME(zgerc) (&ntmp, &mtmp, alpha, Y, &incytmp, X, &incxtmp, A, &ldatmp);
+	FORNAME(zgeru) (&ntmp, &mtmp, alpha, Y, &incytmp, X, &incxtmp, A, &ldatmp);
 #else
-	FORNAME(zgerc)(&N, &M, alpha, Y, &incY, X, &incX, A, &lda);
+	FORNAME(zgeru)(&N, &M, alpha, Y, &incY, X, &incX, A, &lda);
 #endif
 //conjugate y back
 p= (std::complex<double> *) Y; for(int i=0; i<N; ++i) {p->imag(-p->imag()); p+= incY;}
 }
 
 
-extern "C" void FORNAME(zgeru)  (const FINT *m, const FINT *n, const void *alpha, const void *x, const FINT *incx, const void *y, const FINT *incy, void *a, const FINT *lda);
 void cblas_zgeru(const CBLAS_ORDER Order, const int M, const int N,
 		const void *alpha, const void *X, const int incX,
 		const void *Y, const int incY, void *A, const int lda)
@@ -562,7 +643,6 @@ void cblas_zgemv(const CBLAS_ORDER Order,
 		void *Y, const int incY)
 {
 	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
-	if(TransA == CblasConjTrans) laerror("zgemv with CblasConjTrans not supportted");
 	//swap n-m and toggle transposition
 	char transa =  BLAS_FORTRANCASE(TransA==CblasNoTrans?'T':'N');
 #ifdef FORINT
@@ -571,6 +651,28 @@ void cblas_zgemv(const CBLAS_ORDER Order,
 	const FINT ldatmp=lda;
 	const FINT incxtmp=incX;
 	const FINT incytmp=incY;
+#endif
+if(TransA == CblasConjTrans)
+	{
+	//row-major A is column-major A^T, so A^H = conj(A^T) and
+	//conj(y) = conj(beta) conj(y) + conj(alpha) A^T conj(x) is computed by non-transposed zgemv on conjugated vectors and scalars
+	const int lx = M, ly = N; //lengths of x and y for op(A)=A^H
+	std::complex<double> alphac = std::conj(*(const std::complex<double> *)alpha);
+	std::complex<double> betac = std::conj(*(const std::complex<double> *)beta);
+	std::complex<double> *p;
+	p= (std::complex<double> *) X; for(int i=0; i<lx; ++i) {p->imag(-p->imag()); p+= incX;}
+	p= (std::complex<double> *) Y; for(int i=0; i<ly; ++i) {p->imag(-p->imag()); p+= incY;}
+#ifdef FORINT
+	FORNAME(zgemv) (&transa, &ntmp, &mtmp, &alphac, A, &ldatmp, X, &incxtmp, &betac, Y, &incytmp );
+#else
+	FORNAME(zgemv) (&transa, &N, &M, &alphac, A, &lda, X, &incX, &betac, Y, &incY );
+#endif
+	//conjugate back
+	p= (std::complex<double> *) X; for(int i=0; i<lx; ++i) {p->imag(-p->imag()); p+= incX;}
+	p= (std::complex<double> *) Y; for(int i=0; i<ly; ++i) {p->imag(-p->imag()); p+= incY;}
+	return;
+	}
+#ifdef FORINT
 	FORNAME(zgemv) (&transa, &ntmp, &mtmp, alpha, A, &ldatmp, X, &incxtmp, beta, Y, &incytmp );
 #else
 	FORNAME(zgemv) (&transa, &N, &M, alpha, A, &lda, X, &incX, beta, Y, &incY );
