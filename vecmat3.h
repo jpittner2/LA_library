@@ -30,6 +30,9 @@
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
+#ifndef NO_NUMERIC_LIMITS
+#include <limits>
+#endif
 
 namespace LA_Vecmat3 {
 

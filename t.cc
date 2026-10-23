@@ -2461,7 +2461,7 @@ Quaternion<double> q({1,2,3,4});
 cout<<q<<endl;
 NRPerm<int> p({1,4,2,3});
 cout <<p<<endl;
-CyclePerm<int> c({NRVec_from1({1,2}),NRVec_from1({3,4,5})});
+CyclePerm<int> c({NRVec_from1<int>({1,2}),NRVec_from1<int>({3,4,5})});
 cout <<c;
 Polynomial<double> pp({1,2,3,4,5});
 cout<<pp;
@@ -2518,7 +2518,7 @@ NRMat<double> m(&mm[0][0],3,3);
 cout <<m<<"3 3\n"<<mm<<endl;
 
 double rr[2][3]={{1,2,3},{4,5,6}};
-NRMat r(rr);
+NRMat<double> r(rr);
 cout<<r;
 
 double d;
@@ -4645,7 +4645,7 @@ cout <<r;
 if(n<=20)
 	{
 	cout<<aa;
-	NRMat a(aa);
+	NRMat<double> a(aa);
 	NRVec<double> b(n);
 	cout <<a;
 	diagonalize(a,b);
@@ -4809,7 +4809,7 @@ if(p!=q) laerror("inverseme failed");
 else cout <<p<<"OK\n";
 }
 
-if(1)
+if(0)
 {
 int n;
 cin >>n;
@@ -4830,5 +4830,30 @@ cout <<"adjoint error = "<<(a*adj).norm(abs(det))<<endl;
 
 }
 
+if(1)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+int n;
+cin >>n;
+NRVec<double> x(n);
+x.randomize(1.);
+testproblem<double> problem;
+BFGS_hyperparameters<double> param;
+param.my_maxstep=100;
+param.my_f_thr=1e-6;
+param.my_x_thr=1e-3;
+param.my_g_thr=1e-3;
+cout << "initial " <<x<<endl;
+BFGS_Optimizer<double> o;
+o.minimize(&problem,x,&param);
+cout << "optimized " <<x<<endl;
+double r=problem.funcgrad(x,NULL);
+cout <<r<<endl;
+}
 
 }//main
