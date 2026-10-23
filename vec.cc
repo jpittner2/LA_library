@@ -543,7 +543,7 @@ void NRVec<std::complex<double> >::gemv(const double beta, const NRMat<double> &
  * \f[\vec{y}\leftarrow \alpha\operatorname{op}(A)\cdot\vec{x}+\beta\vec{y}\f]
  * @param[in] beta complex parameter \f$\beta\f$
  * @param[in] A <b>complex</b> matrix \f$A\f$
- * @param[in] trans if <code>trans == 'n'</code> use \f$A\f$ directly, otherwise \f$\operatorname{op}(A)\equiv{}A^\mathrm{T}\f$
+ * @param[in] trans if <code>trans == 'n'</code> use \f$A\f$ directly, if <code>trans == 'c'</code> \f$\operatorname{op}(A)\equiv{}A^\mathrm{H}\f$, otherwise \f$\operatorname{op}(A)\equiv{}A^\mathrm{T}\f$
  * @param[in] alpha complex parameter \f$\alpha\f$
  * @param[in] x real vector \f$\vec{x}\f$
  * @see gemm
@@ -560,10 +560,11 @@ void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zgemv(CblasRowMajor, (tolower(trans)=='n'?CblasNoTrans:CblasTrans), 
+		cblas_zgemv(CblasRowMajor, (tolower(trans)=='n' ? CblasNoTrans : (tolower(trans)=='c'?CblasConjTrans:CblasTrans)), 
 				A.nrows(), A.ncols(), &alpha, A, A.ncols(), x.v, 1, &beta, v, 1);
 #ifdef CUDALA
 	}else{
+		if(tolower(trans)=='c') laerror("gemv with conjugate transposition not implemented on GPU");
 
 		const cuDoubleComplex _alpha = make_cuDoubleComplex(alpha.real(), alpha.imag());
 		const cuDoubleComplex  _beta = make_cuDoubleComplex(beta.real(), beta.imag());
