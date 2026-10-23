@@ -4850,8 +4850,10 @@ param.my_x_thr=1e-3;
 param.my_g_thr=1e-3;
 cout << "initial " <<x<<endl;
 BFGS_Optimizer<double> o;
-o.minimize(&problem,x,&param);
+BFGS_hyperparameters<double> achieved;
+optresult<double> res=o.minimize(&problem,x,&param,&achieved);
 cout << "optimized " <<x<<endl;
+cout << "converged "<<res.converged<<" f= "<<res.f<<" iterations "<<achieved.my_maxstep<<" function evaluations "<<achieved.my_maxfunc<<" last df "<<achieved.my_f_thr<<" last dx "<<achieved.my_x_thr<<" |g| "<<achieved.my_g_thr<<endl;
 double r=problem.funcgrad(x,NULL);
 cout <<r<<endl;
 }
