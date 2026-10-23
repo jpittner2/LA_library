@@ -47,6 +47,7 @@
 #include "polynomial.h"
 #include "contfrac.h"
 #include "tensor.h"
+#include "optimize.h"
 #include "vecmat3.h"
 #include "quaternion.h"
 #include "LA_version.h"
