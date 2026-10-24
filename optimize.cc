@@ -35,6 +35,7 @@ for(int i=0; i<n; ++i)
 if(grad)
 	{
 	if(grad->size()!=x.size()) laerror("grad size mismatch");
+	grad->copyonwrite(); //I forgot this initially
 	for(int k=0; k<n; ++k)
 		{
 		(*grad)[k] = (k+1)*x[k]*(2+0.4*x[k]*x[k]);
