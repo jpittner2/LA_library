@@ -64,4 +64,5 @@ test_regsurf
 gmon.out
 npytest
 *.npy
+*.prompt
 # CVS default ignores end
