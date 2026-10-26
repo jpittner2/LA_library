@@ -201,10 +201,12 @@ public:
         //! extract specified subvector
         const NRVec subvector(const int from, const int to) const;
 	const NRVec subvector(const NRVec<int> &selection) const;
-
+	void subvector_from(const NRVec<int> &selection, const NRVec<T> &rhs); //gather from rhs
+	
         //! store given vector at given position into the current vector (scatter)
         void storesubvector(const int from, const NRVec &rhs);
-	void storesubvector(const NRVec<int> &selection, const NRVec &rhs);
+	void storesubvector(const NRVec<int> &selection, const NRVec &rhs); 
+	void storesubvector_to(const NRVec<int> &selection, NRVec &rhs) const; //scatter to rhs
 
 	//! relational operators 
 	const bool operator!=(const NRVec &rhs) const 
@@ -2280,6 +2282,25 @@ return r;
 
 }
 
+template <typename T> 
+void NRVec<T>::subvector_from(const NRVec<int> &selection, const NRVec<T> &rhs)
+{
+        NOT_GPU(*this);
+        const int n = selection.size();
+	if(n!=size()) laerror("size mismatch in subvector_from");
+	copyonwrite();
+
+        for(int i=0; i<n; ++i)
+                {
+                int ii=selection[i];
+#ifdef DEBUG
+                if(ii<0||ii>=rhs.nn) laerror("bad row index in subvector");
+#endif
+                (*this)[i] = rhs[ii];
+                }
+}
+
+
 /***************************************************************************//**
  * places given vector as subvector at given position
  * @param[in] from coordinate 
@@ -2321,10 +2342,33 @@ void NRVec<T>::storesubvector(const NRVec<int> &selection, const NRVec &rhs)
         for(int i=0; i<n; ++i)
                 {
                 int ii=selection[i];
+#ifdef DEBUG
                 if(ii<0||ii>=nn) laerror("bad  index in storesubvector");
+#endif
                 (*this)[ii] = rhs[i];
                 }
 }
+
+template <typename T> 
+void NRVec<T>::storesubvector_to(const NRVec<int> &selection, NRVec &rhs) const
+{       
+        NOT_GPU(*this);
+        const int n = selection.size();
+        if(n!=size()) laerror("size mismatch in storesubvector");
+        rhs.copyonwrite();
+        
+        for(int i=0; i<n; ++i)
+                {
+                int ii=selection[i];
+#ifdef DEBUG
+                if(ii<0||ii>=rhs.nn) laerror("bad  index in storesubvector");
+#endif
+                rhs[ii] = (*this)[i];
+                }
+}
+
+
+
 
 
 
