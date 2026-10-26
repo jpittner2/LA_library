@@ -506,6 +506,33 @@ public:
 		return *this;
 	};
 
+	//! apply given function object (functor, lambda) to each element
+	//NOTE: the non-template version above is kept on purpose: for the name of an overloaded function the template argument
+	//cannot be deduced, while the fixed parameter type T (*)(const T &) selects the right overload; for a single function
+	//both match and the non-template one is preferred, so existing code behaves as before
+	template<typename F>
+	NRVec& call_on_me(F _F){
+		NOT_GPU(*this);
+
+		copyonwrite();
+		for(int i=0; i<nn; ++i) v[i] = _F(v[i]);
+		return *this;
+	};
+
+	//! apply given function (or function object) to each element and the corresponding element of rhs: v[i] = F(v[i],rhs[i])
+	template<typename F>
+	NRVec& call_on_me(F _F, const NRVec &rhs){
+#ifdef DEBUG
+		if(nn!=rhs.nn) laerror("incompatible dimensions in call_on_me");
+#endif
+		NOT_GPU(*this);
+		NOT_GPU(rhs);
+
+		copyonwrite();
+		for(int i=0; i<nn; ++i) v[i] = _F(v[i],rhs.v[i]);
+		return *this;
+	};
+
 	void swap(NRVec &rhs) //more efficient swap than via tmp and constructors and operator=
 		{
 		int tmpnn=nn; nn=rhs.nn; rhs.nn=tmpnn;

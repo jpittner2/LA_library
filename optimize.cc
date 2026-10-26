@@ -17,6 +17,7 @@
 */
 
 #include "optimize.h"
+#include "la_random.h"
 
 namespace LA {
 
@@ -203,7 +204,7 @@ return true;
 
 
 template<typename T>
-bool optstate<T>::stop(const T ff, const T gn)
+bool optstate<T>::stop(const T ff, const T gn, const int needed)
 {
 f=ff; gnorm=gn;
 if(hp.my_verbose)
@@ -214,7 +215,7 @@ if(hp.my_verbose)
 	}
 if(hp.converged(*this)) {converged=true; return true;}
 if(iter>=hp.my_maxstep) {if(hp.my_verbose) std::cout <<name<<": maximum number of iterations reached\n"; return true;}
-if(e.exhausted()) {if(hp.my_verbose) std::cout <<name<<": maximum number of function evaluations reached\n"; return true;}
+if(e.remaining()<needed) {if(hp.my_verbose) std::cout <<name<<": maximum number of function evaluations reached\n"; return true;}
 return false;
 }
 
@@ -741,6 +742,209 @@ return st.finish(achieved);
 
 
 
+template<typename T>
+optresult<T> firstorder_minimize(const char *name, firstorder_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const firstorder_hyperparameters<T> &hp, hyperparameters<T> *achieved, gradient_estimator<T> *est)
+{
+gradient_estimator<T> exact;
+gradient_estimator<T> &grad = est ? *est : exact;
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+const int n=x.size();
+const T lr0=grad.calibrate(e,x,hp);
+if(hp.my_verbose && lr0!=hp.my_lr) std::cout <<name<<": calibrated learning rate "<<lr0<<std::endl;
+NRVec<T> g(n);
+T f=grad(e,x,g,0);
+
+for(;; ++st.iter)
+	{
+	if(st.stop(f,grad.exact() ? g.norm() : (T)-1,grad.cost())) break;
+	T lr=lr0/std::pow(1+hp.my_lr_decay*st.iter,hp.my_lr_power);
+	NRVec<T> dx = stepper.step(g,st.iter+1);
+	dx *= -lr;
+	if(hp.my_weight_decay!=0) dx.axpy(-lr*hp.my_weight_decay,x);
+	x += dx;
+	T fold=f;
+	NRVec<T> gnew(n); //fresh vector, the stepper may keep the previous gradient
+	f=grad(e,x,gnew,st.iter+1);
+	g=gnew;
+	if(grad.exact()) st.step(f-fold,dx.norm()); //for estimates, small changes are no sign of convergence
+	}
+
+if(hp.my_return_best && e.fbest<f)
+	{
+	if(hp.my_verbose) std::cout <<name<<": returning the best point found, f= "<<e.fbest<<std::endl;
+	x=e.xbest;
+	st.f=e.fbest;
+	}
+optresult<T> r=st.finish(achieved);
+firstorder_hyperparameters<T> *fach=dynamic_cast<firstorder_hyperparameters<T> *>(achieved);
+if(fach) fach->my_lr=lr0;
+return r;
+}
+
+
+//SGD with momentum
+template<typename T>
+class SGD_stepper : public firstorder_step<T> {
+public:
+const SGD_hyperparameters<T> &hp;
+NRVec<T> v; //velocity
+SGD_stepper(const SGD_hyperparameters<T> &h) : hp(h) {};
+NRVec<T> step(const NRVec<T> &g, const int k)
+	{
+	if(k==1) v=g;
+	else {v *= hp.my_momentum; v += g;}
+	if(!hp.my_nesterov) return v;
+	NRVec<T> d(g);
+	d.axpy(hp.my_momentum,v);
+	return d;
+	}
+};
+
+
+template<typename T>
+optresult<T> SGD_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+SGD_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("SGD cannot search for saddle points");
+SGD_stepper<T> stepper(hp);
+return firstorder_minimize(hp.my_nesterov ? "SGD-Nesterov" : "SGD",stepper,o,x,hp,achieved);
+}
+
+
+//elementwise functions for Adam
+template<typename T>
+static T elementmax(const T &a, const T &b) {return a>b ? a : b;}
+
+//m/(sqrt(v)/sqrtc2 + eps) with the bias correction sqrtc2 = sqrt(1-beta2^k)
+template<typename T>
+class adamratio {
+public:
+T sqrtc2, eps;
+adamratio(const T s, const T e) : sqrtc2(s), eps(e) {};
+T operator()(const T &m, const T &v) const {return m/(std::sqrt(v)/sqrtc2+eps);}
+};
+
+
+//Adam, AdamW, AMSGrad
+template<typename T>
+class Adam_stepper : public firstorder_step<T> {
+public:
+const Adam_hyperparameters<T> &hp;
+NRVec<T> m; //first moment estimate
+NRVec<T> v; //second moment estimate
+NRVec<T> vmax; //maximum of the second moments for AMSGrad
+T beta1k, beta2k; //beta1^k, beta2^k
+Adam_stepper(const Adam_hyperparameters<T> &h) : hp(h), beta1k(1), beta2k(1) {};
+NRVec<T> step(const NRVec<T> &g, const int k)
+	{
+	NRVec<T> g2(g);
+	g2 *= g;
+	if(k==1) {m = g*(1-hp.my_beta1); v = g2*(1-hp.my_beta2);}
+	else
+		{
+		m *= hp.my_beta1; m.axpy(1-hp.my_beta1,g);
+		v *= hp.my_beta2; v.axpy(1-hp.my_beta2,g2);
+		}
+	beta1k *= hp.my_beta1;
+	beta2k *= hp.my_beta2;
+	if(hp.my_amsgrad) {if(k==1) vmax=v; else vmax.call_on_me(elementmax<T>,v);}
+	NRVec<T> d = m*(1/(1-beta1k));
+	d.call_on_me(adamratio<T>(std::sqrt(1-beta2k),hp.my_eps), hp.my_amsgrad ? vmax : v);
+	return d;
+	}
+};
+
+
+template<typename T>
+optresult<T> Adam_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+Adam_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("Adam cannot search for saddle points");
+Adam_stepper<T> stepper(hp);
+return firstorder_minimize(hp.my_amsgrad ? "AMSGrad" : (hp.my_weight_decay!=0 ? "AdamW" : "Adam"),stepper,o,x,hp,achieved);
+}
+
+
+
+//SPSA gradient estimate (g_hat)_i = (f(x+c_k Delta) - f(x-c_k Delta))/(2 c_k Delta_i), Delta_i = +-1, averaged over resamplings
+template<typename T>
+class SPSA_estimator : public gradient_estimator<T> {
+public:
+const SPSA_hyperparameters<T> &hp;
+SPSA_estimator(const SPSA_hyperparameters<T> &h) : hp(h) {};
+T operator()(optevaluator<T> &e, const NRVec<T> &x, NRVec<T> &g, const int k);
+int cost() const {return 2*hp.my_resamplings;}
+bool exact() const {return false;}
+T calibrate(optevaluator<T> &e, const NRVec<T> &x, const firstorder_hyperparameters<T> &h);
+};
+
+//returns the average of f(x+c_k Delta) and f(x-c_k Delta) as an estimate of f(x)
+template<typename T>
+T SPSA_estimator<T>::operator()(optevaluator<T> &e, const NRVec<T> &x, NRVec<T> &g, const int k)
+{
+const int n=x.size();
+const T ck=hp.my_c/std::pow((T)(k+1),hp.my_gamma);
+g.clear();
+T fsum=0;
+for(int r=0; r<hp.my_resamplings; ++r)
+	{
+	NRVec<T> delta(n); //fresh vector, element access is safe
+	for(int i=0; i<n; ++i) delta[i]= randdouble()<0.5 ? -1 : 1;
+	NRVec<T> xp(x), xm(x);
+	xp.axpy(ck,delta);
+	xm.axpy(-ck,delta);
+	T fp=e(xp);
+	T fm=e(xm);
+	g.axpy((fp-fm)/(2*ck),delta); //1/Delta_i = Delta_i
+	fsum+=fp+fm;
+	}
+g /= (T)hp.my_resamplings;
+return fsum/(2*hp.my_resamplings);
+}
+
+//learning rate such that the first step lr*|g_hat| has on average the target length
+template<typename T>
+T SPSA_estimator<T>::calibrate(optevaluator<T> &e, const NRVec<T> &x, const firstorder_hyperparameters<T> &h)
+{
+if(hp.my_calibrate<=0) return hp.my_lr;
+T gsum=0;
+int ncal=0;
+for(; ncal<hp.my_calibrate && e.remaining()>=2*cost(); ++ncal) //leave the budget for the first estimate
+	{
+	NRVec<T> g(x.size());
+	(*this)(e,x,g,0);
+	gsum+=g.norm();
+	}
+if(ncal==0 || gsum==0) return hp.my_lr;
+return hp.my_target_step*ncal/gsum;
+}
+
+
+//plain gradient step for SPSA
+template<typename T>
+class plain_stepper : public firstorder_step<T> {
+public:
+NRVec<T> step(const NRVec<T> &g, const int k) {return g;}
+};
+
+
+template<typename T>
+optresult<T> SPSA_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+SPSA_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("SPSA cannot search for saddle points");
+if(hp.my_resamplings<1) laerror("SPSA needs resamplings >= 1");
+plain_stepper<T> stepper;
+SPSA_estimator<T> est(hp);
+return firstorder_minimize("SPSA",stepper,o,x,hp,achieved,&est);
+}
+
+
+
 //force instantiation
 template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, double &f, NRVec<double> &g, const NRVec<double> &p, const double alpha1, const linesearch_hyperparameters<double> &lp);
 template class optstate<double>;
@@ -750,6 +954,9 @@ template class LBFGS_Optimizer<double>;
 template class CG_Optimizer<double>;
 template class NelderMead_Optimizer<double>;
 template class Powell_Optimizer<double>;
+template class SGD_Optimizer<double>;
+template class Adam_Optimizer<double>;
+template class SPSA_Optimizer<double>;
 template double linemin_brent(optevaluator<double> &e, NRVec<double> &x, double &f, const NRVec<double> &u, const double t1, const double tol, const double abstol, const int maxiter, const int verbose);
 
 }//namespace

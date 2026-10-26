@@ -145,7 +145,7 @@ T dx; //|x change| in the last step
 bool stepdone; //df and dx are valid
 bool converged;
 optstate(const char *nm, const hyperparameters<T> &h, const optevaluator<T> &ee) : name(nm), hp(h), e(ee), iter(0), f(0), gnorm(-1), df(0), dx(0), stepdone(false), converged(false) {};
-bool stop(const T ff, const T gn= -1); //to be called at the beginning of each iteration, returns true if the iterations should finish
+bool stop(const T ff, const T gn= -1, const int needed=1); //to be called at the beginning of each iteration, returns true if the iterations should finish; needed = no. of function evaluations of the next iteration
 void step(const T dff, const T dxx) {df=std::abs(dff); dx=dxx; stepdone=true;} //record a step done
 optresult<T> finish(hyperparameters<T> *achieved) const; //final report, fills achieved if not NULL
 };
@@ -195,6 +195,44 @@ virtual ~linesearch_direction() {};
 //common driver of line-search methods
 template<typename T>
 optresult<T> linesearch_minimize(const char *name, linesearch_direction<T> &dir, const OptProblem<T> *o, NRVec<T> &x, const linesearch_hyperparameters<T> &hp, hyperparameters<T> *achieved);
+
+
+//parameters of first-order methods with a learning rate instead of line search, suitable also for noisy (stochastic) functions and gradients
+template<typename T>
+class firstorder_hyperparameters : public gradient_hyperparameters<T> {
+public:
+T my_lr; //learning rate
+T my_lr_decay; //learning rate in iteration k is lr/(1+lr_decay*k)^lr_power
+T my_lr_power;
+T my_weight_decay; //decoupled weight decay x -= lr*weight_decay*x (Loshchilov & Hutter, ICLR 2019)
+bool my_return_best; //return the point with the lowest function value found instead of the last one; only for (nearly) deterministic f, the lowest of noisy values is biased by the noise
+firstorder_hyperparameters() : my_lr(1e-3), my_lr_decay(0), my_lr_power(1), my_weight_decay(0), my_return_best(false) {this->my_maxstep=1000;};
+virtual void setfrom(const hyperparameters<T> &p) {const firstorder_hyperparameters *q=dynamic_cast<const firstorder_hyperparameters *>(&p); if(q) *this= *q; else gradient_hyperparameters<T>::setfrom(p);}
+};
+
+//update rule of a first-order method, used by the common driver firstorder_minimize()
+template<typename T>
+class firstorder_step {
+public:
+virtual NRVec<T> step(const NRVec<T> &g, const int k) =0; //direction d of the step x -= lr*d in iteration k=1,2,... with gradient g
+virtual ~firstorder_step() {};
+};
+
+//function value and gradient for firstorder_minimize(), the default is the exact evaluation, derived classes estimate them (SPSA)
+template<typename T>
+class gradient_estimator {
+public:
+virtual T operator()(optevaluator<T> &e, const NRVec<T> &x, NRVec<T> &g, const int k) {return e(x,&g);} //returns f at x and the gradient g, k=0,1,... is the iteration
+virtual int cost() const {return 1;} //no. of function evaluations of one call
+virtual bool exact() const {return true;} //with estimates no convergence test is done, small gradients or changes can occur by chance
+virtual T calibrate(optevaluator<T> &e, const NRVec<T> &x, const firstorder_hyperparameters<T> &hp) {return hp.my_lr;} //learning rate to be used
+virtual ~gradient_estimator() {};
+};
+
+//common driver of first-order methods; est==NULL means exact gradients
+//the learning rate actually used is returned in achieved, if it is of firstorder_hyperparameters type
+template<typename T>
+optresult<T> firstorder_minimize(const char *name, firstorder_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const firstorder_hyperparameters<T> &hp, hyperparameters<T> *achieved, gradient_estimator<T> *est=NULL);
 
 
 //specific methods
@@ -308,6 +346,69 @@ class Powell_Optimizer : public Optimizer<T> {
 public:
 virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
 virtual ~Powell_Optimizer() {};
+};
+
+
+//stochastic gradient descent with momentum v = momentum*v + g, step d = v or d = g + momentum*v (Nesterov) (Sutskever et al., ICML 2013)
+template<typename T>
+class SGD_hyperparameters : public firstorder_hyperparameters<T> {
+public:
+T my_momentum;
+bool my_nesterov;
+SGD_hyperparameters() : my_momentum(0.9), my_nesterov(false) {this->my_lr=1e-2;};
+virtual void setfrom(const hyperparameters<T> &p) {const SGD_hyperparameters *q=dynamic_cast<const SGD_hyperparameters *>(&p); if(q) *this= *q; else firstorder_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class SGD_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~SGD_Optimizer() {};
+};
+
+
+//Adam (Kingma & Ba, ICLR 2015), with weight_decay>0 AdamW, optionally AMSGrad (Reddi et al., ICLR 2018); beta1=0 gives RMSprop
+template<typename T>
+class Adam_hyperparameters : public firstorder_hyperparameters<T> {
+public:
+T my_beta1; //decay rate of the first moment estimate
+T my_beta2; //decay rate of the second moment estimate
+T my_eps; //regularization of the division by the second moment
+bool my_amsgrad; //use the maximum of the past second moments
+Adam_hyperparameters() : my_beta1(0.9), my_beta2(0.999), my_eps(1e-8), my_amsgrad(false) {};
+virtual void setfrom(const hyperparameters<T> &p) {const Adam_hyperparameters *q=dynamic_cast<const Adam_hyperparameters *>(&p); if(q) *this= *q; else firstorder_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class Adam_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~Adam_Optimizer() {};
+};
+
+
+//simultaneous perturbation stochastic approximation (Spall, IEEE Trans. Autom. Control 37, 332 (1992); IEEE Trans. Aerosp. Electron. Syst. 34, 817 (1998))
+//derivative-free, 2 function evaluations per gradient estimate independently of the dimension, robust to noise (VQE)
+//gain sequences: a_k = lr/(1+lr_decay*k)^lr_power, i.e. Spall's a/(k+1+A)^alpha with lr=a/(1+A)^alpha, lr_decay=1/(1+A), lr_power=alpha; c_k = c/(k+1)^gamma
+//the gradient and f are estimates, therefore no convergence test is done and the iterations run until maxstep or maxfunc
+//the first estimate at the starting point is always done, even if maxfunc is smaller than its 2*resamplings evaluations
+template<typename T>
+class SPSA_hyperparameters : public firstorder_hyperparameters<T> {
+public:
+T my_c; //perturbation size, of the order of the noise of f
+T my_gamma; //decay exponent of the perturbation size
+int my_resamplings; //no. of gradient estimates averaged in one iteration
+int my_calibrate; //no. of gradient estimates at the starting point for the calibration of lr, 0 = no calibration
+T my_target_step; //calibration: lr is set so that the first step has this length on average
+SPSA_hyperparameters() : my_c(0.1), my_gamma(0.101), my_resamplings(1), my_calibrate(20), my_target_step(0.1) {this->my_lr_decay=0.01; this->my_lr_power=0.602; this->my_g_thr=0;};
+virtual void setfrom(const hyperparameters<T> &p) {const SPSA_hyperparameters *q=dynamic_cast<const SPSA_hyperparameters *>(&p); if(q) *this= *q; else firstorder_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class SPSA_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~SPSA_Optimizer() {};
 };
 
 
