@@ -52,7 +52,8 @@ class DIIS
 public:
 	DIIS() {dim=0; st=NULL; stor=NULL; errst=NULL; errstor=NULL;}; //for array of diis
 	DIIS(const int n, const bool core=1);
-	void setup(const int n, const bool core=1);
+	void setup(const int n, const bool core=1); //can be called repeatedly, previous storage is released
+	void reset(); //forget the stored vectors, keep the storage
 	~DIIS();
 	typename LA_traits<U>::normtype extrapolate(T &vec, U &errvec, bool verbose=false, const Un diiseps=0, bool errvecout=false); //vec is input/output, errvec optionally too; returns square residual norm
 	};
@@ -64,13 +65,16 @@ st=incore?NULL: new AuxStorage<Te>;
 errst=incore?NULL: new AuxStorage<Ue>;
 stor= incore? new T[dim] : NULL;
 errstor= incore? new U[dim] : NULL;
-bmat= (Ue)0; for(int i=1; i<=n; ++i) bmat(0,i) = (Ue)-1; 
-aktdim=cyclicshift=0;
+reset();
 }
 
 template<typename T, typename U>
 void DIIS<T,U>::setup(const int n, const bool core)
 {
+if(st) delete st;
+if(errst) delete errst;
+if(stor) delete[] stor;
+if(errstor) delete[] errstor;
 dim=n;
 incore=core;
 bmat.resize(n+1);
@@ -78,7 +82,13 @@ st=incore?NULL: new AuxStorage<Te>;
 errst=incore?NULL: new AuxStorage<Ue>;
 stor= incore? new T[dim] : NULL;
 errstor= incore? new U[dim] : NULL;
-bmat= (Ue)0; for(int i=1; i<=n; ++i) bmat(0,i) = (Ue)-1;
+reset();
+}
+
+template<typename T, typename U>
+void DIIS<T,U>::reset()
+{
+bmat= (Ue)0; for(int i=1; i<=dim; ++i) bmat(0,i) = (Ue)-1;
 aktdim=cyclicshift=0;
 }
 
