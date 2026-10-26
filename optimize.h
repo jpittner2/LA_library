@@ -172,14 +172,46 @@ template<typename T>
 T linesearch_wolfe(optevaluator<T> &e, NRVec<T> &x, T &f, NRVec<T> &g, const NRVec<T> &p, const T alpha1, const linesearch_hyperparameters<T> &lp);
 
 
+//search direction of a line-search method, used by the common driver linesearch_minimize()
+template<typename T>
+class linesearch_direction {
+public:
+virtual NRVec<T> direction(const NRVec<T> &g) =0; //search direction at the point with gradient g
+virtual bool update(const NRVec<T> &s, const NRVec<T> &y, const NRVec<T> &p, const NRVec<T> &g) =0; //after the step s=alpha*p with gradient change y and new gradient g; returns false if the update was skipped
+virtual void reset() =0; //forget the accumulated information
+virtual bool steepest() const =0; //no information accumulated, direction() gives steepest descent
+virtual bool indefinite() const {return false;} //a non-descent direction is legitimate (SR1), take steepest descent step without reset
+virtual bool alpha_from_previous() const {return false;} //initial step length from the previous one (Nocedal & Wright eq. 3.60), otherwise 1 (unit step in x for steepest descent)
+virtual ~linesearch_direction() {};
+};
+
+//common driver of line-search methods
+template<typename T>
+optresult<T> linesearch_minimize(const char *name, linesearch_direction<T> &dir, const OptProblem<T> *o, NRVec<T> &x, const linesearch_hyperparameters<T> &hp, hyperparameters<T> *achieved);
+
+
 //specific methods
 
+//parameters common to quasi-Newton methods
 template<typename T>
-class BFGS_hyperparameters : public linesearch_hyperparameters<T> {
+class quasinewton_hyperparameters : public linesearch_hyperparameters<T> {
 public:
-T my_sy_thr; //skip the update if s.y <= sy_thr*|s|*|y| (curvature condition violated numerically)
-BFGS_hyperparameters() : my_sy_thr(1e-12) {};
-virtual void setfrom(const hyperparameters<T> &p) {const BFGS_hyperparameters *q=dynamic_cast<const BFGS_hyperparameters *>(&p); if(q) *this= *q; else linesearch_hyperparameters<T>::setfrom(p);}
+T my_sy_thr; //skip the BFGS-type update if s.y <= sy_thr*|s|*|y| (curvature condition violated numerically)
+quasinewton_hyperparameters() : my_sy_thr(1e-12) {};
+virtual void setfrom(const hyperparameters<T> &p) {const quasinewton_hyperparameters *q=dynamic_cast<const quasinewton_hyperparameters *>(&p); if(q) *this= *q; else linesearch_hyperparameters<T>::setfrom(p);}
+};
+
+
+//quasi-Newton methods with line search, differing by the update of the inverse Hessian approximation
+enum QN_update {QN_BFGS, QN_DFP, QN_SR1};
+
+template<typename T>
+class BFGS_hyperparameters : public quasinewton_hyperparameters<T> {
+public:
+QN_update my_update; //BFGS, DFP or SR1 (Nocedal & Wright eqs. 6.17, 6.15, 6.25); DFP needs an accurate line search (c2~0.1), otherwise it can stall
+T my_sr1_thr; //SR1: skip the update if |(s-Hy).y| <= sr1_thr*|s-Hy|*|y| (cf. Nocedal & Wright eq. 6.26)
+BFGS_hyperparameters() : my_update(QN_BFGS), my_sr1_thr(1e-8) {};
+virtual void setfrom(const hyperparameters<T> &p) {const BFGS_hyperparameters *q=dynamic_cast<const BFGS_hyperparameters *>(&p); if(q) *this= *q; else quasinewton_hyperparameters<T>::setfrom(p);}
 };
 
 template<typename T>
@@ -187,6 +219,45 @@ class BFGS_Optimizer : public Optimizer<T> {
 public:
 virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
 virtual ~BFGS_Optimizer() {};
+};
+
+
+//limited-memory BFGS (Nocedal & Wright chap. 7.2), for large problems
+template<typename T>
+class LBFGS_hyperparameters : public quasinewton_hyperparameters<T> {
+public:
+int my_memory; //no. of stored pairs of steps and gradient changes
+LBFGS_hyperparameters() : my_memory(10) {};
+virtual void setfrom(const hyperparameters<T> &p) {const LBFGS_hyperparameters *q=dynamic_cast<const LBFGS_hyperparameters *>(&p); if(q) *this= *q; else quasinewton_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class LBFGS_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~LBFGS_Optimizer() {};
+};
+
+
+//nonlinear conjugate gradient methods (Nocedal & Wright chap. 5.2; Hager & Zhang, SIAM J. Optim. 16, 170 (2005))
+//differing by the formula for beta in p_{k+1} = -g_{k+1} + beta p_k; PR and HS are used in the nonnegative variants PR+ and HS+
+enum CG_beta {CG_FR, CG_PR, CG_HS, CG_DY, CG_HZ};
+
+template<typename T>
+class CG_hyperparameters : public linesearch_hyperparameters<T> {
+public:
+CG_beta my_beta; //Fletcher-Reeves, Polak-Ribiere+, Hestenes-Stiefel+, Dai-Yuan, Hager-Zhang
+int my_restart; //restart with steepest descent every my_restart iterations, <=0 means the problem dimension
+T my_powell_thr; //restart if |g_{k+1}.g_k| >= powell_thr*|g_{k+1}|^2 (Nocedal & Wright eq. 5.52), <=0 disables
+CG_hyperparameters() : my_beta(CG_PR), my_restart(0), my_powell_thr(0.2) {this->my_c2=0.1;}; //CG needs a more accurate line search
+virtual void setfrom(const hyperparameters<T> &p) {const CG_hyperparameters *q=dynamic_cast<const CG_hyperparameters *>(&p); if(q) *this= *q; else linesearch_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class CG_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~CG_Optimizer() {};
 };
 
 

@@ -151,18 +151,54 @@ return 0;
 }
 
 
-//BFGS update of the inverse Hessian approximation H, cf. Nocedal & Wright eq. 6.17
-//H+ = (I - rho s y^T) H (I - rho y s^T) + rho s s^T, rho=1/(y^T s)
-//expanded: H+ = H + (rho^2 y^T H y + rho) s s^T - rho (s (Hy)^T + Hy s^T) = H + s u^T + u s^T with u = (rho^2 y^T H y + rho)/2 s - rho Hy
+//quasi-Newton update of the inverse Hessian approximation H, returns false if the update was skipped
+//Hinit = H is still the initial guess, it is then scaled by s.y/y.y (Nocedal & Wright eq. 6.20)
+//for SR1 the scaling makes (s-Hy).y=0, so its first update is skipped and the next one starts from the scaled H
+//rank-1 terms are done via rank2update(a,x,x) = 2a x x^T
 template<typename T>
-static void BFGS_update(NRSMat<T> &H, const NRVec<T> &s, const NRVec<T> &y, const T sy)
+static bool QN_update_H(NRSMat<T> &H, bool &Hinit, const NRVec<T> &s, const NRVec<T> &y, const BFGS_hyperparameters<T> &hp)
 {
-T rho = 1/sy;
-NRVec<T> Hy = H*y;
-T yHy = y*Hy;
-NRVec<T> u = s*((rho*rho*yHy + rho)/2);
-u.axpy(-rho,Hy);
-H.rank2update((T)1,s,u);
+const T sy = s*y;
+const T snorm=s.norm();
+const T ynorm=y.norm();
+const bool curvature = sy > hp.my_sy_thr*snorm*ynorm;
+if(Hinit && curvature) {H = (T)(sy/(ynorm*ynorm)); Hinit=false;}
+switch(hp.my_update)
+	{
+	case QN_BFGS: //H+ = (I - rho s y^T) H (I - rho y s^T) + rho s s^T = H + s u^T + u s^T, rho=1/(y^T s), u = (rho^2 y^T H y + rho)/2 s - rho Hy
+		{
+		if(!curvature) return false;
+		T rho = 1/sy;
+		NRVec<T> Hy = H*y;
+		NRVec<T> u = s*((rho*rho*(y*Hy) + rho)/2);
+		u.axpy(-rho,Hy);
+		H.rank2update((T)1,s,u);
+		}
+		break;
+	case QN_DFP: //H+ = H - Hy (Hy)^T/(y^T H y) + s s^T/(y^T s)
+		{
+		if(!curvature) return false;
+		NRVec<T> Hy = H*y;
+		T yHy = y*Hy;
+		if(yHy<=0) return false;
+		H.rank2update(1/(2*sy),s,s);
+		H.rank2update(-1/(2*yHy),Hy,Hy);
+		}
+		break;
+	case QN_SR1: //H+ = H + w w^T/(w^T y), w = s - Hy; H may become indefinite
+		{
+		NRVec<T> w = H*y;
+		w *= (T)-1;
+		w += s;
+		T wy = w*y;
+		if(std::abs(wy) <= hp.my_sr1_thr*w.norm()*ynorm) return false;
+		H.rank2update(1/(2*wy),w,w);
+		}
+		break;
+	default: laerror("unknown quasi-Newton update");
+	}
+Hinit=false;
+return true;
 }
 
 
@@ -198,64 +234,210 @@ return optresult<T>(f,converged);
 
 
 template<typename T>
-optresult<T> BFGS_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+optresult<T> linesearch_minimize(const char *name, linesearch_direction<T> &dir, const OptProblem<T> *o, NRVec<T> &x, const linesearch_hyperparameters<T> &hp, hyperparameters<T> *achieved)
 {
-BFGS_hyperparameters<T> hp;
-if(par) hp.setfrom(*par);
-if(hp.my_saddle_order) laerror("BFGS cannot search for saddle points");
 const int verbose=hp.my_verbose;
 optevaluator<T> e(o,hp.my_maxfunc);
-optstate<T> st("BFGS",hp,e);
+optstate<T> st(name,hp,e);
 
 const int n=x.size();
 NRVec<T> g(n);
 T f=e(x,&g);
-NRSMat<T> H(n);
-H=1.;
-bool Hinit=true; //H is the initial guess, rescale it after the first step
+T alpha=0, dphi=0; //of the previous step
 
 for(;; ++st.iter)
 	{
 	if(st.stop(f,g.norm())) break;
 
-	NRVec<T> p = H*g;
-	p *= (T)-1;
-	if(p*g >= 0) //H lost positive definiteness numerically, restart
+	NRVec<T> p = dir.direction(g);
+	bool sd=dir.steepest(); //steepest descent step
+	if(p*g >= 0)
 		{
-		if(verbose) std::cout <<"BFGS: not a descent direction, resetting inverse Hessian\n";
-		H=1.; Hinit=true;
+		if(dir.indefinite()) {if(verbose) std::cout <<name<<": not a descent direction, steepest descent step\n";}
+		else //information spoiled numerically, restart
+			{
+			if(verbose) std::cout <<name<<": not a descent direction, restart\n";
+			dir.reset();
+			}
 		p = g*(T)-1;
+		sd=true;
 		}
+
+	//initial step length: from the previous step, or unit step in x for steepest descent, otherwise the quasi-Newton step
+	T dphi_new = p*g;
+	T alpha1;
+	if(dir.alpha_from_previous() && alpha>0) alpha1=alpha*dphi/dphi_new;
+	else alpha1= sd ? 1/p.norm() : (T)1;
+	dphi=dphi_new;
 
 	NRVec<T> xold(x), gold(g);
 	T fold=f;
-	//on the first step (or after restart) try unit step length in x, otherwise the Newton step
-	T alpha=linesearch_wolfe(e,x,f,g,p,Hinit ? 1/p.norm() : (T)1,hp);
+	alpha=linesearch_wolfe(e,x,f,g,p,alpha1,hp);
 	if(alpha==0)
 		{
 		if(e.exhausted()) continue; //reported by stop()
-		if(Hinit) {if(verbose) std::cout <<"BFGS: line search failed along steepest descent, giving up\n"; break;}
-		if(verbose) std::cout <<"BFGS: line search failed, resetting inverse Hessian\n";
-		H=1.; Hinit=true;
+		if(sd) {if(verbose) std::cout <<name<<": line search failed along steepest descent, giving up\n"; break;}
+		if(verbose) std::cout <<name<<": line search failed, restart\n";
+		dir.reset();
 		continue;
 		}
 
 	NRVec<T> s = x-xold;
 	NRVec<T> y = g-gold;
-	T sy = s*y;
-	T snorm=s.norm();
-	T ynorm=y.norm();
-	if(verbose>1) std::cout <<"BFGS step alpha= "<<alpha<<" |s|= "<<snorm<<" s.y= "<<sy<<std::endl;
-	if(sy > hp.my_sy_thr*snorm*ynorm)
-		{
-		if(Hinit) {H = (T)(sy/(ynorm*ynorm)); Hinit=false;} //scale initial guess, Nocedal & Wright eq. 6.20
-		BFGS_update(H,s,y,sy);
-		}
-	else if(verbose) std::cout <<"BFGS: curvature condition violated, skipping update\n";
-	st.step(f-fold,snorm);
+	if(verbose>1) std::cout <<name<<" step alpha= "<<alpha<<" |s|= "<<s.norm()<<" s.y= "<<s*y<<std::endl;
+	if(!dir.update(s,y,p,g) && verbose) std::cout <<name<<": update skipped\n";
+	st.step(f-fold,s.norm());
 	}
 
 return st.finish(achieved);
+}
+
+
+//BFGS, DFP, SR1: explicit inverse Hessian approximation
+template<typename T>
+class QN_direction : public linesearch_direction<T> {
+public:
+const BFGS_hyperparameters<T> &hp;
+NRSMat<T> H;
+bool Hinit; //H is the initial guess, rescale it after the first step
+QN_direction(const BFGS_hyperparameters<T> &h, const int n) : hp(h), H(n), Hinit(true) {H=1.;};
+NRVec<T> direction(const NRVec<T> &g) {NRVec<T> p = H*g; p *= (T)-1; return p;}
+bool update(const NRVec<T> &s, const NRVec<T> &y, const NRVec<T> &p, const NRVec<T> &g) {return QN_update_H(H,Hinit,s,y,hp);}
+void reset() {H=1.; Hinit=true;}
+bool steepest() const {return Hinit;}
+bool indefinite() const {return hp.my_update==QN_SR1;}
+};
+
+
+template<typename T>
+optresult<T> BFGS_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+static const char *names[]={"BFGS","DFP","SR1"};
+BFGS_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("quasi-Newton with line search cannot search for saddle points");
+QN_direction<T> dir(hp,x.size());
+return linesearch_minimize(names[hp.my_update],dir,o,x,hp,achieved);
+}
+
+
+//L-BFGS: last m pairs s = x_{k+1}-x_k, y = g_{k+1}-g_k in a ring buffer
+template<typename T>
+class LBFGS_direction : public linesearch_direction<T> {
+public:
+const LBFGS_hyperparameters<T> &hp;
+int m; //capacity
+int count; //no. of pairs stored
+int newest; //index of the newest pair
+NRVec<NRVec<T> > S,Y;
+NRVec<T> rho; //1/(s.y)
+T gamma; //initial inverse Hessian H0 = gamma I, gamma = s.y/y.y of the newest pair (Nocedal & Wright eq. 7.20)
+LBFGS_direction(const LBFGS_hyperparameters<T> &h) : hp(h), m(h.my_memory), count(0), newest(-1), S(m), Y(m), rho(m), gamma(1) {};
+void push(const NRVec<T> &s, const NRVec<T> &y, const T sy) {newest=(newest+1)%m; S[newest]=s; Y[newest]=y; rho[newest]=1/sy; gamma=sy/(y*y); if(count<m) ++count;}
+NRVec<T> direction(const NRVec<T> &g);
+bool update(const NRVec<T> &s, const NRVec<T> &y, const NRVec<T> &p, const NRVec<T> &g)
+	{
+	T sy=s*y;
+	if(sy <= hp.my_sy_thr*s.norm()*y.norm()) return false; //curvature condition violated numerically
+	push(s,y,sy);
+	return true;
+	}
+void reset() {count=0; newest= -1; gamma=1;}
+bool steepest() const {return count==0;}
+};
+
+//returns -H g by the two-loop recursion (Nocedal & Wright alg. 7.4)
+template<typename T>
+NRVec<T> LBFGS_direction<T>::direction(const NRVec<T> &g)
+{
+NRVec<T> q(g);
+NRVec<T> alpha(count);
+int k=newest;
+for(int i=0; i<count; ++i) //newest to oldest
+	{
+	alpha[i] = rho[k]*(S[k]*q);
+	q.axpy(-alpha[i],Y[k]);
+	if(i<count-1) k=(k+m-1)%m;
+	}
+q *= gamma;
+for(int i=count-1; i>=0; --i) //oldest to newest
+	{
+	T beta = rho[k]*(Y[k]*q);
+	q.axpy(alpha[i]-beta,S[k]);
+	k=(k+1)%m;
+	}
+q *= (T)-1;
+return q;
+}
+
+
+template<typename T>
+optresult<T> LBFGS_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+LBFGS_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("L-BFGS cannot search for saddle points");
+if(hp.my_memory<1) laerror("L-BFGS needs memory >= 1");
+LBFGS_direction<T> dir(hp);
+return linesearch_minimize("L-BFGS",dir,o,x,hp,achieved);
+}
+
+
+//nonlinear CG: p_{k+1} = -g_{k+1} + beta p_k
+template<typename T>
+class CG_direction : public linesearch_direction<T> {
+public:
+const CG_hyperparameters<T> &hp;
+int restart_interval;
+int count; //no. of steps since the last restart
+bool restart; //next direction is steepest descent
+T beta;
+T gg; //g.g of the gradient of the last direction
+NRVec<T> d; //last search direction
+CG_direction(const CG_hyperparameters<T> &h, const int n) : hp(h), restart_interval(h.my_restart>0 ? h.my_restart : n), count(0), restart(true), beta(0), gg(0) {};
+NRVec<T> direction(const NRVec<T> &g) {NRVec<T> p = g*(T)-1; if(!restart) p.axpy(beta,d); gg=g*g; return p;}
+bool update(const NRVec<T> &s, const NRVec<T> &y, const NRVec<T> &p, const NRVec<T> &g);
+void reset() {restart=true; count=0;}
+bool steepest() const {return restart;}
+bool alpha_from_previous() const {return true;}
+};
+
+template<typename T>
+bool CG_direction<T>::update(const NRVec<T> &s, const NRVec<T> &y, const NRVec<T> &p, const NRVec<T> &g)
+{
+d=p;
+T gg1=g*g;
+T gy=g*y;
+T dy=p*y;
+restart= ++count>=restart_interval || (hp.my_powell_thr>0 && std::abs(gg1-gy) >= hp.my_powell_thr*gg1); //g_{k+1}.g_k = gg1-gy
+bool curvature= dy>0;
+if(!restart) switch(hp.my_beta)
+	{
+	case CG_FR: beta=gg1/gg; break;
+	case CG_PR: beta=std::max((T)0,gy/gg); break;
+	case CG_HS: if(curvature) beta=std::max((T)0,gy/dy); else restart=true; break;
+	case CG_DY: if(curvature) beta=gg1/dy; else restart=true; break;
+	case CG_HZ: if(curvature) beta=std::max((gy-2*(p*g)*(y*y)/dy)/dy, -1/(p.norm()*std::min((T)0.01,std::sqrt(gg)))); else restart=true; break;
+	default: laerror("unknown CG beta formula");
+	}
+if(restart)
+	{
+	count=0;
+	if(hp.my_verbose>1) std::cout <<"CG restart\n";
+	}
+return true;
+}
+
+
+template<typename T>
+optresult<T> CG_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+static const char *names[]={"CG-FR","CG-PR+","CG-HS+","CG-DY","CG-HZ"};
+CG_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("CG cannot search for saddle points");
+CG_direction<T> dir(hp,x.size());
+return linesearch_minimize(names[hp.my_beta],dir,o,x,hp,achieved);
 }
 
 
@@ -265,6 +447,8 @@ template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, doub
 template class optstate<double>;
 template class testproblem<double>;
 template class BFGS_Optimizer<double>;
+template class LBFGS_Optimizer<double>;
+template class CG_Optimizer<double>;
 
 }//namespace
 

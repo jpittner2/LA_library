@@ -4843,14 +4843,21 @@ cin >>n;
 NRVec<double> x(n);
 x.randomize(1.);
 testproblem<double> problem;
-BFGS_hyperparameters<double> param;
+//BFGS_hyperparameters<double> param; //tested
+//LBFGS_hyperparameters<double> param; //tested
+CG_hyperparameters<double> param;
 param.my_maxstep=100;
 param.my_f_thr=1e-6;
 param.my_x_thr=1e-3;
 param.my_g_thr=1e-3;
+//param.my_update=QN_BFGS; //tested
+//param.my_update=QN_DFP; //tested
+//param.my_update=QN_SR1; //tested
 cout << "initial " <<x<<endl;
-BFGS_Optimizer<double> o;
-BFGS_hyperparameters<double> achieved;
+//BFGS_Optimizer<double> o; //tested
+//LBFGS_Optimizer<double> o; //tested
+CG_Optimizer<double> o;
+gradient_hyperparameters<double> achieved;
 optresult<double> res=o.minimize(&problem,x,&param,&achieved);
 cout << "optimized " <<x<<endl;
 cout << "converged "<<res.converged<<" f= "<<res.f<<" iterations "<<achieved.my_maxstep<<" function evaluations "<<achieved.my_maxfunc<<" last df "<<achieved.my_f_thr<<" last dx "<<achieved.my_x_thr<<" |g| "<<achieved.my_g_thr<<endl;
