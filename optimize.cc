@@ -49,6 +49,15 @@ return r;
 }
 
 
+template<typename T>
+void testproblem_vqe_constrained<T>::constraints(const NRVec<T> &x, NRVec<T> &c) const
+{
+c.copyonwrite();
+c[0]=0;
+for(int i=0; i<x.size()/2; ++i) c[0]+= std::cos(x[2*i])*std::cos(x[2*i+1]);
+}
+
+
 //central difference (f(x+h e_i) - f(x-h e_i))/(2h); xs is a working copy of x, restored on return
 template<typename T>
 static T central_difference(const OptProblem<T> *p, NRVec<T> &xs, const NRVec<T> &x, const int i, const T h)
@@ -156,7 +165,6 @@ template<typename T>
 void testproblem_vqe<T>::hessian(const NRVec<T> &x, NRSMat<T> &h) const
 {
 const int nq=x.size()/2;
-h.copyonwrite();
 h=(T)0;
 for(int i=0; i<nq; ++i)
 	{
@@ -183,7 +191,6 @@ template<typename T>
 void testproblem_vqe<T>::metric(const NRVec<T> &x, NRSMat<T> &g) const
 {
 const int nq=x.size()/2;
-g.copyonwrite();
 g=(T)0;
 for(int i=0; i<nq; ++i)
 	{
@@ -1079,6 +1086,316 @@ return firstorder_minimize("QNG",stepper,o,x,hp,achieved);
 }
 
 
+//approximate solution of min c.z subject to A z >= r and |(z_0,...,z_{nd-1})| <= delta, nd = nz or nz-1, from a feasible z by an active-set method:
+//z moves along the projection of -c orthogonal to the normals of the active constraints until a further constraint becomes active,
+//the trust region boundary is reached (which finishes the calculation as in COBYLA), or the multipliers show optimality;
+//the projection is computed by least squares, which tolerates dependent normals at degenerate points
+template<typename T>
+static void lp_trustregion(const NRVec<T> &c, const NRMat<T> &A, const NRVec<T> &r, const int nd, const T delta, NRVec<T> &z)
+{
+const int nz=c.size();
+const int m=r.size();
+const T tiny=1e3*std::numeric_limits<T>::epsilon()*c.norm();
+NRVec<int> active(m);
+active.clear();
+NRVec<int> cols(nz);
+for(int j=0; j<nz; ++j) cols[j]=j;
+const NRVec<T> &zc=z; //element access for reading only
+const int maxit=2*(m+nz)+10;
+for(int it=0; it<maxit; ++it)
+	{
+	int k=0;
+	for(int i=0; i<m; ++i) if(active[i]) ++k;
+	NRVec<int> rows(k);
+	k=0;
+	for(int i=0; i<m; ++i) if(active[i]) rows[k++]=i;
+	NRVec<T> s = c*(T)-1; //search direction
+	NRVec<T> lambda; //multipliers of the active constraints
+	if(k>0)
+		{
+		NRMat<T> N=A.submatrix(rows,cols); //normals of the active constraints
+		NRMat<T> Nt=N.transpose();
+		lambda=svd_solve(Nt,c); //least squares c ~ N^T lambda
+		NRVec<T> nl=lambda*N;
+		s+=nl;
+		}
+	if(s.norm()<=tiny) //stationary on the active set, optimal if the multipliers are nonnegative
+		{
+		int drop= -1;
+		T lmin=0;
+		for(int j=0; j<k; ++j) if(lambda[j]<lmin) {lmin=lambda[j]; drop=j;}
+		if(drop<0) return;
+		active[rows[drop]]=0;
+		continue;
+		}
+	//step to the first blocking constraint
+	NRVec<T> Az=A*z;
+	NRVec<T> As=A*s;
+	T alpha=std::numeric_limits<T>::max();
+	int block= -1;
+	for(int i=0; i<m; ++i) if(!active[i] && As[i]<0)
+		{
+		T a=std::max((T)0,(Az[i]-r[i])/(-As[i]));
+		if(a<alpha) {alpha=a; block=i;}
+		}
+	//step to the trust region boundary |zd + a sd| = delta
+	T zz=z*z, ss=s*s, zs=z*s;
+	if(nd<nz) {zz-=zc[nz-1]*zc[nz-1]; ss-=s[nz-1]*s[nz-1]; zs-=zc[nz-1]*s[nz-1];}
+	if(ss>0)
+		{
+		T ab=(-zs+std::sqrt(std::max((T)0,zs*zs-ss*(zz-delta*delta))))/ss;
+		if(ab<alpha) {z.axpy(ab,s); return;}
+		}
+	if(block<0) return;
+	z.axpy(alpha,s);
+	active[block]=1;
+	}
+}
+
+
+//COBYLA trust region step: minimizes g.d subject to the linearized constraints c + A d >= 0 within |d| <= rho; if they cannot be satisfied
+//in the trust region, the largest violation t is minimized first (stage 1) and then kept, c + A d >= -t (stage 2) (Powell 1994)
+template<typename T>
+static NRVec<T> cobyla_step(const NRVec<T> &g, const NRMat<T> &A, const NRVec<T> &c, const T rho)
+{
+const int n=g.size();
+const int m=c.size();
+NRVec<T> d((T)0,n);
+if(m==0) {T gn=g.norm(); if(gn>0) d.axpy(-rho/gn,g); return d;}
+T t=std::max((T)0,-c.min());
+if(t>0) //stage 1 in the variables (d,t): min t subject to c_i + a_i.d + t >= 0, t >= 0
+	{
+	NRMat<T> A1(m+1,n+1);
+	A1.clear();
+	A1.storesubmatrix(0,0,A);
+	for(int i=0; i<=m; ++i) A1(i,n)=1;
+	NRVec<T> r1(m+1); //r1_i = -c_i, r1_m = 0
+	r1.clear();
+	for(int i=0; i<m; ++i) r1[i]= -c[i];
+	NRVec<T> c1((T)0,n+1);
+	c1[n]=1;
+	NRVec<T> z((T)0,n+1);
+	z[n]=t;
+	lp_trustregion(c1,A1,r1,n,rho,z);
+	t=z[n];
+	for(int j=0; j<n; ++j) d[j]=z[j];
+	}
+//stage 2: min g.d subject to c_i + a_i.d >= -t
+NRVec<T> r2 = c*(T)-1;
+r2-=t;
+lp_trustregion(g,A,r2,n,rho,d);
+return d;
+}
+
+
+template<typename T>
+static T cobyla_violation(const NRVec<T> &c) {return c.size()>0 ? std::max((T)0,-c.min()) : 0;}
+
+//f and the constraint values at x
+template<typename T>
+static T cobyla_eval(optevaluator<T> &e, const OptConstraints<T> *con, const NRVec<T> &x, NRVec<T> &c)
+{
+T f=e(x);
+if(con) con->constraints(x,c);
+return f;
+}
+
+
+template<typename T>
+optresult<T> Cobyla_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+const char *name="COBYLA";
+Cobyla_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("COBYLA cannot search for saddle points");
+const T acc_sigma=0.25, acc_eta=2.1, geo_gamma=0.5; //simplex acceptability and geometry step (Powell 1994)
+const int verbose=hp.my_verbose;
+const int n=x.size();
+const OptConstraints<T> *con=optcapability<OptConstraints<T> >(o);
+const int m= con ? con->nconstraints() : 0;
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+
+//initial simplex x, x + rhobeg e_j with function and constraint values
+T rho=hp.my_rhobeg; //resolution, lower bound of the trust region radius
+T delta=rho; //trust region radius, always equal to rho in Powell's original COBYLA
+const bool flexible=hp.my_flexible_radius;
+T mu=0; //penalty parameter of the merit function f + mu*(largest constraint violation)
+NRVec<NRVec<T> > v(n+1), cv(n+1);
+NRVec<T> fv(n+1);
+for(int j=0; j<=n; ++j)
+	{
+	v[j]=x;
+	if(j>0) {v[j].copyonwrite(); v[j][j-1]+=rho;}
+	cv[j]=NRVec<T>(m);
+	fv[j]=cobyla_eval(e,con,v[j],cv[j]);
+	}
+
+int best=0;
+T fprev=fv[0];
+NRVec<int> other(n); //vertices other than the best one
+bool lastsuccess=false; //the last trust region step was successful, the next one follows without checking the simplex
+for(;; ++st.iter)
+	{
+	best=0;
+	for(int j=1; j<=n; ++j) if(fv[j]+mu*cobyla_violation(cv[j]) < fv[best]+mu*cobyla_violation(cv[best])) best=j;
+	if(st.iter>0) {st.step(fprev-fv[best],rho); fprev=fv[best];}
+	if(st.stop(fv[best])) break;
+	for(int j=0, k=0; j<=n; ++j) if(j!=best) other[k++]=j;
+
+	//displacements d_k of the other vertices from the best one and the dual basis B = D^-T, b_k.d_l = delta_kl
+	NRMat<T> D(n,n);
+	for(int k=0; k<n; ++k) {NRVec<T> dk=v[other[k]]-v[best]; D.rowset(dk,k);}
+	NRMat<T> B=D.inverse().transpose();
+	//linear models: gradient g of f, gradients of the constraints in the rows of A, values c0 at the best vertex
+	NRVec<T> df(n);
+	for(int k=0; k<n; ++k) df[k]=fv[other[k]]-fv[best];
+	NRVec<T> g=df*B;
+	const NRVec<T> c0(cv[best]);
+	NRMat<T> A;
+	if(m>0)
+		{
+		NRMat<T> dC(n,m);
+		for(int k=0; k<n; ++k) {NRVec<T> dc=cv[other[k]]-c0; dC.rowset(dc,k);}
+		A=dC.transpose()*B;
+		}
+
+	//acceptability of the simplex: distances eta_k = |d_k| <= acc_eta delta and sigma_k = 1/|b_k| >= acc_sigma rho of the vertices from the opposite faces
+	int worst= -1;
+	T etamax=acc_eta*delta;
+	for(int k=0; k<n; ++k) {T eta=D.row(k).norm(); if(eta>etamax) {etamax=eta; worst=k;}}
+	if(worst<0)
+		{
+		T sigmin=acc_sigma*rho;
+		for(int k=0; k<n; ++k) {T sigma=1/B.row(k).norm(); if(sigma<sigmin) {sigmin=sigma; worst=k;}}
+		}
+
+	if(!lastsuccess && worst>=0) //geometry step: the worst vertex moves to the best one + a step along the normal of its opposite face, with the sign preferred by the merit model
+		{
+		NRVec<T> dir=B.row(worst);
+		//step length geo_gamma rho, or with flexible radius max(min(0.1 DIST, 0.5 delta), rho) (NEWUOA eq. (6.16)), DIST the distance of the replaced vertex
+		T len= flexible ? std::max(std::min((T)0.1*D.row(worst).norm(),(T)0.5*delta),rho) : geo_gamma*rho;
+		dir*= len/dir.norm();
+		T mplus=g*dir, mminus= -mplus;
+		if(m>0)
+			{
+			NRVec<T> ad=A*dir;
+			NRVec<T> cp(c0), cm(c0);
+			cp+=ad; cm-=ad;
+			mplus+=mu*cobyla_violation(cp);
+			mminus+=mu*cobyla_violation(cm);
+			}
+		if(mminus<mplus) dir*= (T)-1;
+		if(verbose>1) std::cout <<name<<": geometry step of vertex "<<other[worst]<<std::endl;
+		NRVec<T> xn=v[best]+dir;
+		NRVec<T> cn(m);
+		T fn=cobyla_eval(e,con,xn,cn);
+		v[other[worst]]=xn; fv[other[worst]]=fn; cv[other[worst]]=cn;
+		continue;
+		}
+
+	//trust region step
+	lastsuccess=false;
+	NRVec<T> d=cobyla_step(g,A,c0,delta);
+	const T dnorm=d.norm();
+	const T deltaold=delta; //trust region radius of this step
+	T ratio= -1; //reduction ratio of the merit function
+	const bool shortstep= dnorm<0.5*rho;
+	bool failed=shortstep;
+	if(shortstep && flexible) delta=std::max((T)0.1*delta,rho); //NEWUOA Box 15
+	if(!failed)
+		{
+		const T v0=cobyla_violation(c0);
+		NRVec<T> cd(c0);
+		if(m>0) {NRVec<T> ad=A*d; cd+=ad;}
+		T fpred= -(g*d); //predicted reductions of f and of the violation
+		T vpred=v0-cobyla_violation(cd);
+		if(vpred>0 && mu < -1.5*fpred/vpred) //penalty has to make the predicted reduction of the merit function positive
+			{
+			mu= -2*fpred/vpred;
+			if(verbose>1) std::cout <<name<<": penalty parameter "<<mu<<std::endl;
+			int b2=best;
+			for(int j=0; j<=n; ++j) if(fv[j]+mu*cobyla_violation(cv[j]) < fv[b2]+mu*cobyla_violation(cv[b2])) b2=j;
+			if(b2!=best) continue; //another vertex is best with the new penalty
+			}
+		T pred=fpred+mu*vpred;
+		if(pred<=0) failed=true;
+		else
+			{
+			NRVec<T> xn=v[best]+d;
+			NRVec<T> cn(m);
+			T fn=cobyla_eval(e,con,xn,cn);
+			T phi0=fv[best]+mu*v0;
+			T phin=fn+mu*cobyla_violation(cn);
+			ratio=(phi0-phin)/pred;
+			if(verbose>1) std::cout <<name<<" step |d|= "<<dnorm<<" delta= "<<delta<<" rho= "<<rho<<" f= "<<fn<<" violation= "<<cobyla_violation(cn)<<" ratio= "<<ratio<<std::endl;
+			//vertex replaced by the new point (Powell 1994): the one giving the largest simplex volume, i.e. the largest barycentric coordinate |l_k|
+			//(without improvement only if the volume increases), but preferably the most distant one beyond 1.1 rho, if the new point
+			//keeps an acceptable distance |l_k| sigma_k from its opposite face; the best vertex is kept, a better new point becomes the best one
+			const bool improved= phin<phi0;
+			NRVec<T> l=B*d;
+			int rep= -1;
+			T lmax= improved ? 0 : 1;
+			for(int k=0; k<n; ++k) if(std::abs(l[k])>lmax) {lmax=std::abs(l[k]); rep=k;}
+			T edgmax=1.1*delta;
+			for(int k=0; k<n; ++k)
+				{
+				T sigma=1/B.row(k).norm();
+				T sigbar=std::abs(l[k])*sigma;
+				if(sigbar>=acc_sigma*rho || sigbar>=sigma)
+					{
+					T dist;
+					if(improved) {NRVec<T> dk=v[other[k]]-xn; dist=dk.norm();}
+					else dist=D.row(k).norm();
+					if(dist>edgmax) {edgmax=dist; rep=k;}
+					}
+				}
+			if(rep>=0) {v[other[rep]]=xn; fv[other[rep]]=fn; cv[other[rep]]=cn;}
+			}
+		}
+	if(flexible && !shortstep) //revision of the trust region radius by the reduction ratio (NEWUOA eq. (7.1))
+		{
+		T dint;
+		if(ratio<=0.1) dint=0.5*dnorm;
+		else if(ratio<=0.7) dint=std::max(dnorm,(T)0.5*delta);
+		else dint=std::max(2*dnorm,(T)0.5*delta);
+		delta= dint<=1.5*rho ? rho : dint;
+		}
+	if(!failed && ratio>=0.1) {lastsuccess=true; continue;}
+
+	//failed trust region step: improve the simplex at the next iteration, or reduce rho if it is acceptable
+	if(worst>=0) continue;
+	//the work with the current rho continues if the step was not restricted by rho or improved the point (NEWUOA Box 10, where |d| > rho is tested;
+	//here the radius of the step is compared instead, as |d| = delta = rho can be slightly above rho due to rounding)
+	if(flexible && ((!shortstep && deltaold>rho) || delta>rho || ratio>0)) continue;
+	if(rho<=hp.my_rhoend) {st.converged=true; break;}
+	if(flexible) //NEWUOA eq. (7.6) and Box 12
+		{
+		T rhonew;
+		if(rho<=16*hp.my_rhoend) rhonew=hp.my_rhoend;
+		else if(rho<=250*hp.my_rhoend) rhonew=std::sqrt(rho*hp.my_rhoend);
+		else rhonew=0.1*rho;
+		delta=std::max((T)0.5*rho,rhonew);
+		rho=rhonew;
+		}
+	else
+		{
+		rho*=0.5;
+		if(rho<=1.5*hp.my_rhoend) rho=hp.my_rhoend;
+		delta=rho;
+		}
+	if(verbose>1) std::cout <<name<<": rho= "<<rho<<" delta= "<<delta<<std::endl;
+	}
+
+best=0;
+for(int j=1; j<=n; ++j) if(fv[j]+mu*cobyla_violation(cv[j]) < fv[best]+mu*cobyla_violation(cv[best])) best=j;
+x=v[best];
+st.f=fv[best];
+if(verbose && m>0) std::cout <<name<<": largest constraint violation "<<cobyla_violation(cv[best])<<std::endl;
+return st.finish(achieved);
+}
+
+
 //trigonometric polynomial a_0 + sum_{k=1}^R (a_k cos(k w t) + b_k sin(k w t)) of the single variable t = x[0]
 template<typename T>
 class trigpolynomial : public OptProblem<T> {
@@ -1351,6 +1668,7 @@ template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, doub
 template class optstate<double>;
 template class testproblem<double>;
 template class testproblem_vqe<double>;
+template class testproblem_vqe_constrained<double>;
 template class ParameterShift<double>;
 template class FiniteDifference<double>;
 template class BFGS_Optimizer<double>;
@@ -1360,6 +1678,7 @@ template class CG_Optimizer<double>;
 template class NelderMead_Optimizer<double>;
 template class Powell_Optimizer<double>;
 template class Rotosolve_Optimizer<double>;
+template class Cobyla_Optimizer<double>;
 template class SGD_Optimizer<double>;
 template class QNG_Optimizer<double>;
 template class Adam_Optimizer<double>;

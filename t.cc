@@ -4893,17 +4893,20 @@ int n;
 cin >>n;
 NRVec<double> x(n);
 x.randomize(1.);
-testproblem_vqe<double> problem; //needs an even dimension
+//testproblem_vqe<double> problem; //needs an even dimension
+testproblem_vqe_constrained<double> problem; //with the constraint sum_i z_i >= 0 (OptConstraints), for COBYLA
 ParameterShift<double> psproblem(&problem); //gradient by the parameter-shift rule from function values only
 //QNG_hyperparameters<double> param; //tested
-Rotosolve_hyperparameters<double> param;
+//Rotosolve_hyperparameters<double> param; //tested
+Cobyla_hyperparameters<double> param;
 param.my_maxstep=2000;
 param.my_f_thr=1e-6;
 param.my_x_thr=1e-3;
 //param.my_g_thr=1e-3; //gradient methods
 cout << "initial " <<x<<endl;
 //QNG_Optimizer<double> o; //tested
-Rotosolve_Optimizer<double> o;
+//Rotosolve_Optimizer<double> o; //tested
+Cobyla_Optimizer<double> o;
 //gradient_hyperparameters<double> achieved; //gradient methods
 hyperparameters<double> achieved; //derivative-free methods
 optresult<double> res=o.minimize(&problem,x,&param,&achieved);

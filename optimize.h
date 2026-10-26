@@ -74,6 +74,16 @@ virtual ~OptTrigonometric() {};
 };
 
 
+//inequality constraints c_i(x) >= 0, i=0,...,nconstraints()-1; an equality constraint can be given as two inequalities
+template<typename T>
+class OptConstraints {
+public:
+virtual int nconstraints() const =0;
+virtual void constraints(const NRVec<T> &x, NRVec<T> &c) const =0; //c is allocated by the caller with nconstraints() elements
+virtual ~OptConstraints() {};
+};
+
+
 //problem wrapping another one (e.g. providing gradients); the capabilities of the wrapped problem remain accessible by optcapability()
 template<typename T>
 class OptProblemAdapter : public OptProblem<T> {
@@ -137,6 +147,15 @@ virtual void hessian(const NRVec<T> &x, NRSMat<T> &h) const;
 virtual void metric(const NRVec<T> &x, NRSMat<T> &g) const;
 virtual int degree(const int i) const {return 1;}
 virtual ~testproblem_vqe() {};
+};
+
+//constrained test case: testproblem_vqe with nonnegative total magnetization sum_i z_i >= 0
+template<typename T>
+class testproblem_vqe_constrained : public testproblem_vqe<T>, public OptConstraints<T> {
+public:
+virtual int nconstraints() const {return 1;}
+virtual void constraints(const NRVec<T> &x, NRVec<T> &c) const;
+virtual ~testproblem_vqe_constrained() {};
 };
 
 
@@ -459,6 +478,30 @@ class Powell_Optimizer : public Optimizer<T> {
 public:
 virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
 virtual ~Powell_Optimizer() {};
+};
+
+
+//COBYLA, constrained optimization by linear approximations (Powell, in Advances in Optimization and Numerical Analysis, eds. Gomez & Hennart,
+//Kluwer 1994, p. 51; Powell, Acta Numerica 7, 287 (1998)), derivative-free; constraints from OptConstraints, without them unconstrained
+//linear models of f and the constraints are interpolated on a simplex of n+1 points, the trust region radius rho decreases from rhobeg to rhoend;
+//the iterations finish when rho reaches rhoend and the trust region step does not improve the point, or by the general criterion
+//with f_thr and x_thr, which are used for the change of f in an iteration and for rho (both 0 by default)
+template<typename T>
+class Cobyla_hyperparameters : public hyperparameters<T> {
+public:
+T my_rhobeg; //initial trust region radius, about one tenth of the expected change of x
+T my_rhoend; //final trust region radius, the accuracy of x
+bool my_flexible_radius; //trust region radius delta >= rho revised by the reduction ratio and rho reduced by the rules of NEWUOA
+                         //(Powell, Report DAMTP 2004/NA08, eqs. (7.1), (7.6), (6.16)), so that delta can also increase; false = Powell's original COBYLA with delta = rho
+Cobyla_hyperparameters() : my_rhobeg(0.5), my_rhoend(1e-6), my_flexible_radius(true) {this->my_maxstep=100000;};
+virtual void setfrom(const hyperparameters<T> &p) {const Cobyla_hyperparameters *q=dynamic_cast<const Cobyla_hyperparameters *>(&p); if(q) *this= *q; else hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class Cobyla_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~Cobyla_Optimizer() {};
 };
 
 
