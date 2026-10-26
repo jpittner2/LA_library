@@ -18,6 +18,8 @@
 
 #include "optimize.h"
 #include "la_random.h"
+#include "diis.h"
+#include "nonclass.h"
 
 namespace LA {
 
@@ -44,6 +46,151 @@ if(grad)
 		}
 	}
 return r;
+}
+
+
+//central difference (f(x+h e_i) - f(x-h e_i))/(2h); xs is a working copy of x, restored on return
+template<typename T>
+static T central_difference(const OptProblem<T> *p, NRVec<T> &xs, const NRVec<T> &x, const int i, const T h)
+{
+xs[i]=x[i]+h;
+T d=p->funcgrad(xs,NULL);
+xs[i]=x[i]-h;
+d-=p->funcgrad(xs,NULL);
+xs[i]=x[i];
+return d/(2*h);
+}
+
+
+template<typename T>
+ParameterShift<T>::ParameterShift(const OptProblem<T> *pp, const T hh) : OptProblemAdapter<T>(pp), trig(optcapability<OptTrigonometric<T> >(pp)), h(hh)
+{
+if(!trig) laerror("ParameterShift needs a problem providing OptTrigonometric");
+}
+
+//derivative of a trigonometric polynomial of degree R with frequencies 1..R (in units of w):
+//f'(0) = sum_{mu=1}^{2R} (-1)^{mu-1} f(s_mu)/(4R sin^2(s_mu/2)), s_mu = (2mu-1)pi/(2R) (Wierichs et al., Quantum 6, 677 (2022))
+template<typename T>
+T ParameterShift<T>::funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
+{
+T f=this->p->funcgrad(x,NULL);
+if(!grad) return f;
+grad->copyonwrite();
+NRVec<T> xs(x);
+xs.copyonwrite(); //working copy with shifted elements
+for(int i=0; i<x.size(); ++i)
+	{
+	const int R=trig->degree(i);
+	if(R==0) {(*grad)[i]=central_difference(this->p,xs,x,i,h); continue;}
+	const T w=2*M_PI/trig->period(i);
+	T d=0;
+	for(int mu=1; mu<=2*R; ++mu)
+		{
+		const T s=(2*mu-1)*M_PI/(2*R);
+		const T sn=std::sin(s/2);
+		xs[i]=x[i]+s/w;
+		d+= (mu%2 ? 1 : -1)*this->p->funcgrad(xs,NULL)/(4*R*sn*sn);
+		}
+	xs[i]=x[i];
+	(*grad)[i]=w*d;
+	}
+return f;
+}
+
+
+template<typename T>
+T FiniteDifference<T>::funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
+{
+T f=this->p->funcgrad(x,NULL);
+if(!grad) return f;
+grad->copyonwrite();
+NRVec<T> xs(x);
+xs.copyonwrite(); //working copy with shifted elements
+for(int i=0; i<x.size(); ++i) (*grad)[i]=central_difference(this->p,xs,x,i,h);
+return f;
+}
+
+
+//Bloch vector components z = cos a cos b, x = cos a sin b of the qubit RY(b) RX(a)|0> and their derivatives
+template<typename T>
+class blochqubit {
+public:
+T z, x, za, zb, xa, xb;
+blochqubit(const T a, const T b)
+	{
+	T ca=std::cos(a), sa=std::sin(a), cb=std::cos(b), sb=std::sin(b);
+	z=ca*cb; x=ca*sb; za= -sa*cb; zb= -ca*sb; xa= -sa*sb; xb=ca*cb;
+	}
+};
+
+template<typename T>
+T testproblem_vqe<T>::funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
+{
+const int nq=x.size()/2;
+if(2*nq!=x.size()) laerror("testproblem_vqe needs an even number of parameters");
+T r=0;
+for(int i=0; i<nq; ++i)
+	{
+	blochqubit<T> q(x[2*i],x[2*i+1]);
+	r+= hfield(i)*q.z + kfield(i)*q.x;
+	if(i<nq-1) r+= J(i)*q.z*std::cos(x[2*i+2])*std::cos(x[2*i+3]);
+	}
+if(grad)
+	{
+	if(grad->size()!=x.size()) laerror("grad size mismatch");
+	grad->copyonwrite();
+	for(int i=0; i<nq; ++i)
+		{
+		blochqubit<T> q(x[2*i],x[2*i+1]);
+		T eff=hfield(i); //coefficient of z_i including the couplings
+		if(i>0) eff+= J(i-1)*std::cos(x[2*i-2])*std::cos(x[2*i-1]);
+		if(i<nq-1) eff+= J(i)*std::cos(x[2*i+2])*std::cos(x[2*i+3]);
+		(*grad)[2*i]= eff*q.za + kfield(i)*q.xa;
+		(*grad)[2*i+1]= eff*q.zb + kfield(i)*q.xb;
+		}
+	}
+return r;
+}
+
+template<typename T>
+void testproblem_vqe<T>::hessian(const NRVec<T> &x, NRSMat<T> &h) const
+{
+const int nq=x.size()/2;
+h.copyonwrite();
+h=(T)0;
+for(int i=0; i<nq; ++i)
+	{
+	blochqubit<T> q(x[2*i],x[2*i+1]);
+	T eff=hfield(i);
+	if(i>0) eff+= J(i-1)*std::cos(x[2*i-2])*std::cos(x[2*i-1]);
+	if(i<nq-1) eff+= J(i)*std::cos(x[2*i+2])*std::cos(x[2*i+3]);
+	//z_aa = z_bb = -z, x_aa = x_bb = -x, z_ab = sin a sin b, x_ab = -sin a cos b
+	h(2*i,2*i)= -eff*q.z - kfield(i)*q.x;
+	h(2*i+1,2*i+1)= h(2*i,2*i);
+	h(2*i,2*i+1)= eff*std::sin(x[2*i])*std::sin(x[2*i+1]) - kfield(i)*std::sin(x[2*i])*std::cos(x[2*i+1]);
+	if(i<nq-1)
+		{
+		blochqubit<T> q1(x[2*i+2],x[2*i+3]);
+		h(2*i,2*i+2)= J(i)*q.za*q1.za;
+		h(2*i,2*i+3)= J(i)*q.za*q1.zb;
+		h(2*i+1,2*i+2)= J(i)*q.zb*q1.za;
+		h(2*i+1,2*i+3)= J(i)*q.zb*q1.zb;
+		}
+	}
+}
+
+template<typename T>
+void testproblem_vqe<T>::metric(const NRVec<T> &x, NRSMat<T> &g) const
+{
+const int nq=x.size()/2;
+g.copyonwrite();
+g=(T)0;
+for(int i=0; i<nq; ++i)
+	{
+	T ca=std::cos(x[2*i]);
+	g(2*i,2*i)=0.25;
+	g(2*i+1,2*i+1)=0.25*ca*ca;
+	}
 }
 
 
@@ -428,6 +575,93 @@ return linesearch_minimize(names[hp.my_update],dir,o,x,hp,achieved);
 }
 
 
+template<typename T>
+optresult<T> GDIIS_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+const char *name="GDIIS";
+GDIIS_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("GDIIS cannot search for saddle points");
+if(hp.my_diis_dim<1) laerror("GDIIS needs diis_dim >= 1");
+const int verbose=hp.my_verbose;
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+const int n=x.size();
+QN_direction<T> dir(hp,n);
+DIIS<NRVec<T>,NRVec<T> > diis(hp.my_diis_dim);
+bool fresh=true; //first step after a (re)start, the quasi-Newton step from the initial Hessian guess has no scale
+NRVec<T> g(n);
+T f=e(x,&g);
+
+for(;; ++st.iter)
+	{
+	if(st.stop(f,g.norm())) break;
+
+	NRVec<T> p = dir.direction(g); //quasi-Newton step, the error vector of DIIS
+	if(p*g >= 0)
+		{
+		if(verbose) std::cout <<name<<": not a descent direction, restart\n";
+		dir.reset();
+		diis.reset();
+		fresh=true;
+		p = g*(T)-1;
+		}
+
+	NRVec<T> xold(x), gold(g);
+	T fold=f;
+	NRVec<T> s;
+	bool accepted=false;
+	if(!fresh) //DIIS extrapolation, otherwise a line search is done directly
+		{
+		s = x+p;
+		NRVec<T> err(p);
+		diis.extrapolate(s,err,verbose>1,hp.my_diis_eps);
+		s -= x;
+		if(s*g >= 0 || s.norm() > hp.my_maxsteplength)
+			{
+			if(verbose) std::cout <<name<<": unreasonable DIIS step, restart\n";
+			diis.reset();
+			s = p;
+			T snorm=s.norm();
+			if(snorm > hp.my_maxsteplength) s *= hp.my_maxsteplength/snorm;
+			}
+		NRVec<T> xnew = x+s;
+		NRVec<T> gnew(n);
+		T fnew=e(xnew,&gnew);
+		if(fnew<f) {x=xnew; f=fnew; g=gnew; accepted=true;}
+		else
+			{
+			if(verbose) std::cout <<name<<": no decrease, restart and line search\n";
+			diis.reset();
+			}
+		}
+	if(!accepted) //line search along the quasi-Newton step
+		{
+		if(e.exhausted()) continue; //reported by stop()
+		T alpha=linesearch_wolfe(e,x,f,g,p,dir.steepest() ? 1/p.norm() : (T)1,hp);
+		if(alpha==0)
+			{
+			if(e.exhausted()) continue;
+			if(dir.steepest()) {if(verbose) std::cout <<name<<": line search failed along steepest descent, giving up\n"; break;}
+			if(verbose) std::cout <<name<<": line search failed, restart\n";
+			dir.reset();
+			fresh=true;
+			continue;
+			}
+		s = x-xold;
+		}
+	fresh=false;
+
+	NRVec<T> y = g-gold;
+	if(verbose>1) std::cout <<name<<" step |s|= "<<s.norm()<<" s.y= "<<s*y<<std::endl;
+	if(!dir.update(s,y,p,g) && verbose) std::cout <<name<<": update skipped\n";
+	st.step(f-fold,s.norm());
+	}
+
+return st.finish(achieved);
+}
+
+
 //L-BFGS: last m pairs s = x_{k+1}-x_k, y = g_{k+1}-g_k in a ring buffer
 template<typename T>
 class LBFGS_direction : public linesearch_direction<T> {
@@ -742,11 +976,42 @@ return st.finish(achieved);
 
 
 
+//natural gradient (G + reg I)^-1 g from the gradient of an inner estimator and the metric G of the problem
+template<typename T>
+class natural_gradient_estimator : public gradient_estimator<T> {
+public:
+gradient_estimator<T> &inner;
+const OptMetric<T> *m;
+T reg;
+natural_gradient_estimator(gradient_estimator<T> &in, const OptMetric<T> *mm, const T r) : inner(in), m(mm), reg(r) {};
+T operator()(optevaluator<T> &e, const NRVec<T> &x, NRVec<T> &g, const int k)
+	{
+	T f=inner(e,x,g,k);
+	NRSMat<T> G(x.size());
+	m->metric(x,G);
+	if(reg!=0) G+=reg;
+	linear_solve(G,g);
+	return f;
+	}
+int cost() const {return inner.cost();}
+bool exact() const {return inner.exact();}
+T calibrate(optevaluator<T> &e, const NRVec<T> &x, const firstorder_hyperparameters<T> &hp) {return inner.calibrate(e,x,hp);}
+};
+
+
 template<typename T>
 optresult<T> firstorder_minimize(const char *name, firstorder_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const firstorder_hyperparameters<T> &hp, hyperparameters<T> *achieved, gradient_estimator<T> *est)
 {
 gradient_estimator<T> exact;
-gradient_estimator<T> &grad = est ? *est : exact;
+gradient_estimator<T> *plain = est ? est : &exact;
+const OptMetric<T> *metric=NULL;
+if(hp.my_natural)
+	{
+	metric=optcapability<OptMetric<T> >(o);
+	if(!metric) laerror("natural gradient needs a problem providing the metric (OptMetric)");
+	}
+natural_gradient_estimator<T> natural(*plain,metric,hp.my_metric_reg);
+gradient_estimator<T> &grad = hp.my_natural ? natural : *plain;
 optevaluator<T> e(o,hp.my_maxfunc);
 optstate<T> st(name,hp,e);
 const int n=x.size();
@@ -800,6 +1065,142 @@ NRVec<T> step(const NRVec<T> &g, const int k)
 	return d;
 	}
 };
+
+
+template<typename T>
+optresult<T> QNG_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+QNG_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+hp.my_natural=true; //also if the caller passed e.g. SGD_hyperparameters
+if(hp.my_saddle_order) laerror("QNG cannot search for saddle points");
+SGD_stepper<T> stepper(hp);
+return firstorder_minimize("QNG",stepper,o,x,hp,achieved);
+}
+
+
+//trigonometric polynomial a_0 + sum_{k=1}^R (a_k cos(k w t) + b_k sin(k w t)) of the single variable t = x[0]
+template<typename T>
+class trigpolynomial : public OptProblem<T> {
+public:
+NRVec<T> a, b;
+T w;
+trigpolynomial(const int R, const T ww) : a(R+1), b(R+1), w(ww) {};
+T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
+	{
+	if(grad) laerror("trigpolynomial provides only the function");
+	T f=a[0];
+	for(int k=1; k<a.size(); ++k) f+= a[k]*std::cos(k*w*x[0]) + b[k]*std::sin(k*w*x[0]);
+	return f;
+	}
+};
+
+//exact minimization of f along x_i, a trigonometric polynomial of degree R with the given period: reconstruction from
+//2R+1 equidistant samples t_j = j*period/(2R+1) (the one at t=0 is the current f, 2R new evaluations) by discrete Fourier transform
+//and minimization of the reconstruction; returns false if the evaluation budget is insufficient (x,f then unchanged)
+template<typename T>
+static bool trig_minimize(optevaluator<T> &e, NRVec<T> &x, T &f, const int i, const int R, const T period, const bool reevaluate, const int verbose)
+{
+const int N=2*R+1;
+if(e.remaining()<N-1+(reevaluate?1:0)) return false;
+const T w=2*M_PI/period;
+const T xi=((const NRVec<T> &)x)[i]; //const access, x may be shared with the evaluator
+NRVec<T> fs(N); //samples
+fs[0]=f;
+NRVec<T> xs(x);
+for(int j=1; j<N; ++j)
+	{
+	xs.copyonwrite(); //the evaluator may keep a reference to the previous sample as its best point
+	xs[i]=xi+j*period/N;
+	fs[j]=e(xs);
+	}
+
+trigpolynomial<T> p(R,w);
+p.a[0]=fs.sum()/N;
+for(int k=1; k<=R; ++k)
+	{
+	p.a[k]=p.b[k]=0;
+	for(int j=0; j<N; ++j) {T phi=2*M_PI*k*j/N; p.a[k]+= fs[j]*std::cos(phi); p.b[k]+= fs[j]*std::sin(phi);}
+	p.a[k]*= (T)2/N; p.b[k]*= (T)2/N;
+	}
+
+T t, fmin;
+if(R==1) //closed form: a_1 cos(wt) + b_1 sin(wt) = A cos(wt - phi), minimum at wt = phi + pi
+	{
+	t=(std::atan2(p.b[1],p.a[1])+M_PI)/w;
+	fmin=p.a[0]-std::sqrt(p.a[1]*p.a[1]+p.b[1]*p.b[1]);
+	}
+else //global minimum of the reconstruction: best of a dense grid, refined by Brent's method (no evaluations of the problem)
+	{
+	const int M=8*N;
+	NRVec<T> tt(1);
+	int jbest=0;
+	T fbest=0;
+	for(int j=0; j<M; ++j) {tt[0]=j*period/M; T ft=p.funcgrad(tt,NULL); if(j==0 || ft<fbest) {fbest=ft; jbest=j;}}
+	optevaluator<T> pe(&p);
+	tt[0]=jbest*period/M;
+	NRVec<T> u((T)1,1);
+	linemin_brent(pe,tt,fbest,u,period/M,(T)1e-10,(T)1e-12*period,100);
+	t=tt[0];
+	fmin=fbest;
+	}
+t-= period*std::floor(t/period+0.5); //shortest step, t in (-period/2,period/2]
+x.copyonwrite();
+x[i]=xi+t;
+f= reevaluate ? e(x) : fmin;
+if(verbose>1) std::cout <<"trigonometric minimization of parameter "<<i<<" degree "<<R<<" step "<<t<<" f= "<<f<<std::endl;
+return true;
+}
+
+
+template<typename T>
+optresult<T> Rotosolve_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+const char *name="Rotosolve";
+Rotosolve_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("Rotosolve cannot search for saddle points");
+const int verbose=hp.my_verbose;
+const T abstol=0.01*hp.my_x_thr; //as in Powell's method
+const int n=x.size();
+const OptTrigonometric<T> *trig=optcapability<OptTrigonometric<T> >(o);
+if(!trig && verbose) std::cout <<name<<": the problem is not trigonometric, line minimizations only\n";
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+T f=e(x);
+NRVec<T> tstep(hp.my_initstep,n); //trial steps of the line minimizations
+
+for(;; ++st.iter)
+	{
+	if(st.stop(f)) break;
+	NRVec<T> x0(x);
+	T f0=f;
+	bool budget=true;
+	for(int i=0; i<n && budget; ++i)
+		{
+		const int R= trig ? trig->degree(i) : 0;
+		if(R>0) budget=trig_minimize(e,x,f,i,R,trig->period(i),hp.my_reevaluate,verbose);
+		else
+			{
+			NRVec<T> u((T)0,n);
+			u[i]=1;
+			T t=linemin_brent(e,x,f,u,tstep[i],hp.my_linmin_tol,abstol,hp.my_maxlinemin,verbose);
+			if(t!=0) tstep[i]=std::abs(t);
+			budget=!e.exhausted();
+			}
+		}
+	NRVec<T> dx = x-x0;
+	st.step(f0-f,dx.norm());
+	if(!budget) //incomplete sweep, no convergence test
+		{
+		if(verbose) std::cout <<name<<": maximum number of function evaluations reached\n";
+		st.f=f;
+		break;
+		}
+	}
+
+return st.finish(achieved);
+}
 
 
 template<typename T>
@@ -949,12 +1350,18 @@ return firstorder_minimize("SPSA",stepper,o,x,hp,achieved,&est);
 template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, double &f, NRVec<double> &g, const NRVec<double> &p, const double alpha1, const linesearch_hyperparameters<double> &lp);
 template class optstate<double>;
 template class testproblem<double>;
+template class testproblem_vqe<double>;
+template class ParameterShift<double>;
+template class FiniteDifference<double>;
 template class BFGS_Optimizer<double>;
 template class LBFGS_Optimizer<double>;
+template class GDIIS_Optimizer<double>;
 template class CG_Optimizer<double>;
 template class NelderMead_Optimizer<double>;
 template class Powell_Optimizer<double>;
+template class Rotosolve_Optimizer<double>;
 template class SGD_Optimizer<double>;
+template class QNG_Optimizer<double>;
 template class Adam_Optimizer<double>;
 template class SPSA_Optimizer<double>;
 template double linemin_brent(optevaluator<double> &e, NRVec<double> &x, double &f, const NRVec<double> &u, const double t1, const double tol, const double abstol, const int maxiter, const int verbose);

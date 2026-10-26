@@ -4830,7 +4830,7 @@ cout <<"adjoint error = "<<(a*adj).norm(abs(det))<<endl;
 
 }
 
-if(1)
+if(0) //testbed of the general methods
 {
 int seed;
 int f=open("/dev/random",O_RDONLY);
@@ -4850,12 +4850,13 @@ testproblem<double> problem;
 //Powell_hyperparameters<double> param; //tested
 //SGD_hyperparameters<double> param; //tested
 //Adam_hyperparameters<double> param; //tested
-SPSA_hyperparameters<double> param;
+//SPSA_hyperparameters<double> param; //tested
+GDIIS_hyperparameters<double> param;
 param.my_maxstep=100;
 param.my_f_thr=1e-6;
 param.my_x_thr=1e-3;
 param.my_g_thr=1e-3; //gradient methods
-param.my_lr=1e-2; //first-order methods
+//param.my_lr=1e-2; //first-order methods
 param.my_maxstep=2000; //first-order methods
 //param.my_update=QN_BFGS; //tested
 //param.my_update=QN_DFP; //tested
@@ -4868,13 +4869,48 @@ cout << "initial " <<x<<endl;
 //Powell_Optimizer<double> o; //tested
 //SGD_Optimizer<double> o; //tested
 //Adam_Optimizer<double> o; //tested
-SPSA_Optimizer<double> o;
+//SPSA_Optimizer<double> o; //tested
+GDIIS_Optimizer<double> o;
 gradient_hyperparameters<double> achieved; //gradient methods
 //hyperparameters<double> achieved; //derivative-free methods
 optresult<double> res=o.minimize(&problem,x,&param,&achieved);
 cout << "optimized " <<x<<endl;
 cout << "converged "<<res.converged<<" f= "<<res.f<<" iterations "<<achieved.my_maxstep<<" function evaluations "<<achieved.my_maxfunc<<" last df "<<achieved.my_f_thr<<" last dx "<<achieved.my_x_thr<<" |g| "<<achieved.my_g_thr<<endl; //gradient methods
 //cout << "converged "<<res.converged<<" f= "<<res.f<<" iterations "<<achieved.my_maxstep<<" function evaluations "<<achieved.my_maxfunc<<" last df "<<achieved.my_f_thr<<" last dx "<<achieved.my_x_thr<<endl; //derivative-free methods
+double r=problem.funcgrad(x,NULL);
+cout <<r<<endl;
+}
+
+if(1) //testbed of the VQE methods, the problem provides capabilities (OptMetric, OptTrigonometric, OptHessian)
+{
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+
+int n;
+cin >>n;
+NRVec<double> x(n);
+x.randomize(1.);
+testproblem_vqe<double> problem; //needs an even dimension
+ParameterShift<double> psproblem(&problem); //gradient by the parameter-shift rule from function values only
+//QNG_hyperparameters<double> param; //tested
+Rotosolve_hyperparameters<double> param;
+param.my_maxstep=2000;
+param.my_f_thr=1e-6;
+param.my_x_thr=1e-3;
+//param.my_g_thr=1e-3; //gradient methods
+cout << "initial " <<x<<endl;
+//QNG_Optimizer<double> o; //tested
+Rotosolve_Optimizer<double> o;
+//gradient_hyperparameters<double> achieved; //gradient methods
+hyperparameters<double> achieved; //derivative-free methods
+optresult<double> res=o.minimize(&problem,x,&param,&achieved);
+//optresult<double> res=o.minimize(&psproblem,x,&param,&achieved); //gradient methods with parameter-shift gradients
+cout << "optimized " <<x<<endl;
+//cout << "converged "<<res.converged<<" f= "<<res.f<<" iterations "<<achieved.my_maxstep<<" function evaluations "<<achieved.my_maxfunc<<" last df "<<achieved.my_f_thr<<" last dx "<<achieved.my_x_thr<<" |g| "<<achieved.my_g_thr<<endl; //gradient methods
+cout << "converged "<<res.converged<<" f= "<<res.f<<" iterations "<<achieved.my_maxstep<<" function evaluations "<<achieved.my_maxfunc<<" last df "<<achieved.my_f_thr<<" last dx "<<achieved.my_x_thr<<endl; //derivative-free methods
 double r=problem.funcgrad(x,NULL);
 cout <<r<<endl;
 }

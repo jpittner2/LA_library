@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <cstdarg>
+#include <cmath>
 #include "vec.h"
 #include "mat.h"
 #include "smat.h"
@@ -41,12 +42,101 @@ virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const =0; //evaluate funct
 virtual ~OptProblem() {};
 };
 
+//optional capabilities of a problem, to be multiply inherited together with OptProblem; methods find them by optcapability()
+//matrices are allocated by the caller, implementations writing their elements have to call copyonwrite() first
+
+//Hessian of f
+template<typename T>
+class OptHessian {
+public:
+virtual void hessian(const NRVec<T> &x, NRSMat<T> &h) const =0; //Hessian at x
+virtual NRVec<T> hessian_times(const NRVec<T> &x, const NRVec<T> &v) const {NRSMat<T> h(x.size()); hessian(x,h); return h*v;} //Hessian-vector product, can be overridden for large problems
+virtual ~OptHessian() {};
+};
+
+//metric tensor of the parameter space: Fubini-Study metric for the quantum natural gradient (Stokes et al., Quantum 4, 269 (2020)),
+//Fisher information for the natural gradient in machine learning (Amari, Neural Comput. 10, 251 (1998))
+template<typename T>
+class OptMetric {
+public:
+virtual void metric(const NRVec<T> &x, NRSMat<T> &g) const =0; //metric at x
+virtual ~OptMetric() {};
+};
+
+//f as a function of x_i alone is a trigonometric polynomial a_0 + sum_{k=1}^{R_i} (a_k cos(k w_i x_i) + b_k sin(k w_i x_i)), w_i = 2 pi/period_i;
+//for parameterized quantum circuits with gates exp(-i x_i P/2), P a Pauli string, R_i = 1 and period_i = 2 pi
+template<typename T>
+class OptTrigonometric {
+public:
+virtual int degree(const int i) const =0; //R_i, 0 = f is not trigonometric in x_i
+virtual T period(const int i) const {return 2*M_PI;}
+virtual ~OptTrigonometric() {};
+};
+
+
+//problem wrapping another one (e.g. providing gradients); the capabilities of the wrapped problem remain accessible by optcapability()
+template<typename T>
+class OptProblemAdapter : public OptProblem<T> {
+public:
+const OptProblem<T> *p; //wrapped problem
+OptProblemAdapter(const OptProblem<T> *pp) : p(pp) {};
+};
+
+//capability C (OptHessian<T>, OptMetric<T>, ...) of the problem, searched also through adapters; NULL if not available
+template<class C, typename T>
+const C *optcapability(const OptProblem<T> *o)
+{
+const C *c=dynamic_cast<const C *>(o);
+if(c) return c;
+const OptProblemAdapter<T> *a=dynamic_cast<const OptProblemAdapter<T> *>(o);
+return a ? optcapability<C>(a->p) : NULL;
+}
+
+
+//gradient by the general parameter-shift rule (Wierichs et al., Quantum 6, 677 (2022); degree 1: Mitarai et al., Phys. Rev. A 98, 032309 (2018),
+//Schuld et al., Phys. Rev. A 99, 032331 (2019)), exact from 2R_i evaluations per parameter; parameters of degree 0 by central differences with step h
+//the wrapped problem has to provide OptTrigonometric
+template<typename T>
+class ParameterShift : public OptProblemAdapter<T> {
+public:
+const OptTrigonometric<T> *trig;
+T h;
+ParameterShift(const OptProblem<T> *pp, const T hh=1e-6);
+virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
+};
+
+//gradient by central differences with step h, 2 evaluations per parameter
+template<typename T>
+class FiniteDifference : public OptProblemAdapter<T> {
+public:
+T h;
+FiniteDifference(const OptProblem<T> *pp, const T hh=1e-6) : OptProblemAdapter<T>(pp), h(hh) {};
+virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
+};
+
+
 //test case
 template<typename T>
 class testproblem : public OptProblem<T> {
 public:
 virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
 virtual ~testproblem() {};
+};
+
+//test case with all capabilities: Ising chain with longitudinal and transverse fields in the product state of qubits RY(b_i) RX(a_i)|0>,
+//x = (a_0,b_0,a_1,b_1,...), E = sum_i (h_i z_i + k_i x_i) + sum_i J_i z_i z_{i+1}, Bloch vector components z_i = cos a_i cos b_i, x_i = cos a_i sin b_i;
+//trigonometric of degree 1 with period 2 pi in all parameters, Fubini-Study metric 1/4 diag(1, cos^2 a_i) for each qubit
+template<typename T>
+class testproblem_vqe : public OptProblem<T>, public OptHessian<T>, public OptMetric<T>, public OptTrigonometric<T> {
+public:
+static T hfield(const int i) {return 0.7+0.1*(i%3);}
+static T kfield(const int i) {return 0.4;}
+static T J(const int i) {return 1;}
+virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
+virtual void hessian(const NRVec<T> &x, NRSMat<T> &h) const;
+virtual void metric(const NRVec<T> &x, NRSMat<T> &g) const;
+virtual int degree(const int i) const {return 1;}
+virtual ~testproblem_vqe() {};
 };
 
 
@@ -206,7 +296,9 @@ T my_lr_decay; //learning rate in iteration k is lr/(1+lr_decay*k)^lr_power
 T my_lr_power;
 T my_weight_decay; //decoupled weight decay x -= lr*weight_decay*x (Loshchilov & Hutter, ICLR 2019)
 bool my_return_best; //return the point with the lowest function value found instead of the last one; only for (nearly) deterministic f, the lowest of noisy values is biased by the noise
-firstorder_hyperparameters() : my_lr(1e-3), my_lr_decay(0), my_lr_power(1), my_weight_decay(0), my_return_best(false) {this->my_maxstep=1000;};
+bool my_natural; //natural gradient (G + metric_reg I)^-1 g with the metric G of the problem (OptMetric) (Amari, Neural Comput. 10, 251 (1998); Stokes et al., Quantum 4, 269 (2020)); |g| refers then to it
+T my_metric_reg; //regularization added to the diagonal of the metric
+firstorder_hyperparameters() : my_lr(1e-3), my_lr_decay(0), my_lr_power(1), my_weight_decay(0), my_return_best(false), my_natural(false), my_metric_reg(1e-3) {this->my_maxstep=1000;};
 virtual void setfrom(const hyperparameters<T> &p) {const firstorder_hyperparameters *q=dynamic_cast<const firstorder_hyperparameters *>(&p); if(q) *this= *q; else gradient_hyperparameters<T>::setfrom(p);}
 };
 
@@ -284,6 +376,27 @@ virtual ~LBFGS_Optimizer() {};
 };
 
 
+//geometry DIIS (Csaszar & Pulay, J. Mol. Struct. 114, 31 (1984)) with a quasi-Newton Hessian (Farkas & Schlegel, Phys. Chem. Chem. Phys. 4, 11 (2002))
+//error vectors are the quasi-Newton steps e_i = -H g_i, the new point is sum_i c_i (x_i+e_i) minimizing |sum_i c_i e_i| with sum_i c_i = 1
+//one function evaluation per iteration; if the DIIS step goes uphill, is longer than maxsteplength or does not decrease f,
+//the DIIS history is restarted and a line search along the quasi-Newton step is done
+template<typename T>
+class GDIIS_hyperparameters : public BFGS_hyperparameters<T> {
+public:
+int my_diis_dim; //no. of stored points
+T my_diis_eps; //regularization added to the diagonal of the DIIS matrix
+GDIIS_hyperparameters() : my_diis_dim(5), my_diis_eps(0) {};
+virtual void setfrom(const hyperparameters<T> &p) {const GDIIS_hyperparameters *q=dynamic_cast<const GDIIS_hyperparameters *>(&p); if(q) *this= *q; else BFGS_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class GDIIS_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~GDIIS_Optimizer() {};
+};
+
+
 //nonlinear conjugate gradient methods (Nocedal & Wright chap. 5.2; Hager & Zhang, SIAM J. Optim. 16, 170 (2005))
 //differing by the formula for beta in p_{k+1} = -g_{k+1} + beta p_k; PR and HS are used in the nonnegative variants PR+ and HS+
 enum CG_beta {CG_FR, CG_PR, CG_HS, CG_DY, CG_HZ};
@@ -349,6 +462,26 @@ virtual ~Powell_Optimizer() {};
 };
 
 
+//Rotosolve: sweeps of exact minimizations along single parameters in which f is trigonometric (OptTrigonometric)
+//(Ostaszewski et al., Quantum 5, 391 (2021); Nakanishi et al., Phys. Rev. Research 2, 043158 (2020); degree > 1: Wierichs et al., Quantum 6, 677 (2022));
+//f along x_i is reconstructed from 2R_i+1 equidistant samples over its period (2R_i new evaluations) and minimized without further evaluations;
+//parameters of degree 0, or all if the problem is not trigonometric, are minimized by line minimization as in Powell's method (whose parameters are used)
+template<typename T>
+class Rotosolve_hyperparameters : public Powell_hyperparameters<T> {
+public:
+bool my_reevaluate; //evaluate f at the new point instead of taking the value of the reconstruction (for noisy f or doubtful degrees)
+Rotosolve_hyperparameters() : my_reevaluate(false) {};
+virtual void setfrom(const hyperparameters<T> &p) {const Rotosolve_hyperparameters *q=dynamic_cast<const Rotosolve_hyperparameters *>(&p); if(q) *this= *q; else Powell_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class Rotosolve_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~Rotosolve_Optimizer() {};
+};
+
+
 //stochastic gradient descent with momentum v = momentum*v + g, step d = v or d = g + momentum*v (Nesterov) (Sutskever et al., ICML 2013)
 template<typename T>
 class SGD_hyperparameters : public firstorder_hyperparameters<T> {
@@ -364,6 +497,24 @@ class SGD_Optimizer : public Optimizer<T> {
 public:
 virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
 virtual ~SGD_Optimizer() {};
+};
+
+
+//quantum natural gradient x -= lr (G + metric_reg I)^-1 g (Stokes et al., Quantum 4, 269 (2020)): SGD without momentum with the natural gradient;
+//the problem has to provide the metric (OptMetric), the gradient can come e.g. from ParameterShift; momentum, Adam or SPSA can be combined with the natural gradient by setting my_natural
+//natural steps are longer than gradient steps with the same lr (metric eigenvalues ~1/4 or smaller): lr up to ~0.1, or a larger metric_reg
+template<typename T>
+class QNG_hyperparameters : public SGD_hyperparameters<T> {
+public:
+QNG_hyperparameters() {this->my_momentum=0; this->my_natural=true; this->my_lr=0.05;};
+virtual void setfrom(const hyperparameters<T> &p) {const QNG_hyperparameters *q=dynamic_cast<const QNG_hyperparameters *>(&p); if(q) *this= *q; else SGD_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class QNG_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~QNG_Optimizer() {};
 };
 
 
