@@ -154,8 +154,8 @@ extern T trace2(const NRSMat<T> &a, const NRMat<T> &b, const bool diagscaled=0);
 extern T trace2(const NRMat<T> &a, const NRSMat<T> &b, const bool diagscaled=0);\
 extern void linear_solve(NRMat<T> &a, NRMat<T> *b, T *det=0,int n=0); /*solve Ax^T=b^T (b is nrhs x n) */ \
 extern void linear_solve(NRSMat<T> &a, NRMat<T> *b, T *det=0, int n=0); /*solve Ax^T=b^T (b is nrhs x n) */\
-extern void linear_solve(NRMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
-extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, double *det=0, int n=0); \
+extern void linear_solve(NRMat<T> &a, NRVec<T> &b, T *det=0, int n=0); \
+extern void linear_solve(NRSMat<T> &a, NRVec<T> &b, T *det=0, int n=0); \
 extern void diagonalize(NRMat<T> &a, NRVec<LA_traits<T>::normtype> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1); \
 extern void diagonalize(NRSMat<T> &a, NRVec<LA_traits<T>::normtype> &w, NRMat<T> *v, const bool corder=1, int n=0, NRSMat<T> *b=NULL, const int itype=1);\
 extern void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<LA_traits<T>::normtype> &s, NRMat<T> *v, const bool vnotdagger=0, int m=0, int n=0); \
@@ -285,6 +285,7 @@ const NRMat<T> calcsvdinverse(NRMat<T> a, double thr=0, bool do_absadjoint=false
 		for(int i=0; i<n; ++i) s[i] = (w[i]<thr)? 0. : 1./w[i];
 	v.diagmultr(s);
 	u.transposeme();
+	u.conjugateme(); //A = U W V^H, hence A^-1 = V W^-1 U^H
         return v*u; //could use gemm instead of separate transpose too
 }
 

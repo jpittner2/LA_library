@@ -266,60 +266,77 @@ linear_solve_do(a,&B[0],1,a.nrows(),det,n);
 
 
 // Roman, complex version of linear_solve()
-extern "C" void FORNAME(zgesv)(const int *N, const int *NRHS, double *A, const int *LDA,
-           int *IPIV, double *B, const int *LDB, int *INFO);
+extern "C" void FORNAME(zgesv)(const FINT *N, const FINT *NRHS, std::complex<double> *A, const FINT *LDA,
+           FINT *IPIV, std::complex<double> *B, const FINT *LDB, FINT *INFO);
 
-void linear_solve(NRMat< std::complex<double> > &A, NRMat< std::complex<double> > *B, std::complex<double> *det, int n)
+// A will be overwritten, B will contain the solutions, A is nxn, B is rhs x n
+// Fortran zgesv sees the row-major A transposed, so A is transposed in place before and after, like in clapack_dgesv in noncblas.cc
+static void linear_solve_do(NRMat<std::complex<double> > &A, std::complex<double> *B, const int nrhs, const int ldb, std::complex<double> *det, int n)
 {
-        int r, *ipiv;
+	FINT r, *ipiv;
 	int iswap=0;
 
-        if (A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
-        if (B && A.nrows() != B->ncols()) laerror("incompatible matrices in linear_solve()");
-        A.copyonwrite();
-        if (B) B->copyonwrite();
-        ipiv = new int[A.nrows()];
-  n = A.nrows();
-  int nrhs = B ? B->nrows() : 0;
-  int lda = A.ncols();
-  int ldb = B ? B->ncols() : A.nrows();
-        FORNAME(zgesv)(&n, &nrhs, (double *)A[0], &lda, ipiv,
-                 B ? (double *)(*B)[0] : (double *)0, &ldb, &r);
-        if (r < 0) {
-                delete[] ipiv;
-                laerror("illegal argument in lapack_gesv");
-        }
-        if (det && r==0) {
-                *det = A[0][0];
-                for (int i=1; i<A.nrows(); ++i) *det *= A[i][i];
+	if(nrhs==0) std::cout<<"Warning: some zgesv implementations might skip LU decomposition when nrhs==0\n";
+	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
+	A.copyonwrite();
+	ipiv = new FINT[n];
+	const int lda=A.ncols();
+	std::complex<double> *a= &A(0,0);
+	for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<double> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+	const FINT ntmp=n;
+	const FINT nrhstmp=nrhs;
+	const FINT ldatmp=lda;
+	const FINT ldbtmp=ldb;
+	FORNAME(zgesv)(&ntmp, &nrhstmp, a, &ldatmp, ipiv, B, &ldbtmp, &r);
+	for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<double> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+	if (r < 0) {
+		delete[] ipiv;
+		laerror("illegal argument in lapack_gesv");
+	}
+	if (det && r==0) {
+		*det = 1.;
+		//take into account some numerical instabilities in zgesv for singular matrices
+		for (int i=0; i<n; ++i)  {std::complex<double> t=A[i][i]; if(!std::isfinite(t.real()) || !std::isfinite(t.imag()) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
+		//find out whether ipiv are numbered from 0 or from 1
 		int shift=1;
-                for (int i=0; i<n; ++i)
-                        {
-                        if(ipiv[i]==0) shift=0;
-                        if(ipiv[i]<0 || ipiv[i]>n) 
-                                {
-                                std::cout <<"IPIV["<<i<<"] = "<<ipiv[i]<<std::endl;
-                                laerror("problem with ipiv in zgesv");
-                                }
-                        }
+	        for (int i=0; i<n; ++i)
+			{
+			if(ipiv[i]==0) shift=0;
+			if(ipiv[i]<0 || ipiv[i]>n) 
+				{
+				std::cout <<"IPIV["<<i<<"] = "<<ipiv[i]<<std::endl;
+				laerror("problem with ipiv in zgesv");
+				}
+			}
 #ifdef IPIV_DEBUG
        std::cout <<"shift = "<<shift<<std::endl;
-#endif          
-                //
-                //change sign of det by parity of ipiv permutation
-		if(det) for (int i=0; i<A.nrows(); ++i) if(i+shift != ipiv[i]) {*det = -(*det); ++iswap;}
-        }
+#endif
+		//change sign of det by parity of ipiv permutation
+		if(*det!=0.) for (int i=0; i<n; ++i) if(i+shift != ipiv[i]) {*det = -(*det); ++iswap;}
+	}
 	if(det && r>0) *det = 0;
 #ifdef IPIV_DEBUG
        std::cout <<"iswap = "<<iswap<<std::endl;
-        
-        std::cout <<"ipiv = ";
-        for (int i=0; i<n; ++i) std::cout <<ipiv[i]<<" ";
-        std::cout <<std::endl;
-#endif  
+#endif
 
-        delete [] ipiv;
-        if (r>0 && B) laerror("singular matrix in zgesv");
+	delete [] ipiv;
+	if (r>0 && B) laerror("singular matrix in zgesv");
+}
+
+void linear_solve(NRMat< std::complex<double> > &A, NRMat< std::complex<double> > *B, std::complex<double> *det, int n)
+{
+if(n<=0) n=A.nrows(); //default - whole matrix
+if (n==A.nrows() && B && A.nrows() != B->ncols() || B && n>B->ncols() ||n>A.nrows()) laerror("incompatible matrices in linear_solve()");
+if(B) B->copyonwrite();
+linear_solve_do(A,B?(*B)[0]:NULL,B?B->nrows() : 0,  B?B->ncols():A.nrows(), det,n);
+}
+
+void linear_solve(NRMat< std::complex<double> > &A, NRVec< std::complex<double> > &B, std::complex<double> *det, int n)
+{
+if(n<=0) n=A.nrows(); //default - whole matrix
+if(n==A.nrows() && A.nrows() != B.size() || n>B.size()||n>A.nrows() ) laerror("incompatible matrices in linear_solve()");
+B.copyonwrite();
+linear_solve_do(A,&B[0],1,A.nrows(),det,n);
 }
 
 
