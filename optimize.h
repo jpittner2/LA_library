@@ -85,6 +85,29 @@ virtual ~OptConstraints() {};
 };
 
 
+//least-squares problem f(x) = 1/2 |r(x)|^2 given by the residuals r and optionally their Jacobian
+template<typename T>
+class OptResiduals {
+public:
+virtual int nresiduals() const =0;
+virtual void residuals(const NRVec<T> &x, NRVec<T> &r) const =0; //r is allocated by the caller with nresiduals() elements
+virtual bool jacobian(const NRVec<T> &x, NRMat<T> &J) const {return false;} //J (nresiduals x n) allocated by the caller; false = not provided, finite differences are used
+virtual ~OptResiduals() {};
+};
+
+//base class for least-squares problems: a user derives from it and writes residuals() (and optionally jacobian());
+//funcgrad() provides f = 1/2 |r|^2 and its gradient J^T r, so that all methods can be used, not only LM_Optimizer
+template<typename T>
+class OptLeastSquares : public OptProblem<T>, public OptResiduals<T> {
+public:
+T fd_step; //relative step of the forward-difference Jacobian
+OptLeastSquares(const T h=1e-7) : fd_step(h) {};
+void jacobian_fd(const NRVec<T> &x, const NRVec<T> &r, NRMat<T> &J) const; //Jacobian by forward differences, r = residuals at x
+virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
+virtual ~OptLeastSquares() {};
+};
+
+
 //problem wrapping another one (e.g. providing gradients); the capabilities of the wrapped problem remain accessible by optcapability()
 template<typename T>
 class OptProblemAdapter : public OptProblem<T> {
@@ -226,6 +249,13 @@ optevaluator(const OptProblem<T> *oo, const int maxf=0) : o(oo), maxfunc(maxf), 
 T operator()(const NRVec<T> &x, NRVec<T> *grad=NULL)
 	{
 	T f=o->funcgrad(x,grad);
+	if(nfunc++ ==0 || f<fbest) {fbest=f; xbest=x;}
+	return f;
+	}
+T operator()(const OptResiduals<T> *res, const NRVec<T> &x, NRVec<T> &r) //residuals at x, returns f = 1/2 |r|^2
+	{
+	res->residuals(x,r);
+	T f=(r*r)/2;
 	if(nfunc++ ==0 || f<fbest) {fbest=f; xbest=x;}
 	return f;
 	}
@@ -430,6 +460,107 @@ class CG_Optimizer : public Optimizer<T> {
 public:
 virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
 virtual ~CG_Optimizer() {};
+};
+
+
+//trust-region methods: quadratic model f + g.p + 1/2 p.B.p minimized (or for saddle points stationary) within |p| <= delta
+//(Nocedal & Wright chap. 4; Conn, Gould & Toint, Trust-Region Methods, SIAM 2000)
+
+//Hessian B of the model: exact (OptHessian of the problem) or updated by BFGS, SR1, Powell-symmetric-Broyden or Bofill's formula
+//(Bofill, J. Comput. Chem. 15, 1 (1994)); TR_AUTO = exact if available, otherwise BFGS for minima and Bofill for saddle points;
+//between exact Hessians (my_hessian_recompute > 1) the updates are SR1 for minima (the exact Hessian may be indefinite) and Bofill for saddle points
+enum TR_hessian {TR_AUTO, TR_EXACT, TR_BFGS, TR_SR1, TR_PSB, TR_BOFILL};
+
+//update of a Hessian approximation B (not of its inverse) by the step s and the gradient change y; returns false if the update was skipped
+template<typename T>
+bool hessian_update(NRSMat<T> &B, const NRVec<T> &s, const NRVec<T> &y, const TR_hessian type, const T thr);
+
+template<typename T>
+class trustregion_hyperparameters : public gradient_hyperparameters<T> {
+public:
+T my_delta0; //initial trust region radius
+T my_deltamax; //maximal trust region radius
+T my_eta; //a step of a minimization is accepted if (actual reduction)/(predicted reduction) > eta
+TR_hessian my_hessian;
+int my_hessian_recompute; //exact Hessian computed every k-th iteration and updated in between; 1 = always exact
+T my_update_thr; //threshold for skipping the Hessian updates (curvature condition of BFGS, denominator of SR1)
+trustregion_hyperparameters() : my_delta0(1), my_deltamax(1e3), my_eta(1e-4), my_hessian(TR_AUTO), my_hessian_recompute(1), my_update_thr(1e-8) {};
+virtual void setfrom(const hyperparameters<T> &p) {const trustregion_hyperparameters *q=dynamic_cast<const trustregion_hyperparameters *>(&p); if(q) *this= *q; else gradient_hyperparameters<T>::setfrom(p);}
+};
+
+//step of a trust-region method, used by the common driver trustregion_minimize()
+template<typename T>
+class trustregion_step {
+public:
+virtual NRVec<T> step(const NRVec<T> &g, const NRSMat<T> &B, const T delta) =0; //step within the trust region
+virtual bool saddle() const {return false;} //searching for a saddle point: steps are always taken, the radius is controlled by the quality of the model
+virtual ~trustregion_step() {};
+};
+
+//common driver of trust-region methods; achieved->my_saddle_order returns the number of negative eigenvalues of the Hessian at the result
+//(of the exact one if the problem provides it, otherwise of the approximation)
+template<typename T>
+optresult<T> trustregion_minimize(const char *name, trustregion_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const trustregion_hyperparameters<T> &hp, hyperparameters<T> *achieved);
+
+
+//trust-region Newton or quasi-Newton minimization; subproblem solved exactly in the eigenbasis of B (More & Sorensen, SIAM J. Sci. Stat. Comput. 4, 553 (1983)),
+//or approximately by truncated conjugate gradients (Steihaug, SIAM J. Numer. Anal. 20, 626 (1983)), which avoids the O(n^3) diagonalization for large n
+enum TR_subproblem {TR_EIGEN, TR_STEIHAUG};
+
+template<typename T>
+class TrustRegion_hyperparameters : public trustregion_hyperparameters<T> {
+public:
+TR_subproblem my_subproblem;
+int my_maxcg; //max. no. of conjugate gradient iterations of Steihaug's method, <=0 means the dimension
+TrustRegion_hyperparameters() : my_subproblem(TR_EIGEN), my_maxcg(0) {};
+virtual void setfrom(const hyperparameters<T> &p) {const TrustRegion_hyperparameters *q=dynamic_cast<const TrustRegion_hyperparameters *>(&p); if(q) *this= *q; else trustregion_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class TrustRegion_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~TrustRegion_Optimizer() {};
+};
+
+
+//partitioned rational function optimization (Banerjee, Adams, Simons & Shepard, J. Phys. Chem. 89, 52 (1985); Baker, J. Comput. Chem. 7, 385 (1986)):
+//search for a stationary point with my_saddle_order negative Hessian eigenvalues, maximizing along the eigenvectors of the lowest ones,
+//minimizing along the others; saddle_order 0 gives RFO minimization
+template<typename T>
+class PRFO_hyperparameters : public trustregion_hyperparameters<T> {
+public:
+PRFO_hyperparameters() {this->my_delta0=0.3;};
+virtual void setfrom(const hyperparameters<T> &p) {const PRFO_hyperparameters *q=dynamic_cast<const PRFO_hyperparameters *>(&p); if(q) *this= *q; else trustregion_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class PRFO_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~PRFO_Optimizer() {};
+};
+
+
+//Levenberg-Marquardt method for least-squares problems (OptResiduals): step from (J^T J + mu D) h = -J^T r, D = I or diag(J^T J) (Marquardt scaling),
+//damping mu updated by the gain ratio (Madsen, Nielsen & Tingleff, Methods for Non-Linear Least Squares Problems, DTU 2004, alg. 3.16);
+//Jacobian from the problem or by forward differences (counted as function evaluations); convergence by |J^T r| < g_thr, by f and x changes,
+//or when the step becomes negligible at machine precision
+template<typename T>
+class LM_hyperparameters : public gradient_hyperparameters<T> {
+public:
+T my_tau; //initial damping mu = tau*max diag(J^T J)
+bool my_scaling; //Marquardt scaling D = diag(J^T J)
+T my_fd_step; //relative step of the forward-difference Jacobian
+LM_hyperparameters() : my_tau(1e-3), my_scaling(false), my_fd_step(1e-7) {};
+virtual void setfrom(const hyperparameters<T> &p) {const LM_hyperparameters *q=dynamic_cast<const LM_hyperparameters *>(&p); if(q) *this= *q; else gradient_hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class LM_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~LM_Optimizer() {};
 };
 
 

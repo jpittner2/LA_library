@@ -4904,6 +4904,40 @@ const NRVec<double> &xc=x; //x is shared with fproblem.xfull, read-only access
 for(int i=0; i<n; ++i) if(frozen[i] && xopt[i]!=xc[i]) cout <<"ERROR: frozen parameter "<<i<<" changed\n";
 }
 
+if(1) //testbed of the search for saddle points: P-RFO on the Mueller-Brown potential
+{
+testproblem_mullerbrown<double> problem;
+NRVec<double> x(2);
+x[0]= -0.7; x[1]=0.6; //near the saddle point (-0.822,0.624)
+PRFO_hyperparameters<double> param;
+param.my_saddle_order=1;
+param.my_g_thr=1e-8;
+//param.my_hessian_recompute=1000; //exact Hessian only at the start, then Bofill updates
+cout << "initial " <<x<<endl;
+PRFO_Optimizer<double> o;
+hyperparameters<double> achieved;
+optresult<double> res=o.minimize(&problem,x,&param,&achieved);
+cout << "stationary point " <<x<<endl;
+cout << "converged "<<res.converged<<" V= "<<res.f<<" function evaluations "<<achieved.my_maxfunc<<" Hessian index "<<achieved.my_saddle_order<<endl;
+}
+
+if(1) //testbed of the least-squares fitting: Levenberg-Marquardt on the NIST problem Misra1a
+{
+testproblem_misra1a<double> problem;
+NRVec<double> b(2);
+for(int i=0; i<2; ++i) b[i]=problem.start(0,i);
+LM_hyperparameters<double> param;
+param.my_g_thr=1e-9;
+//param.my_scaling=true; //Marquardt scaling
+cout << "initial " <<b<<endl;
+LM_Optimizer<double> o;
+hyperparameters<double> achieved;
+optresult<double> res=o.minimize(&problem,b,&param,&achieved);
+cout << "fitted parameters " <<b<<endl;
+cout << "certified         "<<problem.certified(0)<<" "<<problem.certified(1)<<endl;
+cout << "converged "<<res.converged<<" residual sum of squares "<<2*res.f<<" certified "<<problem.rss()<<" function evaluations "<<achieved.my_maxfunc<<endl;
+}
+
 if(1) //testbed of the VQE methods, the problem provides capabilities (OptMetric, OptTrigonometric, OptHessian)
 {
 int seed;

@@ -83,6 +83,47 @@ template<typename T>
 void FrozenOptProblem<T>::constraints(const NRVec<T> &x, NRVec<T> &c) const {optcapability<OptConstraints<T> >(this->p)->constraints(expand(x),c);}
 
 
+//Jacobian of the residuals by forward differences, columns (r(x + h_j e_j) - r(x))/h_j, h_j = h max(1,|x_j|); resid(x,r) evaluates the residuals
+template<typename T, typename F>
+static void forward_difference_jacobian(F resid, const NRVec<T> &x, const NRVec<T> &r, NRMat<T> &J, const T h)
+{
+NRVec<T> xs(x);
+for(int j=0; j<x.size(); ++j)
+	{
+	const T hj=h*std::max((T)1,std::abs(x[j]));
+	xs.copyonwrite(); //the evaluator may keep a reference to the previous point as its best one
+	xs[j]=x[j]+hj;
+	NRVec<T> rs(r.size());
+	resid(xs,rs);
+	rs-=r;
+	rs*= 1/hj;
+	J.columnset(rs,j);
+	xs.copyonwrite();
+	xs[j]=x[j];
+	}
+}
+
+template<typename T>
+void OptLeastSquares<T>::jacobian_fd(const NRVec<T> &x, const NRVec<T> &r, NRMat<T> &J) const
+{
+forward_difference_jacobian([this](const NRVec<T> &xx, NRVec<T> &rr){this->residuals(xx,rr);},x,r,J,fd_step);
+}
+
+template<typename T>
+T OptLeastSquares<T>::funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
+{
+NRVec<T> r(this->nresiduals());
+this->residuals(x,r);
+if(grad)
+	{
+	NRMat<T> J(r.size(),x.size());
+	if(!this->jacobian(x,J)) jacobian_fd(x,r,J);
+	*grad = r*J; //J^T r
+	}
+return (r*r)/2;
+}
+
+
 //central difference (f(x+h e_i) - f(x-h e_i))/(2h); xs is a working copy of x, restored on return
 template<typename T>
 static T central_difference(const OptProblem<T> *p, NRVec<T> &xs, const NRVec<T> &x, const int i, const T h)
@@ -732,6 +773,402 @@ CG_direction<T> dir(hp,x.size());
 return linesearch_minimize(names[hp.my_beta],dir,o,x,hp,achieved);
 }
 
+
+
+template<typename T>
+bool hessian_update(NRSMat<T> &B, const NRVec<T> &s, const NRVec<T> &y, const TR_hessian type, const T thr)
+{
+const NRVec<T> Bs=B*s;
+const T ss=s*s;
+NRVec<T> xi(y);
+xi-=Bs; //y - Bs, vanishes if B already satisfies the secant condition
+const T xis=xi*s;
+switch(type)
+	{
+	case TR_BFGS: //B+ = B - Bs (Bs)^T/(s.Bs) + y y^T/(y.s)
+		{
+		const T sy=s*y, sBs=s*Bs;
+		if(sy<=thr*std::sqrt(ss*(y*y)) || sBs<=0) return false;
+		B.rank2update(1/(2*sy),y,y);
+		B.rank2update(-1/(2*sBs),Bs,Bs);
+		}
+		break;
+	case TR_SR1: //B+ = B + xi xi^T/(xi.s) (Nocedal & Wright eq. 6.24)
+		if(std::abs(xis)<=thr*xi.norm()*std::sqrt(ss)) return false;
+		B.rank2update(1/(2*xis),xi,xi);
+		break;
+	case TR_PSB: //B+ = B + (xi s^T + s xi^T)/(s.s) - (xi.s) s s^T/(s.s)^2 (Powell-symmetric-Broyden)
+		B.rank2update(1/ss,xi,s);
+		B.rank2update(-xis/(2*ss*ss),s,s);
+		break;
+	case TR_BOFILL: //phi*SR1 + (1-phi)*PSB, phi = (xi.s)^2/(|xi|^2 |s|^2), the SR1 term phi xi xi^T/(xi.s) = (xi.s) xi xi^T/(|xi|^2 |s|^2) has no small denominator
+		{
+		const T xixi=xi*xi;
+		if(xixi==0) return false;
+		const T phi=xis*xis/(xixi*ss);
+		B.rank2update(xis/(2*xixi*ss),xi,xi);
+		B.rank2update((1-phi)/ss,xi,s);
+		B.rank2update(-(1-phi)*xis/(2*ss*ss),s,s);
+		}
+		break;
+	default: laerror("unknown Hessian update");
+	}
+return true;
+}
+
+
+template<typename T>
+optresult<T> trustregion_minimize(const char *name, trustregion_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const trustregion_hyperparameters<T> &hp, hyperparameters<T> *achieved)
+{
+const int verbose=hp.my_verbose;
+const bool saddle=stepper.saddle();
+const OptHessian<T> *hes=optcapability<OptHessian<T> >(o);
+const bool exact= hp.my_hessian==TR_EXACT || (hp.my_hessian==TR_AUTO && hes);
+if(exact && !hes) laerror("exact Hessian requested, but the problem does not provide OptHessian");
+TR_hessian update=hp.my_hessian; //update of B between exact Hessians or without them: Bofill for saddle points; for minima SR1 after
+if(update==TR_AUTO || update==TR_EXACT) update= saddle ? TR_BOFILL : (exact ? TR_SR1 : TR_BFGS); //an exact Hessian, which may be indefinite, BFGS from the identity
+if(saddle && update==TR_BFGS) laerror("the BFGS update keeps the Hessian positive definite, unsuitable for saddle points");
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+const int n=x.size();
+NRVec<T> g(n);
+T f=e(x,&g);
+NRSMat<T> B(n);
+bool Binit=false; //B is the unscaled initial guess
+if(exact) hes->hessian(x,B);
+else {B=1.; Binit=true;}
+int sinceexact=0;
+T delta=hp.my_delta0;
+
+for(;; ++st.iter)
+	{
+	if(st.stop(f,g.norm())) break;
+	NRVec<T> p=stepper.step(g,B,delta);
+	const T pnorm=p.norm();
+	NRVec<T> Bp=B*p;
+	const T pred= g*p + 0.5*(p*Bp); //predicted change of f
+	NRVec<T> xn=x+p;
+	NRVec<T> gn(n);
+	const T fn=e(xn,&gn);
+	const T ratio= pred!=0 ? (fn-f)/pred : 0;
+	if(verbose>1) std::cout <<name<<" step |p|= "<<pnorm<<" delta= "<<delta<<" f= "<<fn<<" ratio= "<<ratio<<std::endl;
+	bool accept;
+	if(saddle) //the step is always taken, the radius follows the quality of the model
+		{
+		accept=true;
+		if(ratio<0.25 || ratio>1.75) delta=0.25*pnorm;
+		else if(ratio>0.75 && ratio<1.25 && pnorm>=0.99*delta) delta=std::min(2*delta,hp.my_deltamax);
+		}
+	else if(std::abs(pred)<=100*std::numeric_limits<T>::epsilon()*std::abs(f)) //change of f below its rounding errors, judged by the gradient
+		{
+		accept= gn.norm()<g.norm();
+		if(!accept) delta=0.25*pnorm;
+		}
+	else //Nocedal & Wright alg. 4.1
+		{
+		accept= pred<0 && ratio>hp.my_eta;
+		if(ratio<0.25) delta=0.25*pnorm;
+		else if(ratio>0.75 && pnorm>=0.99*delta) delta=std::min(2*delta,hp.my_deltamax);
+		}
+	if(!accept)
+		{
+		if(verbose) std::cout <<name<<": step rejected\n";
+		continue;
+		}
+	NRVec<T> y=gn-g;
+	const T fold=f;
+	x=xn; f=fn; g=gn;
+	if(exact && ++sinceexact>=hp.my_hessian_recompute) {hes->hessian(x,B); sinceexact=0;}
+	else
+		{
+		if(Binit) //scaling of the initial guess (cf. Nocedal & Wright eq. 6.20)
+			{
+			const T sy=p*y;
+			if(sy>0) B=(T)((y*y)/sy);
+			Binit=false;
+			}
+		if(!hessian_update(B,p,y,update,hp.my_update_thr) && verbose>1) std::cout <<name<<": Hessian update skipped\n";
+		}
+	st.step(f-fold,pnorm);
+	}
+
+//number of negative eigenvalues of the Hessian at the result
+NRSMat<T> H(n);
+if(hes) hes->hessian(x,H);
+else H=B;
+NRVec<T> w(n);
+diagonalize(H,w,(NRMat<T> *)NULL);
+int index=0;
+for(int i=0; i<n; ++i) if(w[i]<0) ++index;
+if(verbose) std::cout <<name<<": "<<index<<" negative eigenvalues of the"<<(hes ? "" : " approximate")<<" Hessian\n";
+optresult<T> r=st.finish(achieved);
+if(achieved) achieved->my_saddle_order=index;
+return r;
+}
+
+
+//-a/(lambda+mu), for the components of a trust-region step in the eigenbasis of B
+template<typename T>
+class shifteddivision {
+public:
+T mu;
+shifteddivision(const T m) : mu(m) {};
+T operator()(const T &a, const T &lambda) const {return -a/(lambda+mu);}
+};
+
+//exact solution of min g.p + 1/2 p.B.p, |p| <= delta in the eigenbasis of B = V Lambda V^T: p(mu) = -sum_i (v_i.g)/(lambda_i+mu) v_i
+//with mu = 0 for the Newton step inside the trust region, otherwise mu > -lambda_min from |p(mu)| = delta (More & Sorensen 1983)
+template<typename T>
+static NRVec<T> trustregion_eigenstep(const NRVec<T> &g, const NRSMat<T> &B, const T delta)
+{
+const int n=g.size();
+NRSMat<T> Bc(B);
+NRVec<T> lam(n);
+NRMat<T> V(n,n);
+diagonalize(Bc,lam,&V); //ascending eigenvalues, eigenvectors in the columns of V
+const NRVec<T> gt=g*V; //components of g in the eigenbasis
+const T lmin=lam[0];
+if(lmin>0) //Newton step if inside the trust region
+	{
+	NRVec<T> pt(gt);
+	pt.call_on_me(shifteddivision<T>(0),lam);
+	if(pt.norm()<=delta) return V*pt;
+	}
+const T lo=std::max((T)0,-lmin);
+const T tol=1e-12*std::max(std::abs(lam[0]),std::abs(lam[n-1]));
+//hard case: g has no component along the eigenvectors of lambda_min and the step from the others at mu=-lambda_min is inside the trust region
+if(lmin<=0)
+	{
+	int nlow=0;
+	while(nlow<n && lam[nlow]-lmin<=tol) ++nlow;
+	NRVec<T> gtlow=gt.subvector(0,nlow-1);
+	if(gtlow.norm()<=1e-12*g.norm())
+		{
+		NRVec<T> pt(gt);
+		pt.copyonwrite();
+		for(int i=0; i<nlow; ++i) pt[i]=0;
+		for(int i=nlow; i<n; ++i) pt[i]= -gt[i]/(lam[i]+lo);
+		T pn=pt.norm();
+		if(pn<=delta)
+			{
+			NRVec<T> p=V*pt;
+			p.axpy(std::sqrt(delta*delta-pn*pn),V.column(0));
+			return p;
+			}
+		}
+	}
+//|p(mu)| decreases from infinity at mu=lo; root by Newton's method on 1/|p(mu)| - 1/delta, safeguarded by bisection
+T mulo=lo, muhi=lo+g.norm()/delta; //|p(muhi)| <= delta
+T mu=muhi;
+NRVec<T> pt(gt);
+for(int it=0; it<100; ++it)
+	{
+	pt=gt;
+	pt.call_on_me(shifteddivision<T>(mu),lam);
+	const T pn=pt.norm();
+	if(std::abs(pn-delta)<=1e-10*delta) break;
+	if(pn>delta) mulo=mu; else muhi=mu;
+	NRVec<T> qt(pt); //|q|^2 = sum_i pt_i^2/(lambda_i+mu) = -d|p|^2/dmu /2
+	qt.call_on_me(shifteddivision<T>(mu),lam);
+	const T qq= -(pt*qt);
+	T munew= qq>0 ? mu+(pn*pn/qq)*(pn-delta)/delta : mu;
+	if(!(munew>mulo && munew<muhi)) munew=(mulo+muhi)/2;
+	mu=munew;
+	}
+return V*pt;
+}
+
+//approximate solution of the trust-region subproblem by truncated conjugate gradients (Steihaug 1983; Nocedal & Wright alg. 7.2)
+template<typename T>
+static NRVec<T> trustregion_steihaug(const NRVec<T> &g, const NRSMat<T> &B, const T delta, int maxit)
+{
+const int n=g.size();
+if(maxit<=0) maxit=n;
+NRVec<T> z((T)0,n);
+const T gnorm=g.norm();
+if(gnorm==0) return z;
+const T eps=std::min((T)0.5,std::sqrt(gnorm))*gnorm;
+NRVec<T> r(g);
+NRVec<T> d=g*(T)-1;
+for(int j=0; j<maxit; ++j)
+	{
+	NRVec<T> Bd=B*d;
+	const T dBd=d*Bd;
+	const T rr=r*r;
+	NRVec<T> z1(z);
+	if(dBd>0) z1.axpy(rr/dBd,d);
+	if(dBd<=0 || z1.norm()>=delta) //negative curvature or outside: to the boundary along d, |z + tau d| = delta
+		{
+		const T a=d*d, b=2*(z*d), c=z*z-delta*delta;
+		z.axpy((-b+std::sqrt(b*b-4*a*c))/(2*a),d);
+		return z;
+		}
+	r.axpy(rr/dBd,Bd);
+	z=z1;
+	if(r.norm()<eps) return z;
+	d*= (r*r)/rr;
+	d-=r;
+	}
+return z;
+}
+
+template<typename T>
+class TR_newtonstep : public trustregion_step<T> {
+public:
+const TrustRegion_hyperparameters<T> &hp;
+TR_newtonstep(const TrustRegion_hyperparameters<T> &h) : hp(h) {};
+NRVec<T> step(const NRVec<T> &g, const NRSMat<T> &B, const T delta) {return hp.my_subproblem==TR_STEIHAUG ? trustregion_steihaug(g,B,delta,hp.my_maxcg) : trustregion_eigenstep(g,B,delta);}
+};
+
+template<typename T>
+optresult<T> TrustRegion_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+TrustRegion_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("TrustRegion_Optimizer minimizes, use PRFO_Optimizer for saddle points");
+TR_newtonstep<T> stepper(hp);
+return trustregion_minimize(hp.my_subproblem==TR_STEIHAUG ? "TR-Steihaug" : "TR-Newton",stepper,o,x,hp,achieved);
+}
+
+
+//shift of the RFO step for the modes from..to-1: largest (maximization) or lowest (minimization) eigenvalue of the bordered matrix [[Lambda, gt],[gt^T, 0]]
+template<typename T>
+static T rfo_shift(const NRVec<T> &lam, const NRVec<T> &gt, const int from, const int to, const bool largest)
+{
+const int m=to-from;
+NRSMat<T> A(m+1);
+A=(T)0;
+for(int i=0; i<m; ++i) {A(i,i)=lam[from+i]; A(m,i)=gt[from+i];}
+NRVec<T> w(m+1);
+diagonalize(A,w,(NRMat<T> *)NULL);
+return largest ? w[m] : w[0];
+}
+
+//P-RFO step: in the eigenbasis of B, p_i = -gt_i/(lambda_i - mu) with mu from the RFO matrices of the k maximized and of the minimized modes,
+//scaled to the trust region if longer
+template<typename T>
+class PRFO_step : public trustregion_step<T> {
+public:
+int k; //no. of maximized modes
+PRFO_step(const int kk) : k(kk) {};
+bool saddle() const {return k>0;}
+NRVec<T> step(const NRVec<T> &g, const NRSMat<T> &B, const T delta)
+	{
+	const int n=g.size();
+	NRSMat<T> Bc(B);
+	NRVec<T> lam(n);
+	NRMat<T> V(n,n);
+	diagonalize(Bc,lam,&V);
+	const NRVec<T> gt=g*V;
+	const T mumax= k>0 ? rfo_shift(lam,gt,0,k,true) : 0;
+	const T mumin= k<n ? rfo_shift(lam,gt,k,n,false) : 0;
+	NRVec<T> pt(n);
+	for(int i=0; i<n; ++i)
+		{
+		const T den=lam[i]-(i<k ? mumax : mumin);
+		pt[i]= den!=0 ? -gt[i]/den : 0;
+		}
+	NRVec<T> p=V*pt;
+	const T pn=p.norm();
+	if(pn>delta) p*= delta/pn;
+	return p;
+	}
+};
+
+template<typename T>
+optresult<T> PRFO_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+PRFO_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order<0 || hp.my_saddle_order>x.size()) laerror("invalid saddle order in PRFO_Optimizer");
+PRFO_step<T> stepper(hp.my_saddle_order);
+return trustregion_minimize("P-RFO",stepper,o,x,hp,achieved);
+}
+
+
+//Jacobian for LM: from the problem, or by forward differences with counted evaluations; false if the evaluation budget is insufficient
+template<typename T>
+static bool lm_jacobian(optevaluator<T> &e, const OptResiduals<T> *res, const NRVec<T> &x, const NRVec<T> &r, NRMat<T> &J, const T h)
+{
+if(res->jacobian(x,J)) return true;
+if(e.remaining()<x.size()) return false;
+forward_difference_jacobian([&e,res](const NRVec<T> &xx, NRVec<T> &rr){e(res,xx,rr);},x,r,J,h);
+return true;
+}
+
+template<typename T>
+optresult<T> LM_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+const char *name="Levenberg-Marquardt";
+LM_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("Levenberg-Marquardt cannot search for saddle points");
+const OptResiduals<T> *res=optcapability<OptResiduals<T> >(o);
+if(!res) laerror("Levenberg-Marquardt needs a least-squares problem providing OptResiduals");
+const int verbose=hp.my_verbose;
+const int n=x.size(), m=res->nresiduals();
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+NRVec<T> r(m);
+T f=e(res,x,r);
+NRMat<T> J(m,n);
+const bool fdjac= !res->jacobian(x,J); //the problem does not provide the Jacobian
+bool budget= !fdjac || lm_jacobian(e,res,x,r,J,hp.my_fd_step);
+NRSMat<T> A=J.transposedtimes(); //J^T J
+NRVec<T> g=r*J; //J^T r, the gradient of f
+NRVec<T> diag(n);
+for(int i=0; i<n; ++i) diag[i]=((const NRSMat<T> &)A)(i,i);
+T mu=hp.my_tau*diag.amax(), nu=2;
+
+for(; budget; ++st.iter)
+	{
+	if(st.stop(f,g.norm(),fdjac ? n+1 : 1)) break;
+	//damped step (J^T J + mu D) h = -J^T r
+	NRSMat<T> M(A);
+	M.copyonwrite();
+	for(int i=0; i<n; ++i) M(i,i)+= mu*(hp.my_scaling ? diag[i] : (T)1);
+	NRVec<T> h=g*(T)-1;
+	linear_solve(M,h);
+	NRVec<T> xn=x+h;
+	NRVec<T> rn(m);
+	const T fn=e(res,xn,rn);
+	NRVec<T> Dh(h);
+	if(hp.my_scaling) Dh*=diag;
+	Dh*=mu;
+	Dh-=g;
+	const T pred=(h*Dh)/2; //predicted reduction L(0)-L(h) of the linear model
+	const T rho=(f-fn)/pred;
+	if(verbose>1) std::cout <<name<<" step |h|= "<<h.norm()<<" mu= "<<mu<<" f= "<<fn<<" gain ratio= "<<rho<<std::endl;
+	if(rho>0)
+		{
+		const T fold=f;
+		x=xn; r=rn; f=fn;
+		NRMat<T> Jn(m,n);
+		budget=lm_jacobian(e,res,x,r,Jn,hp.my_fd_step);
+		J=Jn;
+		A=J.transposedtimes();
+		g=r*J;
+		for(int i=0; i<n; ++i) diag[i]=((const NRSMat<T> &)A)(i,i);
+		mu*= std::max((T)1/3,1-std::pow(2*rho-1,3));
+		nu=2;
+		st.step(fold-f,h.norm());
+		}
+	else
+		{
+		mu*=nu; nu*=2;
+		const T eps=std::numeric_limits<T>::epsilon();
+		if(h.norm()<=10*eps*(x.norm()+eps)) //no further improvement at machine precision (cf. Madsen, Nielsen & Tingleff eq. 3.16)
+			{
+			if(verbose) std::cout <<name<<": step at machine precision\n";
+			st.converged=true;
+			break;
+			}
+		}
+	}
+if(!budget && verbose) std::cout <<name<<": maximum number of function evaluations reached\n";
+st.f=f;
+return st.finish(achieved);
+}
 
 
 //simplex of n+1 vertices with their function values
@@ -1616,6 +2053,11 @@ template class FrozenOptProblem<double>;
 template class BFGS_Optimizer<double>;
 template class LBFGS_Optimizer<double>;
 template class GDIIS_Optimizer<double>;
+template class TrustRegion_Optimizer<double>;
+template class PRFO_Optimizer<double>;
+template class LM_Optimizer<double>;
+template class OptLeastSquares<double>;
+template bool hessian_update(NRSMat<double> &B, const NRVec<double> &s, const NRVec<double> &y, const TR_hessian type, const double thr);
 template class CG_Optimizer<double>;
 template class NelderMead_Optimizer<double>;
 template class Powell_Optimizer<double>;

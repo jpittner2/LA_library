@@ -693,6 +693,124 @@ check("COBYLA with frozen parameters satisfies the constraint and keeps them",co
 }
 
 
+static void test_trustregion()
+{
+cout <<"--- trust-region methods and saddle points\n";
+{
+//secant condition B+ s = y of the Hessian updates
+srand(3);
+const int n=6;
+bool ok=true;
+double worst=0;
+const TR_hessian upd[]={TR_BFGS,TR_SR1,TR_PSB,TR_BOFILL};
+for(int t=0; t<4; ++t)
+	{
+	NRSMat<double> B(n); B.randomize(0.3); B+=2.;
+	NRVec<double> s(n), r(n); s.randomize(1.); r.randomize(0.3);
+	NRVec<double> y=B*s; y+=r;
+	if(!hessian_update(B,s,y,upd[t],1e-8)) ok=false;
+	NRVec<double> Bs=B*s; Bs-=y;
+	worst=max(worst,Bs.norm());
+	}
+check("secant condition of the BFGS, SR1, PSB and Bofill updates",ok && worst<1e-12,worst);
+}
+testproblem_mullerbrown<double> mb;
+{
+NRVec<double> x(2); x[0]= -0.3; x[1]=0.9;
+NRSMat<double> h(2), hfd(2);
+mb.hessian(x,h);
+for(int i=0; i<2; ++i) {NRVec<double> a(x), b(x), ga(2), gb(2); a.copyonwrite(); b.copyonwrite(); a[i]+=1e-6; b[i]-=1e-6; mb.funcgrad(a,&ga); mb.funcgrad(b,&gb); for(int j=0; j<=i; ++j) hfd(i,j)=(ga[j]-gb[j])/2e-6;}
+NRSMat<double> d=h-hfd;
+check("Mueller-Brown gradient and Hessian vs finite differences",fd_gradient_error(mb,x)<1e-7 && d.norm()<1e-6,d.norm());
+}
+//stationary points of the Mueller-Brown potential (Mueller & Brown 1979)
+struct {const char *name; double x0, y0, x, y, v; int k;} sp[]={
+	{"minimum (-0.558,1.442)",-0.4,1.2,-0.5582,1.4417,-146.700,0},
+	{"minimum (0.623,0.028)",0.5,0.1,0.6235,0.0280,-108.167,0},
+	{"minimum (-0.050,0.467)",0.,0.4,-0.0500,0.4667,-80.768,0},
+	{"saddle point (-0.822,0.624)",-0.7,0.6,-0.8220,0.6243,-40.665,1},
+	{"saddle point (0.212,0.293)",0.15,0.35,0.2125,0.2930,-72.249,1}};
+for(auto &c: sp) for(int m=0; m<3; ++m)
+	{
+	if(m==0 && c.k) continue;
+	NRVec<double> x(2); x[0]=c.x0; x[1]=c.y0;
+	hyperparameters<double> a;
+	bool conv;
+	double f;
+	string s;
+	if(m==0) {TrustRegion_hyperparameters<double> h; h.my_g_thr=1e-9; TrustRegion_Optimizer<double> o; f=run(o,&mb,x,h,&a,&conv); s="TR-Newton";}
+	else {PRFO_hyperparameters<double> h; h.my_g_thr=1e-9; h.my_saddle_order=c.k; if(m==2) h.my_hessian_recompute=1000; PRFO_Optimizer<double> o; f=run(o,&mb,x,h,&a,&conv); s= m==1 ? "P-RFO" : "P-RFO with Hessian updates";}
+	s+=string(" finds the ")+c.name+" with the right index";
+	check(s.c_str(),conv && abs(x[0]-c.x)<1e-4 && abs(x[1]-c.y)<1e-4 && abs(f-c.v)<1e-3 && a.my_saddle_order==c.k,f-c.v);
+	}
+{
+testproblem_vqe<double> vqe;
+TrustRegion_hyperparameters<double> h;
+TrustRegion_Optimizer<double> o;
+NRVec<double> x=startpoint(12,9);
+hyperparameters<double> a;
+bool conv;
+double f=run(o,&vqe,x,h,&a,&conv);
+check("TR-Newton with the exact Hessian on testproblem_vqe n=12",conv && f< -5.4 && a.my_maxfunc<20 && a.my_saddle_order==0,a.my_maxfunc);
+}
+{
+rosenbrock rb;
+for(int m=0; m<2; ++m)
+	{
+	TrustRegion_hyperparameters<double> h; h.my_maxstep=10000; h.my_subproblem= m ? TR_STEIHAUG : TR_EIGEN;
+	TrustRegion_Optimizer<double> o;
+	NRVec<double> x=rosenbrockstart(20);
+	bool conv;
+	double f=run(o,&rb,x,h,NULL,&conv);
+	check(m ? "TR with BFGS updates and Steihaug-CG on Rosenbrock n=20" : "TR with BFGS updates on Rosenbrock n=20",conv && f<1e-10,f);
+	}
+}
+}
+
+
+//fit of a NIST StRD problem from both starting points by Levenberg-Marquardt, certified residual sum of squares to 9 digits
+template<class P>
+static void nistfit(const char *name, const int nb)
+{
+for(int k=0; k<2; ++k)
+	{
+	P p;
+	NRVec<double> b(nb);
+	for(int i=0; i<nb; ++i) b[i]=P::start(k,i);
+	LM_hyperparameters<double> h; h.my_g_thr=1e-9; h.my_maxstep=100000;
+	LM_Optimizer<double> o;
+	bool conv;
+	double f=run(o,&p,b,h,NULL,&conv);
+	double perr=0;
+	for(int i=0; i<nb; ++i) perr=max(perr,abs(b[i]-P::certified(i))/abs(P::certified(i)));
+	string s=string("Levenberg-Marquardt reproduces the certified fit of NIST ")+name+(k ? " from start 2" : " from start 1");
+	check(s.c_str(),conv && abs(2*f-P::rss())<1e-9*P::rss() && perr<1e-5,2*f-P::rss());
+	}
+}
+
+static void test_leastsquares()
+{
+cout <<"--- least squares (Levenberg-Marquardt)\n";
+nistfit<testproblem_misra1a<double> >("Misra1a",2);
+nistfit<testproblem_mgh09<double> >("MGH09",4);
+nistfit<testproblem_thurber<double> >("Thurber (finite-difference Jacobian)",7);
+testproblem_mgh09<double> p;
+NRVec<double> b(4);
+for(int i=0; i<4; ++i) b[i]=p.start(1,i);
+NRMat<double> J(11,4), Jfd(11,4);
+NRVec<double> r(11);
+p.jacobian(b,J);
+p.residuals(b,r);
+p.jacobian_fd(b,r,Jfd);
+NRMat<double> d=J-Jfd;
+check("analytic and forward-difference Jacobians of MGH09",d.norm()<1e-6,d.norm());
+BFGS_hyperparameters<double> h; h.my_g_thr=1e-12;
+BFGS_Optimizer<double> o;
+double f=run(o,&p,b,h);
+check("other methods work on OptLeastSquares problems (BFGS on MGH09)",abs(2*f-p.rss())<1e-9*p.rss(),2*f-p.rss());
+}
+
+
 static void test_maxfunc_and_parameters()
 {
 cout <<"--- evaluation budget and hyperparameters\n";
@@ -702,9 +820,27 @@ NRVec<double> x=startpoint(6,2), xv=startpoint(8,9);
 hyperparameters<double> h; h.my_f_thr=1e-10; h.my_x_thr=1e-6; h.my_maxstep=100000;
 BFGS_Optimizer<double> bfgs; LBFGS_Optimizer<double> lbfgs; CG_Optimizer<double> cg; GDIIS_Optimizer<double> gdiis;
 NelderMead_Optimizer<double> nm; Powell_Optimizer<double> powell; Adam_Optimizer<double> adam; Rotosolve_Optimizer<double> roto; Cobyla_Optimizer<double> cobyla;
+TrustRegion_Optimizer<double> trn; PRFO_Optimizer<double> prfo; LM_Optimizer<double> lm;
+//LM evaluates the residuals directly (OptResiduals), so they are counted in the problem itself
+class countingthurber : public testproblem_thurber<double> {public: mutable int count; countingthurber() : count(0) {}; void residuals(const NRVec<double> &b, NRVec<double> &r) const {++count; testproblem_thurber<double>::residuals(b,r);}};
+{
+int bad=0;
+for(int mf=1; mf<=120; ++mf)
+	{
+	countingthurber p;
+	NRVec<double> b(7);
+	for(int i=0; i<7; ++i) b[i]=p.start(1,i);
+	h.my_maxfunc=mf;
+	hyperparameters<double> a;
+	run(lm,&p,b,h,&a);
+	if(p.count>mf || a.my_maxfunc!=p.count) ++bad;
+	}
+check("Levenberg-Marquardt (finite-difference Jacobian) respects maxfunc and reports the evaluations",bad==0,bad);
+}
 struct {const char *name; Optimizer<double> *o; const OptProblem<double> *p; NRVec<double> *x; int minfunc;} cases[]={
 	{"BFGS",&bfgs,&tp,&x,1},{"L-BFGS",&lbfgs,&tp,&x,1},{"CG",&cg,&tp,&x,1},{"GDIIS",&gdiis,&tp,&x,1},{"Nelder-Mead",&nm,&tp,&x,7},
-	{"Powell",&powell,&tp,&x,1},{"Adam",&adam,&tp,&x,1},{"Rotosolve",&roto,&vc,&xv,1},{"COBYLA",&cobyla,&vc,&xv,9}};
+	{"Powell",&powell,&tp,&x,1},{"Adam",&adam,&tp,&x,1},{"Rotosolve",&roto,&vc,&xv,1},{"COBYLA",&cobyla,&vc,&xv,9},
+	{"TR-Newton",&trn,&vc,&xv,1},{"P-RFO",&prfo,&vc,&xv,1}};
 for(auto &c: cases)
 	{
 	int bad=maxfunc_violations(*c.o,c.p,*c.x,h,c.minfunc,120);
@@ -808,6 +944,8 @@ test_gradient_methods();
 test_derivative_free();
 test_firstorder();
 test_frozen();
+test_trustregion();
+test_leastsquares();
 test_maxfunc_and_parameters();
 test_diis();
 test_copyonwrite();
