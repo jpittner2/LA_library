@@ -24,40 +24,6 @@
 namespace LA {
 
 
-template<typename T>
-T testproblem<T>::funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
-{
-int n=x.size();
-T r= n*(n-1)/2;
-for(int i=0; i<n; ++i)
-	{
-	T x2=x[i]*x[i];
-	r += (i+1)*(x2 + .1*x2*x2);
-	for(int j=0; j<i; ++j) r -= cos(x[i]*x[j]);
-	}
-if(grad)
-	{
-	if(grad->size()!=x.size()) laerror("grad size mismatch");
-	grad->copyonwrite(); //I forgot this initially
-	for(int k=0; k<n; ++k)
-		{
-		(*grad)[k] = (k+1)*x[k]*(2+0.4*x[k]*x[k]);
-		for(int i=0; i<n; ++i) if(i!=k) (*grad)[k] += x[i]*sin(x[i]*x[k]);
-		}
-	}
-return r;
-}
-
-
-template<typename T>
-void testproblem_vqe_constrained<T>::constraints(const NRVec<T> &x, NRVec<T> &c) const
-{
-c.copyonwrite();
-c[0]=0;
-for(int i=0; i<x.size()/2; ++i) c[0]+= std::cos(x[2*i])*std::cos(x[2*i+1]);
-}
-
-
 //central difference (f(x+h e_i) - f(x-h e_i))/(2h); xs is a working copy of x, restored on return
 template<typename T>
 static T central_difference(const OptProblem<T> *p, NRVec<T> &xs, const NRVec<T> &x, const int i, const T h)
@@ -117,87 +83,6 @@ NRVec<T> xs(x);
 xs.copyonwrite(); //working copy with shifted elements
 for(int i=0; i<x.size(); ++i) (*grad)[i]=central_difference(this->p,xs,x,i,h);
 return f;
-}
-
-
-//Bloch vector components z = cos a cos b, x = cos a sin b of the qubit RY(b) RX(a)|0> and their derivatives
-template<typename T>
-class blochqubit {
-public:
-T z, x, za, zb, xa, xb;
-blochqubit(const T a, const T b)
-	{
-	T ca=std::cos(a), sa=std::sin(a), cb=std::cos(b), sb=std::sin(b);
-	z=ca*cb; x=ca*sb; za= -sa*cb; zb= -ca*sb; xa= -sa*sb; xb=ca*cb;
-	}
-};
-
-template<typename T>
-T testproblem_vqe<T>::funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
-{
-const int nq=x.size()/2;
-if(2*nq!=x.size()) laerror("testproblem_vqe needs an even number of parameters");
-T r=0;
-for(int i=0; i<nq; ++i)
-	{
-	blochqubit<T> q(x[2*i],x[2*i+1]);
-	r+= hfield(i)*q.z + kfield(i)*q.x;
-	if(i<nq-1) r+= J(i)*q.z*std::cos(x[2*i+2])*std::cos(x[2*i+3]);
-	}
-if(grad)
-	{
-	if(grad->size()!=x.size()) laerror("grad size mismatch");
-	grad->copyonwrite();
-	for(int i=0; i<nq; ++i)
-		{
-		blochqubit<T> q(x[2*i],x[2*i+1]);
-		T eff=hfield(i); //coefficient of z_i including the couplings
-		if(i>0) eff+= J(i-1)*std::cos(x[2*i-2])*std::cos(x[2*i-1]);
-		if(i<nq-1) eff+= J(i)*std::cos(x[2*i+2])*std::cos(x[2*i+3]);
-		(*grad)[2*i]= eff*q.za + kfield(i)*q.xa;
-		(*grad)[2*i+1]= eff*q.zb + kfield(i)*q.xb;
-		}
-	}
-return r;
-}
-
-template<typename T>
-void testproblem_vqe<T>::hessian(const NRVec<T> &x, NRSMat<T> &h) const
-{
-const int nq=x.size()/2;
-h=(T)0;
-for(int i=0; i<nq; ++i)
-	{
-	blochqubit<T> q(x[2*i],x[2*i+1]);
-	T eff=hfield(i);
-	if(i>0) eff+= J(i-1)*std::cos(x[2*i-2])*std::cos(x[2*i-1]);
-	if(i<nq-1) eff+= J(i)*std::cos(x[2*i+2])*std::cos(x[2*i+3]);
-	//z_aa = z_bb = -z, x_aa = x_bb = -x, z_ab = sin a sin b, x_ab = -sin a cos b
-	h(2*i,2*i)= -eff*q.z - kfield(i)*q.x;
-	h(2*i+1,2*i+1)= h(2*i,2*i);
-	h(2*i,2*i+1)= eff*std::sin(x[2*i])*std::sin(x[2*i+1]) - kfield(i)*std::sin(x[2*i])*std::cos(x[2*i+1]);
-	if(i<nq-1)
-		{
-		blochqubit<T> q1(x[2*i+2],x[2*i+3]);
-		h(2*i,2*i+2)= J(i)*q.za*q1.za;
-		h(2*i,2*i+3)= J(i)*q.za*q1.zb;
-		h(2*i+1,2*i+2)= J(i)*q.zb*q1.za;
-		h(2*i+1,2*i+3)= J(i)*q.zb*q1.zb;
-		}
-	}
-}
-
-template<typename T>
-void testproblem_vqe<T>::metric(const NRVec<T> &x, NRSMat<T> &g) const
-{
-const int nq=x.size()/2;
-g=(T)0;
-for(int i=0; i<nq; ++i)
-	{
-	T ca=std::cos(x[2*i]);
-	g(2*i,2*i)=0.25;
-	g(2*i+1,2*i+1)=0.25*ca*ca;
-	}
 }
 
 
@@ -1666,9 +1551,6 @@ return firstorder_minimize("SPSA",stepper,o,x,hp,achieved,&est);
 //force instantiation
 template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, double &f, NRVec<double> &g, const NRVec<double> &p, const double alpha1, const linesearch_hyperparameters<double> &lp);
 template class optstate<double>;
-template class testproblem<double>;
-template class testproblem_vqe<double>;
-template class testproblem_vqe_constrained<double>;
 template class ParameterShift<double>;
 template class FiniteDifference<double>;
 template class BFGS_Optimizer<double>;

@@ -65,4 +65,5 @@ gmon.out
 npytest
 *.npy
 *.prompt
+testoptimize
 # CVS default ignores end

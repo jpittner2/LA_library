@@ -125,40 +125,6 @@ virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
 };
 
 
-//test case
-template<typename T>
-class testproblem : public OptProblem<T> {
-public:
-virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
-virtual ~testproblem() {};
-};
-
-//test case with all capabilities: Ising chain with longitudinal and transverse fields in the product state of qubits RY(b_i) RX(a_i)|0>,
-//x = (a_0,b_0,a_1,b_1,...), E = sum_i (h_i z_i + k_i x_i) + sum_i J_i z_i z_{i+1}, Bloch vector components z_i = cos a_i cos b_i, x_i = cos a_i sin b_i;
-//trigonometric of degree 1 with period 2 pi in all parameters, Fubini-Study metric 1/4 diag(1, cos^2 a_i) for each qubit
-template<typename T>
-class testproblem_vqe : public OptProblem<T>, public OptHessian<T>, public OptMetric<T>, public OptTrigonometric<T> {
-public:
-static T hfield(const int i) {return 0.7+0.1*(i%3);}
-static T kfield(const int i) {return 0.4;}
-static T J(const int i) {return 1;}
-virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
-virtual void hessian(const NRVec<T> &x, NRSMat<T> &h) const;
-virtual void metric(const NRVec<T> &x, NRSMat<T> &g) const;
-virtual int degree(const int i) const {return 1;}
-virtual ~testproblem_vqe() {};
-};
-
-//constrained test case: testproblem_vqe with nonnegative total magnetization sum_i z_i >= 0
-template<typename T>
-class testproblem_vqe_constrained : public testproblem_vqe<T>, public OptConstraints<T> {
-public:
-virtual int nconstraints() const {return 1;}
-virtual void constraints(const NRVec<T> &x, NRVec<T> &c) const;
-virtual ~testproblem_vqe_constrained() {};
-};
-
-
 //base classes for optimization methods
 
 template<typename T> class optstate;

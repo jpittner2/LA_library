@@ -20,6 +20,7 @@
 
 #include <time.h>
 #include "la.h"
+#include "testoptimize.h"
 #include "vecmat3.h"
 #include "quaternion.h"
 #include "permutation.h"
