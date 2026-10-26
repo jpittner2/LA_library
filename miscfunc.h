@@ -27,7 +27,8 @@ namespace LA {
 
 const double c_euler= 0.5772156649015328606065120900824024310422;
 
-extern unsigned long long factorial(const int n);
+extern unsigned long long factorial(const int n); //exact, n<=20
+extern double double_factorial(const int n); //n! (not n!!) in double precision, n<=170
 extern double factorialln(const int n);
 extern unsigned long long binom(int n, int k);
 extern unsigned long long longpow(unsigned long long x, int i);
