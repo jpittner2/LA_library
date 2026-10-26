@@ -28,6 +28,7 @@
 #include "vec.h"
 #include "mat.h"
 #include "smat.h"
+#include "bitvector.h"
 
 
 namespace LA {
@@ -90,17 +91,45 @@ class OptProblemAdapter : public OptProblem<T> {
 public:
 const OptProblem<T> *p; //wrapped problem
 OptProblemAdapter(const OptProblem<T> *pp) : p(pp) {};
+virtual bool transforms_capabilities() const {return false;} //the adapter provides the capabilities of the wrapped problem in a transformed form (e.g. other dimension), not the original ones
 };
 
 //capability C (OptHessian<T>, OptMetric<T>, ...) of the problem, searched also through adapters; NULL if not available
+//a transforming adapter provides C only if the wrapped problem does, and never passes on the untransformed one
 template<class C, typename T>
 const C *optcapability(const OptProblem<T> *o)
 {
 const C *c=dynamic_cast<const C *>(o);
-if(c) return c;
 const OptProblemAdapter<T> *a=dynamic_cast<const OptProblemAdapter<T> *>(o);
-return a ? optcapability<C>(a->p) : NULL;
+if(!a) return c;
+if(a->transforms_capabilities()) return c && optcapability<C>(a->p) ? c : NULL;
+return c ? c : optcapability<C>(a->p);
 }
+
+
+//optimization in the free parameters only, the frozen ones keep their values from the full parameter vector
+//the Hessian, metric, trigonometric structure and constraints of the wrapped problem are provided for the free parameters
+//usage: FrozenOptProblem<T> fp(&problem,x,frozen); NRVec<T> xr=fp.reduce(x); optimizer.minimize(&fp,xr); x=fp.expand(xr);
+template<typename T>
+class FrozenOptProblem : public OptProblemAdapter<T>, public OptHessian<T>, public OptMetric<T>, public OptTrigonometric<T>, public OptConstraints<T> {
+public:
+NRVec<T> xfull; //full parameter vector, the values of the frozen parameters are taken from it
+NRVec<int> freeindex; //indices of the free parameters in the full vector
+FrozenOptProblem(const OptProblem<T> *pp, const NRVec<T> &x, const bitvector &frozen) : OptProblemAdapter<T>(pp), xfull(x) {setfrozen(frozen);};
+void setfrozen(const bitvector &frozen); //set of frozen parameters, bit i set = x_i frozen
+void setfull(const NRVec<T> &x) {xfull=x;} //new values of the frozen parameters
+NRVec<T> reduce(const NRVec<T> &full) const {return full.subvector(freeindex);} //free parameters of a full vector
+NRVec<T> expand(const NRVec<T> &reduced) const {NRVec<T> full(xfull); reduced.storesubvector_to(freeindex,full); return full;} //full vector with the frozen values
+virtual bool transforms_capabilities() const {return true;}
+virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
+virtual void hessian(const NRVec<T> &x, NRSMat<T> &h) const;
+virtual NRVec<T> hessian_times(const NRVec<T> &x, const NRVec<T> &v) const;
+virtual void metric(const NRVec<T> &x, NRSMat<T> &g) const;
+virtual int degree(const int i) const;
+virtual T period(const int i) const;
+virtual int nconstraints() const;
+virtual void constraints(const NRVec<T> &x, NRVec<T> &c) const;
+};
 
 
 //gradient by the general parameter-shift rule (Wierichs et al., Quantum 6, 677 (2022); degree 1: Mitarai et al., Phys. Rev. A 98, 032309 (2018),

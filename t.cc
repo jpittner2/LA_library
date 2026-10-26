@@ -4882,6 +4882,28 @@ double r=problem.funcgrad(x,NULL);
 cout <<r<<endl;
 }
 
+if(1) //testbed of the optimization with frozen parameters
+{
+const int n=10;
+NRVec<double> x(n);
+x.randomize(1.);
+testproblem<double> problem;
+bitvector frozen(n);
+for(int i=0; i<n; i+=3) frozen.set(i); //every third parameter frozen
+FrozenOptProblem<double> fproblem(&problem,x,frozen);
+NRVec<double> xr=fproblem.reduce(x);
+BFGS_hyperparameters<double> param;
+param.my_g_thr=1e-6;
+cout << "initial " <<x<<endl;
+BFGS_Optimizer<double> o;
+optresult<double> res=o.minimize(&fproblem,xr,&param);
+NRVec<double> xopt=fproblem.expand(xr);
+cout << "optimized " <<xopt<<endl;
+cout << "converged "<<res.converged<<" f= "<<res.f<<endl;
+const NRVec<double> &xc=x; //x is shared with fproblem.xfull, read-only access
+for(int i=0; i<n; ++i) if(frozen[i] && xopt[i]!=xc[i]) cout <<"ERROR: frozen parameter "<<i<<" changed\n";
+}
+
 if(1) //testbed of the VQE methods, the problem provides capabilities (OptMetric, OptTrigonometric, OptHessian)
 {
 int seed;

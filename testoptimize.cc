@@ -611,6 +611,88 @@ check("QNG converges on testproblem_vqe",conv && f< -5.4,f);
 }
 
 
+static void test_frozen()
+{
+cout <<"--- optimization with frozen parameters (FrozenOptProblem)\n";
+testproblem_vqe_constrained<double> vqe;
+const int n=8;
+NRVec<double> x=startpoint(n,4,2.);
+bitvector frozen(n);
+frozen.set(1); frozen.set(4); frozen.set(5);
+FrozenOptProblem<double> fp(&vqe,x,frozen);
+NRVec<double> xr=fp.reduce(x);
+NRVec<double> xe=fp.expand(xr);
+xe-=x;
+check("reduce and expand",xr.size()==5 && xe.norm()==0);
+NRVec<double> y=startpoint(5,7); //other values of the free parameters
+NRVec<double> yfull=fp.expand(y);
+NRVec<double> gfull(n), g(5);
+double ffull=vqe.funcgrad(yfull,&gfull), f=fp.funcgrad(y,&g);
+NRVec<double> gd=gfull.subvector(fp.freeindex)-g;
+check("reduced function value and gradient",f==ffull && gd.norm()==0);
+NRSMat<double> hfull(n), h(5), mfull(n), m(5);
+vqe.hessian(yfull,hfull); fp.hessian(y,h);
+vqe.metric(yfull,mfull); fp.metric(y,m);
+NRSMat<double> hd=hfull.submatrix(fp.freeindex)-h, md=mfull.submatrix(fp.freeindex)-m;
+check("reduced Hessian and metric",hd.norm()==0 && md.norm()==0);
+NRVec<double> v=startpoint(5,8), hv=fp.hessian_times(y,v), hv2=h*v;
+hv-=hv2;
+check("reduced Hessian-vector product",hv.norm()<1e-14,hv.norm());
+NRVec<double> cfull(1), c(1);
+vqe.constraints(yfull,cfull); fp.constraints(y,c);
+check("constraints and trigonometric degree of the reduced problem",fp.nconstraints()==1 && c[0]==cfull[0] && fp.degree(2)==1 && fp.period(2)==2*M_PI);
+testproblem<double> tp;
+FrozenOptProblem<double> ftp(&tp,startpoint(6,1),bitvector(6));
+ParameterShift<double> ps(&fp);
+check("capabilities of the frozen problem only if the wrapped problem has them",optcapability<OptMetric<double> >(&fp)==&fp && optcapability<OptMetric<double> >(&ftp)==NULL && optcapability<OptHessian<double> >(&ftp)==NULL && optcapability<OptMetric<double> >(&ps)==&fp);
+//optimizations keep the frozen parameters
+{
+bitvector fr(10);
+for(int i=0; i<10; i+=3) fr.set(i);
+NRVec<double> x0=startpoint(10,1);
+FrozenOptProblem<double> fq(&tp,x0,fr);
+NRVec<double> z=fq.reduce(x0);
+BFGS_hyperparameters<double> hb; hb.my_g_thr=1e-8;
+BFGS_Optimizer<double> o;
+bool conv;
+run(o,&fq,z,hb,NULL,&conv);
+NRVec<double> zf=fq.expand(z), gz(z.size());
+fq.funcgrad(z,&gz);
+bool kept=true;
+const NRVec<double> &x0c=x0; //x0 is shared with fq.xfull, read-only access
+for(int i=0; i<10; i+=3) if(zf[i]!=x0c[i]) kept=false;
+check("BFGS with frozen parameters: frozen ones kept, reduced gradient zero",conv && kept && gz.norm()<1e-8,gz.norm());
+}
+{
+NRVec<double> z=fp.reduce(x);
+QNG_hyperparameters<double> hq; hq.my_maxstep=10000;
+QNG_Optimizer<double> o;
+bool conv;
+testproblem_vqe<double> vu;
+FrozenOptProblem<double> fu(&vu,x,frozen);
+run(o,&fu,z,hq,NULL,&conv);
+NRVec<double> gz(5);
+fu.funcgrad(z,&gz);
+check("QNG uses the reduced metric",conv && gz.norm()<1e-5,gz.norm());
+z=fp.reduce(x);
+Rotosolve_hyperparameters<double> hr;
+Rotosolve_Optimizer<double> orot;
+run(orot,&fu,z,hr,NULL,&conv);
+fu.funcgrad(z,&gz);
+check("Rotosolve uses the reduced trigonometric structure",conv && gz.norm()<1e-4,gz.norm());
+z=fp.reduce(x);
+Cobyla_hyperparameters<double> hc; hc.my_rhoend=1e-8;
+Cobyla_Optimizer<double> oc;
+run(oc,&fp,z,hc,NULL,&conv);
+NRVec<double> cz(1);
+fp.constraints(z,cz);
+NRVec<double> zf=fp.expand(z);
+const NRVec<double> &xc=x; //x is shared with fp.xfull, read-only access
+check("COBYLA with frozen parameters satisfies the constraint and keeps them",conv && cz[0]> -1e-10 && zf[1]==xc[1] && zf[4]==xc[4] && zf[5]==xc[5],cz[0]);
+}
+}
+
+
 static void test_maxfunc_and_parameters()
 {
 cout <<"--- evaluation budget and hyperparameters\n";
@@ -725,6 +807,7 @@ test_linemin();
 test_gradient_methods();
 test_derivative_free();
 test_firstorder();
+test_frozen();
 test_maxfunc_and_parameters();
 test_diis();
 test_copyonwrite();

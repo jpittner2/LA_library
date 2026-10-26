@@ -24,6 +24,65 @@
 namespace LA {
 
 
+template<typename T>
+void FrozenOptProblem<T>::setfrozen(const bitvector &frozen)
+{
+const int n=xfull.size();
+if((int)frozen.size()!=n) laerror("size mismatch in FrozenOptProblem::setfrozen");
+NRVec<int> index(n-(int)frozen.population());
+for(int i=0, k=0; i<n; ++i) if(!frozen[i]) index[k++]=i;
+freeindex=index;
+}
+
+template<typename T>
+T FrozenOptProblem<T>::funcgrad(const NRVec<T> &x, NRVec<T> *grad) const
+{
+NRVec<T> full=expand(x);
+if(!grad) return this->p->funcgrad(full,NULL);
+NRVec<T> gfull(full.size());
+T f=this->p->funcgrad(full,&gfull);
+grad->subvector_from(freeindex,gfull);
+return f;
+}
+
+//the capabilities are used only if the wrapped problem has them, as ensured by optcapability()
+template<typename T>
+void FrozenOptProblem<T>::hessian(const NRVec<T> &x, NRSMat<T> &h) const
+{
+NRSMat<T> hfull(xfull.size());
+optcapability<OptHessian<T> >(this->p)->hessian(expand(x),hfull);
+h=hfull.submatrix(freeindex);
+}
+
+template<typename T>
+NRVec<T> FrozenOptProblem<T>::hessian_times(const NRVec<T> &x, const NRVec<T> &v) const
+{
+NRVec<T> vfull((T)0,xfull.size());
+v.storesubvector_to(freeindex,vfull);
+return optcapability<OptHessian<T> >(this->p)->hessian_times(expand(x),vfull).subvector(freeindex);
+}
+
+template<typename T>
+void FrozenOptProblem<T>::metric(const NRVec<T> &x, NRSMat<T> &g) const
+{
+NRSMat<T> gfull(xfull.size());
+optcapability<OptMetric<T> >(this->p)->metric(expand(x),gfull);
+g=gfull.submatrix(freeindex);
+}
+
+template<typename T>
+int FrozenOptProblem<T>::degree(const int i) const {return optcapability<OptTrigonometric<T> >(this->p)->degree(freeindex[i]);}
+
+template<typename T>
+T FrozenOptProblem<T>::period(const int i) const {return optcapability<OptTrigonometric<T> >(this->p)->period(freeindex[i]);}
+
+template<typename T>
+int FrozenOptProblem<T>::nconstraints() const {return optcapability<OptConstraints<T> >(this->p)->nconstraints();}
+
+template<typename T>
+void FrozenOptProblem<T>::constraints(const NRVec<T> &x, NRVec<T> &c) const {optcapability<OptConstraints<T> >(this->p)->constraints(expand(x),c);}
+
+
 //central difference (f(x+h e_i) - f(x-h e_i))/(2h); xs is a working copy of x, restored on return
 template<typename T>
 static T central_difference(const OptProblem<T> *p, NRVec<T> &xs, const NRVec<T> &x, const int i, const T h)
@@ -1553,6 +1612,7 @@ template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, doub
 template class optstate<double>;
 template class ParameterShift<double>;
 template class FiniteDifference<double>;
+template class FrozenOptProblem<double>;
 template class BFGS_Optimizer<double>;
 template class LBFGS_Optimizer<double>;
 template class GDIIS_Optimizer<double>;
