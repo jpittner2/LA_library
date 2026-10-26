@@ -233,6 +233,112 @@ return optresult<T>(f,converged);
 }
 
 
+//function along the line x0 + t*u for linemin_brent, keeps the best point and counts the evaluations
+template<typename T>
+class linefunction {
+public:
+optevaluator<T> &e;
+const NRVec<T> &x0;
+const NRVec<T> &u;
+int maxiter; //evaluation budget
+int nev; //evaluations done
+T tbest;
+T fbest;
+linefunction(optevaluator<T> &ee, const NRVec<T> &xx0, const T f0, const NRVec<T> &uu, const int maxit) : e(ee), x0(xx0), u(uu), maxiter(std::min(maxit,ee.remaining())), nev(0), tbest(0), fbest(f0) {};
+NRVec<T> point(const T t) const {NRVec<T> x(x0); x.axpy(t,u); return x;}
+T operator()(const T t) {T f=e(point(t)); ++nev; if(f<fbest) {fbest=f; tbest=t;} return f;}
+bool exhausted() const {return nev>=maxiter;}
+};
+
+
+template<typename T>
+T linemin_brent(optevaluator<T> &e, NRVec<T> &x, T &f, const NRVec<T> &u, const T t1, const T tol, const T abstol, const int maxiter, const int verbose)
+{
+const T golden=1.618033988749895; //expansion factor of the bracketing
+const T cgold=0.3819660112501051; //golden section fraction (3-sqrt(5))/2
+linefunction<T> phi(e,x,f,u,maxiter);
+
+//bracketing: a,b,c with f(b)<=f(a), f(b)<=f(c)
+T a=0, fa=f;
+T b=t1, fb;
+T c=0, fc=0;
+bool bracketed=false;
+if(phi.exhausted()) return 0;
+fb=phi(b);
+if(fb>fa) //uphill, try the opposite direction
+	{
+	if(phi.exhausted()) return 0;
+	c= -t1; fc=phi(c);
+	if(fc>=fa) {std::swap(a,b); std::swap(fa,fb); bracketed=true;} //minimum between -t1 and t1, middle point is 0
+	else {b=c; fb=fc;}
+	}
+if(!bracketed) //expand downhill from a through b
+	{
+	for(;;)
+		{
+		if(phi.exhausted()) break;
+		c= b+golden*(b-a); fc=phi(c);
+		if(fc>=fb) {bracketed=true; break;}
+		a=b; fa=fb; b=c; fb=fc;
+		}
+	}
+if(verbose>1) std::cout <<"linemin bracket "<<a<<" "<<b<<" "<<c<<" f= "<<fa<<" "<<fb<<" "<<fc<<std::endl;
+
+//Brent's method in [lo,hi]: xm = best point, w = second best, v = previous value of w
+if(bracketed)
+	{
+	T lo=std::min(a,c), hi=std::max(a,c);
+	T xm=b, w=b, v=b, fx=fb, fw=fb, fv=fb;
+	T d=0, dprev=0; //last step and the one before
+	const T tolabs=std::max(abstol,std::numeric_limits<T>::epsilon()*std::abs(t1)); //nonzero to guarantee termination
+	while(!phi.exhausted())
+		{
+		T mid=(lo+hi)/2;
+		T tol1=tol*std::abs(xm)+tolabs;
+		T tol2=2*tol1;
+		if(std::abs(xm-mid) <= tol2-(hi-lo)/2) break; //converged
+		bool goldenstep=true;
+		if(std::abs(dprev)>tol1) //try parabolic interpolation through xm, w, v
+			{
+			T r=(xm-w)*(fx-fv);
+			T q=(xm-v)*(fx-fw);
+			T p=(xm-v)*q-(xm-w)*r;
+			q=2*(q-r);
+			if(q>0) p= -p; else q= -q;
+			if(std::abs(p)<std::abs(q*dprev/2) && p>q*(lo-xm) && p<q*(hi-xm)) //acceptable: inside the interval and less than half of the step before last
+				{
+				dprev=d;
+				d=p/q;
+				T t=xm+d;
+				if(t-lo<tol2 || hi-t<tol2) d= mid>xm ? tol1 : -tol1;
+				goldenstep=false;
+				}
+			}
+		if(goldenstep) {dprev= xm>=mid ? lo-xm : hi-xm; d=cgold*dprev;}
+		T t= std::abs(d)>=tol1 ? xm+d : xm+(d>0 ? tol1 : -tol1);
+		T ft=phi(t);
+		if(ft<=fx)
+			{
+			if(t>=xm) lo=xm; else hi=xm;
+			v=w; fv=fw; w=xm; fw=fx; xm=t; fx=ft;
+			}
+		else
+			{
+			if(t<xm) lo=t; else hi=t;
+			if(ft<=fw || w==xm) {v=w; fv=fw; w=t; fw=ft;}
+			else if(ft<=fv || v==xm || v==w) {v=t; fv=ft;}
+			}
+		}
+	}
+
+if(verbose>1) std::cout <<"linemin t= "<<phi.tbest<<" f= "<<phi.fbest<<" evaluations "<<phi.nev<<std::endl;
+if(phi.tbest==0) return 0;
+x=phi.point(phi.tbest);
+f=phi.fbest;
+return phi.tbest;
+}
+
+
 template<typename T>
 optresult<T> linesearch_minimize(const char *name, linesearch_direction<T> &dir, const OptProblem<T> *o, NRVec<T> &x, const linesearch_hyperparameters<T> &hp, hyperparameters<T> *achieved)
 {
@@ -442,6 +548,199 @@ return linesearch_minimize(names[hp.my_beta],dir,o,x,hp,achieved);
 
 
 
+//simplex of n+1 vertices with their function values
+template<typename T>
+class NM_simplex {
+public:
+int n;
+NRVec<NRVec<T> > v; //vertices
+NRVec<T> f; //function values
+NRVec<T> sum; //sum of the vertices
+int best, second, worst; //indices of the lowest, second highest and highest function value
+NM_simplex(const NRVec<T> &x0, const T h, optevaluator<T> &e);
+void order();
+void sumup() {sum=v[0]; for(int i=1; i<=n; ++i) sum+=v[i];}
+void replace(const int i, const NRVec<T> &x, const T fx) {sum-=v[i]; sum+=x; v[i]=x; f[i]=fx;}
+NRVec<T> centroid() const {NRVec<T> c(sum); c-=v[worst]; c/=(T)n; return c;} //of all vertices except the worst one
+NRVec<T> point(const NRVec<T> &c, const T t) const {NRVec<T> x = c*(1+t); x.axpy(-t,v[worst]); return x;} //c + t*(c - x_worst)
+T diameter() const;
+void shrink(const T sigma, optevaluator<T> &e);
+};
+
+//initial simplex x0, x0 + h e_i
+template<typename T>
+NM_simplex<T>::NM_simplex(const NRVec<T> &x0, const T h, optevaluator<T> &e) : n(x0.size()), v(n+1), f(n+1), best(0), second(0), worst(0)
+{
+v[0]=x0;
+f[0]=e(x0);
+for(int i=1; i<=n; ++i)
+	{
+	v[i]=x0;
+	v[i].copyonwrite();
+	v[i][i-1] += h;
+	f[i]=e(v[i]);
+	}
+sumup();
+}
+
+template<typename T>
+void NM_simplex<T>::order()
+{
+best=worst=0;
+for(int i=1; i<=n; ++i)
+	{
+	if(f[i]<f[best]) best=i;
+	if(f[i]>=f[worst]) worst=i;
+	}
+second=best;
+for(int i=0; i<=n; ++i) if(i!=worst && f[i]>=f[second]) second=i;
+}
+
+template<typename T>
+T NM_simplex<T>::diameter() const
+{
+T d=0;
+for(int i=0; i<=n; ++i) if(i!=best)
+	{
+	NRVec<T> dx = v[i]-v[best];
+	d=std::max(d,dx.norm());
+	}
+return d;
+}
+
+//all vertices move towards the best one, as far as the evaluation budget allows
+template<typename T>
+void NM_simplex<T>::shrink(const T sigma, optevaluator<T> &e)
+{
+for(int i=0; i<=n; ++i) if(i!=best)
+	{
+	if(e.exhausted()) break;
+	NRVec<T> x = v[best]*(1-sigma);
+	x.axpy(sigma,v[i]);
+	v[i]=x;
+	f[i]=e(x);
+	}
+sumup();
+}
+
+
+template<typename T>
+optresult<T> NelderMead_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+const char *name="Nelder-Mead";
+NelderMead_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("Nelder-Mead cannot search for saddle points");
+const int verbose=hp.my_verbose;
+const int n=x.size();
+T alpha=hp.my_alpha, gamma=hp.my_gamma, rho=hp.my_rho, sigma=hp.my_sigma;
+if(hp.my_adaptive) {alpha=1; gamma=1+(T)2/n; rho=0.75-(T)0.5/n; sigma=1-(T)1/n;}
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+NM_simplex<T> s(x,hp.my_initstep,e);
+const T huge=std::numeric_limits<T>::max();
+
+for(;; ++st.iter)
+	{
+	s.order();
+	T spread=s.f[s.worst]-s.f[s.best];
+	st.step(spread, spread<hp.my_f_thr ? s.diameter() : huge); //diameter needed only if the spread is small
+	if(st.stop(s.f[s.best])) break;
+	if(st.iter%(n+1)==0) s.sumup(); //avoid accumulation of rounding errors
+
+	const char *op;
+	NRVec<T> c=s.centroid();
+	NRVec<T> xr=s.point(c,alpha);
+	T fr=e(xr);
+	if(fr<s.f[s.best]) //try expansion
+		{
+		if(e.exhausted()) {s.replace(s.worst,xr,fr); continue;}
+		NRVec<T> xe=s.point(c,alpha*gamma);
+		T fe=e(xe);
+		if(fe<fr) {s.replace(s.worst,xe,fe); op="expansion";}
+		else {s.replace(s.worst,xr,fr); op="reflection";}
+		}
+	else if(fr<s.f[s.second]) {s.replace(s.worst,xr,fr); op="reflection";}
+	else //contraction, outside if the reflected point is better than the worst one
+		{
+		bool outside= fr<s.f[s.worst];
+		if(e.exhausted()) {if(outside) s.replace(s.worst,xr,fr); continue;}
+		NRVec<T> xc=s.point(c, outside ? alpha*rho : -rho);
+		T fc=e(xc);
+		if(outside ? fc<=fr : fc<s.f[s.worst]) {s.replace(s.worst,xc,fc); op= outside ? "outside contraction" : "inside contraction";}
+		else {s.shrink(sigma,e); op="shrink";}
+		}
+	if(verbose>1) std::cout <<name<<" "<<op<<std::endl;
+	}
+
+s.order();
+x=s.v[s.best];
+st.step(s.f[s.worst]-s.f[s.best],s.diameter()); //exact values for achieved
+return st.finish(achieved);
+}
+
+
+
+template<typename T>
+optresult<T> Powell_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
+{
+const char *name="Powell";
+Powell_hyperparameters<T> hp;
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("Powell cannot search for saddle points");
+const int verbose=hp.my_verbose;
+const T abstol=0.01*hp.my_x_thr; //line minima have to be more precise than the requested accuracy in x
+const int n=x.size();
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st(name,hp,e);
+T f=e(x);
+
+NRVec<NRVec<T> > u(n); //normalized directions
+for(int i=0; i<n; ++i) {u[i]=NRVec<T>((T)0,n); u[i][i]=1;}
+NRVec<T> tstep(hp.my_initstep,n); //trial steps of the line minimizations, from the last step along each direction
+
+for(;; ++st.iter)
+	{
+	if(st.stop(f)) break;
+	NRVec<T> x0(x);
+	T f0=f;
+	T delta=0; //largest decrease along a single direction
+	int ibig=0;
+	for(int i=0; i<n && !e.exhausted(); ++i)
+		{
+		T fprev=f;
+		T t=linemin_brent(e,x,f,u[i],tstep[i],hp.my_linmin_tol,abstol,hp.my_maxlinemin,verbose);
+		if(t!=0) tstep[i]=std::abs(t);
+		if(fprev-f>delta) {delta=fprev-f; ibig=i;}
+		}
+
+	//new direction x-x0 replaces the one of the largest decrease, if Powell's test indicates it is worth
+	NRVec<T> unew = x-x0;
+	T unorm=unew.norm();
+	if(unorm>0 && !e.exhausted())
+		{
+		NRVec<T> xe = x+unew; //extrapolated point
+		T fe=e(xe);
+		T a=f0-f-delta;
+		T b=f0-fe;
+		if(fe<f0 && 2*(f0-2*f+fe)*a*a < delta*b*b)
+			{
+			if(verbose>1) std::cout <<name<<": direction "<<ibig<<" replaced\n";
+			unew /= unorm;
+			u[ibig]=u[n-1]; tstep[ibig]=tstep[n-1];
+			u[n-1]=unew; tstep[n-1]=unorm;
+			if(!e.exhausted()) linemin_brent(e,x,f,unew,unorm,hp.my_linmin_tol,abstol,hp.my_maxlinemin,verbose);
+			}
+		}
+	NRVec<T> dx = x-x0;
+	st.step(f0-f,dx.norm());
+	}
+
+return st.finish(achieved);
+}
+
+
+
 //force instantiation
 template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, double &f, NRVec<double> &g, const NRVec<double> &p, const double alpha1, const linesearch_hyperparameters<double> &lp);
 template class optstate<double>;
@@ -449,6 +748,9 @@ template class testproblem<double>;
 template class BFGS_Optimizer<double>;
 template class LBFGS_Optimizer<double>;
 template class CG_Optimizer<double>;
+template class NelderMead_Optimizer<double>;
+template class Powell_Optimizer<double>;
+template double linemin_brent(optevaluator<double> &e, NRVec<double> &x, double &f, const NRVec<double> &u, const double t1, const double tol, const double abstol, const int maxiter, const int verbose);
 
 }//namespace
 

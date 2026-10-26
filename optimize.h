@@ -172,6 +172,13 @@ template<typename T>
 T linesearch_wolfe(optevaluator<T> &e, NRVec<T> &x, T &f, NRVec<T> &g, const NRVec<T> &p, const T alpha1, const linesearch_hyperparameters<T> &lp);
 
 
+//derivative-free line minimization of f(x + t*u): bracketing and Brent's method (Brent, Algorithms for Minimization without Derivatives, 1973, chap. 5)
+//on input x,f at the starting point, on output x,f at the minimum found; returns t, 0 if no decrease was found (x,f then unchanged)
+//t1 = initial trial step, tol and abstol = relative and absolute tolerance on t, maxiter = max. no. of function evaluations
+template<typename T>
+T linemin_brent(optevaluator<T> &e, NRVec<T> &x, T &f, const NRVec<T> &u, const T t1, const T tol, const T abstol, const int maxiter, const int verbose=0);
+
+
 //search direction of a line-search method, used by the common driver linesearch_minimize()
 template<typename T>
 class linesearch_direction {
@@ -258,6 +265,49 @@ class CG_Optimizer : public Optimizer<T> {
 public:
 virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
 virtual ~CG_Optimizer() {};
+};
+
+
+//Nelder-Mead downhill simplex (Lagarias et al., SIAM J. Optim. 9, 112 (1998)), derivative-free
+//convergence: f_thr is used for the spread of function values in the simplex, x_thr for its diameter, both have to be satisfied
+template<typename T>
+class NelderMead_hyperparameters : public hyperparameters<T> {
+public:
+T my_initstep; //edge length of the initial simplex x0 + initstep*e_i
+bool my_adaptive; //dimension-dependent coefficients (Gao & Han, Comput. Optim. Appl. 51, 259 (2012)), otherwise the following ones
+T my_alpha; //reflection
+T my_gamma; //expansion
+T my_rho; //contraction
+T my_sigma; //shrink
+NelderMead_hyperparameters() : my_initstep(0.1), my_adaptive(true), my_alpha(1), my_gamma(2), my_rho(0.5), my_sigma(0.5) {this->my_maxstep=5000; this->my_f_thr=1e-8; this->my_x_thr=1e-6;};
+virtual void setfrom(const hyperparameters<T> &p) {const NelderMead_hyperparameters *q=dynamic_cast<const NelderMead_hyperparameters *>(&p); if(q) *this= *q; else hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class NelderMead_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~NelderMead_Optimizer() {};
+};
+
+
+//Powell's conjugate direction method (Powell, Comput. J. 7, 155 (1964)), derivative-free
+//convergence: f_thr and x_thr are used for the change of f and x in one sweep over all directions, both have to be satisfied
+template<typename T>
+class Powell_hyperparameters : public hyperparameters<T> {
+public:
+T my_initstep; //initial trial step of the line minimizations
+T my_linmin_tol; //relative tolerance of the line minimizations, the absolute one is 0.01*x_thr
+int my_maxlinemin; //max. no. of function evaluations in one line minimization
+Powell_hyperparameters() : my_initstep(0.1), my_linmin_tol(1e-4), my_maxlinemin(50) {this->my_maxstep=1000; this->my_f_thr=1e-10; this->my_x_thr=1e-6;};
+virtual void setfrom(const hyperparameters<T> &p) {const Powell_hyperparameters *q=dynamic_cast<const Powell_hyperparameters *>(&p); if(q) *this= *q; else hyperparameters<T>::setfrom(p);}
+};
+
+template<typename T>
+class Powell_Optimizer : public Optimizer<T> {
+public:
+virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL);
+virtual ~Powell_Optimizer() {};
 };
 
 
