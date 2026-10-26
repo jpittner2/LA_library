@@ -202,7 +202,7 @@ public:
         const NRVec subvector(const int from, const int to) const;
 	const NRVec subvector(const NRVec<int> &selection) const;
 
-        //! store given vector at given position into the current vector
+        //! store given vector at given position into the current vector (scatter)
         void storesubvector(const int from, const NRVec &rhs);
 	void storesubvector(const NRVec<int> &selection, const NRVec &rhs);
 
@@ -2294,6 +2294,7 @@ void NRVec<T>::storesubvector(const int from, const NRVec &rhs)
 #endif
 	SAME_LOC(*this, rhs);
 	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+	copyonwrite();
 
 	#ifdef CUDALA
 		if(location == cpu){
@@ -2315,6 +2316,7 @@ void NRVec<T>::storesubvector(const NRVec<int> &selection, const NRVec &rhs)
         NOT_GPU(*this);
         const int n = selection.size();
 	if(n!=rhs.size()) laerror("size mismatch in storesubvector");
+	copyonwrite();
 
         for(int i=0; i<n; ++i)
                 {

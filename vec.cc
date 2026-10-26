@@ -192,6 +192,7 @@ const bool NRVec<T>::operator<(const NRVec &rhs) const {
 template<>
 void NRVec<double>::randomize(const double &x){
 	NOT_GPU(*this);
+	copyonwrite();
 
 	for(register int i=0; i<nn; ++i){
 		v[i] = x*RANDDOUBLESIGNED();
@@ -209,6 +210,7 @@ void NRVec<double>::randomize(const double &x){
 template<>
 void NRVec<std::complex<double> >::randomize(const double &x) {
 	NOT_GPU(*this);
+	copyonwrite();
 
 	for(register int i=0; i<nn; ++i){
 		v[i] = std::complex<double>(x*RANDDOUBLESIGNED(), x*RANDDOUBLESIGNED());

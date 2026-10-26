@@ -291,6 +291,7 @@ public:
 	void columnset(const NRVec<T> &r, const int j, int l = -1) {
 		NOT_GPU(*this);
 		if(l < 0) l = nn;
+		copyonwrite();
 		for(register int i=0; i<l; ++i) (*this)(i,j) = r[i];
 	};
 

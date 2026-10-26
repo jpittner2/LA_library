@@ -127,6 +127,7 @@ void NRMat<T>::rowset(const NRVec<T> &r, const int i, int l, int offset) {
 	if(i < 0 || i >= nn) laerror("illegal index");
 	if(offset<0||l+offset>mm) laerror("illegal len/offset");
 #endif
+	copyonwrite();
 	LA_traits<T>::copy(
 #ifdef MATPTR
 	        v[i]+offset
@@ -893,6 +894,7 @@ void NRMat<T>::storesubmatrix(const int fromrow, const int fromcol, const NRMat 
 #endif
 	SAME_LOC(*this, rhs);
 	if(!LA_traits<T>::is_plaindata()) laerror("only implemented for plain data");
+	copyonwrite();
 
 	const int m = tocol - fromcol + 1;
 	for(register int i = fromrow; i <= torow; ++i){
@@ -921,7 +923,8 @@ void NRMat<T>::storesubmatrix(const NRVec<int> &rows, const NRVec<int> &cols, co
         const int n = rows.size();
         const int m = cols.size();
 	if(rhs.nrows()!=n || rhs.ncols()!=m) laerror("incompatible dimensions in storesubmatrix");
-                
+	copyonwrite();
+
         for(int i=0; i<n; ++i)
                 {
                 int ii=rows[i];
@@ -942,7 +945,7 @@ void NRMat<T>::storesubmatrix(const NRVec<int> &rows, const NRVec<int> &cols, co
  ******************************************************************************/
 template <typename T>
 NRMat<T>& NRMat<T>::transposeme(const int _n) {
-	const int n = (n <= 0)?nn:_n;//!< transpose the entire matrix
+	const int n = (_n <= 0)?nn:_n;//!< transpose the entire matrix
 #ifdef DEBUG
 	if (n==nn && nn != mm || n>mm || n>nn ) laerror("NRMat<T>::transposeme() - invalid parameter n. Non-square matrix?");
 #endif
@@ -1184,23 +1187,27 @@ void NRMat<T>::fscanf(FILE *f, const char *format) {
 	int n(0), m(0);
 	if (::fscanf(f, "%d %d", &n, &m) != 2) laerror("cannot read matrix dimensions");
 
+	resize(n, m);
 #ifdef CUDALA
 	if(location == cpu){
-		p = *this;
+#endif
+		p = *this; //resize detached any shared data
+#ifdef CUDALA
 	}else{
-		tmp = new NRMat<T>(n, m, this->location);
+		tmp = new NRMat<T>(n, m, cpu); //read on cpu, then copied to the device
 		p = *tmp;
 	}
 #endif
-	resize(n, m);
 	for(int i=0; i<n; i++){
-		for(int j=0; j<n; j++){
+		for(int j=0; j<m; j++){
 			if(::fscanf(f,format, p++) != 1) laerror("cannot read matrix element");
 		}
 	}
 
 #ifdef CUDALA
 	if(location != cpu){
+		tmp->moveto(this->location);
+		*this |= *tmp;
 		delete tmp;
 	}
 #endif
@@ -1402,6 +1409,7 @@ void NRMat<double>::randomize(const double &x) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
+		copyonwrite();
 		for(register int i=0; i<nn; ++i){
 			for(register int j=0; j<mm; ++j){
 				(*this)(i,j) = x*RANDDOUBLESIGNED();
@@ -1431,6 +1439,7 @@ void NRMat<std::complex<double> >::randomize(const double &x) {
 #ifdef CUDALA
 	if(location == cpu){
 #endif
+		copyonwrite();
 		for(register int i=0; i<nn; ++i){
 			for(register int j=0; j<mm; ++j){
 				const double re = x*RANDDOUBLESIGNED();
@@ -2641,7 +2650,8 @@ int nnmin= nn<=mm?nn:mm;
 template<>
 void NRMat<double>::orthonormalize(const bool rowcol, const NRSMat<double> *metric) {
 
-	SAME_LOC(*this, *metric);
+	if(metric) SAME_LOC(*this, *metric);
+	copyonwrite();
 	if(metric){
 		if(rowcol){ //vectors are stored in rows
 			if((*metric).nrows() != mm) laerror("incompatible metric in NRMat<double>::orthonormalize(rowcol = true)");
@@ -3271,6 +3281,7 @@ template<typename T>
 void NRMat<T>::axpy(const T alpha, const NRPerm<int> &p, const bool direction)
 {
 int n=p.size();
+copyonwrite();
 for(int i=0; i<n; ++i)
 	{
 	if(direction) (*this)(i,p[i+1]-1) +=alpha;

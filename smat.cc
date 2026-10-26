@@ -258,6 +258,7 @@ const T NRSMat<T>::trace() const {
 template<>
 void NRSMat<double>::randomize(const double &x) {
 	NOT_GPU(*this);
+	copyonwrite();
 
 	for(size_t i=0; i<NN2; ++i){
 		v[i] = x*RANDDOUBLESIGNED();
@@ -270,6 +271,7 @@ void NRSMat<double>::randomize(const double &x) {
  ******************************************************************************/
 template<>
 void NRSMat<std::complex<double> >::randomize(const double &x) {
+	copyonwrite();
 	for(register size_t i=0; i<NN2; ++i) v[i].real(x*RANDDOUBLESIGNED());
 	for(register size_t i=0; i<NN2; ++i) v[i].imag(x*RANDDOUBLESIGNED());
 	for(register int i=0; i<nn; ++i){
@@ -308,7 +310,8 @@ void NRSMat<T>::fscanf(FILE *f, const char *format) {
 		laerror("cannot read matrix dimensions in NRSMat<T>::fscanf(FILE *, const char *)");
 	if (n != m) laerror("different dimensions in NRSMat<T>::fscanf(FILE *, const char *)");
 	resize(n);
-	for (int i=0; i<n; i++) 
+	//the whole square matrix is read on purpose, the data are assumed to be symmetric (elements (i,j) and (j,i) share the storage)
+	for (int i=0; i<n; i++)
 		for (int j=0; j<n; j++)
 			if (::fscanf(f,format,&((*this)(i,j))) != 1)
 				laerror("NRSMat<T>::fscanf(FILE *, const char *) - unable to read matrix element");
@@ -873,6 +876,7 @@ void NRSMat<T>::storesubmatrix(const int from, const NRSMat &rhs)
 #endif
 
 NOT_GPU(*this);
+copyonwrite();
 
         const int n = rhs.nrows();
 
@@ -894,7 +898,8 @@ void NRSMat<T>::storesubmatrix(const NRVec<int> &selection, const NRSMat &rhs)
 {
         NOT_GPU(*this);
         const int n = selection.size();
-	if(rhs.size()!=n) laerror("size mismatch in storesubmatrix");
+	if(rhs.nrows()!=n) laerror("size mismatch in storesubmatrix");
+	copyonwrite();
 
         for(int i=0; i<n; ++i)
                 {
