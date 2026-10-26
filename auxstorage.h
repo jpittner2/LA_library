@@ -59,12 +59,10 @@ public:
 template<typename T>
 AuxStorage<T>::AuxStorage(void)
 {
-//mkstemp probable does not support O_LARGEFILE?!
-strcpy(filename,"AUX_XXXXXX"); 
-mktemp(filename); 
-unlink(filename);
-fd=open(filename,O_CREAT|O_LARGEFILE|O_RDWR,0777);
-if(fd<0) {perror(""); laerror("open failed in AuxStorage");}
+//mkostemp creates and opens the file atomically (unlike mktemp+open), additional flags like O_LARGEFILE can be given
+strcpy(filename,"AUX_XXXXXX");
+fd=mkostemp(filename,O_LARGEFILE);
+if(fd<0) {perror(""); laerror("mkostemp failed in AuxStorage");}
 recl=0;
 deleteme=1;
 }
