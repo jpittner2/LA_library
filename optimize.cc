@@ -70,14 +70,19 @@ return r;
 
 
 template<typename T>
-T linesearch_wolfe(const OptProblem<T> *o, NRVec<T> &x, T &f, NRVec<T> &g, const NRVec<T> &p, T alpha1, const T c1, const T c2, const T alphamax, const int maxiter, int &nfunc, const int verbose)
+T linesearch_wolfe(optevaluator<T> &e, NRVec<T> &x, T &f, NRVec<T> &g, const NRVec<T> &p, const T alpha1, const linesearch_hyperparameters<T> &lp)
 {
+const T c1=lp.my_c1;
+const T c2=lp.my_c2;
+const int verbose=lp.my_verbose;
+const int maxiter= std::min(lp.my_maxlinesearch,e.remaining());
 const int n=x.size();
 const NRVec<T> x0(x);
 const T f0=f;
 const T d0= g*p;
 if(d0>=0) {if(verbose) std::cout <<"linesearch: not a descent direction\n"; return 0;}
-if(alpha1>alphamax) alpha1=alphamax;
+const T alphamax=lp.my_maxsteplength/p.norm();
+T alpha=std::min(alpha1,alphamax);
 
 //data of trial points; vectors are always freshly allocated, so that assignments (which share data) are safe
 T alpha0=0, f_alpha0=f0, d_alpha0=d0; NRVec<T> x_alpha0(x0), g_alpha0(g); //previous trial point
@@ -88,28 +93,28 @@ int it;
 //bracketing phase
 for(it=0; it<maxiter; ++it)
 	{
-	NRVec<T> xt = x0 + p*alpha1;
+	NRVec<T> xt = x0 + p*alpha;
 	NRVec<T> gt(n);
-	T ft=o->funcgrad(xt,&gt); ++nfunc;
+	T ft=e(xt,&gt);
 	T dt= gt*p;
-	if(verbose>1) std::cout <<"linesearch bracket "<<it<<" alpha= "<<alpha1<<" f= "<<ft<<" dphi= "<<dt<<std::endl;
-	if(ft > f0 + c1*alpha1*d0 || (it>0 && ft>=f_alpha0))
+	if(verbose>1) std::cout <<"linesearch bracket "<<it<<" alpha= "<<alpha<<" f= "<<ft<<" dphi= "<<dt<<std::endl;
+	if(ft > f0 + c1*alpha*d0 || (it>0 && ft>=f_alpha0))
 		{
 		alo=alpha0; flo=f_alpha0; dlo=d_alpha0; xlo=x_alpha0; glo=g_alpha0;
-		ahi=alpha1; fhi=ft; dhi=dt;
+		ahi=alpha; fhi=ft; dhi=dt;
 		bracketed=true;
 		break;
 		}
-	if(std::abs(dt) <= -c2*d0 || alpha1>=alphamax) {x=xt; f=ft; g=gt; return alpha1;} //strong Wolfe satisfied or cannot go further
+	if(std::abs(dt) <= -c2*d0 || alpha>=alphamax) {x=xt; f=ft; g=gt; return alpha;} //strong Wolfe satisfied or cannot go further
 	if(dt>=0)
 		{
-		alo=alpha1; flo=ft; dlo=dt; xlo=xt; glo=gt;
+		alo=alpha; flo=ft; dlo=dt; xlo=xt; glo=gt;
 		ahi=alpha0; fhi=f_alpha0; dhi=d_alpha0;
 		bracketed=true;
 		break;
 		}
-	alpha0=alpha1; f_alpha0=ft; d_alpha0=dt; x_alpha0=xt; g_alpha0=gt;
-	alpha1 *= 2; if(alpha1>alphamax) alpha1=alphamax;
+	alpha0=alpha; f_alpha0=ft; d_alpha0=dt; x_alpha0=xt; g_alpha0=gt;
+	alpha *= 2; if(alpha>alphamax) alpha=alphamax;
 	}
 
 //zoom phase, invariant: alo satisfies sufficient decrease and has the lowest f found so far, dlo*(ahi-alo)<0
@@ -118,7 +123,7 @@ if(bracketed) for(++it; it<maxiter; ++it)
 	T a=cubic_interpolate(alo,flo,dlo,ahi,fhi,dhi);
 	NRVec<T> xt = x0 + p*a;
 	NRVec<T> gt(n);
-	T ft=o->funcgrad(xt,&gt); ++nfunc;
+	T ft=e(xt,&gt);
 	T dt= gt*p;
 	if(verbose>1) std::cout <<"linesearch zoom "<<it<<" alpha= "<<a<<" f= "<<ft<<" dphi= "<<dt<<std::endl;
 	if(ft > f0 + c1*a*d0 || ft>=flo)
@@ -162,37 +167,56 @@ H.rank2update((T)1,s,u);
 
 
 template<typename T>
+bool optstate<T>::stop(const T ff, const T gn)
+{
+f=ff; gnorm=gn;
+if(hp.my_verbose)
+	{
+	std::cout <<name<<" iter "<<iter<<" f= "<<f;
+	if(gnorm>=0) std::cout <<" |g|= "<<gnorm;
+	std::cout <<std::endl;
+	}
+if(hp.converged(*this)) {converged=true; return true;}
+if(iter>=hp.my_maxstep) {if(hp.my_verbose) std::cout <<name<<": maximum number of iterations reached\n"; return true;}
+if(e.exhausted()) {if(hp.my_verbose) std::cout <<name<<": maximum number of function evaluations reached\n"; return true;}
+return false;
+}
+
+
+template<typename T>
+optresult<T> optstate<T>::finish(hyperparameters<T> *achieved) const
+{
+if(hp.my_verbose)
+	{
+	std::cout <<name<<(converged?" converged in ":" NOT converged after ")<<iter<<" iterations, "<<e.nfunc<<" function evaluations, f= "<<f;
+	if(gnorm>=0) std::cout <<" |g|= "<<gnorm;
+	std::cout <<std::endl;
+	}
+if(achieved) {achieved->setfrom(hp); achieved->setreached(*this);}
+return optresult<T>(f,converged);
+}
+
+
+template<typename T>
 optresult<T> BFGS_Optimizer<T>::minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par, hyperparameters<T> *achieved)
 {
-//collect parameters, those not provided by the caller are taken from defaults
 BFGS_hyperparameters<T> hp;
-if(par)
-	{
-	static_cast<hyperparameters<T> &>(hp) = *par;
-	const gradient_hyperparameters<T> *gpar = dynamic_cast<const gradient_hyperparameters<T> *>(par);
-	if(gpar) static_cast<gradient_hyperparameters<T> &>(hp) = *gpar;
-	const BFGS_hyperparameters<T> *bpar = dynamic_cast<const BFGS_hyperparameters<T> *>(par);
-	if(bpar) hp = *bpar;
-	}
+if(par) hp.setfrom(*par);
+if(hp.my_saddle_order) laerror("BFGS cannot search for saddle points");
 const int verbose=hp.my_verbose;
+optevaluator<T> e(o,hp.my_maxfunc);
+optstate<T> st("BFGS",hp,e);
 
 const int n=x.size();
 NRVec<T> g(n);
-T f=o->funcgrad(x,&g);
-int nfunc=1;
+T f=e(x,&g);
 NRSMat<T> H(n);
 H=1.;
 bool Hinit=true; //H is the initial guess, rescale it after the first step
-bool converged=false;
-T last_df=0, last_dx=0;
 
-int iter;
-for(iter=0; iter<hp.my_maxstep; ++iter)
+for(;; ++st.iter)
 	{
-	T gnorm=g.norm();
-	if(verbose) std::cout <<"BFGS iter "<<iter<<" f= "<<f<<" |g|= "<<gnorm<<std::endl;
-	if(gnorm<hp.my_g_thr) {converged=true; break;}
-	if(hp.my_maxfunc>0 && nfunc>=hp.my_maxfunc) {if(verbose) std::cout <<"BFGS: maximum number of function evaluations reached\n"; break;}
+	if(st.stop(f,g.norm())) break;
 
 	NRVec<T> p = H*g;
 	p *= (T)-1;
@@ -205,15 +229,11 @@ for(iter=0; iter<hp.my_maxstep; ++iter)
 
 	NRVec<T> xold(x), gold(g);
 	T fold=f;
-	T pnorm=p.norm();
-	T alpha1 = Hinit ? 1/pnorm : 1; //on the first step (or after restart) try unit step length in x, otherwise the Newton step
-	T alphamax = hp.my_maxsteplength/pnorm;
-	int maxls=hp.my_maxlinesearch;
-	if(hp.my_maxfunc>0 && hp.my_maxfunc-nfunc<maxls) maxls=hp.my_maxfunc-nfunc;
-	T alpha=linesearch_wolfe(o,x,f,g,p,alpha1,hp.my_c1,hp.my_c2,alphamax,maxls,nfunc,verbose);
+	//on the first step (or after restart) try unit step length in x, otherwise the Newton step
+	T alpha=linesearch_wolfe(e,x,f,g,p,Hinit ? 1/p.norm() : (T)1,hp);
 	if(alpha==0)
 		{
-		if(hp.my_maxfunc>0 && nfunc>=hp.my_maxfunc) continue; //reported at the top of the loop
+		if(e.exhausted()) continue; //reported by stop()
 		if(Hinit) {if(verbose) std::cout <<"BFGS: line search failed along steepest descent, giving up\n"; break;}
 		if(verbose) std::cout <<"BFGS: line search failed, resetting inverse Hessian\n";
 		H=1.; Hinit=true;
@@ -232,39 +252,17 @@ for(iter=0; iter<hp.my_maxstep; ++iter)
 		BFGS_update(H,s,y,sy);
 		}
 	else if(verbose) std::cout <<"BFGS: curvature condition violated, skipping update\n";
-
-	last_df=std::abs(f-fold); last_dx=snorm;
-	if(last_df<hp.my_f_thr && last_dx<hp.my_x_thr) {converged=true; ++iter; break;}
+	st.step(f-fold,snorm);
 	}
 
-if(verbose)
-	{
-	if(converged) std::cout <<"BFGS converged in "<<iter<<" iterations, "<<nfunc<<" function evaluations, f= "<<f<<" |g|= "<<g.norm()<<std::endl;
-	else std::cout <<"BFGS NOT converged after "<<iter<<" iterations, "<<nfunc<<" function evaluations, f= "<<f<<" |g|= "<<g.norm()<<std::endl;
-	}
-
-if(achieved)
-	{
-	BFGS_hyperparameters<T> ach(hp);
-	ach.my_maxstep=iter;
-	ach.my_maxfunc=nfunc;
-	ach.my_f_thr=last_df;
-	ach.my_x_thr=last_dx;
-	ach.my_g_thr=g.norm();
-	*achieved = static_cast<hyperparameters<T> &>(ach);
-	gradient_hyperparameters<T> *gach = dynamic_cast<gradient_hyperparameters<T> *>(achieved);
-	if(gach) *gach = static_cast<gradient_hyperparameters<T> &>(ach);
-	BFGS_hyperparameters<T> *bach = dynamic_cast<BFGS_hyperparameters<T> *>(achieved);
-	if(bach) *bach = ach;
-	}
-
-return optresult<T>(f,converged);
+return st.finish(achieved);
 }
 
 
 
 //force instantiation
-template double linesearch_wolfe(const OptProblem<double> *o, NRVec<double> &x, double &f, NRVec<double> &g, const NRVec<double> &p, double alpha1, const double c1, const double c2, const double alphamax, const int maxiter, int &nfunc, const int verbose);
+template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, double &f, NRVec<double> &g, const NRVec<double> &p, const double alpha1, const linesearch_hyperparameters<double> &lp);
+template class optstate<double>;
 template class testproblem<double>;
 template class BFGS_Optimizer<double>;
 
