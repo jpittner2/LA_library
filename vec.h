@@ -2361,7 +2361,7 @@ void NRVec<T>::storesubvector_to(const NRVec<int> &selection, NRVec &rhs) const
                 {
                 int ii=selection[i];
 #ifdef DEBUG
-                if(ii<0||ii>=rhs.nn) laerror("bad  index in storesubvector");
+                if(ii<0||ii>=rhs.nn) laerror("bad  index in storesubvector_to");
 #endif
                 rhs[ii] = (*this)[i];
                 }
