@@ -102,7 +102,8 @@ void NRSMat<T>::get(int fd, bool dim, bool transp, bool orcaformat) {
 
 
 /***************************************************************************//**
- * constructor symmetrizing given matrix \f$A\f$ of general type <code>T</code> yielding \f$(A+A^\mathrm{T})/2\f$
+ * constructor symmetrizing given matrix \f$A\f$ of general type <code>T</code> yielding \f$(A+A^\mathrm{T})/2\f$,
+ * for complex types hermitizing it, i.e. yielding \f$(A+A^\dagger)/2\f$
  * @param[in] rhs matrix \f$A\f$
  ******************************************************************************/
 template <typename T>
@@ -122,7 +123,7 @@ NRSMat<T>::NRSMat(const NRMat<T> &rhs) {
 	int i, j, k(0);
 	for(i=0; i<nn; i++){
 		for(j=0; j<=i; j++){
-			v[k++] = (rhs[i][j] + rhs[j][i])/((T)2);
+			v[k++] = (rhs[i][j] + LA_traits<T>::conjugate(rhs[j][i]))/((T)2);
 		}
 	}
 }
@@ -759,7 +760,7 @@ void NRSMat<std::complex<double> >::axpy(const std::complex<double> alpha, const
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zaxpy(nn, &alpha, x.v, 1, v, 1);
+		cblas_zaxpy(NN2, &alpha, x.v, 1, v, 1);
 #ifdef CUDALA
 	}else{
 		const cuDoubleComplex _alpha = make_cuDoubleComplex(alpha.real(), alpha.imag());

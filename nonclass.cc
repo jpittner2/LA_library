@@ -102,7 +102,8 @@ void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
 							ii=j; 
 							jj=i;
 						}
-						fprintf(file, f, ((std::complex<double>)a[ii*(ii+1)/2+jj]).real(), ((std::complex<double>)a[ii*(ii+1)/2+jj]).imag());
+						const std::complex<double> x = (std::complex<double>)a[(ii-1)*ii/2+jj-1]; //packed lower triangle, 1-based ii,jj
+						fprintf(file, f, x.real(), i>=j ? x.imag() : -x.imag()); //hermitian for complex
 					} else fprintf(file, f, ((std::complex<double>)a[(i-1)*c+j-1]).real(), ((std::complex<double>)a[(i-1)*c+j-1]).imag());
 					if (j < n2) fputc(' ',file);
 				}
@@ -122,7 +123,8 @@ void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
 						ii=j; 
 						jj=i;
 					}
-					fprintf(file, f, ((std::complex<double>)a[ii*(ii+1)/2+jj]).real(), ((std::complex<double>)a[ii*(ii+1)/2+jj]).imag());
+					const std::complex<double> x = (std::complex<double>)a[(ii-1)*ii/2+jj-1]; //packed lower triangle, 1-based ii,jj
+					fprintf(file, f, x.real(), i>=j ? x.imag() : -x.imag()); //hermitian for complex
 				} else fprintf(file,f,((std::complex<double>)a[(i-1)*c+j-1]).real(), ((std::complex<double>)a[(i-1)*c+j-1]).imag());
 				putc(j<c?' ':'\n',file);
 			}
@@ -1555,7 +1557,7 @@ const NRSMat<double> realpart<NRSMat< std::complex<double> > >(const NRSMat< std
 #ifdef CUDALA
         if(a.location == cpu){
 #endif
-	cblas_dcopy(a.nrows()*(a.ncols()+1)/2, (const double *)(&a(0,0)), 2, result, 1);
+	cblas_dcopy(a.nrows()*(a.ncols()+1)/2, (const double *)(&a[0]), 2, result, 1);
 #ifdef CUDALA
         }else{
 	laerror("not implemented for cuda yet");
@@ -1573,7 +1575,7 @@ const NRSMat<double> imagpart<NRSMat< std::complex<double> > >(const NRSMat< std
         if(a.location == cpu){
 #endif
 
-	cblas_dcopy(a.nrows()*(a.ncols()+1)/2, (const double *)(&a(0,0))+1, 2, result, 1);
+	cblas_dcopy(a.nrows()*(a.ncols()+1)/2, (const double *)(&a[0])+1, 2, result, 1);
 #ifdef CUDALA
         }else{
         laerror("not implemented for cuda yet");

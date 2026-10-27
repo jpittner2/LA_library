@@ -675,7 +675,7 @@ NRMat<T>::NRMat(const NRMat &rhs) {
 }
 
 /***************************************************************************//**
- * create matrix from a \c NRSMat object
+ * create matrix from a \c NRSMat object (for complex types hermitian, the upper triangle is conjugated)
  * @param[in] rhs \c NRSMat input object to be converted
  * @see count, v, vec.h, NRSMat<T>
  ******************************************************************************/
@@ -702,13 +702,15 @@ NRMat<T>::NRMat(const NRSMat<T> &rhs) {
 #ifdef MATPTR
 	for (i=0; i<nn; i++){
 		for (j=0; j<=i; j++){
-			v[i][j] = v[j][i] = rhs[k++];
+			v[i][j] = rhs[k];
+			v[j][i] = LA_traits<T>::conjugate(rhs[k++]);
 		}
 	}
 #else
 	for (i=0; i<nn; i++){
 		for (j=0; j<=i; j++){
-			v[i*(size_t)nn + j] = v[j*(size_t)nn + i] = rhs[k++];
+			v[i*(size_t)nn + j] = rhs[k];
+			v[j*(size_t)nn + i] = LA_traits<T>::conjugate(rhs[k++]);
 		}
 	}
 #endif

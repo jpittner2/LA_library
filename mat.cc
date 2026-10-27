@@ -1705,8 +1705,8 @@ NRMat< std::complex<double> >::operator+=(const NRSMat< std::complex<double> > &
 			p += i + 1;
 		}
 		p = rhs; p++;
-		for(register int i=1; i<nn; i++){
-			cblas_zaxpy(i, &CONE, p, 1, (*this)[0]+i, nn);
+		for(register int i=1; i<nn; i++){ //upper triangle is conjugated (hermitian)
+			for(register int j=0; j<i; ++j) *((*this)[j]+i) += std::conj(p[j]);
 			p += i+1;
 		}
 #ifdef CUDALA
@@ -1752,7 +1752,7 @@ NRMat<T> & NRMat<T>::operator+=(const NRSMat<T> &rhs) {
 	}
 	p = rhs; p++;
 	for(register int i=1; i<nn; i++) {
-		for(register int j=0; j<i; ++j) *((*this)[j]+i) += p[j];
+		for(register int j=0; j<i; ++j) *((*this)[j]+i) += LA_traits<T>::conjugate(p[j]); //hermitian for complex
 		p += i+1;
         }
         return *this;
@@ -1829,8 +1829,8 @@ NRMat<std::complex<double> >::operator-=(const NRSMat<std::complex<double> > &rh
 			p += i + 1;
 		}
 		p = rhs; p++;
-		for(register int i=1; i<nn; i++){
-			cblas_zaxpy(i, &CMONE, p, 1, (*this)[0]+i, nn);
+		for(register int i=1; i<nn; i++){ //upper triangle is conjugated (hermitian)
+			for(register int j=0; j<i; ++j) *((*this)[j]+i) -= std::conj(p[j]);
 			p += i + 1;
 		}
 #ifdef CUDALA
@@ -1872,7 +1872,7 @@ NRMat<T> & NRMat<T>::operator-=(const NRSMat<T> &rhs) {
 	}
 	p = rhs; p++;
 	for(register int i=1; i<nn; i++){
-		for(register int j=0; j<i; ++j) *((*this)[j]+i) -= p[j];
+		for(register int j=0; j<i; ++j) *((*this)[j]+i) -= LA_traits<T>::conjugate(p[j]); //hermitian for complex
 		p += i+1;
         }
         return *this;

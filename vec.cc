@@ -655,7 +655,7 @@ void NRVec<std::complex<double> >::gemv(const double beta, const NRSMat<double> 
  * \f[\vec{y}\leftarrow \alpha\operatorname{op}(A)\cdot\vec{x}+\beta\vec{y}\f]
  * @param[in] beta complex parameter \f$\beta\f$
  * @param[in] A <b>complex Hermitian</b> matrix \f$A\f$ stored in packed form
- * @param[in] trans not used
+ * @param[in] trans 'n' or 'c' for \f$A\f$, 't' for \f$A^\mathrm{T}=A^*\f$
  * @param[in] alpha complex parameter \f$\alpha\f$
  * @param[in] x complex vector \f$\vec{x}\f$
  * @see gemm, NRSMat<T>
@@ -674,7 +674,10 @@ void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		cblas_zhpmv(CblasRowMajor, CblasLower, A.ncols(), &alpha, A, x.v, 1, &beta, v, 1);
+		if(tolower(trans) == 't') //row-major lower packed H is column-major upper packed H^T
+			cblas_zhpmv(CblasColMajor, CblasUpper, A.ncols(), &alpha, A, x.v, 1, &beta, v, 1);
+		else
+			cblas_zhpmv(CblasRowMajor, CblasLower, A.ncols(), &alpha, A, x.v, 1, &beta, v, 1);
 #ifdef CUDALA
 	}else{
 		const cuDoubleComplex _alpha = make_cuDoubleComplex(alpha.real(), alpha.imag());

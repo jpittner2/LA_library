@@ -31,6 +31,15 @@ namespace LA {
 template<typename T> class NRPerm;
 template<typename T> class NRSMat_from1;
 
+//return type of the const element access NRSMat<T>::operator(): a reference, except for complex types,
+//where the upper triangle has to be conjugated on the fly
+template<typename T> struct NRSMat_const_element {typedef const T& type;};
+template<typename C> struct NRSMat_const_element<std::complex<C> > {typedef const std::complex<C> type;};
+
+//conjugation of the stored lower triangle element when the upper triangle element is requested
+template<typename T> inline const T& NRSMat_conj_upper(const T &x) {return x;}
+template<typename C> inline const std::complex<C> NRSMat_conj_upper(const std::complex<C> &x) {return std::conj(x);}
+
 
 /***************************************************************************//**
  * This class implements a general symmetric or hermitian matrix the elements
@@ -154,9 +163,11 @@ public:
 	inline const T& operator[](const size_t ij) const;
 	inline T& operator[](const size_t ij);
 
-	//NOTE: it stores the matrix as symemtric and operator() assumes it is symmetric, does not support complex hermitean as that would require a smart pointer for l-value version
-	//complex conjugation options are available for BLAS routines to facilitate hermitan matrices  
-	inline const T& operator()(const int i, const int j) const;
+	//NOTE: complex NRSMat is hermitian, only the lower triangle is stored, the upper one is its complex conjugate
+	//const operator() returns conj(a(j,i)) for i<j (by value for complex types, by reference otherwise)
+	//PITFALL: the non-const operator() cannot conjugate (it would need a smart pointer for the l-value), for i<j it returns
+	//a reference to the stored element a(j,i) WITHOUT conjugation - this also applies to reading from a non-const complex matrix
+	inline typename NRSMat_const_element<T>::type operator()(const int i, const int j) const;
 	inline T& operator()(const int i, const int j);
 
 	inline int nrows() const;
@@ -177,7 +188,7 @@ public:
 		{
 		T s = NRVec<T>(*this).sum();
 		if(onlytriangle) return s;
-		s*=2;
+		s += LA_traits<T>::conjugate(s); //upper triangle is conjugated for complex (hermitian)
 		for(int i=0; i<nn; ++i) s -= (*this)(i,i);
 		return s;
 		}
@@ -193,7 +204,16 @@ public:
 		return r;
 		}
 
-	const NRVec<T> csum() const {return rsum();};
+	const NRVec<T> csum() const //differs from rsum() by conjugation for complex (hermitian)
+		{
+		NRVec<T> r(nn);
+		for(int j=0; j<nn;++j)
+			{
+			r[j]=(T)0;
+			for(int i=0; i<nn; ++i) r[j] += (*this)(i,j);
+			}
+		return r;
+		}
 
 
 	const T trace() const;
@@ -306,6 +326,7 @@ inline NRSMat<T>::NRSMat(const T *a, const int n) : nn(n), count(new int(1)) {
         location = DEFAULT_LOC;
         if(location == cpu){
 #endif
+		v = new T[NN2];
 		if(LA_traits<T>::is_plaindata()) memcpy(v, a, NN2*sizeof(T));
 		else for( int i=0; i<NN2; i++) v[i] = a[i];
 #ifdef CUDALA
@@ -763,6 +784,9 @@ return (i>j)? (i-2)*(i-1)/2+j-1 : (j-2)*(j-1)/2+i-1;
 
 /***************************************************************************//**
  * determine matrix element of this symmetric matrix of general type <code>T</code>
+ * PITFALL for complex (hermitian) matrices: for \f$i<j\f$ the reference to the stored element \f$a_{ji}\f$
+ * is returned WITHOUT complex conjugation (an l-value cannot be conjugated); this also
+ * applies when only reading from a non-const matrix, use the const version or \f$i\geq{}j\f$
  * @param[in] i row index running from 0
  * @param[in] j column index running from 0
  * @return reference to the corresponding matrix element
@@ -786,14 +810,15 @@ inline T & NRSMat<T>::operator()(const int i, const int j) {
 }
 
 /***************************************************************************//**
- * determine matrix element of this symmetric matrix of general type <code>T</code>
+ * determine matrix element of this symmetric or hermitian matrix of general type <code>T</code>
  * @param[in] i row index running from 0
  * @param[in] j column index running from 0
- * @return constant reference to the corresponding matrix element
+ * @return constant reference to the corresponding matrix element; for complex types the value,
+ * complex conjugated for \f$i<j\f$ (hermitian matrix)
  * @see count, SMat_index, NRSMat<T>::operator[]
  ******************************************************************************/
 template <typename T>
-inline const T & NRSMat<T>::operator()(const int i, const int j) const {
+inline typename NRSMat_const_element<T>::type NRSMat<T>::operator()(const int i, const int j) const {
 #ifdef DEBUG
 	if(i<0||i>=nn||j<0||j>=nn) std::cout<<"INDEX PROBLEM "<<0<<" "<<i<<" "<<nn-1<<" "<<0<<" "<<j<<" "<<nn-1<<std::endl;
         if(i<0) laerror("T & NRSMat<T>::operator()(const int, const int) first index out of range - low");
@@ -805,7 +830,7 @@ inline const T & NRSMat<T>::operator()(const int i, const int j) const {
 #endif
 	NOT_GPU(*this);
 
-	return v[SMat_index(i,j)];
+	return (i>=j) ? v[SMat_index_igej(i,j)] : NRSMat_conj_upper(v[SMat_index_igej(j,i)]);
 }
 
 /***************************************************************************//**
@@ -1284,7 +1309,7 @@ std::istream& operator>>(std::istream  &s, NRSMat<T> &x) {
 template <typename T, typename S>
 void NRSMat_convert(NRSMat<T> &a, const NRSMat<S> &b)
 {
-a.resize(b.nrows(),b.ncols());
+a.resize(b.nrows());
 for(int i=0; i<b.nrows(); ++i)
         for(int j=0; j<=i; ++j)
                 a(i,j) = (T) b(i,j);
@@ -1307,7 +1332,7 @@ tmp.printsorted(s,direction,absvalue,stable,thr,topmax,&indexmap);
  * corresponding macro is defined in vec.h
  ******************************************************************************/
 NRVECMAT_OPER(SMat,+)
-NRVECMAT_OPER(SMat,-)
+NRVECMAT_OPER_NONCOMMUTATIVE(SMat,-)
 NRVECMAT_OPER(SMat,*)
 
 /***************************************************************************//**
@@ -1332,7 +1357,7 @@ public:
 	explicit NRSMat_from1(const NRMat<T> &rhs): NRSMat<T>(rhs) {};
 	explicit NRSMat_from1(const NRVec<T> &rhs, const int n): NRSMat<T>(rhs,n) {};
 
-	inline const T& operator() (const int i, const int j) const {
+	inline typename NRSMat_const_element<T>::type operator() (const int i, const int j) const { //for complex conjugated for i<j, see NRSMat<T>::operator()
 	#ifdef DEBUG
 		if(i<=0||i>NRSMat<T>::nn||j<=0||j>NRSMat<T>::nn) std::cout<<"INDEX PROBLEM "<<1<<" "<<i<<" "<<NRSMat<T>::nn<<" "<<1<<" "<<j<<" "<<NRSMat<T>::nn<<std::endl;
 		if(i<=0) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) first indexout of range - low");
@@ -1340,10 +1365,10 @@ public:
 		if(j<=0) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) second index out of range - low");
 		if(j>NRSMat<T>::nn) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) second index out of range - high");
 	#endif
-		return NRSMat<T>::v[SMat_index_1(i,j)];
+		return (i>=j) ? NRSMat<T>::v[SMat_index_1igej(i,j)] : NRSMat_conj_upper(NRSMat<T>::v[SMat_index_1igej(j,i)]);
 	}
 	
-	inline  T& operator() (const int i, const int j){
+	inline  T& operator() (const int i, const int j){ //PITFALL: no conjugation for complex i<j, see NRSMat<T>::operator()
 	#ifdef DEBUG
 		if(i<=0||i>NRSMat<T>::nn||j<=0||j>NRSMat<T>::nn) std::cout<<"INDEX PROBLEM "<<1<<" "<<i<<" "<<NRSMat<T>::nn<<" "<<1<<" "<<j<<" "<<NRSMat<T>::nn<<std::endl;
                 if(i<=0) laerror("index in const T& NRSMat_from1<T>::operator() (const int, const int) first indexout of range - low");
