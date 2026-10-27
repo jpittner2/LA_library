@@ -1025,7 +1025,7 @@ std::complex<double> tmp;
 #ifdef CUDALA
 	if(location == cpu){
 #endif
-		for(register int i=1; i<nn; i++){
+		for(register int i=0; i<nn; i++){
 			for(register int j=0; j<=i; j++){
 			#ifdef MATPTR
 				tmp = std::complex<double> (v[i][j].real()-v[j][i].real(),v[i][j].imag()+v[j][i].imag()); 
@@ -1094,9 +1094,9 @@ NRMat<std::complex<double> >::NRMat(const NRMat<double> &rhs, bool imagpart): nn
 	if(location == cpu){
 #endif
 	#ifdef MATPTR
-	        v = new std::complex<double>*[n];
+	        v = new std::complex<double>*[nn];
 	        v[0] = new std::complex<double>[nn_mm];
-	        for(register int i=1; i<n; i++) v[i] = v[i-1] + m;
+	        for(register int i=1; i<nn; i++) v[i] = v[i-1] + mm;
 	
 		memset(v[0], 0, nn_mm*sizeof(std::complex<double>));
 	        cblas_dcopy(nn_mm, &rhs[0][0], 1, ((double *)v[0]) + (imagpart?1:0), 2);
@@ -1135,9 +1135,9 @@ NRMat<double>::NRMat(const NRMat<std::complex<double> > &rhs, bool imagpart): nn
 	if(location == cpu){
 #endif
 	#ifdef MATPTR
-	        v = new double*[n];
+	        v = new double*[nn];
 	        v[0] = new double[nn_mm];
-	        for(register int i=1; i<n; i++) v[i] = v[i-1] + m;
+	        for(register int i=1; i<nn; i++) v[i] = v[i-1] + mm;
 	
 	        cblas_dcopy(nn_mm, ((double *)&rhs[0][0]) + (imagpart?1:0), 2, v[0], 1);
 	#else
@@ -1357,9 +1357,9 @@ const NRSMat<std::complex<double> >  NRMat<std::complex<double> >::timestranspos
 		for(i=0; i<nn; ++i){
 			for(j=0; j<=i; ++j){
 			#ifdef MATPTR
-				cblas_zdotc_sub(nn, v[i], 1, v[j], 1, &r(i,j));
+				cblas_zdotc_sub(mm, v[j], 1, v[i], 1, &r(i,j)); //(A A^H)_ij = sum_k A_ik conj(A_jk), lower triangle of the hermitian result
 			#else
-				cblas_zdotc_sub(nn, v + i*(size_t)mm, 1, v + j*(size_t)mm, 1, &r(i,j));
+				cblas_zdotc_sub(mm, v + j*(size_t)mm, 1, v + i*(size_t)mm, 1, &r(i,j)); //(A A^H)_ij = sum_k A_ik conj(A_jk), lower triangle of the hermitian result
 			#endif
 			}
 		}
@@ -2162,7 +2162,8 @@ NRMat< std::complex<double> >::operator*(const NRSMat< std::complex<double> > &r
 	if(location == cpu){
 #endif
 		for(register int i=0; i<nn; i++){
-			cblas_zhpmv(CblasRowMajor, CblasLower, mm, &CONE, &rhs[0],
+			//row i of A H is H^T a_i; the C-order lower packed hermitian H read as fortran-order upper packed is H^T
+			cblas_zhpmv(CblasColMajor, CblasUpper, mm, &CONE, &rhs[0],
 					(*this)[i], 1, &CZERO, result[i], 1);
 		}
 #ifdef CUDALA
@@ -3143,24 +3144,9 @@ NRMat<double>& NRMat<double>::swap_rows_cols(){
 #ifdef CUDALA
 	if(location == cpu){
 #endif	
-		for(register int i=0; i<n_pul; i++){
-			std::cout << "swapping row " << i << " and " << nn-i-1 << std::endl;
-
-			std::cout << "elements: " << *((*this)[i]) << std::endl;
-			std::cout << "elements: " << *((*this)[nn - i - 1] + mm - 1) << std::endl;
-
-			cblas_dswap(mm, (*this)[i], 1, (*this)[nn - i - 1] + mm - 1, -1);
-		}
-		return *this;
-
-		if(nn & 1){ // odd number of rows
-			for(register int i=0; i<=m_pul; i++){
-
-				tmp = (*this)(n_pul, i);
-				(*this)(n_pul, i) = (*this)(n_pul, mm-i-1);
-				(*this)(n_pul, mm-i-1) = tmp;
-			}
-		}
+		//reversal of the whole C-order array; for a negative increment BLAS expects the pointer to the first element in memory
+		const size_t dim = (size_t)nn*mm;
+		cblas_dswap(dim/2, (*this)[0], 1, (*this)[0] + dim - dim/2, -1);
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<n_pul; i++){
@@ -3197,17 +3183,9 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_rows_cols(){
 #ifdef CUDALA
 	if(location == cpu){
 #endif	
-		for(register int i=0;i<n_pul;i++){
-			cblas_zswap(mm, (*this)[i], 1, (*this)[nn - i - 1] + mm - 1, -1);
-		}
-
-		if(nn & 1){
-			for(register int i=0; i<=m_pul; i++){ // odd number of rows
-				tmp = (*this)(n_pul, i);
-				(*this)(n_pul, i) = (*this)(n_pul, mm-i-1);
-				(*this)(n_pul, mm-i-1) = tmp;
-			}
-		}
+		//reversal of the whole C-order array; for a negative increment BLAS expects the pointer to the first element in memory
+		const size_t dim = (size_t)nn*mm;
+		cblas_zswap(dim/2, (*this)[0], 1, (*this)[0] + dim - dim/2, -1);
 #ifdef CUDALA
 	}else{
 		for(register int i=0;i<n_pul;i++){
@@ -3247,7 +3225,7 @@ NRMat<T>& NRMat<T>::swap_rows_cols(){
 #endif
 		data_ptr = (*this)[0];	
 		const int dim_pul = dim >> 1;
-		for(register int i=0; i<=dim_pul; i++){
+		for(register int i=0; i<dim_pul; i++){
 			tmp = data_ptr[i];
 			data_ptr[i] = data_ptr[dim - i - 1];
 			data_ptr[dim - i - 1] = tmp;

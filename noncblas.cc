@@ -347,9 +347,21 @@ void cblas_zhpmv(const CBLAS_ORDER Order, const CBLAS_UPLO Uplo,
 		const void *X, const int incX,
 		const void *beta, void *Y, const int incY)
 {
-	if(Order!=CblasRowMajor) laerror("CblasRowMajor order asserted");
-	if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
 	char U = BLAS_FORTRANCASE('u');
+	if(Order==CblasColMajor && Uplo==CblasUpper) //native fortran convention, no conjugation needed
+		{
+#ifdef FORINT
+		const FINT ntmp=N;
+		const FINT incxtmp=incX;
+		const FINT incytmp=incY;
+		FORNAME(zhpmv) (&U,&ntmp, alpha, Ap, X, &incxtmp, beta, Y, &incytmp);
+#else
+		FORNAME(zhpmv) (&U,&N, alpha, Ap, X, &incX, beta, Y, &incY);
+#endif
+		return;
+		}
+	if(Order!=CblasRowMajor) laerror("CblasRowMajor or CblasColMajor+CblasUpper order asserted");
+	if(Uplo!=CblasLower) laerror("CblasLower uplo asserted");
 //row-major lower packed hermitian H is column-major upper packed conj(H), therefore
 //conj(y) = conj(beta) conj(y) + conj(alpha) conj(H) conj(x) is computed by zhpmv on conjugated vectors and scalars
 std::complex<double> alphac = std::conj(*(const std::complex<double> *)alpha);

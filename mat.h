@@ -93,6 +93,9 @@ public:
 	//! inlined constructor creating matrix of given size filled with data located at given memory location 
 	inline NRMat(const T *a, const int n, const int m);
 	inline NRMat(const Mat3<T> &rhs) : NRMat(&rhs(0,0),3,3) {};
+
+	//! a single integer argument is forbidden (it would silently create a 3x3 matrix via Mat3(const T)); use NRMat(n,m)
+	explicit NRMat(const int n) = delete;
 	
 	//! inlined constructor creating matrix of given size from an array
 	template<int R, int C> inline NRMat(const T (&a)[R][C]);
@@ -110,7 +113,7 @@ public:
 
 	//! explicit constructor converting vector into a <code>NRMat<T></code> object
 #ifdef MATPTR
-	explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset = 0):NRMat(&rhs[0][0] + offset , n, m){
+	explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset = 0):NRMat(&rhs[0] + offset , n, m){
 		if (offset < 0 || (size_t)n*m + offset > rhs.nn) laerror("matrix dimensions and offset incompatible with vector length");
 	};
 #else
@@ -561,7 +564,7 @@ inline NRMat<T>::NRMat(const T (&a)[R][C]) : count(new int) {
 	#ifdef MATPTR
 		v = new T*[nn];
 		v[0] = new T[nn*mm];
-		for (register int i=1; i<n; i++) v[i] = v[i-1] + m;
+		for (register int i=1; i<nn; i++) v[i] = v[i-1] + mm;
 		if(LA_traits<T>::is_plaindata()) memcpy(v[0], a, nn*mm*sizeof(T));
 		else for( int i=0; i<nn; i++) for(int j=0; j<mm; ++j) v[i][j]=a[i][j];
 	#else
@@ -1166,7 +1169,11 @@ void NRMat<T>::copyonwrite(bool detachonly, bool deep) {
 #ifdef CUDALA
                 if(location != cpu) laerror("nested types not supported on gpu memory");
 #endif
+#ifdef MATPTR
+		for(int i=0; i<nn*mm; ++i) LA_traits<T>::copyonwrite(v[0][i]);
+#else
 		for(int i=0; i<nn*mm; ++i) LA_traits<T>::copyonwrite(v[i]);
+#endif
                 }
 
 	if(*count > 1){
@@ -1184,7 +1191,7 @@ void NRMat<T>::copyonwrite(bool detachonly, bool deep) {
 				if(LA_traits<T>::is_plaindata()) memcpy(newv[0], v[0], (size_t)mm*nn*sizeof(T));
                                 else
                                         {
-                                        for(int i=0; i<nn*mm; ++i) {newv[i]=v[i]; LA_traits<T>::copyonwrite(newv[i]);}
+                                        for(int i=0; i<nn*mm; ++i) {newv[0][i]=v[0][i]; LA_traits<T>::copyonwrite(newv[0][i]);}
                                         }
 				}
 			v = newv;
@@ -1419,7 +1426,7 @@ class NRMat_from1 : public NRMat<T> {
 public:
 	NRMat_from1(): NRMat<T>() {};
 	template<int R, int C> explicit NRMat_from1(const T (&a)[R][C]) : NRMat<T>(a) {};
-	explicit NRMat_from1(const int n): NRMat<T>(n) {};
+	explicit NRMat_from1(const int n) = delete; //single integer argument forbidden, use NRMat_from1(n,m)
 	explicit NRMat_from1(const NRSMat_from1<T> &rhs) : NRMat<T>(rhs) {};
 	NRMat_from1(const NRMat<T> &rhs): NRMat<T>(rhs) {};//!< be able to convert the parent class transparently to this
 	NRMat_from1(const int n, const int m): NRMat<T>(n, m) {};
@@ -1658,7 +1665,7 @@ tmp.printsorted(s,direction,absvalue,stable,thr,topmax,&indexmap);
  * corresponding macro is defined in vec.h
  ******************************************************************************/
 NRVECMAT_OPER(Mat, +)
-NRVECMAT_OPER(Mat, -)
+NRVECMAT_OPER_NONCOMMUTATIVE(Mat, -)
 NRVECMAT_OPER(Mat, *)
 
 /***************************************************************************//**

@@ -32,6 +32,7 @@
 #include <stdio.h>
 #ifndef NO_NUMERIC_LIMITS
 #include <limits>
+#include <type_traits>
 #endif
 
 namespace LA_Vecmat3 {
@@ -136,6 +137,7 @@ public:
 	Mat3(void) {};
 	Mat3(const T (&a)[3][3]) {memcpy(q,a,3*3*sizeof(T));}
 	Mat3(const T x) {memset(q,0,9*sizeof(T)); q[0][0]=q[1][1]=q[2][2]=x;}; //scalar matrix
+	template<typename I, typename std::enable_if<std::is_integral<I>::value,int>::type = 0> Mat3(const I x) = delete; //single integer argument forbidden (write e.g. Mat3<double>(1.))
 	Mat3& operator=(const T &x) {memset(q,0,9*sizeof(T)); q[0][0]=q[1][1]=q[2][2]=x; return *this;}; //scalar matrix
 	void indentity() {*this = (T)1;};
 	Mat3(const T* x) {memcpy(q,x,9*sizeof(T));} 
