@@ -1149,7 +1149,7 @@ for(; budget; ++st.iter)
 		A=J.transposedtimes();
 		g=r*J;
 		for(int i=0; i<n; ++i) diag[i]=((const NRSMat<T> &)A)(i,i);
-		mu*= std::max((T)1/3,1-std::pow(2*rho-1,3));
+		mu*= std::max((T)1/3,1-std::pow(2*rho-1,(T)3));
 		nu=2;
 		st.step(fold-f,h.norm());
 		}
@@ -2045,29 +2045,33 @@ return firstorder_minimize("SPSA",stepper,o,x,hp,achieved,&est);
 
 
 //force instantiation
-template double linesearch_wolfe(optevaluator<double> &e, NRVec<double> &x, double &f, NRVec<double> &g, const NRVec<double> &p, const double alpha1, const linesearch_hyperparameters<double> &lp);
-template class optstate<double>;
-template class ParameterShift<double>;
-template class FiniteDifference<double>;
-template class FrozenOptProblem<double>;
-template class BFGS_Optimizer<double>;
-template class LBFGS_Optimizer<double>;
-template class GDIIS_Optimizer<double>;
-template class TrustRegion_Optimizer<double>;
-template class PRFO_Optimizer<double>;
-template class LM_Optimizer<double>;
-template class OptLeastSquares<double>;
-template bool hessian_update(NRSMat<double> &B, const NRVec<double> &s, const NRVec<double> &y, const TR_hessian type, const double thr);
-template class CG_Optimizer<double>;
-template class NelderMead_Optimizer<double>;
-template class Powell_Optimizer<double>;
-template class Rotosolve_Optimizer<double>;
-template class Cobyla_Optimizer<double>;
-template class SGD_Optimizer<double>;
-template class QNG_Optimizer<double>;
-template class Adam_Optimizer<double>;
-template class SPSA_Optimizer<double>;
-template double linemin_brent(optevaluator<double> &e, NRVec<double> &x, double &f, const NRVec<double> &u, const double t1, const double tol, const double abstol, const int maxiter, const int verbose);
+#define INSTANTIZE(T) \
+template T linesearch_wolfe(optevaluator<T> &e, NRVec<T> &x, T &f, NRVec<T> &g, const NRVec<T> &p, const T alpha1, const linesearch_hyperparameters<T> &lp); \
+template class optstate<T>; \
+template class ParameterShift<T>; \
+template class FiniteDifference<T>; \
+template class FrozenOptProblem<T>; \
+template class BFGS_Optimizer<T>; \
+template class LBFGS_Optimizer<T>; \
+template class GDIIS_Optimizer<T>; \
+template class TrustRegion_Optimizer<T>; \
+template class PRFO_Optimizer<T>; \
+template class LM_Optimizer<T>; \
+template class OptLeastSquares<T>; \
+template bool hessian_update(NRSMat<T> &B, const NRVec<T> &s, const NRVec<T> &y, const TR_hessian type, const T thr); \
+template class CG_Optimizer<T>; \
+template class NelderMead_Optimizer<T>; \
+template class Powell_Optimizer<T>; \
+template class Rotosolve_Optimizer<T>; \
+template class Cobyla_Optimizer<T>; \
+template class SGD_Optimizer<T>; \
+template class QNG_Optimizer<T>; \
+template class Adam_Optimizer<T>; \
+template class SPSA_Optimizer<T>; \
+template T linemin_brent(optevaluator<T> &e, NRVec<T> &x, T &f, const NRVec<T> &u, const T t1, const T tol, const T abstol, const int maxiter, const int verbose); \
+
+INSTANTIZE(double)
+
 
 }//namespace
 
