@@ -128,9 +128,9 @@ public:
 	void permuteindices(const NRVec<SPMatindex> &p); //for backward compatibility, indices from 0
 	void permuterows(const NRVec<SPMatindex> &p); //for backward compatibility, indices from 0
 	void permutecolumns(const NRVec<SPMatindex> &p); //for backward compatibility, indices from 0
-	void permuteme_rows(const NRPerm<int> &p, const bool inverse=false); //indexed from 1
-	void permuteme_cols(const NRPerm<int> &p, const bool inverse=false); //indexed from 1
-	void permuteme_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false); //indexed from 1
+	void permuteme_rows(const NRPerm<int> &p, const bool inverse=false); //matrix indices from 0, permutation from 1
+	void permuteme_cols(const NRPerm<int> &p, const bool inverse=false); //matrix indices from 0, permutation from 1
+	void permuteme_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false); //matrix indices from 0, permutation from 1
 	const SparseMat permuted_rows(const NRPerm<int> &p, const bool inverse=false) const {SparseMat a(*this); a.permuteme_rows(p,inverse); return a;};
 	const SparseMat permuted_cols(const NRPerm<int> &p, const bool inverse=false) const {SparseMat a(*this); a.permuteme_cols(p,inverse); return a;};
 	const SparseMat permuted_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false) const {SparseMat a(*this); a.permuteme_both(p,q,inverse); return a;};
@@ -140,12 +140,12 @@ public:
 	inline bool issymmetric() const {return symmetric;}
 	unsigned int length() const;
 	void copyonwrite(bool detachonly=false, bool deep=true);
-	void clear() {copyonwrite(LA_traits<T>::is_plaindata()); if(count) {delete count; count=NULL;}}
+	void clear() {bool sym=symmetric; resize(nn,mm); symmetric=sym;} //zero matrix of the same dimensions and symmetry
 	void simplify(const double sparseepsilon=SPARSEEPSILON);
 	const T trace() const;
 	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first
 	unsigned int sort(int type) const;
-	inline void add(const SPMatindex n, const SPMatindex m, const T elem) {matel<T> *ltmp= new matel<T>; ltmp->next=list; list=ltmp; list->row=n; list->col=m; list->elem=elem;}
+	inline void add(const SPMatindex n, const SPMatindex m, const T elem) {if(nonzero) unsort(); matel<T> *ltmp= new matel<T>; ltmp->next=list; list=ltmp; list->row=n; list->col=m; list->elem=elem;}
 	void addsafe(const SPMatindex n, const SPMatindex m, const T elem);
 	void swap(SparseMat &rhs) //more efficient swap than via tmp and constructors and operator=
 		{
@@ -305,6 +305,7 @@ template<typename T>
 NRMat<T> & NRMat<T>::operator+=(const SparseMat<T> &rhs)
 {
 if((unsigned int)nn!=rhs.nrows()||(unsigned int)mm!=rhs.ncols()) laerror("incompatible matrices in +=");
+copyonwrite();
 matel<T> *l=rhs.getlist();
 bool sym=rhs.issymmetric();
 while(l)
@@ -315,6 +316,28 @@ while(l)
 #else
         v[l->row*mm+l->col] +=l->elem;
          if(sym && l->row!=l->col) v[l->col*mm+l->row] +=l->elem;
+#endif
+        l=l->next;
+        }
+return *this;
+}
+
+//subtract sparse from dense
+template<typename T>
+NRMat<T> & NRMat<T>::operator-=(const SparseMat<T> &rhs)
+{
+if((unsigned int)nn!=rhs.nrows()||(unsigned int)mm!=rhs.ncols()) laerror("incompatible matrices in -=");
+copyonwrite();
+matel<T> *l=rhs.getlist();
+bool sym=rhs.issymmetric();
+while(l)
+        {
+#ifdef MATPTR
+        v[l->row][l->col] -=l->elem;
+        if(sym && l->row!=l->col) v[l->col][l->row] -=l->elem;
+#else
+        v[l->row*mm+l->col] -=l->elem;
+         if(sym && l->row!=l->col) v[l->col*mm+l->row] -=l->elem;
 #endif
         l=l->next;
         }
@@ -350,7 +373,7 @@ public:
 		if(diagonal.size()>0) //we ASSUME the diagonal is ONLY in the vector
 			{
 			if(diagonal.size()!=x.size()) laerror("mismatch in diagonal size");
-			if(divide) {x.copyonwrite(); for (int i=1; i<x.size(); ++i) x[i]/=diagonal[i]; return NULL;}
+			if(divide) {x.copyonwrite(); for (int i=0; i<x.size(); ++i) x[i]/=diagonal[i]; return NULL;}
 			else	{x|=diagonal; return &x[0];}
 			}
 		return offdiagonal.diagonalof(x,divide,cache);

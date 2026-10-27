@@ -58,7 +58,12 @@ symmetric=symnon[0];
 nonzero=symnon[1];
 }
 else
-copyonwrite();
+	{
+	unsort();
+	if(!count) count=new int(1);
+	else if(*count > 1) {(*count)--; count=new int(1); list=NULL;} //detach from previous
+	else while(list) {matel<T> *ltmp=list; list=list->next; delete ltmp;} //discard old contents, they are replaced
+	}
 
 matel<T> *l=NULL;
 do
@@ -650,7 +655,7 @@ memset(v,0,nn2*sizeof(T));
 matel<T> *l=rhs.getlist();
 while(l)
 	{
-	(*this)(l->row,l->col)=l->elem;
+	(*this)(l->row,l->col)+=l->elem; //duplicates in the list are summed
 	l=l->next;
 	}
 }
@@ -744,7 +749,8 @@ void SparseMat<T>::transposeme()
 {
 if(!count) laerror("transposeme on undefined lhs");
 if(symmetric||!list) return;
-copyonwrite();//also unsort
+copyonwrite();
+unsort(); //indices change, sorted arrays are obsolete (copyonwrite unsorts only a shared matrix)
 register matel<T> *l=list;
 while(l)
 	{
@@ -864,7 +870,10 @@ else
 template<class T>
 void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec<T> &x, const bool treat_as_symmetric)
 {
-if((trans=='n'?a.ncols():a.nrows())!= (SPMatindex)x.size()) laerror("incompatible sizes in gemv");
+if((tolower(trans)=='n'?a.ncols():a.nrows())!= (SPMatindex)x.size()) laerror("incompatible sizes in gemv");
+#ifdef DEBUG
+if((tolower(trans)=='n'?a.nrows():a.ncols())!= (SPMatindex)nn) laerror("incompatible result vector in gemv");
+#endif
 copyonwrite();
 if(beta!=(T)0) {if(beta!=(T)1) (*this) *= beta;}
 else memset(v,0,nn*sizeof(T));
@@ -1061,8 +1070,7 @@ if(list && rhs.list) //both nonzero
 	register SPMatindex rb=0,cb=0;
         ra=rowsorted[i]->row;
         ca=rowsorted[i]->col;
-        while(j<nb && (rb=rhs.rowsorted[j]->row) <ra) j++; /*skip in rhs*/
-        while(j<nb && (cb=rhs.rowsorted[j]->col) <ca) j++; /*skip in rhs*/
+        while(j<nb && ((rb=rhs.rowsorted[j]->row)<ra || (rb==ra && (cb=rhs.rowsorted[j]->col)<ca))) j++; /*skip in rhs, lexicographically by (row,col)*/
 	
 	if(j==nb) break; //we can exit the i-loop, no suitable element in b any more
         if(ra==rb&&ca==cb)
@@ -1089,6 +1097,7 @@ void SparseMat<T>::permuterows(const NRVec<SPMatindex> &p)
 if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuterows");
 
 copyonwrite();
+unsort(); //indices change, sorted arrays are obsolete
 
 matel<T> *l=list;
 
@@ -1107,6 +1116,7 @@ void SparseMat<T>::permutecolumns(const NRVec<SPMatindex> &p)
 if((SPMatindex)p.size()!=mm) laerror("inconsistent dimension in permuterows");
 
 copyonwrite();
+unsort(); //indices change, sorted arrays are obsolete
 
 matel<T> *l=list;
 
@@ -1124,6 +1134,7 @@ void SparseMat<T>::permuteindices(const NRVec<SPMatindex> &p)
 if((SPMatindex)p.size()!=nn||(SPMatindex)p.size()!=mm) laerror("inconsistent dimension in permuterows");
 
 copyonwrite();
+unsort(); //indices change, sorted arrays are obsolete
 
 matel<T> *l=list;
 
@@ -1136,23 +1147,25 @@ while(l)
 }
 
 
-//these assume both matrix and permutation indexed from 1
+//matrix indices from 0, NRPerm indexed from 1
 template<class T>
 void SparseMat<T>::permuteme_rows(const NRPerm<int> &p, const bool inverse)
 {
 if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuteme_rows");
 
 copyonwrite();
+unsort(); //indices change, sorted arrays are obsolete
 
 matel<T> *l=list;
 
-NRPerm<int> pp;
-if(inverse) pp=p.inverse(); else pp=p;
+NRPerm<int> pinv;
+if(inverse) pinv=p.inverse();
+const NRPerm<int> &pp= inverse?pinv:p; //const access, no copy
 
 while(l)
 	{
-	l->row = (SPMatindex) pp[(int)l->row];
-	if(symmetric) l->col= (SPMatindex) pp[(int)l->col];
+	l->row = (SPMatindex) pp[(int)l->row+1]-1; //matrix indices from 0, permutation from 1
+	if(symmetric) l->col= (SPMatindex) pp[(int)l->col+1]-1;
 	l=l->next;
 	}
 }
@@ -1160,19 +1173,21 @@ while(l)
 template<class T>
 void SparseMat<T>::permuteme_cols(const NRPerm<int> &p, const bool inverse)
 {
-if((SPMatindex)p.size()!=nn) laerror("inconsistent dimension in permuteme_cols");
+if((SPMatindex)p.size()!=mm) laerror("inconsistent dimension in permuteme_cols");
 
 copyonwrite();
+unsort(); //indices change, sorted arrays are obsolete
 
 matel<T> *l=list;
 
-NRPerm<int> pp;
-if(inverse) pp=p.inverse(); else pp=p;
+NRPerm<int> pinv;
+if(inverse) pinv=p.inverse();
+const NRPerm<int> &pp= inverse?pinv:p; //const access, no copy
 
 while(l)
 	{
-	l->col = (SPMatindex) pp[(int)l->col];
-	if(symmetric) l->row= (SPMatindex) pp[(int)l->row];
+	l->col = (SPMatindex) pp[(int)l->col+1]-1; //matrix indices from 0, permutation from 1
+	if(symmetric) l->row= (SPMatindex) pp[(int)l->row+1]-1;
 	l=l->next;
 	}
 }
@@ -1183,17 +1198,19 @@ void SparseMat<T>::permuteme_both(const NRPerm<int> &p, const NRPerm<int> &q, co
 if((SPMatindex)p.size()!=nn || (SPMatindex)q.size()!=mm) laerror("inconsistent dimension in permuteme_both");
 
 copyonwrite();
+unsort(); //indices change, sorted arrays are obsolete
 
 matel<T> *l=list;
 
-NRPerm<int> pp, qq;
-if(inverse) pp=p.inverse(); else pp=p;
-if(inverse) qq=q.inverse(); else qq=q;
+NRPerm<int> pinv, qinv;
+if(inverse) {pinv=p.inverse(); qinv=q.inverse();}
+const NRPerm<int> &pp= inverse?pinv:p; //const access, no copy
+const NRPerm<int> &qq= inverse?qinv:q;
 
 while(l)
         {
-        l->row= (SPMatindex) pp[(int)l->row];
-        l->col= (SPMatindex) qq[(int)l->col];
+        l->row= (SPMatindex) pp[(int)l->row+1]-1; //matrix indices from 0, permutation from 1
+        l->col= (SPMatindex) qq[(int)l->col+1]-1;
         l=l->next;
         }
 }
@@ -1249,6 +1266,9 @@ SPMatindex k(transa=='n'?a.mm:a.nn);
 SPMatindex kk(transb=='n'?b.nn:b.mm);
 SPMatindex ll(transb=='n'?b.mm:b.nn);
 if(a.symmetric||b.symmetric) laerror("symmetric sparse matrices not supported in gemm");
+#ifdef DEBUG
+if(&a==this || &b==this) laerror("gemm: a or b must not be the result matrix itself");
+#endif
 
 if(beta==(T)0) resize(l,ll); //empty matrix
 else	*this *= beta; //takes care about beta=1
@@ -1322,7 +1342,7 @@ SPMatindex m0=mm;
 T tmp;
 incsize(rhs.nrows(), rhs.ncols());
 for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
-        for(SPMatindex j=0; j<(SPMatindex)rhs.ncols(); ++j)
+        for(SPMatindex j=0; j<=i; ++j) //symmetric storage: one triangle only
                 if(std::abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
 return *this;
 }
