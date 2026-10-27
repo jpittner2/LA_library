@@ -231,7 +231,7 @@ return r;
 template <typename T>
 inline Polynomial<T> operator+(const T &a, const Polynomial<T> &rhs) {return Polynomial<T>(rhs)+=a;}
 template <typename T>
-inline Polynomial<T> operator-(const T &a, const Polynomial<T> &rhs) {return Polynomial<T>(rhs)-=a;}
+Polynomial<T> operator-(const T &a, const Polynomial<T> &rhs) = delete; //deliberately not available, write -p + a
 
 //Sylvester matrix
 template <typename T>
