@@ -343,7 +343,7 @@ public:
 	int findflatindex(const INDEXNAME nam) const;
 	INDEX findindex(const INDEXNAME nam) const;
 	NRVec<INDEX> findindexlist(const NRVec<INDEXNAME> &names) const;
-	void renameindex(const  INDEXNAME namfrom, const INDEXNAME nameto) {int i=findflatindex(namfrom); names[i]=nameto;};
+	void renameindex(const  INDEXNAME namfrom, const INDEXNAME nameto) {int i=findflatindex(namfrom); names.copyonwrite(); names[i]=nameto;};
 
 	Tensor& operator+=(const Tensor &rhs) 
 		{
@@ -400,8 +400,8 @@ public:
 	Tensor unwind_indices(const NRVec<INDEXNAME> &names) const {return unwind_indices(findindexlist(names));};
 
 	void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs2, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); //rhs1 will have more significant non-contracted indices in the result than rhs2
-	inline void addcontraction(const Tensor &rhs1, const INDEX &I1, const Tensor &rhs2, const INDEX &I2, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, I1.group, I1.index, rhs2, I2.group, I2.index, alpha, beta, doresize, conjugate, conjugate);};
-	inline void addcontraction(const Tensor &rhs1, const Tensor &rhs2, const INDEXNAME &iname, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, rhs1.findindex(iname), rhs2, rhs2.findindex(iname), alpha, beta, doresize, conjugate, conjugate);};
+	inline void addcontraction(const Tensor &rhs1, const INDEX &I1, const Tensor &rhs2, const INDEX &I2, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, I1.group, I1.index, rhs2, I2.group, I2.index, alpha, beta, doresize, conjugate1, conjugate);};
+	inline void addcontraction(const Tensor &rhs1, const Tensor &rhs2, const INDEXNAME &iname, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false) {addcontraction(rhs1, rhs1.findindex(iname), rhs2, rhs2.findindex(iname), alpha, beta, doresize, conjugate1, conjugate);};
 	inline Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate1=false, bool conjugate=false) const {Tensor<T> r; r.addcontraction(*this,group,index,rhs,rhsgroup,rhsindex,alpha,0,true, conjugate1, conjugate); return r; };
 	inline Tensor contraction(const INDEX &I, const Tensor &rhs, const INDEX &RHSI, T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(I.group,I.index, rhs, RHSI.group, RHSI.index,alpha, conjugate1, conjugate);};
 	inline Tensor contraction(const Tensor &rhs, const INDEXNAME &iname,  T alpha=1, bool conjugate1=false, bool conjugate=false) const {return  contraction(findindex(iname),rhs,rhs.findindex(iname),alpha, conjugate1, conjugate);};

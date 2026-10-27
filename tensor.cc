@@ -327,7 +327,7 @@ shape.put(fd,true);
 groupsizes.put(fd,true);
 cumsizes.put(fd,true);
 data.put(fd,true);
-if(with_names && names.size()!=0) names.put(fd,true);
+if(with_names) names.put(fd,true); //also if empty (writes its length 0), get() always reads the names if with_names
 }
 
 template<typename T>
@@ -335,7 +335,7 @@ void Tensor<T>::get(int fd, bool with_names)
 {
 shape.get(fd,true);
 myrank=calcrank(); //is not stored but recomputed
-groupsizes.put(fd,true);
+groupsizes.get(fd,true);
 cumsizes.get(fd,true);
 data.get(fd,true);
 if(with_names) names.get(fd,true);
@@ -403,7 +403,8 @@ Tensor<T>::Tensor(const NRSMat<T> &x)
 myrank=2;
 shape.resize(1);
 shape[0].number=2;
-shape[0].symmetry=1;
+shape[0].symmetry= LA_traits<T>::is_complex() ? 2 : 1; //complex NRSMat is hermitian, same packed layout
+//TODO: if NRSMat gets the planned hermitian flag, use 2 only for a hermitian complex x, 1 otherwise
 #ifndef LA_TENSOR_ZERO_OFFSET
         shape[0].offset=0;
 #endif
@@ -450,7 +451,8 @@ for(LA_index i = istart; i<=iend; ++i)
 		{
 		int sign;
 		//std::cout <<"TEST  "<<t.index(&sign,I)<<" ";
-		(*callback)(I,(*p)++);
+		if(skipzeros) (*callback)(I,&t.data[t.index(&sign,I)]); //pointer from the index, the skipped blocks are not counted by p
+		else (*callback)(I,(*p)++);
 		}
 	else 
 		{
@@ -478,6 +480,7 @@ for(int i=0; i<I.size(); ++i)
 	I[i].resize(sh->number); 
 	I[i] = sh->offset;
 	}
+data.copyonwrite(); //the callback gets writable pointers
 T *pp=&data[0];
 int ss=shape.size()-1;
 const INDEXGROUP *sh = &(* const_cast<const NRVec<INDEXGROUP> *>(&shape))[ss];
@@ -519,7 +522,8 @@ for(LA_index i = istart; i<=iend; ++i)
 		{
 		int sign;
 		//std::cout <<"TEST  "<<t.index(&sign,I)<<" ";
-		(*callback)(I,(*p)++);
+		if(skipzeros) (*callback)(I,&t.data[t.index(&sign,I)]); //pointer from the index, the skipped blocks are not counted by p
+		else (*callback)(I,(*p)++);
 		}
 	else 
 		{
@@ -674,6 +678,7 @@ template<typename T>
 void Tensor<T>::grouploopover(void (*callback)(const GROUPINDEX &, T *))
 {
 GROUPINDEX I(shape.size());
+data.copyonwrite(); //the callback gets writable pointers
 T *pp= &data[0]; 
 loopovergroups(*this,shape.size()-1,&pp,I,callback);
 }
@@ -965,6 +970,7 @@ if(group>=0) //single group
 		else
 			{
 			Tensor<T> r(*this);
+			r.shape.copyonwrite(); //data stay shared, the change is formal
 			r.shape[group].symmetry=0;
 			return r;
 			}
@@ -979,7 +985,7 @@ if(group>=0) //single group
 if(group<0 && !is_compressed())
 	{
 	Tensor<T> r(*this);
-        for(int g=0; g<shape.size(); ++g) 
+        for(int g=shape.size()-1; g>=0; --g) //downward: splitting renumbers only the following groups
 		{
 		if(shape[g].number>1) r.split_index_group(g);
 		}
@@ -1165,8 +1171,8 @@ static void auxmatmult(int nn, int mm, int kk, T *r, const T *a, const T *b,  T 
 {
 for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j)
 	{
-	if(beta==0)  r[i*mm+j]=0; else r[i*mm+j] *= beta;
-	for(int k=0; k<kk; ++k) r[i*mm+j] += alpha * a[i*kk+k] * conjugate? LA_traits<T>::conjugate(b[j*kk+k]) : b[j*kk+k];
+	if(beta==(T)0)  r[i*mm+j]=0; else r[i*mm+j] *= beta;
+	for(int k=0; k<kk; ++k) r[i*mm+j] += alpha * a[i*kk+k] * (conjugate? LA_traits<T>::conjugate(b[j*kk+k]) : b[j*kk+k]);
 	}
 }
 
@@ -1203,7 +1209,7 @@ if(rhs1.shape[group].range != rhs.shape[rhsgroup].range) laerror("incompatible i
 if(rhs1.shape[group].symmetry != rhs.shape[rhsgroup].symmetry) laerror("incompatible index symmetry in addgroupcontraction");
 if(rhs1.shape[group].symmetry !=0 && rhs1.shape[group].symmetry != -1) laerror("addgroupcontraction only implemented for nonsymmetric and antisymmetric index groups");
 #ifdef LA_TENSOR_INDEXPOSITION
-if(rhs1.shape[group].upperindex ^ rhs.shape[rhsgroup].upperindex == false) laerror("can contact only upper with lower index");
+if((rhs1.shape[group].upperindex ^ rhs.shape[rhsgroup].upperindex) == false) laerror("can contact only upper with lower index");
 #endif
 
 const Tensor<T> u = conjugate1? (rhs1.unwind_index_group(group)).conjugate() : rhs1.unwind_index_group(group);
@@ -1271,7 +1277,7 @@ if(rhsindex<0||rhsindex>=rhs.shape[rhsgroup].number)  laerror("wrong index numbe
 if(rhs1.shape[group].offset != rhs.shape[rhsgroup].offset) laerror("incompatible index offset in contraction");
 if(rhs1.shape[group].range != rhs.shape[rhsgroup].range) laerror("incompatible index range in contraction");
 #ifdef LA_TENSOR_INDEXPOSITION
-if(rhs1.shape[group].upperindex ^ rhs.shape[rhsgroup].upperindex == false) laerror("can contract only upper with lower index");
+if((rhs1.shape[group].upperindex ^ rhs.shape[rhsgroup].upperindex) == false) laerror("can contract only upper with lower index");
 #endif
 
 const Tensor<T> u = conjugate1? (rhs1.unwind_index(group,index)).conjugate() : rhs1.unwind_index(group,index);
@@ -1331,8 +1337,19 @@ void Tensor<T>::addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const 
 if(il1.size()!=il2.size()) laerror("mismatch in index lists in addcontractions");
 if(il1.size()==0) //add just outer product
 	{
-	if(beta!=(T)0) *this *= beta; else this->clear();
-	*this += (conjugate1?rhs1.conjugate():rhs1) * (conjugate2?rhs2.conjugate():rhs2) * alpha;
+	Tensor<T> p = (conjugate1?rhs1.conjugate():rhs1) * (conjugate2?rhs2.conjugate():rhs2);
+	if(alpha!=(T)1) p *= alpha; //in place, no extra copy
+	if(doresize)
+		{
+		if(beta!= (T)0) laerror("resize in addcontractions requires beta=0");
+		*this = p;
+		}
+	else
+		{
+		if(shape!=p.shape) laerror("tensor shape mismatch in addcontraction");
+		if(is_named() && names!=p.names) laerror("remaining index names mismatch in addcontractions");
+		if(beta==(T)0) data=p.data; else {if(beta!=(T)1) *this *= beta; *this += p;}
+		}
 	return;
 	} 
 
@@ -1345,7 +1362,7 @@ for(int i=0; i<il1.size(); ++i)
 	if(rhs1.shape[il1[i].group].offset != rhs2.shape[il2[i].group].offset) laerror("incompatible index offset in contractions");
 	if(rhs1.shape[il1[i].group].range  != rhs2.shape[il2[i].group].range) laerror("incompatible index range in contractions");
 #ifdef LA_TENSOR_INDEXPOSITION
-	if(rhs1.shape[il1[i].group].upperindex ^ rhs2.shape[il2[i].group].upperindex == false) laerror("can contact only upper with lower index");
+	if((rhs1.shape[il1[i].group].upperindex ^ rhs2.shape[il2[i].group].upperindex) == false) laerror("can contact only upper with lower index");
 #endif
 	for(int j=0; j<i; ++j) if(il1[i]==il1[j]||il2[i]==il2[j]) laerror("repeated index in the list");
 	}
@@ -1436,7 +1453,7 @@ for(int i=0; i<il1.size(); ++i)
         if(shape[il1[i].group].offset != shape[il2[i].group].offset) laerror("incompatible index offset in innercontraction");
         if(shape[il1[i].group].range  != shape[il2[i].group].range) laerror("incompatible index range in innercontraction");
 #ifdef LA_TENSOR_INDEXPOSITION
-        if(shape[il1[i].group].upperindex ^ shape[il2[i].group].upperindex == false) laerror("can contact only upper with lower index");
+        if((shape[il1[i].group].upperindex ^ shape[il2[i].group].upperindex) == false) laerror("can contact only upper with lower index");
 #endif
         for(int j=0; j<i; ++j) if(il1[i]==il1[j]||il2[i]==il2[j]) laerror("repeated index in the innercontraction list");
 	 for(int j=0; j<il1.size(); ++j) if(il1[i]==il2[j])  laerror("repeated index between the innercontraction lists");
@@ -1701,13 +1718,13 @@ selected.clear();
 for(int g=0; g<groups.size(); ++g) 
 	{
 	if(groups[g]<0||groups[g]>=shape.size()) laerror("illegal group number in merge_index_groups");
-	if(selected[g]) laerror("repeated group number in merge_index_groups");
-	selected.set(g);
-	p[gg++] = 1+groups[g];
+	if(selected[groups[g]]) laerror("repeated group number in merge_index_groups");
+	selected.set(groups[g]);
+	p[1+gg++] = 1+groups[g];
 	}
 for(int g=0; g<shape.size(); ++g)
 	if(!selected[g]) 
-		p[gg++] = 1+g;
+		p[1+gg++] = 1+g;
 if(gg!=shape.size() || !p.is_valid()) laerror("internal error in merge_index_groups");
 
 Tensor<T> r =  permute_index_groups(p); //takes care of names permutation too
@@ -2006,7 +2023,7 @@ for(int i=0; i<il.size(); ++i)
 	if(il[i].index<0||il[i].index>=shape[il[i].group].number)  laerror("wrong index number in merge_indices");
 	for(int j=0; j<i; ++j) if(il[i]==il[j]) laerror("repeated index in the list");
 #ifdef LA_TENSOR_INDEXPOSITION
-	if(shape[il[0].group].upperindex != shape[il[i].group].upperindex == false) laerror("can merge only within lower or upper separately");
+	if(shape[il[0].group].upperindex != shape[il[i].group].upperindex) laerror("can merge only within lower or upper separately");
 #endif
 	if(shape[il[0].group].range != shape[il[i].group].range) 
 		{
@@ -2231,14 +2248,14 @@ if(!rhs1.is_uniquely_named()||!rhs2.is_uniquely_named()|| !is_uniquely_named()) 
 
 //find contraction indices
 int nc=0;
-for(int i=0; i<rhs1.names.size(); ++i) for(int j=0; j<rhs1.names.size(); ++j) 
+for(int i=0; i<rhs1.names.size(); ++i) for(int j=0; j<rhs2.names.size(); ++j) 
 	if(rhs1.names[i]==rhs2.names[j])
 		{
 		//std::cout << "found contraction "<<nc<<" th. index = "<<rhs1.names[i]<<std::endl;
 #ifdef LA_TENSOR_INDEXPOSITION
-		int group1=indexposition(i,rhs1.shape);
-		int group2=indexposition(j,rhs2.shape);
-		if(rhs1.shape[group1].upperindex ^ rhs2.shape[group2].upperindex == false) laerror("can contract only upper with lower index");
+		INDEX I1=indexposition(i,rhs1.shape);
+		INDEX I2=indexposition(j,rhs2.shape);
+		if((rhs1.shape[I1.group].upperindex ^ rhs2.shape[I2.group].upperindex) == false) laerror("can contract only upper with lower index");
 #endif
 		++nc;
 		}
@@ -2386,6 +2403,7 @@ if(is_named())
 	int ii=0;
 	for(int i=0; i<g; ++i) ii+= shape[i].number;
 	NRVec<INDEXNAME> tmp=(names.subvector(ii,ii+p.size()-1)).permuted(p,inverse);
+	names.copyonwrite();
 	for(int i=0; i<p.size(); ++i) names[ii+i]=tmp[i];
 	}
 }
@@ -2519,7 +2537,7 @@ template<typename T>
 void Tensor<T>::numpy_write(const char *name, const char *descr) const
 {
 if(!is_flat()) laerror("numpy_write only for flat tensors");
-int fd=open(name,O_CREAT|O_LARGEFILE|O_RDWR,0777);
+int fd=open(name,O_CREAT|O_TRUNC|O_LARGEFILE|O_WRONLY,0666);
 if(fd<0) laerror("cannot open in numpy_write");
 char magic[]="\x93NUMPY\x01\x00";
 if(8!=write(fd,magic,8)) laerror("cannot write 1 in numpy_write");
@@ -2571,16 +2589,18 @@ char readmagic[8];
 if(8!=read(fd,readmagic,8)) laerror("cannot read 1 in numpy_read");
 if(memcmp(magic,readmagic,8)) laerror("bad magic or version != 1.0 in numpy_read");
 
-int16_t header_len;
+uint16_t header_len; //unsigned in the npy format 1.0
 if(2!=read(fd,&header_len,2)) laerror("cannot read 2 in numpy_read");
 
-char header[header_len];
+char header[header_len+1];
 if(header_len!=read(fd,header,header_len)) laerror("cannot read 3 in numpy_read");
+header[header_len]=0; //for the string functions below
 
 char *p=strstr(header,"fortran_order");
 if(!p) laerror("cannot find fortran_order in numpy_read");
 bool fortranorder=false;
 p=strstr(p,": ");
+if(!p) laerror("cannot parse fortran_order in numpy_read");
 if(strncmp(p+2,"False",5)) fortranorder=true;
 //std::cout <<"Fortran order "<<fortranorder<<std::endl;
 
