@@ -44,8 +44,9 @@ static inline void SWAP(T &a, T &b)
 
 
 template <class T>
-void SparseMat<T>::get(int fd, bool dimen, bool transp)
+void SparseMat<T>::get(int fd, bool dimen, bool transp, bool orcaformat)
 {
+if(orcaformat) laerror("ORCA format not supported for SparseMat");
 errno=0;
 SPMatindex dim[2];
 if(dimen)
@@ -81,8 +82,9 @@ list=l;
 
 
 template <class T>
-void SparseMat<T>::put(int fd,bool dimen, bool transp) const
+void SparseMat<T>::put(int fd,bool dimen, bool transp, bool orcaformat) const
 {
+if(orcaformat) laerror("ORCA format not supported for SparseMat");
 errno=0;
 if(dimen)
 {
@@ -1378,8 +1380,8 @@ return *this;
 template SparseMat<T> & SparseMat<T>::oplusequal(const SparseMat<T> &rhs);\
 template SparseMat<T> & SparseMat<T>::oplusequal(const NRMat<T> &rhs);\
 template SparseMat<T> & SparseMat<T>::oplusequal(const NRSMat<T> &rhs);\
-template void SparseMat<T>::get(int fd, bool dimen, bool transp); \
-template void SparseMat<T>::put(int fd, bool dimen, bool transp) const; \
+template void SparseMat<T>::get(int fd, bool dimen, bool transp, bool orcaformat); \
+template void SparseMat<T>::put(int fd, bool dimen, bool transp, bool orcaformat) const; \
 template void SparseMat<T>::copyonwrite(); \
 template void SparseMat<T>::unsort(); \
 template void SparseMat<T>::resize(const SPMatindex n, const SPMatindex m); \

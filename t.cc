@@ -1696,11 +1696,9 @@ cout <<"SparseSMat exp time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
 cout.flush();
 if(h.nrows()<=1024)
 {
-NRSMat<complex<double> > h3(h);
-NRMat<complex<double> > h2(h3);
+NRMat<complex<double> > h2(h); //not via NRSMat: complex NRSMat is hermitian, while i*h1 is complex symmetric
 NRMat<complex<double> >r2 = exp(h2);
-cout <<"error = "<<(r2-NRMat<complex<double> >(NRSMat<complex<double> >(r))).norm()<<endl;
-cout <<"errorx = "<<(r2-NRSMat<complex<double> >(r)).norm()<<endl;
+cout <<"error = "<<(r2-NRMat<complex<double> >(r)).norm()<<endl;
 }
 }
 

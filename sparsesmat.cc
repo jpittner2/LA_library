@@ -29,35 +29,23 @@ namespace LA {
 
 
 //dense times sparse (not necessarily symmetric)
+//result row i accumulated as sum_k A_ik (row k of rhs), skipping zero A_ik
 template <typename T>
 SparseSMat<T>  NRMat<T>::operator*(const SparseSMat<T> &rhs) const
 {
+if(mm!=(int)rhs.nrows())  laerror("incompatible sizes in NRMat*SparseSMat");
 SparseSMat<T> r(nn,rhs.ncols());
-if(mm!=rhs.nrows())  laerror("incompatible sizes in NRMat*SparseSMat");
-for(SPMatindex k=0; k<mm; ++k) //summation loop
-    	{
-	std::map<SPMatindex,T> * kl = rhs.line(k);
-	if(kl)
+for(int i=0; i<nn; ++i)
+	{
+	std::map<SPMatindex,T> *ri=NULL;
+	for(int k=0; k<mm; ++k)
 		{
-		//gather the data
-		typename std::map<SPMatindex,T>::iterator p;
-		int i,j;
-		NRVec<T> kline(kl->size());
-		NRVec<SPMatindex> klineind(kl->size());
-		for(p=kl->begin(), i=0; p!=kl->end(); ++p,++i)
-       		         {
-       		         klineind[i] = p->first;
-       		         kline[i] = p->second;
-       		         }
-		NRVec<T> kcol = column(k);
-
-		//multiply
-		NRMat<T> prod=kcol.otimes(kline,false,1.);
-
-		//scatter the results
-		for(i=0; i<prod.nrows(); ++i) for(j=0; j<prod.ncols(); ++j)
-                	add(i,klineind[j],prod(i,j),false);
-
+		const T aik=(*this)(i,k);
+		const std::map<SPMatindex,T> *kl = rhs.line(k);
+		if(aik==(T)0 || !kl) continue;
+		if(!ri) ri = r[i] = new std::map<SPMatindex,T>;
+		typename std::map<SPMatindex,T>::const_iterator p;
+		for(p=kl->begin(); p!=kl->end(); ++p) (*ri)[p->first] += aik * p->second; //new map element is value-initialized to 0
 		}
 	}
 r.simplify();
@@ -76,7 +64,7 @@ if(a.nn!=b.nn || a.nn!=nn) laerror("incompatible sizes in SparseSMat::gemm");
 copyonwrite();
 
 for(SPMatindex k=0; k<nn; ++k) //summation loop
-    if(a.v[k] && b.v[k]) //nonempty in both
+    if(a.v[k] && b.v[k] && !a.v[k]->empty() && !b.v[k]->empty()) //nonempty in both (allocated rows can be empty, e.g. after cholesky)
 	{
 	NRVec<T> av(a.v[k]->size());
 	NRVec<T> bv(b.v[k]->size());
@@ -148,7 +136,7 @@ void SparseSMat<T>::gemv(const T beta, NRVec<T> &r, const char trans, const T al
 {
 if(nn!=r.size() || mm!= x.size()) laerror("incompatible matrix vector dimensions in SparseSMat::gemv");
 if(tolower(trans)!='n') laerror("transposition not implemented yet in SparseSMat::gemv");
-r *= beta;
+if(beta==(T)0) r.clear(); else if(beta!=(T)1) r *= beta; //no multiplication by 0, r may be uninitialized
 if(alpha == (T)0) return;
 r.copyonwrite();
 for(SPMatindex i=0; i<nn; ++i) if(v[i])
@@ -283,29 +271,34 @@ void SparseSMat<T>::storesubmatrix(const int fromrow, const int fromcol, const S
         const int torow = fromrow + rhs.nrows() - 1;
 #ifdef DEBUG
         if(fromrow<0 || fromrow>=nn || torow>=nn || fromcol<0 || fromcol>=mm || tocol>=mm) laerror("bad indices in storesubmatrix");
+	if(&rhs==this) laerror("storesubmatrix from itself");
 #endif
+	copyonwrite();
+	//store, not add: remove the old elements of the block first
+	for(int i=fromrow; i<=torow; ++i) if(v[i]) v[i]->erase(v[i]->lower_bound((SPMatindex)fromcol), v[i]->upper_bound((SPMatindex)tocol));
 	typename SparseSMat<T>::iterator p(rhs);
 	for(; p.notend(); ++p) add(p->row+fromrow, p->col+fromcol, p->elem, false);
 }
 
 
 template <class T>
-void SparseSMat<T>::get(int fd, bool dimen, bool transp) {
+void SparseSMat<T>::get(int fd, bool dimen, bool transp, bool orcaformat) {
+  if(orcaformat) laerror("ORCA format not supported for SparseSMat");
   errno=0;
   SPMatindex dim[2];
 
 if(dimen) {
     if(2*sizeof(SPMatindex)!=read(fd,&dim,2*sizeof(SPMatindex))) laerror("read() error in SparseSMat::get ");
-    resize(dim[0],dim[1]);
+    if(transp) resize(dim[1],dim[0]); else resize(dim[0],dim[1]);
   }
-else  copyonwrite(); 
+else  clear(); //the read matrix replaces the old contents
 
 do {
     if(2*sizeof(SPMatindex)!=read(fd,&dim,2*sizeof(SPMatindex))) laerror("read() error 2 in SparseSMat::get");
     if(dim[0]==(SPMatindex) -1 || dim[1]==(SPMatindex) -1) break;
     typename LA_traits_io<T>::IOtype tmp;
     LA_traits<T>::get(fd,tmp,dimen,transp); // general way to work when elem is some complex class again
-    if(transp) add(dim[0],dim[1],tmp,false);  else add(dim[1],dim[0],tmp,false); 
+    if(transp) add(dim[1],dim[0],tmp,false);  else add(dim[0],dim[1],tmp,false); 
   } 
 while(1);
 }
@@ -313,17 +306,18 @@ while(1);
 
 
 template <class T>
-void SparseSMat<T>::put(int fd, bool dimen, bool transp) const {
+void SparseSMat<T>::put(int fd, bool dimen, bool transp, bool orcaformat) const {
+  if(orcaformat) laerror("ORCA format not supported for SparseSMat");
   errno=0;  
   if(dimen) {
-    if(sizeof(SPMatindex)!=write(fd,&nn,sizeof(SPMatindex))) laerror("cannot write() 1 in SparseSMat::put");
-    if(sizeof(SPMatindex)!=write(fd,&mm,sizeof(SPMatindex))) laerror("cannot write() 2 in SparseSMat::put");
+    if(sizeof(SPMatindex)!=write(fd,&(transp ? mm : nn),sizeof(SPMatindex))) laerror("cannot write() 1 in SparseSMat::put");
+    if(sizeof(SPMatindex)!=write(fd,&(transp ? nn : mm),sizeof(SPMatindex))) laerror("cannot write() 2 in SparseSMat::put");
   }
   
   typename SparseSMat<T>::iterator p(*this);
   for(; p.notend(); ++p) {
-    if(sizeof(SPMatindex)!=write(fd,&(p->row),sizeof(SPMatindex))) laerror("cannot write() 3 in SparseSMat::put");
-    if(sizeof(SPMatindex)!=write(fd,&(p->col),sizeof(SPMatindex))) laerror("cannot write() 4 in SparseSMat::put");
+    if(sizeof(SPMatindex)!=write(fd,&(transp ? p->col : p->row),sizeof(SPMatindex))) laerror("cannot write() 3 in SparseSMat::put");
+    if(sizeof(SPMatindex)!=write(fd,&(transp ? p->row : p->col),sizeof(SPMatindex))) laerror("cannot write() 4 in SparseSMat::put");
     typename LA_traits_io<T>::IOtype tmp = p->elem;
     LA_traits<T>::put(fd,tmp,dimen,transp); // general way to work when elem is some non-scalar class again
   }
@@ -347,8 +341,8 @@ template SparseSMat<T> & SparseSMat<T>::operator+=(const T &a); \
 template SparseSMat<T> & SparseSMat<T>::operator-=(const T &a); \
 template LA_traits<T>::normtype SparseSMat<T>::norm(const T scalar) const; \
 template const T* SparseSMat<T>::diagonalof(NRVec<T> &r, const bool divide, bool cache) const; \
-template void SparseSMat<T>::get(int fd, bool dimen, bool transp); \
-template void SparseSMat<T>::put(int fd, bool dimen, bool transp) const; \
+template void SparseSMat<T>::get(int fd, bool dimen, bool transp, bool orcaformat); \
+template void SparseSMat<T>::put(int fd, bool dimen, bool transp, bool orcaformat) const; \
 
 
 INSTANTIZE(double)
@@ -358,10 +352,12 @@ INSTANTIZE(complex<double>)
 //// forced instantization of functions in the header in the corresponding object file
 template class SparseSMat<double>;
 template class SparseSMat<std::complex<double> >;
+template SparseSMat<double> NRMat<double>::operator*(const SparseSMat<double> &rhs) const;
+template SparseSMat<std::complex<double> > NRMat<std::complex<double> >::operator*(const SparseSMat<std::complex<double> > &rhs) const;
 
 /*activate this if needed
-template void SparseSMat<NRMat<double> >::put(int fd, bool dimen, bool transp) const;
-template void SparseSMat<NRMat<double> >::get(int fd, bool dimen, bool transp);
+template void SparseSMat<NRMat<double> >::put(int fd, bool dimen, bool transp, bool orcaformat) const;
+template void SparseSMat<NRMat<double> >::get(int fd, bool dimen, bool transp, bool orcaformat);
 */
 
 

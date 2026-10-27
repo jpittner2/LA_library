@@ -118,8 +118,8 @@ public:
 	void setlist(matel<T> *l) {list=l;}
 	inline SPMatindex nrows() const {return nn;}
         inline SPMatindex ncols() const {return mm;}
-	void get(int fd, bool dimensions=1, bool transposed=false);
-	void put(int fd, bool dimensions=1, bool transposed=false) const;
+	void get(int fd, bool dimensions=1, bool transposed=false, bool orcaformat=false); //orcaformat not supported (dense only), for LA_traits
+	void put(int fd, bool dimensions=1, bool transposed=false, bool orcaformat=false) const;
 	void resize(const SPMatindex n, const SPMatindex m); //destructive
         void dealloc(void) {resize(0,0);}
 	void incsize(const SPMatindex n, const SPMatindex m); //increase size without destroying the data
@@ -353,7 +353,7 @@ public:
 	NRVec<T> diagonal;
 	SparseMat<T> offdiagonal;
         SemiSparseMat() {};
-        SemiSparseMat(const SPMatindex n, const SPMatindex m) : offdiagonal(n,m) {if(n==m) diagonal.resize(n);};
+        SemiSparseMat(const SPMatindex n, const SPMatindex m) : offdiagonal(n,m) {if(n==m) {diagonal.resize(n); diagonal.clear();}}; //zero matrix, add() accumulates into the diagonal
         SPMatindex nrows() const {return offdiagonal.nrows();}
         SPMatindex ncols() const {return offdiagonal.ncols();}
         SPMatindex issymmetric() const {return offdiagonal.issymmetric();}
@@ -381,7 +381,7 @@ public:
 	void add(const SPMatindex n, const SPMatindex m, const T elem) {if(diagonal.size()>0 && n==m) diagonal[n]+=elem; else offdiagonal.add(n,m,elem);}
 	void clear() {diagonal.clear(); offdiagonal.clear();}
 	void copyonwrite() {diagonal.copyonwrite(); offdiagonal.copyonwrite();}
-	void resize(const SPMatindex n, const SPMatindex m) {offdiagonal.resize(n,m); diagonal.resize(n==m?n:0);}
+	void resize(const SPMatindex n, const SPMatindex m) {offdiagonal.resize(n,m); diagonal.resize(n==m?n:0); if(n==m) diagonal.clear();} //zero matrix as SparseMat::resize
 };
 
 template <class T>

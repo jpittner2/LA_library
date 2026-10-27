@@ -40,9 +40,15 @@
 
 namespace LA {
 
-//symmetric sparse matrix class with a representation for efficient exponentiatiation
-//in particular we need a unitary symmetric complex matrix as exp(iH) with H real symmetric
+//sparse matrix stored by rows, each row a std::map from column index to value, for efficient exponentiation and products
+//originally written for symmetric matrices, in particular the unitary complex symmetric exp(iH) with H real symmetric,
+//but it need not be symmetric nor square: elements (i,j) and (j,i) are stored independently and operator*, gemv,
+//transpose and the conversions work for general matrices
+//the "S" remains in some conventions: add() with both=true (default) inserts (i,j) and conj at (j,i) (hermitian for complex),
+//as do the constructor from NRSMat and otimes_sparse; gemm assumes A=A^T (A^dagger); issymmetric() returns always true (for davidson)
 //indices are counted from zero
+//TODO: handle it as a general matrix class with a member symmetry_type (0 none, 1 symmetric, 2 hermitian);
+//the conversion from NRSMat, otimes_sparse, gemm (and issymmetric) would then be implemented according to it, in a backward compatible way
 
 
 template <typename T>
@@ -67,7 +73,7 @@ public:
         void resize(const SPMatindex nn, const SPMatindex mm);
    	void dealloc(void) {resize(0,0);}
 	inline void setcoldim(int i) {mm=(SPMatindex)i;};
-	//std::map<SPMatindex,T> *line(SPMatindex n) const {return v[n];};
+	inline const std::map<SPMatindex,T> *line(const SPMatindex n) const {return v[n];}; //read-only row access
 	typedef std::map<SPMatindex,T> *ROWTYPE;
 	inline typename SparseSMat<T>::ROWTYPE & operator[](const SPMatindex i) {return v[i];}; 
         void clear() {resize(nn,mm);}
@@ -90,15 +96,15 @@ public:
 	void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const;
 	inline const NRVec<T> operator*(const NRVec<T> &rhs) const {NRVec<T> result(nn); this->gemv((T)0,result,'n',(T)1,rhs); return result;};
 	typename LA_traits<T>::normtype norm(const T scalar=(T)0) const;
-        inline const SparseSMat operator*(const SparseSMat &rhs) const {SparseSMat<T> r(nn,mm); r.gemm(0,*this,'n',rhs,'n',1); return r;}; //!!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
-	void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); //this := alpha*op( A )*op( B ) + beta*this !!!NOT A GENERAL ROUTINE, JUST FOR THE CASES WHEN THE RESULT STAYS SYMMETRIC
+        const SparseSMat operator*(const SparseSMat &rhs) const; //general product A B of the stored matrices (hermitian, complex symmetric or general)
+	void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha); //this := alpha*A^T*op( B ) + beta*this (A^dagger if transa=='c'), i.e. A*op(B) only for A=A^T (A=A^dagger) !!!NOT A GENERAL ROUTINE
 	inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true);
 	inline unsigned long long length() {return simplify();};
 	void transposeme() const {laerror("in-place transposition not necessary/implemented for SparseSMat");};
 	SparseSMat transpose(bool conj=false) const; //if we store a non-symmetric matrix there
         inline bool issymmetric() const {return true;} // LV: for davidson
-	void get(int fd, bool dimen, bool transp);
-        void put(int fd, bool dimen, bool transp) const;
+	void get(int fd, bool dimen=1, bool transp=0, bool orcaformat=false); //orcaformat not supported (dense only), for LA_traits
+        void put(int fd, bool dimen=1, bool transp=0, bool orcaformat=false) const;
 	int nrows() const {return nn;}
 	int ncols() const {return mm;}
 	SparseSMat<T>  cholesky(void) const;
@@ -197,12 +203,27 @@ int i,j;
 for(i=0; i<nn; ++i) for(j=0; j<=i; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),true);
 }
 
+//from SparseMat: duplicates summed; a symmetric SparseMat (one triangle stored, complex symmetric) is unfolded without conjugation
+template <typename T>
+SparseSMat<T>::SparseSMat(const SparseMat<T> &rhs)
+:nn(rhs.nrows()), mm(rhs.ncols()),
+count(new int(1))
+{
+v= new std::map<SPMatindex,T> * [nn];
+memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
+const bool sym=rhs.issymmetric();
+for(const matel<T> *l=rhs.getlist(); l; l=l->next)
+	{
+	add(l->row,l->col,l->elem,false);
+	if(sym && l->row!=l->col) add(l->col,l->row,l->elem,false);
+	}
+}
+
 template <typename T>
 SparseSMat<T>::SparseSMat(const NRMat<T> &rhs)
 :nn(rhs.nrows()), mm(rhs.ncols()),
 count(new int(1))
 {
-if(rhs.nrows()!=rhs.ncols()) laerror("non-square matrix in SparseSMat constructor from NRMat");
 v= new std::map<SPMatindex,T> * [nn];
 memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
 int i,j;
@@ -234,7 +255,7 @@ count = new int(1);
 v=new T[nn2];
 memset(v,0,nn2*sizeof(T));
 typename SparseSMat<T>::iterator p(rhs);
-for(; p.notend(); ++p) if(p->row <= p->col) (*this)(p->row,p->col)=p->elem;
+for(; p.notend(); ++p) if(p->row >= p->col) (*this)(p->row,p->col)=p->elem; //lower triangle as stored in NRSMat
 }
 #undef nn2
 
@@ -307,14 +328,13 @@ if(*count > 1) //it was shared
   }
 else  //it was not shared
 	{
-	mm=m;
 	//delete all trees
 	for(SPMatindex i=0; i<nn; ++i) if(v[i]) {delete v[i]; v[i]=NULL;}
-	if(n!=nn)
-		{
-		nn=n;
-		for(SPMatindex i=0; i<nn; ++i) v[i]=NULL;
-		}
+	if(n==0) {delete[] v; v=NULL; delete count; count=NULL; nn=mm=0; return;} //as in the shared case
+	if(n>nn) {delete[] v; v= new std::map<SPMatindex,T> * [n];} //shrinking keeps the longer array
+	nn=n;
+	mm=m;
+	for(SPMatindex i=0; i<nn; ++i) v[i]=NULL;
 	}
 }
 
@@ -363,6 +383,27 @@ void SparseSMat<T>::copyonwrite()
 }
 
 
+//general product A B row by row: row i of the result is sum_k A_ik (row k of B)
+template <typename T>
+const SparseSMat<T> SparseSMat<T>::operator*(const SparseSMat<T> &rhs) const
+{
+if(mm!=rhs.nn) laerror("incompatible sizes in SparseSMat::operator*");
+SparseSMat<T> r(nn,rhs.mm);
+for(SPMatindex i=0; i<nn; ++i) if(v[i])
+	{
+	std::map<SPMatindex,T> *ri=NULL;
+	typename std::map<SPMatindex,T>::const_iterator p,q;
+	for(p=v[i]->begin(); p!=v[i]->end(); ++p) if(rhs.v[p->first])
+		{
+		if(!ri) ri = r.v[i] = new std::map<SPMatindex,T>;
+		for(q=rhs.v[p->first]->begin(); q!=rhs.v[p->first]->end(); ++q)
+			(*ri)[q->first] += p->second * q->second; //new map element is value-initialized to 0
+		}
+	}
+r.simplify();
+return r;
+}
+
 template <typename T>
 void SparseSMat<T>::add(const SPMatindex n, const SPMatindex m, const T elem, const bool both)
 {
@@ -375,11 +416,11 @@ typename std::map<SPMatindex,T>::iterator p;
 
 p= v[n]->find(m);
 if(p!=v[n]->end()) p->second+=elem; else (*v[n])[m] = elem;
-if(n!=m && both) //add also transposed
+if(n!=m && both) //add also transposed, conjugated (hermitian for complex)
 	{
 	if(!v[m]) v[m] = new std::map<SPMatindex,T>;
 	p= v[m]->find(n);
-	if(p!=v[m]->end()) p->second+=elem; else (*v[m])[n] = elem;
+	if(p!=v[m]->end()) p->second+=LA_traits<T>::conjugate(elem); else (*v[m])[n] = LA_traits<T>::conjugate(elem);
 	}
 //addition can lead to zero, but do not treat it now, make a simplify
 }
@@ -585,6 +626,7 @@ return r;
 template<typename T>
 SparseSMat<T> otimes_sparse(const NRVec<T> &lhs, const NRVec<T> &rhs, const bool conjugate=false, const T &scale=1) 
 {
+if(lhs.size()!=rhs.size()) laerror("otimes_sparse requires vectors of equal length");
 SparseSMat<T> r(lhs.size(),rhs.size());
 for(SPMatindex i=0; i<lhs.size(); ++i)
     if(lhs[i]!=(T)0)
@@ -593,6 +635,7 @@ for(SPMatindex i=0; i<lhs.size(); ++i)
 	    if(rhs[j]!=(T)0)
 		{
 		T x=lhs[i]*(conjugate?LA_traits<T>::conjugate(rhs[j]):rhs[j])*scale;
+		if(i==j) x+=LA_traits<T>::conjugate(x); //diagonal of M + M^\dagger, add() mirrors only off-diagonal elements
 		if(std::abs(x)>SPARSEEPSILON) r.add(i,j,x);
 		}
 	}
