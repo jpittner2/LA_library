@@ -72,6 +72,18 @@ template<class T> \
 	inline const NR##E<T> operator X(const T &a, const NR##E<T> &rhs) \
 { return NR##E<T>(rhs) X##= a; }
 
+/***************************************************************************//**
+ * the same for noncommutative -,/: only X - a, X / a are generated,
+ * a - X, a / X are deliberately not available (write -X + a explicitly)
+ ******************************************************************************/
+#define NRVECMAT_OPER_NONCOMMUTATIVE(E,X) \
+template<class T> \
+	inline const NR##E<T> NR##E<T>::operator X(const T &a) const \
+{ return NR##E(*this) X##= a; } \
+	\
+	template<class T> \
+	const NR##E<T> operator X(const T &a, const NR##E<T> &rhs) = delete;
+
 #define NRVECMAT_OPER2(E,X) \
 template<class T> \
 inline const NR##E<T> NR##E<T>::operator X(const NR##E<T> &a) const \
@@ -261,7 +273,7 @@ public:
 
         NRVec concatscaled(const NRVec &rhs,  const T alpha=1) const
                 {
-                if(nn==0) return rhs;
+                if(nn==0) return alpha==(T)1 ? rhs : rhs*alpha;
                 if(rhs.nn==0) return *this;
                 NRVec r(nn+rhs.nn);
                 for(int i=0; i<nn; ++i) r[i] = (*this)[i];
@@ -377,7 +389,8 @@ public:
 
 	//! compute the sum of squares the vector elements
         inline const T sumsqr() const {
-                T sum(v[0]);
+                if(nn==0) return (T)0;
+                T sum(v[0]*v[0]);
                 for(register int i=1; i<nn; i++){ sum += v[i]*v[i];}
                 return sum;
         };
@@ -385,6 +398,7 @@ public:
 
 	//! compute the product of the vector elements
         inline const T prod() const {
+                if(nn==0) return (T)1; //empty product
                 T prod(v[0]);
                 for(register int i=1; i<nn; i++){ prod *= v[i];}
                 return prod;
@@ -1215,9 +1229,9 @@ inline const NRVec<T> NRVec<T>::unitvector() const {
  * generate operators involving vector and scalar			     
  ******************************************************************************/
 NRVECMAT_OPER(Vec,+)
-NRVECMAT_OPER(Vec,-)
+NRVECMAT_OPER_NONCOMMUTATIVE(Vec,-)
 NRVECMAT_OPER(Vec,*)
-NRVECMAT_OPER(Vec,/)
+NRVECMAT_OPER_NONCOMMUTATIVE(Vec,/)
 
 /***************************************************************************//**
  * generate operators involving vector and vector
@@ -1960,6 +1974,7 @@ inline const double NRVec< std::complex<double> >::norm(int length, int offset, 
  ******************************************************************************/
 template<>
 inline const double NRVec<double>::amax() const {
+	if(nn==0) laerror("amax of an empty vector");
 	double ret(0.0);
 #ifdef CUDALA
 	if(location == cpu){
@@ -1978,6 +1993,7 @@ inline const double NRVec<double>::amax() const {
 
 template<>
 inline int NRVec<double>::iamax() const {
+	if(nn==0) laerror("iamax of an empty vector");
         int ret;
 #ifdef CUDALA
         if(location == cpu){
@@ -1999,14 +2015,16 @@ inline int NRVec<double>::iamax() const {
  ******************************************************************************/
 template<>
 inline const double NRVec<double>::amin() const {
-	double ret(std::numeric_limits<double>::max());
+	if(nn==0) laerror("amin of an empty vector");
+	double ret(0.0);
 #ifdef CUDALA
 	if(location == cpu){
 #endif
 		//BLAS routine idamin seems no to be supported
 		double val(0.0);
-		int index(-1);
-		for(register int i = 0; i < nn; i++){
+		int index(0);
+		ret = std::abs(v[0]);
+		for(register int i = 1; i < nn; i++){
 			val = std::abs(v[i]);
 			if(val < ret){ index = i; ret = val; }
 		}
@@ -2028,6 +2046,7 @@ inline const double NRVec<double>::amin() const {
  ******************************************************************************/
 template<>
 inline const std::complex<double> NRVec<std::complex<double> >::amax() const {
+	if(nn==0) laerror("amax of an empty vector");
 	std::complex<double> ret(0., 0.);
 #ifdef CUDALA
 	if(location == cpu){
@@ -2045,6 +2064,7 @@ inline const std::complex<double> NRVec<std::complex<double> >::amax() const {
 
 template<>
 inline int NRVec<std::complex<double> >::iamax() const {
+	if(nn==0) laerror("iamax of an empty vector");
 	int ret;
 #ifdef CUDALA
         if(location == cpu){
@@ -2067,6 +2087,7 @@ inline int NRVec<std::complex<double> >::iamax() const {
  ******************************************************************************/
 template<>
 inline const std::complex<double> NRVec<std::complex<double> >::amin() const {
+	if(nn==0) laerror("amin of an empty vector");
 	std::complex<double> ret(0., 0.);
 #ifdef CUDALA
 	if(location == cpu){

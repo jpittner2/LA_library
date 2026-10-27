@@ -486,6 +486,7 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 		const char trans, const double alpha, const NRVec &x) {
 #ifdef DEBUG
 	if((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if((tolower(trans) == 'n'?A.nrows():A.ncols()) != nn){ laerror("incompatible result vector in gemv"); }
 #endif
 	SAME_LOC3(*this, x, A);
 	copyonwrite();
@@ -517,6 +518,7 @@ void NRVec<std::complex<double> >::gemv(const double beta, const NRMat<double> &
                 const char trans, const double alpha, const NRVec<std::complex<double> > &x) {
 #ifdef DEBUG
 	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if((tolower(trans) == 'n'?A.nrows():A.ncols()) != nn){ laerror("incompatible result vector in gemv"); }
 #endif
 	SAME_LOC3(*this, x, A);
 	copyonwrite();
@@ -556,6 +558,7 @@ void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
 		const std::complex<double> alpha, const NRVec<std::complex<double> > &x) {
 #ifdef DEBUG
 	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if((tolower(trans) == 'n'?A.nrows():A.ncols()) != nn){ laerror("incompatible result vector in gemv"); }
 #endif
 	SAME_LOC3(*this, x, A);
 	copyonwrite();
@@ -593,6 +596,7 @@ void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
 		const char trans, const double alpha, const NRVec &x) {
 #ifdef DEBUG
 	if(A.ncols() != x.size()){ laerror("incompatible dimensions"); }
+	if(A.nrows() != nn){ laerror("incompatible result vector in gemv"); }
 #endif
 	SAME_LOC3(*this, A, x);
 	copyonwrite();
@@ -625,6 +629,7 @@ void NRVec<std::complex<double> >::gemv(const double beta, const NRSMat<double> 
 		const char trans, const double alpha, const NRVec<std::complex<double> > &x) {
 #ifdef DEBUG
 	if(A.ncols() != x.size()){ laerror("incompatible dimensions"); }
+	if(A.nrows() != nn){ laerror("incompatible result vector in gemv"); }
 #endif
 	SAME_LOC3(*this, A, x);
 	copyonwrite();
@@ -661,6 +666,7 @@ void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
                 const std::complex<double> alpha, const NRVec<std::complex<double> > &x){
 #ifdef DEBUG
 	if(A.ncols() != x.size()) laerror("incompatible dimensions");
+	if(A.nrows() != nn){ laerror("incompatible result vector in gemv"); }
 #endif
 	SAME_LOC3(*this, A, x);
 	copyonwrite();
@@ -883,7 +889,7 @@ copyonwrite();
 
 template<typename T>
 NRVec<T>& NRVec<T>::negateconjugateme() {
-if(!LA_traits<T>::is_complex()) negateme();
+if(!LA_traits<T>::is_complex()) return negateme();
 copyonwrite();
 #ifdef CUDALA
         if(location != cpu) laerror("general conjugation only on CPU");
