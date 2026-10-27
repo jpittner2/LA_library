@@ -236,8 +236,14 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 	}
 	if (det && r == 0) {
 		*det = 1.;
-		for (int i=0; i<n; i++) {double t=a(i,i); if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;}
-		//do not use ipiv, since the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
+		for (int i=0; i<n; i++)
+			{
+			double t;
+			if(ipiv[i]<0) {t = a(i,i)*a(i+1,i+1)-a(i,i+1)*a(i,i+1); ++i;} //2x2 block of D (dsptrf with UPLO='U')
+			else t=a(i,i);
+			if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;
+			}
+		//ipiv is needed only for the block structure of D, the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
 	}
         if (det && r>0)  *det = 0;
 	delete[] ipiv;
@@ -260,6 +266,66 @@ void linear_solve(NRSMat<double> &a, NRVec<double> &B, double *det, int n)
 if(n<=0) n=a.nrows();
 	if (n==a.nrows()  && a.nrows()!= B.size() || n>B.size() || n>a.nrows())
 		laerror("incompatible matrices in symmetric linear_solve()");
+	B.copyonwrite();
+linear_solve_do(a,&B[0],1,a.nrows(),det,n);
+}
+
+
+// complex hermitian version: lower triangle stored, upper triangle is its complex conjugate
+extern "C" void FORNAME(zhpsv)(const char *UPLO, const FINT *N, const FINT *NRHS,
+		std::complex<double> *AP, FINT *IPIV, std::complex<double> *B, const FINT *LDB, FINT *INFO);
+
+static void linear_solve_do(NRSMat<std::complex<double> > &a, std::complex<double> *b, const int nrhs, const int ldb, std::complex<double> *det, int n)
+{
+ if(nrhs==0) std::cout<<"Warning: some zhpsv implementations might skip LU decomposition when nrhs==0\n";
+	FINT r, *ipiv;
+	a.copyonwrite();
+	ipiv = new FINT[n];
+	char U = LAPACK_FORTRANCASE('u');
+	//the packed C-order lower triangle is the fortran upper triangle of the transposed = complex conjugated hermitian matrix,
+	//solve conj(A) conj(x) = conj(b)
+	for(int i=0; i<nrhs; ++i) for(int j=0; j<n; ++j) b[i*ldb+j] = std::conj(b[i*ldb+j]);
+        const FINT ntmp=n;
+        const FINT nrhstmp=nrhs;
+	const FINT ldbtmp=ldb;
+	FORNAME(zhpsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp, &r);
+	for(int i=0; i<nrhs; ++i) for(int j=0; j<n; ++j) b[i*ldb+j] = std::conj(b[i*ldb+j]);
+	if (r < 0) {
+		delete[] ipiv;
+		laerror("illegal argument in hpsv() call of linear_solve()");
+	}
+	if (det && r == 0) {
+		*det = 1.;
+		for (int i=0; i<n; i++)
+			{
+			double t; //determinant of a hermitian matrix is real, det(conj(A)) = det(A)
+			if(ipiv[i]<0) {t = a(i,i).real()*a(i+1,i+1).real()-std::norm(a(i,i+1)); ++i;} //2x2 block of D (zhptrf with UPLO='U')
+			else t=a(i,i).real();
+			if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;
+			}
+		//ipiv is needed only for the block structure of D, the permutation matrix occurs twice in the decomposition and signs thus cancel (man zhpsv)
+	}
+        if (det && r>0)  *det = 0;
+	delete[] ipiv;
+	if (r > 0 && b) laerror("singular matrix in linear_solve(SMat&, Mat*, complex*");
+}
+
+
+void linear_solve(NRSMat<std::complex<double> > &a, NRMat<std::complex<double> > *B, std::complex<double> *det, int n)
+{
+if(n<=0) n=a.nrows();
+	if (n==a.nrows() && B && a.nrows() != B->ncols() || B && n>B->ncols() || n>a.nrows())
+		laerror("incompatible matrices in hermitian linear_solve()");
+	if (B) B->copyonwrite();
+linear_solve_do(a,B?(*B)[0]:NULL,B?B->nrows() : 0, B?B->ncols():a.nrows(),det,n);
+}
+
+
+void linear_solve(NRSMat<std::complex<double> > &a, NRVec<std::complex<double> > &B, std::complex<double> *det, int n)
+{
+if(n<=0) n=a.nrows();
+	if (n==a.nrows()  && a.nrows()!= B.size() || n>B.size() || n>a.nrows())
+		laerror("incompatible matrices in hermitian linear_solve()");
 	B.copyonwrite();
 linear_solve_do(a,&B[0],1,a.nrows(),det,n);
 }
@@ -360,7 +426,8 @@ extern "C" void FORNAME(dgesvx)(const char *fact, const char *trans, const FINT 
 //	solution is stored in _B
 //	the info parameter of dgesvx is returned (see man dgesvx)
 //------------------------------------------------------------------------------
-int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int _eqCount, const bool _eq, const bool _saveA, double *_rcond){
+template<>
+int linear_solve_x<double>(NRMat<double> &_A, double *_B, const int _rhsCount, const int _eqCount, const bool _eq, const bool _saveA, double *_rcond){
 	const int A_rows = _A.nrows();
 	const int A_cols = _A.ncols();
 
@@ -373,6 +440,7 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 	}
 
 	double *A;
+	if(_eq && !_saveA) _A.copyonwrite(); //A will be overwritten by the equilibrated matrix, detach before taking the pointer
 	double * const _A_data = (double*)_A;
 
 	FINT info;
@@ -402,8 +470,6 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 				offset2 += n;
 			}
 			lda = n;//!!!
-		}else{
-			_A.copyonwrite();
 		}
 	}
 
@@ -414,7 +480,7 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 
 	delete[] iwork;delete[] ipiv;
 	delete[] AF;delete[] X;
-	if(_saveA){
+	if(_eq && _saveA){//the copy is made only with equilibration
 		delete[] A;
 	}
 	return (int)info;
@@ -433,7 +499,8 @@ int linear_solve_x(NRMat<double> &_A, double *_B, const int _rhsCount, const int
 //	solution is stored in _B
 //	the info parameter of dgesvx is returned (see man dgesvx)
 //------------------------------------------------------------------------------
-int linear_solve_x(NRMat<std::complex<double> > &_A, std::complex<double> *_B, const int _rhsCount, const int _eqCount, const bool _eq, const bool _saveA, double *_rcond){
+template<>
+int linear_solve_x<std::complex<double> >(NRMat<std::complex<double> > &_A, std::complex<double> *_B, const int _rhsCount, const int _eqCount, const bool _eq, const bool _saveA, double *_rcond){
 	const int A_rows = _A.nrows();
 	const int A_cols = _A.ncols();
 
@@ -446,6 +513,7 @@ int linear_solve_x(NRMat<std::complex<double> > &_A, std::complex<double> *_B, c
 	}
 
 	std::complex<double> *A;
+	if(_eq && !_saveA) _A.copyonwrite(); //A will be overwritten by the equilibrated matrix, detach before taking the pointer
 	std::complex<double> * const _A_data = (std::complex<double>*)_A;
 
 	FINT info;
@@ -475,8 +543,6 @@ int linear_solve_x(NRMat<std::complex<double> > &_A, std::complex<double> *_B, c
 				offset2 += n;
 			}
 			lda = n;//!!!
-		}else{
-			_A.copyonwrite();
 		}
 	}
 
@@ -488,7 +554,7 @@ int linear_solve_x(NRMat<std::complex<double> > &_A, std::complex<double> *_B, c
 
 	delete[] ipiv;
 	delete[] AF;delete[] X;
-	if(_saveA){
+	if(_eq && _saveA){//the copy is made only with equilibration
 		delete[] A;
 	}
 	return (int)info;
@@ -519,9 +585,11 @@ int multiply_by_inverse<double>(NRMat<double> &_A, NRMat<double> &_B, bool _useE
 	char equed = 'B';//if fact=='N' then equed is an output argument, therefore not declared as const
 	const int n2 = n*n;
 	
-	double * const A = (double*)_A;
+	_B.copyonwrite();//even if fact='N', call copyonwrite because the solution is going to be stored in _B; before taking the pointer
 	double * const B = (double*)_B;
-	_B.copyonwrite();//even if fact='N', call copyonwrite because the solution is going to be stored in _B
+	//_A is the right hand side for gesvx, which scales it if equilibrated: work on a copy then, _A is input only
+	double * const A = _useEq ? new double[n2] : (double*)_A;
+	if(_useEq) memcpy(A,(double*)_A,n2*sizeof(double));
 
 	FINT info;
 	double rcond;
@@ -542,6 +610,7 @@ int multiply_by_inverse<double>(NRMat<double> &_A, NRMat<double> &_B, bool _useE
 
 	delete[] iwork;delete[] ipiv;
 	delete[] AF;delete[] X;
+	if(_useEq) delete[] A;
 	
 	return (int)info;
 }
@@ -571,9 +640,11 @@ int multiply_by_inverse<std::complex<double> >(NRMat<std::complex<double> > &_A,
 	const char trans = 'N';//because of c-order
 	char equed = 'B';//if fact=='N' then equed is an output argument, therefore not declared as const
 	
-	std::complex<double> * const A = (std::complex<double>*)_A;
+	_B.copyonwrite();//even if fact='N', call copyonwrite because the solution is going to be stored in _B; before taking the pointer
 	std::complex<double> * const B = (std::complex<double>*)_B;
-	_B.copyonwrite();//even if fact='N', call copyonwrite because the solution is going to be stored in _B
+	//_A is the right hand side for gesvx, which scales it if equilibrated: work on a copy then, _A is input only
+	std::complex<double> * const A = _useEq ? new std::complex<double>[n2] : (std::complex<double>*)_A;
+	if(_useEq) memcpy(A,(std::complex<double>*)_A,n2*sizeof(std::complex<double>));
 
 	FINT info;
 	double rcond;
@@ -594,6 +665,7 @@ int multiply_by_inverse<std::complex<double> >(NRMat<std::complex<double> > &_A,
 
 	delete[] ipiv;
 	delete[] AF;delete[] X;
+	if(_useEq) delete[] A;
 	
 	return (int)info;
 }
@@ -648,8 +720,8 @@ void diagonalize(NRMat<double> &a, NRVec<double> &w, const bool eivec,
 	double *WORK = new double[LWORK];
 
 #ifdef FORINT
-	if(b) FORNAME(dsygv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, &WORKX, &LWORK, &r );
-        else FORNAME(dsyev)(&vectors, &U, &ntmp, a, &m, w, &WORKX, &LWORK, &r );
+	if(b) FORNAME(dsygv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, WORK, &LWORK, &r );
+        else FORNAME(dsyev)(&vectors, &U, &ntmp, a, &m, w, WORK, &LWORK, &r );
 #else
         if(b) FORNAME(dsygv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, &r );
 	else FORNAME(dsyev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, &r );
@@ -711,8 +783,8 @@ void diagonalize(NRMat<std::complex<double> > &a, NRVec<double> &w, const bool e
 	std::complex<double> *WORK = new std::complex<double>[LWORK];
 
 #ifdef FORINT
-        if(b) FORNAME(zhegv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, &WORKX, &LWORK, RWORK, &r );
-        else FORNAME(zheev)(&vectors, &U, &ntmp, a, &m, w, &WORKX, &LWORK, RWORK, &r );
+        if(b) FORNAME(zhegv)(&itypetmp,&vectors, &U, &ntmp, a, &m, *b, &ldb, w, WORK, &LWORK, RWORK, &r );
+        else FORNAME(zheev)(&vectors, &U, &ntmp, a, &m, w, WORK, &LWORK, RWORK, &r );
 #else	
         if(b) FORNAME(zhegv)(&itype,&vectors, &U, &n, a, &m, *b,&ldb, w, WORK, &LWORK, RWORK, &r );
 	else FORNAME(zheev)(&vectors, &U, &n, a, &m, w, WORK, &LWORK, RWORK, &r );
@@ -815,7 +887,7 @@ void diagonalize(NRSMat<std::complex<double> > &a, NRVec<double> &w, NRMat<std::
 #endif
 	delete[] WORK;
 	delete[] RWORK;
-	if (v && corder) v->transposeme(n);
+	if (v && corder) {v->transposeme(n); v->conjugateme();}
 
 	if (r < 0) laerror("illegal argument in hpgv/hpev in diagonalize()");
 	if (r > 0) laerror("convergence problem in hpgv/hpev in diagonalize()");
@@ -1086,30 +1158,30 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 
 #ifdef FORINT
         FINT ntmp = n; 
-        if(b)  FORNAME(dggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
-                        &ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
-	else FORNAME(dgeev)(&jobvr, &jobvl, &ntmp, a, &lda, wr, wi, vr?vr[0]:(double *)0,
-			&ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+        if(b)  FORNAME(dggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, wr, wi, *beta, vr?(*vr)[0]:(double *)0,
+                        &ldvr, vl?(*vl)[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &ntmp, a, &lda, wr, wi, vr?(*vr)[0]:(double *)0,
+			&ldvr, vl?(*vl)[0]:(double *)0, &ldvl, &work0, &lwork, &r);
 #else
-        if(b)  FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
-                        &ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
-	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
-			&ldvr, vl?vl[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+        if(b)  FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?(*vr)[0]:(double *)0,
+                        &ldvr, vl?(*vl)[0]:(double *)0, &ldvl, &work0, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?(*vr)[0]:(double *)0,
+			&ldvr, vl?(*vl)[0]:(double *)0, &ldvl, &work0, &lwork, &r);
 #endif
 
         lwork = (FINT) work0;
 	double *work = new double[lwork];
 
 #ifdef FORINT	
-	if(b) FORNAME(dggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
-                        &ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
-	else FORNAME(dgeev)(&jobvr, &jobvl, &ntmp, a, &lda, wr, wi, vr?vr[0]:(double *)0,
-			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
+	if(b) FORNAME(dggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, wr, wi, *beta, vr?(*vr)[0]:(double *)0,
+                        &ldvr, vl?(*vl)[0]:(double *)0, &ldvl, work, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &ntmp, a, &lda, wr, wi, vr?(*vr)[0]:(double *)0,
+			&ldvr, vl?(*vl)[0]:(double *)0, &ldvl, work, &lwork, &r);
 #else
-	if(b) FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?vr[0]:(double *)0,
-                        &ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
-	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?vr[0]:(double *)0,
-			&ldvr, vl?vl[0]:(double *)0, &ldvl, work, &lwork, &r);
+	if(b) FORNAME(dggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, wr, wi, *beta, vr?(*vr)[0]:(double *)0,
+                        &ldvr, vl?(*vl)[0]:(double *)0, &ldvl, work, &lwork, &r);
+	else FORNAME(dgeev)(&jobvr, &jobvl, &n, a, &lda, wr, wi, vr?(*vr)[0]:(double *)0,
+			&ldvr, vl?(*vl)[0]:(double *)0, &ldvl, work, &lwork, &r);
 #endif
 	delete[] work;
 
@@ -1177,6 +1249,19 @@ void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 				}
 			}
 		}
+
+	//LAPACK saw the transposed matrix and left and right were swapped, so for a complex pair it returns the eigenvector of w_i as Re - i Im;
+	//negate Im to obtain the dgeev convention Re + i Im (for both left and right eigenvectors; biorthonormality is preserved)
+	{
+	int i=0;
+	while(i<n)
+		{
+		if(wi[i]==0) {++i; continue;}
+		if(vl) cblas_dscal(n,-1.,(*vl)[i+1],1);
+		if(vr) cblas_dscal(n,-1.,(*vr)[i+1],1);
+		i+=2;
+		}
+	}
 
 
 	if(sorttype>0)
@@ -1252,30 +1337,30 @@ void gdiagonalize(NRMat<std::complex<double> > &a, NRVec< std::complex<double> >
 
 #ifdef FORINT
         FINT ntmp = n; 
-        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(std::complex<double> *)0,
-                        &ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
-	else FORNAME(zgeev)(&jobvr, &jobvl, &ntmp, a, &lda, w, vr?vr[0]:(std::complex<double> *)0,
-			&ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, w, *beta, vr?(*vr)[0]:(std::complex<double> *)0,
+                        &ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &ntmp, a, &lda, w, vr?(*vr)[0]:(std::complex<double> *)0,
+			&ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
 #else
-        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(std::complex<double> *)0,
-                        &ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
-	else FORNAME(zgeev)(&jobvr, &jobvl, &n, a, &lda, w, vr?vr[0]:(std::complex<double> *)0,
-			&ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, w, *beta, vr?(*vr)[0]:(std::complex<double> *)0,
+                        &ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &n, a, &lda, w, vr?(*vr)[0]:(std::complex<double> *)0,
+			&ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, &work0, &lwork, rwork, &r);
 #endif
 
         lwork = (FINT) work0.real();
 	std::complex<double> *work = new std::complex<double>[lwork];
 
 #ifdef FORINT
-        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(std::complex<double> *)0,
-                        &ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
-	else FORNAME(zgeev)(&jobvr, &jobvl, &ntmp, a, &lda, w, vr?vr[0]:(std::complex<double> *)0,
-			&ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &ntmp, a, &lda, *b, &ldb, w, *beta, vr?(*vr)[0]:(std::complex<double> *)0,
+                        &ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &ntmp, a, &lda, w, vr?(*vr)[0]:(std::complex<double> *)0,
+			&ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
 #else
-        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, w, *beta, vr?vr[0]:(std::complex<double> *)0,
-                        &ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
-	else FORNAME(zgeev)(&jobvr, &jobvl, &n, a, &lda, w, vr?vr[0]:(std::complex<double> *)0,
-			&ldvr, vl?vl[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+        if(b)  FORNAME(zggev)(&jobvr, &jobvl, &n, a, &lda, *b, &ldb, w, *beta, vr?(*vr)[0]:(std::complex<double> *)0,
+                        &ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
+	else FORNAME(zgeev)(&jobvr, &jobvl, &n, a, &lda, w, vr?(*vr)[0]:(std::complex<double> *)0,
+			&ldvr, vl?(*vl)[0]:(std::complex<double> *)0, &ldvl, work, &lwork, rwork, &r);
 #endif
 
 	delete[] work;
@@ -1295,7 +1380,6 @@ void gdiagonalize(NRMat<std::complex<double> > &a, NRVec< std::complex<double> >
 			std::complex<double> tmp;
 			cblas_zdotc_sub(n,(*vr)[i],1,(*vl)[i], 1, &tmp);
 			tmp = 1./tmp;
-			std::cout <<"scaling by "<<tmp<<"\n";
 			if(biorthonormalize==1) cblas_zscal(n,&tmp,(*vl)[i],1);
 			if(biorthonormalize==2) cblas_zscal(n,&tmp,(*vr)[i],1);
 			}
@@ -1359,8 +1443,8 @@ void gdiagonalize(NRMat<double> &a, NRVec< std::complex<double> > &w,
 						}
 						else
 						{
-						(*vl)[i][j] = std::complex<double>((*rvl)[i][j], (*rvl)[i+1][j]);
-						(*vl)[i+1][j] = std::complex<double>((*rvl)[i][j], -(*rvl)[i+1][j]);
+						(*vl)[i][j] = std::complex<double>((*rvl)[i][j], -(*rvl)[i+1][j]); //rows are the conjugated eigenvectors
+						(*vl)[i+1][j] = std::complex<double>((*rvl)[i][j], (*rvl)[i+1][j]);
 						}
 					} 
 				if (vr)
@@ -1372,8 +1456,8 @@ void gdiagonalize(NRMat<double> &a, NRVec< std::complex<double> > &w,
                                                 }
                                                 else
                                                 {
-						(*vr)[i][j] = std::complex<double>((*rvr)[i][j], (*rvr)[i+1][j]);
-						(*vr)[i+1][j] = std::complex<double>((*rvr)[i][j], -(*rvr)[i+1][j]);
+						(*vr)[i][j] = std::complex<double>((*rvr)[i][j], -(*rvr)[i+1][j]); //rows are the conjugated eigenvectors
+						(*vr)[i+1][j] = std::complex<double>((*rvr)[i][j], (*rvr)[i+1][j]);
 						}
 					}
 				i += 2;
@@ -1851,7 +1935,37 @@ double r=0;
 return r;
 }
 
-inline double trace2(const NRMat<double> &a, const NRSMat<double> &b, const bool diagscaled)
+double trace2(const NRMat<double> &a, const NRSMat<double> &b, const bool diagscaled)
+{
+return trace2(b,a,diagscaled);
+}
+
+//complex hermitian versions: lower triangle stored, upper triangle is its complex conjugate
+//Tr(A B) = sum_ij A_ij B_ji = sum_ij A_ij conj(B_ij), real for hermitian A, B
+std::complex<double> trace2(const NRSMat<std::complex<double> > &a, const NRSMat<std::complex<double> > &b,
+		const bool diagscaled)
+{
+	if (a.nrows() != b.nrows()) laerror("incompatible SMats in trace2()");
+
+	std::complex<double> dot;
+	cblas_zdotc_sub(a.nrows()*(a.nrows()+1)/2, b, 1, a, 1, &dot); //sum over the lower triangle of a_ij conj(b_ij)
+	double r = 2.0*dot.real();
+	if (diagscaled) return r;
+	for (int i=0; i<a.nrows(); i++) r -= (a(i,i)*std::conj(b(i,i))).real();
+	return r;
+}
+
+std::complex<double> trace2(const NRSMat<std::complex<double> > &a, const NRMat<std::complex<double> > &b, const bool diagscaled)
+{
+        if (a.nrows() != b.nrows()||b.nrows()!=b.ncols()) laerror("incompatible SMats in trace2()");
+std::complex<double> r=0;
+        int i, j, k=0;
+        for (i=0; i<a.nrows(); i++)
+                for (j=0; j<=i;j++) {r += a[k] * b[j][i]; if(i!=j||diagscaled) r += std::conj(a[k]) * b[i][j]; ++k;}
+return r;
+}
+
+std::complex<double> trace2(const NRMat<std::complex<double> > &a, const NRSMat<std::complex<double> > &b, const bool diagscaled)
 {
 return trace2(b,a,diagscaled);
 }
@@ -1900,24 +2014,40 @@ else
 
 
 //various norms
-extern "C" double FORNAME(zlange)( const char *NORM, const FINT *M, const FINT *N, std::complex<double> *A, const FINT *LDA, double *WORK); 
-extern "C" double FORNAME(dlange)( const char *NORM, const FINT *M, const FINT *N, double *A, const FINT *LDA, double *WORK); 
+extern "C" double FORNAME(zlange)( const char *NORM, const FINT *M, const FINT *N, const std::complex<double> *A, const FINT *LDA, double *WORK); 
+extern "C" double FORNAME(dlange)( const char *NORM, const FINT *M, const FINT *N, const double *A, const FINT *LDA, double *WORK); 
 
-double MatrixNorm(NRMat<std::complex<double> > &A, const char norm)
+//LAPACK sees the C-order matrix transposed: 1-norm and infinity norm are swapped, Frobenius and max-abs norms are invariant
+static char lapack_norm_type(const char norm)
 {
-        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
-        const FINT M = A.nrows();
-        const FINT N = A.ncols();
+switch(tolower(norm))
+	{
+	case 'o': case '1': return 'I';
+	case 'i': return 'O';
+	case 'f': case 'e': return 'F';
+	case 'm': return 'M';
+	default: laerror("unknown norm type in MatrixNorm/CondNumber");
+	}
+return 0;
+}
+
+template<>
+LA_traits<NRMat<std::complex<double> > >::normtype MatrixNorm(const NRMat<std::complex<double> > &A, const char norm)
+{
+        const char TypNorm = lapack_norm_type(norm);
+        const FINT M = A.ncols(); //fortran-order view of the C-order matrix is its transpose
+        const FINT N = A.nrows();
         double work[M];
         const double ret = FORNAME(zlange)(&TypNorm, &M, &N, A[0], &M, &work[0]);
         return ret;
 }
 
-double MatrixNorm(NRMat<double > &A, const char norm)
+template<>
+LA_traits<NRMat<double> >::normtype MatrixNorm(const NRMat<double> &A, const char norm)
 {
-        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
-        const FINT M = A.nrows();
-        const FINT N = A.ncols();
+        const char TypNorm = lapack_norm_type(norm);
+        const FINT M = A.ncols(); //fortran-order view of the C-order matrix is its transpose
+        const FINT N = A.nrows();
         double work[M];
         const double ret = FORNAME(dlange)(&TypNorm, &M, &N, A[0], &M, &work[0]);
         return ret;
@@ -1925,54 +2055,66 @@ double MatrixNorm(NRMat<double > &A, const char norm)
 
 
 
-//condition number
-extern "C" void FORNAME(zgecon)( const char *norm, const FINT *n, std::complex<double> *A, const FINT *LDA, const double *anorm, double *rcond, std::complex<double> *work, double *rwork, FINT *info);
-extern "C" void FORNAME(dgecon)( const char *norm, const FINT *n, double *A, const FINT *LDA, const double *anorm, double *rcond, double *work, double *rwork, FINT *info);
+//condition number ||A|| ||A^{-1}|| in the 1-norm or infinity norm, from the LU factorization of a copy of A
+extern "C" void FORNAME(zgetrf)(const FINT *M, const FINT *N, std::complex<double> *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
+extern "C" void FORNAME(dgetrf)(const FINT *M, const FINT *N, double *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
+extern "C" void FORNAME(zgecon)( const char *norm, const FINT *n, const std::complex<double> *A, const FINT *LDA, const double *anorm, double *rcond, std::complex<double> *work, double *rwork, FINT *info);
+extern "C" void FORNAME(dgecon)( const char *norm, const FINT *n, const double *A, const FINT *LDA, const double *anorm, double *rcond, double *work, FINT *iwork, FINT *info);
 
-double CondNumber(NRMat<std::complex<double> > &A, const char norm)
+template<>
+LA_traits<NRMat<std::complex<double> > >::normtype CondNumber(const NRMat<std::complex<double> > &A, const char norm)
 {
-        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
+        const char TypNorm = lapack_norm_type(norm);
+        if(TypNorm!='O' && TypNorm!='I') laerror("CondNumber implemented only for the 1-norm and infinity norm");
         const FINT N = A.nrows();
-        double Norma(0.0), ret(0.0);
+        if(N != A.ncols()) laerror("nonsquare matrix in CondNumber");
+        double Norma(0.0), rcond(0.0);
         FINT info;
-        std::complex<double> *work;
-        double *rwork;
 
-        if(N != A.ncols()){
-                laerror("nonsquare matrix in zgecon");
-                return 0.0;
-        }
-        work  = new std::complex<double>[2*N];
-        rwork = new double[2*N];
+        NRMat<std::complex<double> > LU(A);
+        LU.copyonwrite();
+        FINT *ipiv = new FINT[N];
+        FORNAME(zgetrf)(&N, &N, LU[0], &N, ipiv, &info);
+        delete[] ipiv;
+        if(info<0) laerror("illegal argument in zgetrf in CondNumber");
+        if(info>0) return std::numeric_limits<double>::infinity(); //exactly singular
 
+        std::complex<double> *work = new std::complex<double>[2*N];
+        double *rwork = new double[2*N];
         Norma = MatrixNorm(A, norm);
-        FORNAME(zgecon)(&TypNorm, &N, A[0], &N, &Norma, &ret, &work[0], &rwork[0], &info);
+        FORNAME(zgecon)(&TypNorm, &N, LU[0], &N, &Norma, &rcond, work, rwork, &info);
         delete[] work;
         delete[] rwork;
-        return ret;
+        if(info<0) laerror("illegal argument in zgecon in CondNumber");
+        return rcond==0. ? std::numeric_limits<double>::infinity() : 1./rcond;
 }
 
-double CondNumber(NRMat<double> &A, const char norm)
+template<>
+LA_traits<NRMat<double> >::normtype CondNumber(const NRMat<double> &A, const char norm)
 {
-        const char TypNorm = (tolower(norm) == 'o')?'I':'O'; //switch c-order/fortran-order
+        const char TypNorm = lapack_norm_type(norm);
+        if(TypNorm!='O' && TypNorm!='I') laerror("CondNumber implemented only for the 1-norm and infinity norm");
         const FINT N = A.nrows();
-        double Norma(0.0), ret(0.0);
+        if(N != A.ncols()) laerror("nonsquare matrix in CondNumber");
+        double Norma(0.0), rcond(0.0);
         FINT info;
-        double *work;
-        double *rwork;
 
-        if(N != A.ncols()){
-                laerror("nonsquare matrix in zgecon");
-                return 0.0;
-        }
-        work  = new double[2*N];
-        rwork = new double[2*N];
+        NRMat<double> LU(A);
+        LU.copyonwrite();
+        FINT *ipiv = new FINT[N];
+        FORNAME(dgetrf)(&N, &N, LU[0], &N, ipiv, &info);
+        delete[] ipiv;
+        if(info<0) laerror("illegal argument in dgetrf in CondNumber");
+        if(info>0) return std::numeric_limits<double>::infinity(); //exactly singular
 
+        double *work = new double[4*N];
+        FINT *iwork = new FINT[N];
         Norma = MatrixNorm(A, norm);
-        FORNAME(dgecon)(&TypNorm, &N, A[0], &N, &Norma, &ret, &work[0], &rwork[0], &info);
+        FORNAME(dgecon)(&TypNorm, &N, LU[0], &N, &Norma, &rcond, work, iwork, &info);
         delete[] work;
-        delete[] rwork;
-        return ret;
+        delete[] iwork;
+        if(info<0) laerror("illegal argument in dgecon in CondNumber");
+        return rcond==0. ? std::numeric_limits<double>::infinity() : 1./rcond;
 }
 
 

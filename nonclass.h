@@ -177,13 +177,16 @@ NRVec<double> w(a.ncols());
 NRMat<T> u(a.nrows(),a.ncols());
 NRMat<T> vt(a.ncols(),a.ncols());
 singular_decomposition(a,&u,w,&vt,false);
-NRVec<T> utb = b*u;
+NRVec<T> utb(a.ncols());
+utb.gemv((T)0,u,'c',(T)1,b); //U^H b
 for(int i=0; i<w.size(); ++i) 
 	{
 	if(w[i]>thres) utb[i] /= w[i];
 	else {utb[i]=0; if(nullity) ++*nullity;}
 	}
-return utb*vt;
+NRVec<T> res(a.ncols());
+res.gemv((T)0,vt,'c',(T)1,utb); //V W^-1 U^H b, vt contains V^H
+return res;
 }
 
 
@@ -217,7 +220,7 @@ return res;
 //corder =0 ... C rows are eigenvectors, =1 ... C columns are eigenvectors
 extern void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi,
 		NRMat<double> *vl=NULL, NRMat<double> *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0,
-		NRMat<double> *b=NULL, NRVec<double> *beta=NULL); //this used real storage of eigenvectors like dgeev
+		NRMat<double> *b=NULL, NRVec<double> *beta=NULL); //this used real storage of eigenvectors like dgeev: for a complex pair (i,i+1) the eigenvector of w_i is Re + i Im = vector i + i*vector i+1
 
 template<typename T>
 extern void gdiagonalize(NRMat<T> &a, NRVec< std::complex<double> > &w,
@@ -290,11 +293,11 @@ const NRMat<T> calcsvdinverse(NRMat<T> a, double thr=0, bool do_absadjoint=false
 }
 
 
-//several matrix norms
+//several matrix norms: norm = '1' or 'O' (max column sum), 'I' (max row sum), 'F' or 'E' (Frobenius), 'M' (max abs element)
 template<class MAT>
 typename LA_traits<MAT>::normtype MatrixNorm(const MAT  &A, const char norm);
 
-//condition number
+//condition number ||A|| ||A^-1|| for norm '1'/'O' or 'I' (LAPACK estimate: a lower bound, usually exact; infinity for a singular matrix)
 template<class MAT>
 typename LA_traits<MAT>::normtype CondNumber(const MAT  &A, const char norm);
 
