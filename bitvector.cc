@@ -113,34 +113,38 @@ bool bitvector::operator>(const bitvector &rhs) const
 {
 if(nn!=rhs.nn || modulo!=rhs.modulo) laerror("at the moment only bitvectors of the same length comparable");
 if(v==rhs.v) return 0;
-if(!modulo) return memcmp(v,rhs.v,nn*sizeof(bitvector_block)>0);
-int r;
-if((r=memcmp(v,rhs.v,(nn-1)*sizeof(bitvector_block)))) return r>0;
+//numeric order: bit i has weight 2^i, compare from the most significant block
 bitvector_block a=v[nn-1];
 bitvector_block b=rhs.v[nn-1];
-//zero out the irrelevant bits
-bitvector_block mask= ~((bitvector_block)0);
-mask <<=modulo;
-mask = ~mask;
-a&=mask; b&=mask;
-return a>b;
+if(modulo) //zero out the irrelevant bits
+	{
+	bitvector_block mask= ~((bitvector_block)0);
+	mask <<=modulo;
+	mask = ~mask;
+	a&=mask; b&=mask;
+	}
+if(a!=b) return a>b;
+for(int i=nn-2; i>=0; --i) if(v[i]!=rhs.v[i]) return v[i]>rhs.v[i];
+return false;
 }
 
 bool bitvector::operator<(const bitvector &rhs) const
 {
 if(nn!=rhs.nn || modulo!=rhs.modulo) laerror("at the moment only bitvectors of the same length comparable");
 if(v==rhs.v) return 0;
-if(!modulo) return memcmp(v,rhs.v,nn*sizeof(bitvector_block)<0);
-int r;
-if((r=memcmp(v,rhs.v,(nn-1)*sizeof(bitvector_block)))) return r<0;
+//numeric order: bit i has weight 2^i, compare from the most significant block
 bitvector_block a=v[nn-1];
 bitvector_block b=rhs.v[nn-1];
-//zero out the irrelevant bits
-bitvector_block mask= ~((bitvector_block)0);
-mask <<=modulo;
-mask = ~mask;
-a&=mask; b&=mask;
-return a<b;
+if(modulo) //zero out the irrelevant bits
+	{
+	bitvector_block mask= ~((bitvector_block)0);
+	mask <<=modulo;
+	mask = ~mask;
+	a&=mask; b&=mask;
+	}
+if(a!=b) return a<b;
+for(int i=nn-2; i>=0; --i) if(v[i]!=rhs.v[i]) return v[i]<rhs.v[i];
+return false;
 }
 
 
@@ -209,6 +213,7 @@ bitvector& bitvector::operator>>=(unsigned int i)
 {
 if(i==0) return *this;
 copyonwrite();
+zero_padding(); //garbage in the padding would be shifted into the valid range
 unsigned int imod = i%blockbits;
 unsigned int ishift = i/blockbits;
 for(int dest=0; dest<nn; ++dest)

@@ -74,7 +74,11 @@ public:
         const bool operator[](const unsigned int i) const {return (v[i/blockbits] >>(i%blockbits))&1ULL;};
 	const bool get(const unsigned int i) const {return (*this)[i];};
 	bitvector_block getblock(const unsigned int i) const {return v[i];}; //integer interpretation
-	void setblock(const unsigned int i, const bitvector_block b) {v[i]=b;};
+	void setblock(const unsigned int i, const bitvector_block b) {
+#ifdef DEBUG
+		if(_LA_count_check && *count != 1) laerror("bitvector element write with count > 1, call copyonwrite() first");
+#endif
+		v[i]=b;}; //element-level, caller calls copyonwrite() if shared
 	int getblocksize() const {return 8*sizeof(bitvector_block);};
 	void set(const unsigned int i) 
 		{
@@ -84,6 +88,7 @@ public:
 			std::cout<<"bitvector index 0 < "<<i<<" "<<size()<<std::endl;
 			laerror("bitvector index out of range in");
 			}
+		if(_LA_count_check && *count != 1) laerror("bitvector element write with count > 1, call copyonwrite() first");
 #endif
 		v[i/blockbits] |= (1UL<<(i%blockbits));
 		};
@@ -95,6 +100,7 @@ if(i>=size())
                         std::cout<<"bitvector index 0 < "<<i<<" "<<size()<<std::endl;
                         laerror("bitvector index out of range in");
                         }
+		if(_LA_count_check && *count != 1) laerror("bitvector element write with count > 1, call copyonwrite() first");
 #endif
 		v[i/blockbits] &= ~(1UL<<(i%blockbits));
 		};
@@ -106,6 +112,7 @@ if(i>=size())
                         std::cout<<"bitvector index 0 < "<<i<<" "<<size()<<std::endl;
                         laerror("bitvector index out of range in");
                         }
+		if(_LA_count_check && *count != 1) laerror("bitvector element write with count > 1, call copyonwrite() first");
 #endif
 		v[i/blockbits] ^= (1UL<<(i%blockbits));
 		};
@@ -129,9 +136,21 @@ if(i>=size())
 	bitvector& operator&=(const bitvector &rhs);
 	bitvector& operator|=(const bitvector &rhs);
 	bitvector& operator^=(const bitvector &rhs);
-	bitvector& operator&=(const bitvector_block rhs) {v[0]&=rhs; return *this;};
-        bitvector& operator|=(const bitvector_block rhs) {v[0]|=rhs; return *this;};
-        bitvector& operator^=(const bitvector_block rhs) {v[0]^=rhs; return *this;};
+	bitvector& operator&=(const bitvector_block rhs) { //element-level (first block only), caller calls copyonwrite() if shared
+#ifdef DEBUG
+		if(_LA_count_check && *count != 1) laerror("bitvector element write with count > 1, call copyonwrite() first");
+#endif
+		v[0]&=rhs; return *this;};
+        bitvector& operator|=(const bitvector_block rhs) {
+#ifdef DEBUG
+		if(_LA_count_check && *count != 1) laerror("bitvector element write with count > 1, call copyonwrite() first");
+#endif
+		v[0]|=rhs; return *this;};
+        bitvector& operator^=(const bitvector_block rhs) {
+#ifdef DEBUG
+		if(_LA_count_check && *count != 1) laerror("bitvector element write with count > 1, call copyonwrite() first");
+#endif
+		v[0]^=rhs; return *this;};
 	bitvector& operator+=(const bitvector &rhs) {return (*this)^=rhs;}; //addition modulo 2
 	bitvector& operator-=(const bitvector &rhs) {return (*this)^=rhs;}; //subtraction modulo 2
 	bitvector operator&(const bitvector &rhs) const {return bitvector(*this) &= rhs;};
