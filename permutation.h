@@ -64,7 +64,7 @@ public:
 	bool is_identity() const;
 	CompressedPartition<T> cycles() const {return CyclePerm<T>(*this).cycles(size());};
 	NRPerm inverse() const;
-	void reverse_cycle(int i); //aux for inverseme
+	void reverse_cycle(int i); //aux for inverseme, no copyonwrite (caller's responsibility)
 	int cycle_leader(int i) const; //aux for inverseme
 	void inverseme(); //in-place
 	NRPerm reverse() const; //backward order
@@ -81,10 +81,12 @@ public:
 	int parity() const; //returns +/- 1
 	void randomize(void); //uniformly random by Fisher-Yates shuffle
 	bool next(); //generate next permutation in lex order
-	PERM_RANK_TYPE generate_all(void (*callback)(const NRPerm<T>&), int parity_select=0); //Algorithm L from Knuth's vol.4, efficient but not in lex order!
+	PERM_RANK_TYPE generate_all(void (*callback)(const NRPerm<T>&), int parity_select=0); //Algorithm P (plain changes) from Knuth's vol.4, efficient but not in lex order! parity_select +1 even, -1 odd permutations only
 	PermutationAlgebra<T,T>  list_all(int parity_select=0);
 	PermutationAlgebra<T,T>  list_all_lex();
+#if 0 //reminder how a member template of a class template is defined in .cc
 	template <typename U> void testik(U u); //demostrate that in .cc one has to declare the nested templates separately
+#endif
 	PERM_RANK_TYPE generate_all_multi(void (*callback)(const NRPerm<T>&));  //Algorithm L2 from Knuth's vol.4, for a multiset (repeated numbers, not really permutations)
 	PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&)); //recursive method, also not lexicographic
 	PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&)); //generate in lex order using next()
@@ -107,8 +109,8 @@ NRVec_from1<X> applypermutation(const NRPerm<T> &p, const NRVec_from1<X> &set, b
 if(p.size()!=set.size()) laerror("size mismatch in applypermutation");
 #endif
 NRVec_from1<X> r(set.size());
-if(inverse) for(int i=1; i<=p.size(); ++i) r[p[i]] = set[i];
-else for(int i=1; i<=p.size(); ++i) r[i] = set[p[i]];
+if(inverse) for(int i=1; i<=p.size(); ++i) r[i] = set[p[i]]; //same convention as NRVec::permuted
+else for(int i=1; i<=p.size(); ++i) r[p[i]] = set[i];
 return r;
 }
 
@@ -208,7 +210,7 @@ public:
 	PermutationAlgebra operator|(const PermutationAlgebra &rhs) const; //each term with each
 	PermutationAlgebra operator*(const PermutationAlgebra &rhs) const; //each term with each
 	PermutationAlgebra operator+(const PermutationAlgebra &rhs) const;
-	PermutationAlgebra &operator*=(const R &x) {this->copyonwrite(); for(int i=1; i<=size(); ++i) (*this)[i].weight *= x; return *this;};
+	PermutationAlgebra &operator*=(const R &x) {this->copyonwrite(); for(int i=0; i<size(); ++i) (*this)[i].weight *= x; return *this;};
 	PermutationAlgebra operator*(const R &x) const {PermutationAlgebra r(*this); return r*=x;};
 	void simplify(const typename LA_traits<R>::normtype thr=0) {NRVec_simplify(*this,thr);};
 	bool operator==(PermutationAlgebra &rhs); //do NOT inherit from NRVec, as the underlying one ignores weights for the simplification; also we have to simplify before comparison

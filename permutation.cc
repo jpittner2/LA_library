@@ -110,6 +110,7 @@ return smallest;
 template <typename T>
 void NRPerm<T>::inverseme()
 {
+this->copyonwrite();
 for(int i=1; i<=size(); ++i) if(cycle_leader(i)==i) reverse_cycle(i);
 }
 
@@ -365,7 +366,7 @@ while (i < j) {
 return true;
 }
 
-//Algorithm L from Knuth's volume 4
+//Algorithm P (plain changes) from Knuth's volume 4; parity of the permutations alternates
 template <typename T>
 PERM_RANK_TYPE NRPerm<T>::generate_all(void (*callback)(const NRPerm<T>&), int select)
 {
@@ -381,7 +382,7 @@ PERM_RANK_TYPE sumperm=0;
 
 p2:
         sumperm++;
-        if(callback) {if(!select || (select&1) == (sumperm&1)) {(*callback)(*this); this->copyonwrite();}}
+        if(callback) {if(!select || (select>0) == (sumperm&1)) {(*callback)(*this); this->copyonwrite();}} //odd sumperm = even permutation
         j=n; s=0;
 p4:
         q=c[j]+d[j];
@@ -409,11 +410,12 @@ template <typename T>
 static PermutationAlgebra<T,T>  *list_all_return;
 
 static PERM_RANK_TYPE list_all_index;
+static int list_all_parity;
 
 template <typename T> 
 static void list_all_callback(const NRPerm<T> &p)
 {
-(*list_all_return<T>)[list_all_index].weight= (list_all_index&1)?-1:1;
+(*list_all_return<T>)[list_all_index].weight= list_all_parity? list_all_parity : ((list_all_index&1)?-1:1); //weight = parity
 (*list_all_return<T>)[list_all_index].perm=p;
 (*list_all_return<T>)[list_all_index].perm.copyonwrite();
 ++list_all_index;
@@ -427,6 +429,7 @@ if(parity_sel) number/=2;
 PermutationAlgebra<T,T>  ret(number);
 list_all_return<T> = &ret;
 list_all_index=0;
+list_all_parity=parity_sel>0?1:(parity_sel<0?-1:0);
 this->generate_all(list_all_callback,parity_sel);
 return ret;
 }
@@ -460,7 +463,7 @@ while(1)
         T t;
 
         sumperm++;
-        if(callback) (*callback)(*this);
+        if(callback) {(*callback)(*this); this->copyonwrite();}
         j=this->size()-1;
         while(j>0 && (*this)[j]>=(*this)[j+1]) j--;
         if(j==0) break; /*finished*/
@@ -509,7 +512,7 @@ if(n<= _n<T>)
 else
         {
         _sumperm++;
-	if(_callback<T>) (*_callback<T>)(*_perm<T>);
+	if(_callback<T>) {(*_callback<T>)(*_perm<T>); _perm<T>->copyonwrite();}
         }
 }
 
@@ -549,7 +552,7 @@ PERM_RANK_TYPE np=0;
 this->identity();
 do{
 ret[np].perm = *this; ret[np].perm.copyonwrite();
-ret[np].weight=0;
+ret[np].weight=1; //unnormalized symmetrizer
 ++np;
 }while(this->next());
 return ret;
@@ -731,18 +734,19 @@ for(j=1;j<=n;++j) /*number of elements left from j bigger >j*/
         }
         break;
 default: laerror("illegal type in inversions");
+}
 
 if(prank)
 	{
 	if(type!=3) laerror("rank can be computed from inversions only for type 3");
-	l=1;
+	*prank=0;
+	PERM_RANK_TYPE f=1;
 	for(j=1;j<n;++j)
                 {
-                l*= j;
-                *prank += l*i[n-j];
+                f*= j;
+                *prank += f*i[n-j];
                 }
 	}
-}
 
 return i;
 }
@@ -1019,7 +1023,7 @@ CyclePerm<T> CyclePerm<T>::operator*(const CyclePerm &q) const
 {
 int m=this->max();
 int mm=q.max();
-if(mm>m) mm=m;
+if(mm>m) m=mm;
 NRPerm<T> qq(q,m);
 NRPerm<T> pp(*this,m);
 NRPerm<T> rr=pp*qq;
@@ -1045,6 +1049,7 @@ return tt*r;
 template <typename T>
 void CyclePerm<T>::simplify(bool keep1)
 {
+this->copyonwrite();
 int j=0;
 for(int i=1; i<=this->size(); ++i)
 	{
@@ -1365,7 +1370,7 @@ template <typename T>
 void partgen(int remain, int pos)
 {
 int hi,lo;
-if(remain==0) {++partitioncount; if(_pcallback<T>) (*_pcallback<T>)(*partition<T>); return;}
+if(remain==0) {++partitioncount; if(_pcallback<T>) {(*_pcallback<T>)(*partition<T>); partition<T>->copyonwrite();} return;}
 if(partitiontyp) lo=(remain+partitiontypabs-pos)/(partitiontypabs-pos+1); else lo=1;
 hi=remain;
 if(partitiontyp>0) hi -= partitiontypabs-pos;
@@ -1764,7 +1769,7 @@ if(ncyc> _ncycles<T>)
 	{
 	if(_callyoung)
 		{
-		if(_young_callback<T>) _young_callback<T>(*_tchi<T>);
+		if(_young_callback<T>) {_young_callback<T>(*_tchi<T>); _tchi<T>->copyonwrite();}
 		_character<T> ++;
 		}
 	else _character<T> += _tchi<T>->character_contribution(_ncycles<T>);
@@ -2208,11 +2213,13 @@ for(int i=1; i<ngroups; ++i) r= r&lists[i];
 return r;
 }
 
+#if 0 //reminder how a member template of a class template is defined in .cc
 //DOES NOT WORK template<typename T,typename U>
 template<typename T> template <typename U> //this works
 void NRPerm<T>::testik(U u)
 {
 }
+#endif
 
 /***************************************************************************//**
  * forced instantization in the corresponding object file

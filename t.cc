@@ -3157,7 +3157,7 @@ cout <<"PA = "<<a<<endl;
 for(int i=0; i<a.size(); ++i)
 	{
 	cout << (a[i].weight==1?'+':'-');
-	NRVec_from1<INDEXNAME> pindices=applypermutation(a[i].perm,indices,false);
+	NRVec_from1<INDEXNAME> pindices=applypermutation(a[i].perm,indices,true);
 	for(int j=1; j<=pindices.size(); ++j) cout <<pindices[j];
 	cout <<endl;
 	}
