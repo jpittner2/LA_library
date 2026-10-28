@@ -213,7 +213,7 @@ for(int i=d; i>2; i-=2)
                  sum= sum*x2; //not *= for matrices
                  }
 sum += p[1];
-sum *= x;
+sum= sum*x; //not *= for matrices
 return sum;
 }
 

@@ -144,13 +144,14 @@ void ContFrac<T>::canonicalize()
 {
 int n=this->length();
 if(n==0) return;
+this->copyonwrite();
 if(n>0 && (*this)[1]<0) //handle negative a_i i>0
 	{
-	for(int i=0; i<=n; ++i) (*this[i]) = -(*this[i]);
+	for(int i=0; i<=n; ++i) (*this)[i] = -(*this)[i];
 	*this = -(*this);
+	n=this->length(); //unary minus changes the length
 	}
-this->copyonwrite();
-if((*this)[n]==1) {(*this)[n]=0; ++(*this)[n-1];} //avoid deepest 1/1
+if(n>0 && (*this)[n]==1) {(*this)[n]=0; ++(*this)[n-1];} //avoid deepest 1/1
 for(int i=1; i<=n; ++i) //truncate if possible
 	{
 	if((*this)[i]==0) //convention for infinity
@@ -393,6 +394,7 @@ if(den<0)
 	den= -den;
 	}
 T g=gcd(num,den); 
+if(g<0) g= -g; //gcd may be negative for negative num
 if(g>1) 
 	{
 	num/=g; 
@@ -405,7 +407,8 @@ Rational<T> & Rational<T>::operator*=(const T  &rhs)
 {
 T r=rhs;
 T g=gcd(r,den);
-if(MYABS(g)>1)
+if(g<0) g= -g; //keep den positive
+if(g>1)
         {
         r/=g;
         den/=g;
@@ -420,12 +423,14 @@ Rational<T> & Rational<T>::operator/=(const T  &rhs)
 {
 T r=rhs;
 T g=gcd(r,num);
-if(MYABS(g)>1)
+if(g<0) g= -g;
+if(g>1)
         {
         r/=g;
         num/=g;
         }
 den*=r;
+if(den<0) {num= -num; den= -den;} //keep den positive
 return *this;
 }
 

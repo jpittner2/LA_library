@@ -124,7 +124,7 @@ public:
 	ContFrac(T p, T q); //should yield a canonical form
 	explicit ContFrac(const Rational<T> &r) : ContFrac(r.num,r.den) {};
 
-	void canonicalize();
+	void canonicalize(); //requires a_1..a_n of the same sign (works on the terms, no overflow for fixed-size T)
 	void convergent(T *p, T*q, const int trunc= -1) const;
 	Rational<T> rational(const int trunc= -1) const {T p,q; convergent(&p,&q,trunc); return Rational<T>(p,q);};
 	double value(const int trunc= -1) const; //we could make also a template usable with an arbitrary-precision type

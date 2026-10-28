@@ -177,7 +177,7 @@ Polynomial<T> poly_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typ
 Polynomial<T> big,small;
 if(p.degree() < q.degree()) {big=q; small=p;} else {big=p; small=q;}
 small.simplify(thr);
-if(small.degree()==0) return small;
+if(small.degree()==0) return MYABS(small[0])<=thr ? big : small; //gcd(p,0)=p, gcd(p,const)=const
 Polynomial<T> help;
 do      {
         help=small;
@@ -185,7 +185,7 @@ do      {
         big=help;
 	small.simplify(thr);
         }
-while((d<0 && small.degree() != 0) || (d>=0 && small.degree()>=d));
+while(!(small.degree()==0 && MYABS(small[0])<=thr) && (d<0 || small.degree()>=d)); //stop at zero remainder or below the expected degree
 return big;
 }
 
