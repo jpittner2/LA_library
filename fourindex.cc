@@ -25,7 +25,7 @@ void fourindex<unsigned char,double>::fscanf(FILE *ff)
 int i,j,k,l;
 double elem;
 if(5!= ::fscanf(ff,"%lf %d %d %d %d",&elem,&i,&j,&k,&l)) laerror("read error in fourindex::fscanf");
-while(i!=terminator&&j!=terminator&&k!=terminator&&l!=terminator)
+while((unsigned char)i!=terminator&&(unsigned char)j!=terminator&&(unsigned char)k!=terminator&&(unsigned char)l!=terminator) //cast: -1 in the file matches the default terminator
         {
         add(i,j,k,l,elem);
         if(5!= ::fscanf(ff,"%lf %d %d %d %d",&elem,&i,&j,&k,&l)) laerror("read error in fourindex::fscanf");
@@ -41,7 +41,7 @@ while(it!=end)
 	    ::fprintf(f,format,it->elem,it->index.indiv.i,it->index.indiv.j,it->index.indiv.k,it->index.indiv.l);
             ++it;
             }
-::fprintf(f,format,0.,0,0,0,0);
+::fprintf(f,format,0.,(int)terminator,(int)terminator,(int)terminator,(int)terminator); //zero line for terminator 0 (FCIDUMP-like)
 }
 
 

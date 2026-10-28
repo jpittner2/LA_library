@@ -160,6 +160,22 @@ static const int fourindex_permutations[fourindex_n_symmetrytypes][max_fourindex
 		};
 
 
+//apply the factor from fourindex_permutations: +-1 sign, +-2 complex conjugation with sign
+template<class T>
+inline T fourindex_permfactor(const int f, const T &x)
+{
+switch(f)
+	{
+	case 1: return x;
+	case -1: return -x;
+	case 2: return LA_traits<T>::conjugate(x);
+	case -2: return -LA_traits<T>::conjugate(x);
+	}
+laerror("illegal factor in fourindex_permutations");
+return x;
+}
+
+
 template <class I, class T>
 void symmetry_faktor(const fourindexsymtype symmetry,const union packed_index<I> &index, T &elem)
 {
@@ -186,6 +202,14 @@ switch(symmetry)
                 if(index.indiv.j==index.indiv.l) elem*=.5;
                 if(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l
 			|| index.indiv.k==index.indiv.j && index.indiv.i==index.indiv.l) elem*=.5; 
+		break;
+	case twoelectroncomplexmullikan: //the element occurs 1+m times, m = number of nontrivial permutations leaving the indices unchanged (0, 1 or 3)
+		{
+		int m=(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l)
+		     +(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l)
+		     +(index.indiv.i==index.indiv.l && index.indiv.j==index.indiv.k);
+		if(m) elem /= (T)(1+m);
+		}
 		break;
 	case T2ijab_aces: break; //result will automatically vanish due to generated antisymmetry; i!=a from principle
 	case T2IjAb_aces: break; //no actual symmetry
@@ -247,7 +271,7 @@ public:
 			if(!p) {permindex=0; memset(&my,0,sizeof(my)); return;}
 			for(int i=0; i<4; ++i)
 				my.index.packed[i] = p->index.packed[fourindex_permutations[symmetry][permindex][i]];
-			my.elem = p->elem * fourindex_permutations[symmetry][permindex][4];
+			my.elem = fourindex_permfactor(fourindex_permutations[symmetry][permindex][4], p->elem);
 			//now treat the redundancy due to possibly equal indices by a scaling factor
 			//if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
 			if(doscaling) symmetry_faktor(symmetry, p->index, my.elem);
@@ -288,7 +312,7 @@ public:
                         if(it==NULL) {uniqueindex=permindex=0; memset(&my,0,sizeof(my)); return false;} //we rely that end() is NULL
                         for(int i=0; i<4; ++i)
                                 my.index.packed[i] = it->index.packed[fourindex_permutations[base->symmetry][permindex][i]];
-                        my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4]; //antisymmetry
+                        my.elem = fourindex_permfactor(fourindex_permutations[base->symmetry][permindex][4], it->elem); //antisymmetry
 
 			//store in a table of generated  and check redundancy
 			if(permindex==0) 
@@ -341,7 +365,7 @@ public:
 
 
 	//constructors etc.
-	inline fourindex() :symmetry(undefined_symmetry),nn(0),count(NULL),list(NULL),terminator(-1),doscaling(true) {};
+	inline fourindex() :symmetry(undefined_symmetry),nn(0),count(new int(1)),list(NULL),terminator(-1),doscaling(true) {}; //empty but defined, can be filled by add() or get()
 	inline fourindex(const I n, const fourindexsymtype symmetry0=undefined_symmetry, const I terminator0= -1, const bool doscaling0=true) :nn(n),count(new int(1)),list(NULL),symmetry(symmetry0),terminator(terminator0),doscaling(doscaling0) {};
 	fourindex(const fourindex &rhs); //copy constructor
 	inline int getcount() const {return count?*count:0;}
@@ -520,7 +544,7 @@ public:
                 iterator(const fourindex_ext *p): base(p) {};
                 ~iterator() {};
                 bool operator!=(const iterator &rhs) const {return base!=rhs.base;} //should only be used for comparison with end()
-                iterator &operator++() {if(base) base->next(); if(base->eof()) base=NULL; return *this;} 
+                iterator &operator++() {if(base) {base->next(); if(base->eof()) base=NULL;} return *this;} //no-op on end() 
 		iterator operator++(int) {laerror("postincrement not possible"); return *this;}
                 const matel4stored<I,T> * operator->() const {return base->current;}
                 const matel4stored<I,T> & operator*() const {return *base->current;}
@@ -545,7 +569,7 @@ public:
                         if(!it.notNULL()) {permindex=0; memset(&my,0,sizeof(my)); return;} //we rely that end() is NULL
                         for(int i=0; i<4; ++i)
                                 my.index.packed[i] = it->index.packed[fourindex_permutations[base->symmetry][permindex][i]];
-                        my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4];
+                        my.elem = fourindex_permfactor(fourindex_permutations[base->symmetry][permindex][4], it->elem);
                         //redundancy due to possibly equal indices
                         //if the processing of individual term becomes very costly, an alternative would be to screen permutations yielding identical result
 			if(base->doscaling) symmetry_faktor(base->symmetry, it->index, my.elem);
@@ -586,7 +610,7 @@ public:
                         if(!it.notNULL()) {uniqueindex=permindex=0; memset(&my,0,sizeof(my)); return false;} //we rely that end() is NULL
                         for(int i=0; i<4; ++i)
                                 my.index.packed[i] = it->index.packed[fourindex_permutations[base->symmetry][permindex][i]];
-                        my.elem = it->elem * fourindex_permutations[base->symmetry][permindex][4]; //antisymmetry
+                        my.elem = fourindex_permfactor(fourindex_permutations[base->symmetry][permindex][4], it->elem); //antisymmetry
 
 			//store in a table of generated  and check redundancy
 			if(permindex==0) 
@@ -710,6 +734,7 @@ if(! &rhs) laerror("fourindex copy constructor with NULL argument");
 	if(rhs.list&&!rhs.count) laerror("some inconsistency in fourindex contructors or assignments");
         list=rhs.list;
         if(list) {count=rhs.count; (*count)++;} else count=new int(1); //make the matrix defined, but empty and not shared
+	symmetry=rhs.symmetry;
 	terminator=rhs.terminator;
 	doscaling=rhs.doscaling;
 }
@@ -726,6 +751,7 @@ fourindex<I,T> & fourindex<I,T>::operator=(const fourindex<I,T> &rhs)
                     if(--(*count) ==0) {deletelist(); delete count;} // old stuff obsolete
                 list=rhs.list;
                 nn=rhs.nn; 
+		symmetry=rhs.symmetry;
 		terminator=rhs.terminator;
         	doscaling=rhs.doscaling;
                 if(list) count=rhs.count; else count= new int(0); //make the matrix defined, but empty and not shared, count will be incremented below
@@ -980,12 +1006,15 @@ fourindex_dense<twoelectronrealmullikanAB,T,I>::fourindex_dense(const fourindex<
 {
 if(rhs.getsymmetry() != twoelectronrealmullikanAB ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p)
+	{
 #ifdef DEBUG
 unsigned int IJ = SMat_index_1(p->index.indiv.i,p->index.indiv.j);
 unsigned int KL = SMat_index_1(p->index.indiv.k,p->index.indiv.l);
 if (IJ<0 || IJ>=(unsigned int)NRMat<T>::nn || KL<0 || KL>=(unsigned int)NRMat<T>::mm) laerror("fourindex_dense index out of range in constructor");
 #endif
-for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
+	(*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
+	}
 }
 
 template<class T, class I>
@@ -1085,12 +1114,15 @@ fourindex_dense<twoelectronrealmullikan,T,I>::fourindex_dense(const fourindex<I,
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
 typename fourindex<I,T>::iterator p;
+for(p=rhs.begin(); p!= rhs.end(); ++p)
+	{
 #ifdef DEBUG
 unsigned int IJ = SMat_index_1(p->index.indiv.i,p->index.indiv.j);
 unsigned int KL = SMat_index_1(p->index.indiv.k,p->index.indiv.l);
 if (IJ<0 || IJ>=(unsigned int)NRSMat<T>::nn || KL<0 || KL>=(unsigned int)NRSMat<T>::nn) laerror("fourindex_dense index out of range in constructor");
 #endif
-for(p=rhs.begin(); p!= rhs.end(); ++p) (*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
+	(*this)(p->index.indiv.i,p->index.indiv.j,p->index.indiv.k,p->index.indiv.l) = p->elem;
+	}
 }
 
 template<class T, class I>
@@ -1287,24 +1319,26 @@ return (minus&1)? -val:val;
 #ifdef DEBUG
 if(i<1||i>nocc ||j<1||j>nocc|| a<1||a>nvrt||b<1||b>nvrt) laerror("T2ijab_aces fourindex out of range");
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
-if(i==j||a==b && elem) laerror("antisymmetry violation in fourindex_dense<T2ijab_aces>");
+if((i==j||a==b) && elem!=(T)0) laerror("antisymmetry violation in fourindex_dense<T2ijab_aces>");
 #endif
+if(i==j||a==b) return; //identically zero, not stored
 int minus=0;
 if(i<j) {minus++; unsigned int t=i; i=j; j=t;}
 if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
-(*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1) = minus? -elem : elem;
+(*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1) = (minus&1)? -elem : elem;
 }
         inline void add(unsigned int i, unsigned int j, unsigned int a, unsigned int b, T elem)
 {
 #ifdef DEBUG
 if(i<1||i>nocc ||j<1||j>nocc|| a<1||a>nvrt||b<1||b>nvrt) laerror("T2ijab_aces fourindex out of range");
 if (!NRMat<T>::v) laerror("access to unallocated fourindex_dense");
-if(i==j||a==b && elem) laerror("antisymmetry violation in fourindex_dense<T2ijab_aces>");
+if((i==j||a==b) && elem!=(T)0) laerror("antisymmetry violation in fourindex_dense<T2ijab_aces>");
 #endif
+if(i==j||a==b) return; //identically zero, not stored
 int minus=0;
 if(i<j) {minus++; unsigned int t=i; i=j; j=t;}
 if(a<b) {minus++; unsigned int t=a; a=b; b=t;}
-(*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1) += minus? -elem : elem;
+(*this).NRMat<T>::operator() ((i-2)*(i-1)/2+j-1, (a-2)*(a-1)/2+b-1) += (minus&1)? -elem : elem;
 }
 
 
@@ -1327,7 +1361,7 @@ private:
 	int nnbas;
 public:
 	int nbas() const {return nnbas;};
-	fourindex_dense(): NRSMat<T>() {};
+	fourindex_dense(): nnbas(0), NRSMat<T>() {};
 	explicit fourindex_dense(const int n): nnbas(n), NRSMat<T>(n*(n-1)/2) {};
 	explicit fourindex_dense(const int n, const  NRSMat<T> &data): nnbas(n), NRSMat<T>(data) {if(data.nrows()!=n*(n-1)/2) laerror("data size mismatch in fourindex_dense antisymtwoelectronrealdirac constructor");};
 	fourindex_dense(const T &a, const int n): nnbas(n), NRSMat<T>(a,n*(n-1)/2) {};
@@ -1349,7 +1383,7 @@ public:
        			 for(k=1;k<i; ++k)
                 		for(j=1; j<=i; ++j)
                         		for(l=1; l<j && (j==i ? l<=k : 1); ++l)
-                				std::cout << i<<" "<<k<<" "<<j<<" "<<l<<" "<<(*this)(i,k,j,l)<<std::endl;
+                				out << i<<" "<<k<<" "<<j<<" "<<l<<" "<<(*this)(i,k,j,l)<<std::endl;
                 }
 
 
@@ -1394,6 +1428,7 @@ if (I<0 || J<0)
 #ifdef DEBUG
 if (I>=NRSMat<T>::nn || J>=NRSMat<T>::nn) laerror("index out of range");
 if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
+if(_LA_count_check && *NRSMat<T>::count != 1) laerror("fourindex_dense element write with count > 1, call copyonwrite() first");
 #endif
 NRSMat<T>::v[SMat_index(I,J)] = elem;
 }
@@ -1415,6 +1450,7 @@ if (I<0 || J<0)
 #ifdef DEBUG
 if (I>=NRSMat<T>::nn || J>=NRSMat<T>::nn) laerror("index out of range");
 if (!NRSMat<T>::v) laerror("access to unallocated fourindex_dense");
+if(_LA_count_check && *NRSMat<T>::count != 1) laerror("fourindex_dense element write with count > 1, call copyonwrite() first");
 #endif
 NRSMat<T>::v[SMat_index(I,J)] += elem;
 }
@@ -1426,6 +1462,9 @@ if(i<=j || k<=l) return;
 int I = ASMat_index_1(i,j);
 int J = ASMat_index_1(k,l);
 if (I<0 || J<0 || I<J) return;
+#ifdef DEBUG
+if(_LA_count_check && *NRSMat<T>::count != 1) laerror("fourindex_dense element write with count > 1, call copyonwrite() first");
+#endif
 NRSMat<T>::v[SMat_index(I,J)] += elem;
 }
 
@@ -1434,8 +1473,8 @@ template<class T, class I>
 fourindex_dense<antisymtwoelectronrealdirac,T,I>::fourindex_dense(const fourindex<I,T> &rhs) : nnbas(rhs.size()), NRSMat<T>((T)0,rhs.size()*(rhs.size()-1)/2)
 {
 if(rhs.getsymmetry() != twoelectronrealmullikan ) laerror("fourindex_dense symmetry mismatch");
-typename fourindex_ext<I,T>::piterator p; //we have to run over equivalents in non-canonical order to build the antisymmetrization properly; it could be done less elegantly but more efficiently moving the if's to outer parts of the piterator loop, if needed
-for(p= const_cast<fourindex_ext<I,T> *>(&rhs)->pbegin(); p.notend(); ++p)
+typename fourindex<I,T>::piterator p; //we have to run over equivalents in non-canonical order to build the antisymmetrization properly; it could be done less elegantly but more efficiently moving the if's to outer parts of the piterator loop, if needed
+for(p= rhs.pbegin(); p.notend(); ++p)
         {
         I i=p->index.indiv.i;
         I j=p->index.indiv.j;
