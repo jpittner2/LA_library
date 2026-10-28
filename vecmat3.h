@@ -32,8 +32,8 @@
 #include <stdio.h>
 #ifndef NO_NUMERIC_LIMITS
 #include <limits>
-#include <type_traits>
 #endif
+#include <type_traits> //freestanding, needed for the deleted integer constructor of Mat3
 
 namespace LA_Vecmat3 {
 
@@ -115,8 +115,8 @@ public:
 	//C-style IO
 	int fprintf(FILE *f, const char *format) const {return ::fprintf(f,format,q[0],q[1],q[2]);};
         int sprintf(char *f, const char *format) const {return ::sprintf(f,format,q[0],q[1],q[2]);};
-	int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0],q[1],q[2]);};
-        int sscanf(char *f, const char *format) const {return ::sscanf(f,format,q[0],q[1],q[2]);};
+	int fscanf(FILE *f, const char *format) {return ::fscanf(f,format,&q[0],&q[1],&q[2]);};
+        int sscanf(const char *f, const char *format) {return ::sscanf(f,format,&q[0],&q[1],&q[2]);};
 };
 
 
@@ -190,7 +190,7 @@ public:
 	const Vec3<T> linear_solve(const  Vec3<T> &rhs, T *det = NULL) const; //alternative to simple_gaussj in simple.h
 	//C-style IO
         int fprintf(FILE *f, const char *format) const {int n= ::fprintf(f,format,q[0][0],q[0][1],q[0][2]); n+=::fprintf(f,format,q[1][0],q[1][1],q[1][2]); n+=::fprintf(f,format,q[2][0],q[2][1],q[2][2]); return n;};
-        int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0][0],q[0][1],q[0][2]) + ::fscanf(f,format,q[1][0],q[1][1],q[1][2]) + ::fscanf(f,format,q[2][0],q[2][1],q[2][2]);};
+        int fscanf(FILE *f, const char *format) {return ::fscanf(f,format,&q[0][0],&q[0][1],&q[0][2]) + ::fscanf(f,format,&q[1][0],&q[1][1],&q[1][2]) + ::fscanf(f,format,&q[2][0],&q[2][1],&q[2][2]);};
 	void symmetrize(); //average offdiagonal elements
 	bool eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown=false) const; //only for real symmetric matrix, symmetry is not checked, returns false on success
 	T norm(const T scalar = 0) const;

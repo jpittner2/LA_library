@@ -27,15 +27,15 @@ namespace LA_Vecmat3 {
 //http://en.wikipedia.org/wiki/Fast_inverse_square_root
 float fast_sqrtinv(float number )
 {
- long i;
+ int32_t i; //must be 32 bits like float
  float x2, y;
  const float threehalfs = 1.5F;
 
  x2 = number * 0.5F;
  y  = number;
- i  = * ( long * ) &y;                       // evil floating point bit level hacking
+ memcpy(&i,&y,sizeof(i));                   // evil floating point bit level hacking
  i  = 0x5f3759df - ( i >> 1 );               // what the fuck? 
- y  = * ( float * ) &i;
+ memcpy(&y,&i,sizeof(y));
  y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
 
@@ -355,7 +355,7 @@ case Euler_case('y','z','y'):
         a[1][0]= c3*s2;
         a[1][1]= c2;
         a[1][2]= s2*s3;
-        a[2][0]= -c1*s3;
+        a[2][0]= -c1*s3-c2*c3*s1;
         a[2][1]= s1*s2;
         a[2][2]= c1*c3-c2*s1*s3;
         }
@@ -449,7 +449,7 @@ case Euler_case('z','y','x'):
         {
         a[0][0]= c1*c2;
         a[0][1]= c1*s2*s3-c3*s1;
-        a[0][2]= s1*s2+c1*c3*s2;
+        a[0][2]= s1*s3+c1*c3*s2;
         a[1][0]= c2*s1;
         a[1][1]= c1*c3+s1*s2*s3;
         a[1][2]= c3*s1*s2-c1*s3;
@@ -560,7 +560,7 @@ case Euler_case('x','y','z'):
 
 case Euler_case('y','x','z'):
         {
-        eul[0]=atan2(m31,m33);
+        eul[0]=atan2(m13,m33);
         eul[1]=atan2(-m23,sqrt(1-m23*m23));
         eul[2]=atan2(m21,m22);
         }
@@ -662,18 +662,18 @@ q[2][1]=q[1][2]=tmp;
 
 
 #ifndef QUAT_NO_RANDOM
-template <>
-void Vec3<double>::randomize(const double x)
+template <typename T>
+void Vec3<T>::randomize(const T x)
 {
-for(int i=0;i<3;++i)  q[i]=x*RANDDOUBLESIGNED();
+for(int i=0;i<3;++i)  q[i]=x*(T)RANDDOUBLESIGNED();
 }
 
 
-template <>
-void Mat3<double>::randomize(const double x, const bool symmetric)
+template <typename T>
+void Mat3<T>::randomize(const T x, const bool symmetric)
 {
-if(symmetric)  for(int i=0;i<3;++i) for(int j=0; j<=i; ++j) q[j][i]=q[i][j]=x*RANDDOUBLESIGNED();
-else for(int i=0;i<3;++i) for(int j=0; j<3; ++j) q[i][j]=x*RANDDOUBLESIGNED();
+if(symmetric)  for(int i=0;i<3;++i) for(int j=0; j<=i; ++j) q[j][i]=q[i][j]=x*(T)RANDDOUBLESIGNED();
+else for(int i=0;i<3;++i) for(int j=0; j<3; ++j) q[i][j]=x*(T)RANDDOUBLESIGNED();
 }
 
 #endif
