@@ -131,8 +131,8 @@ public:
 	//C-style IO
 	int fprintf(FILE *f, const char *format) const {return ::fprintf(f,format,q[0],q[1],q[2],q[3]);};
 	int sprintf(char *f, const char *format) const {return ::sprintf(f,format,q[0],q[1],q[2],q[3]);};
-	int fscanf(FILE *f, const char *format) const {return ::fscanf(f,format,q[0],q[1],q[2],q[3]);};
-        int sscanf(char *f, const char *format) const {return ::sscanf(f,format,q[0],q[1],q[2],q[3]);};
+	int fscanf(FILE *f, const char *format) {return ::fscanf(f,format,&q[0],&q[1],&q[2],&q[3]);};
+        int sscanf(const char *f, const char *format) {return ::sscanf(f,format,&q[0],&q[1],&q[2],&q[3]);};
 	};
 
 	
@@ -206,8 +206,8 @@ T q23= q[2]*q[3];
 if(transpose) //effectively sign change of the temporaries
 	{
 	q01 = -q01;
-	q02 = -q03;
-	q03 = -q02;
+	q02 = -q02;
+	q03 = -q03;
 	}
 a[0][1] = 2*(q12+q03);
 a[1][0] = 2*(q12-q03);

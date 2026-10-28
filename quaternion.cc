@@ -362,7 +362,7 @@ Quaternion<T> exp(const Quaternion<T> &x)
 Quaternion<T> r;
 T vnorm = sqrt(x[1]*x[1]+x[2]*x[2]+x[3]*x[3]);
 r[0] = cos(vnorm);
-vnorm = sin(vnorm)/vnorm;
+vnorm = vnorm==0 ? (T)1 : sin(vnorm)/vnorm; //limit for a real quaternion
 r[1] = x[1] * vnorm;
 r[2] = x[2] * vnorm;
 r[3] = x[3] * vnorm;
@@ -378,6 +378,13 @@ Quaternion<T> log(const Quaternion<T> &x)
 {
 Quaternion<T> r;
 T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
+if(vnorm==0) //real quaternion; for a negative one the i axis is chosen (as for complex numbers)
+	{
+	r[0] = ::log(x[0]<0? -x[0] : x[0]);
+	r[1] = x[0]<0? (T)M_PI : (T)0;
+	r[2] = r[3] = 0;
+	return r;
+	}
 T xnorm = vnorm + x[0]*x[0];
 vnorm = sqrt(vnorm);
 xnorm = sqrt(xnorm);
@@ -395,6 +402,13 @@ Quaternion<T> pow(const Quaternion<T> &x, const T &y)
 {
 Quaternion<T> r;
 T vnorm = x[1]*x[1]+x[2]*x[2]+x[3]*x[3];
+if(vnorm==0) //real quaternion; for a negative one the i axis is chosen (as for complex numbers)
+	{
+	if(x[0]>=0) {r[0] = ::pow(x[0],y); r[1]=0;}
+	else {T a = ::pow(-x[0],y); r[0] = a*cos((T)M_PI*y); r[1] = a*sin((T)M_PI*y);}
+	r[2] = r[3] = 0;
+	return r;
+	}
 T xnorm = vnorm + x[0]*x[0];
 vnorm = sqrt(vnorm);
 xnorm = sqrt(xnorm);
