@@ -59,7 +59,7 @@ public:
     // Init function for constructor
     void Init(const T* x, const T* y, const T* params, const unsigned int data_size, const unsigned int x_dimensions, const string kernel);
     // General kernel function
-    inline T Kernel(const T* x, const unsigned int dimensions, const unsigned int kernel_id);
+    T Kernel(const T* x, const unsigned int dimensions, const unsigned int kernel_id);
     // Function, that build matrix of distances between kernels
     unsigned int Build_REG_distances_mat();
     // Function, that build matrix of coefficients for kernel coordinates

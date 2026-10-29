@@ -229,14 +229,12 @@ REGSURF<T>::REGSURF(const string geometries_file, const string y_file, const str
 	if(!s_geom_file) laerror("allocation error of s_geom_file");
         s_y_file = new T[count_geometries * count_levels];
 	if(!s_y_file) laerror("allocation error of s_y_file");
-        if (descriptor == "Coulomb_matrix" or Z_file != "")
+        if (Z_file != "")
 	    {
             s_Z_file = new unsigned int[count_kernels];
 	    if(!s_Z_file)  laerror("allocation error of s_Z_file");
 	    }
 	else s_Z_file=NULL;
-        s_y_min = new unsigned int[count_levels];
-	if(!s_y_min) laerror("allocation error of s_y_min");
         }
     // loading geometrical data for regression model from file
     l = 0;
@@ -349,6 +347,15 @@ REGSURF<T>::REGSURF(const string geometries_file, const string y_file, const str
     // callling init function with loaded parameters, y and geometries data
     Init(count_dimensions, count_kernels, count_geometries, count_levels, descriptor, kernel, s_param_file, s_geom_file, s_y_file,
     s_Z_file);
+    // Init copied the data, the file buffers are not needed any more
+    delete[] s_param_file;
+    s_param_file = nullptr;
+    delete[] s_geom_file;
+    s_geom_file = nullptr;
+    delete[] s_y_file;
+    s_y_file = nullptr;
+    delete[] s_Z_file;
+    s_Z_file = nullptr;
     }
 
 
@@ -376,6 +383,16 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
         s_kernel_id = 3;
         
     s_descriptor_type = descriptor;
+    if (descriptor != "RE" and descriptor != "Coulomb_matrix" and descriptor != "Inverse_pairs")
+        {
+        laerror("invalid type of descriptor");
+        return;
+        }
+    if (descriptor == "Coulomb_matrix" and Z == nullptr)
+        {
+        laerror("Coulomb_matrix descriptor needs Z");
+        return;
+        }
     if (descriptor == "RE")
         s_descriptor_id = 0;
     if (descriptor == "Coulomb_matrix")
@@ -392,7 +409,8 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
         {
         s_lambda = new T[count_levels];
         s_alpha = new T[count_levels];
-	if(!s_lambda || !s_alpha) laerror("allocation error in REGSURF::Init");
+        s_y_min = new unsigned int[count_levels];
+	if(!s_lambda || !s_alpha || !s_y_min) laerror("allocation error in REGSURF::Init");
         }
     for (i = 0; i < count_levels; i++)
         s_lambda[i] = params[i];
@@ -400,10 +418,10 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
     for (i = count_levels; i < (2 * count_levels); i++)
         {
         s_alpha[i - count_levels] = params[i];
-        if (s_alpha[i] > 1)
-            s_alpha[i] = 1;
-        if (s_alpha[i] < 0)
-            s_alpha[i] = 0;
+        if (s_alpha[i - count_levels] > 1)
+            s_alpha[i - count_levels] = 1;
+        if (s_alpha[i - count_levels] < 0)
+            s_alpha[i - count_levels] = 0;
         }
     s_sigma = params[(2 * count_levels)];
     if (kernel == "Matern")
@@ -411,19 +429,18 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
    
     s_aloc_init = false;
         { // for loaded parameters
+        // always room for n, so that s_Set_params can switch to Matern
+        s_params = new T[(2 * count_levels) + 2];
+        if(!s_params) laerror("allocation error in REGSURF::Init");
         if (s_kernel_id == 3)
             {
-            s_params = new T[(2 * count_levels) + 2];
-	    if(!s_params) laerror("allocation error in REGSURF::Init");
-            s_Matern_comb_number = new T[s_n];
+            s_Matern_comb_number = new T[s_n + 1];
 	    if(!s_Matern_comb_number) laerror("allocation error in REGSURF::Init");
             for (i = 0; i < ((2 * count_levels) + 2); i++)
                 s_params[i] = params[i];
             }
         else
             {
-            s_params = new T[(2 * count_levels) + 1];
-            if(!s_params) laerror("allocation error in REGSURF::Init");
             for (i = 0; i < ((2 * count_levels) + 1); i++)
                 s_params[i] = params[i];
             }
@@ -435,9 +452,9 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
         min_value = values[i * count_geometries];
         s_y_min[i] = 0;
         for (j = 1; j < count_geometries; j++)
-            if (values[(i * count_kernels) + j] < min_value)
+            if (values[(i * count_geometries) + j] < min_value)
                 {
-                min_value = values[(i * count_kernels) + j];
+                min_value = values[(i * count_geometries) + j];
                 s_y_min[i] = j;
                 }
         }
@@ -447,7 +464,10 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
     s_y_mat = NRMat<T>(values, count_levels, count_geometries);
     // NRVec for vector of Z for coulomb matrix descriptor [s_count_kernels]
     if (Z != nullptr)
+        {
         s_Z_vec = NRVec<unsigned int>(Z, count_kernels);
+        s_Z = s_Z_vec.operator unsigned int*();
+        }
         
     // NRMat for coordinate distances for geometries [s_count_kernels, s_count_kernels * s_count_geometries]
     s_distances_mat = NRMat<T>(count_kernels, count_kernels * count_geometries);
@@ -494,11 +514,11 @@ void REGSURF<T>::Init(const unsigned int count_dimensions, const unsigned int co
     s_kernels_pred_vec_mat = NRVec<NRMat<T>>(1);
     s_kernels_pred_vec_mat[0] = NRMat<T>(s_count_kernels, s_count_kernels);
     
+    // raw pointers to the data of the vectors below are cached for speed; the vectors must therefore never be
+    // reallocated: a |= b frees the old buffer of a (pointers would dangle), use a.storesubvector(0,b) (copy in place)
     // for loaded geometries and surfaces
     s_geometries = s_geometries_mat.operator T*();
     s_y = s_y_mat.operator T*();
-    // NRVec for vector of Z for coulomb matrix descriptor 
-    s_Z = s_Z_vec.operator unsigned int*();
     // for computing weights coefficiensts of kernels and making predictions
     s_distances = s_distances_mat.operator T*();
     s_desc = s_desc_mat.operator T*();
@@ -539,7 +559,7 @@ T REGSURF<T>::Kernel(const T* x, const unsigned int dimensions, const unsigned i
         result = Laplacian_kernel(x, dimensions, s_sigma);
         break;
     case 2:
-        result = Laplacian_kernel(x, dimensions, s_sigma);
+        result = Exponential_kernel(x, dimensions, s_sigma);
         break;
     case 3:
         result = Matern_kernel(x, dimensions, s_sigma, s_n, s_Matern_comb_number);
@@ -609,8 +629,9 @@ unsigned int REGSURF<T>::Build_s_descriptor_mat(const unsigned int count_geometr
         case 3:
             extern_desc(s_count_kernels, count_geometries, distances, desc);
             break;
-        laerror("unknown decsriptor identification number");
-        return(1);
+        default:
+            laerror("unknown descriptor identification number");
+            return(1);
         }
         }
     return(0);
@@ -644,8 +665,8 @@ unsigned int REGSURF<T>::Build_s_kernels_mat(const unsigned int count_geometries
             if (desc[(i * count_kernels * count_kernels) + j * (count_kernels + 1)] != 0)
                 {
                 descriptor_difference = desc[(i * count_kernels * count_kernels) + j * (count_kernels + 1)] -
-                s_desc[(i * count_kernels * count_kernels) + j * (count_kernels + 1)];
-                matrix[j * (count_kernels + 1)] = Kernel(&descriptor_difference, 1, s_kernel_id);;
+                s_desc[j * (count_kernels + 1)];
+                matrix[j * (count_kernels + 1)] = Kernel(&descriptor_difference, 1, s_kernel_id);
                 }
             else
                 matrix[j * (count_kernels + 1)] = 0;
@@ -701,7 +722,7 @@ unsigned int REGSURF<T>::Build_s_kernels_mat_sums()
             
             temp[j] = sum;
             }
-        s_kernels_diff_vec_vec[i] |= s_kernels_rows_sums_vec_vec[0];
+        s_kernels_diff_vec_vec[i].storesubvector(0, s_kernels_rows_sums_vec_vec[0]); //in place, not |= (cached raw pointer)
         s_kernels_diff_vec_vec[i] -= s_y_temp_vec;
         }
     // create vector of kernel sums differences for each geometry
@@ -747,7 +768,7 @@ T REGSURF<T>::s_RMSE(const unsigned int level)
     // predictions for all geometries
     for (i = 0; i < s_count_geometries; i++)
         {
-        s_y_temp_part_vec |= s_kernels_rows_sums_vec_vec[i];
+        s_y_temp_part_vec.storesubvector(0, s_kernels_rows_sums_vec_vec[i]); //in place, not |= (cached raw pointer)
         s_y_temp_part_vec *= s_weights_vec_vec[level];
         y_pred = s_y_temp_part_vec.sum();
         if (kernel_ridge_part != 0)
@@ -758,7 +779,7 @@ T REGSURF<T>::s_RMSE(const unsigned int level)
         s_y_preds[i] = y_pred;
         }
     
-    s_y_delta_vec |= s_y_preds_vec;
+    s_y_delta_vec.storesubvector(0, s_y_preds_vec); //in place, not |= (cached raw pointer)
     // subtracting real values
     s_y_delta_vec -= s_y_mat.row(level);
     // the second power
@@ -858,7 +879,7 @@ const bool element_invariant, unsigned int* kernel_classes)
         Lasso_part = s_lambda[i] * s_alpha[i];
         kernel_ridge_part = s_lambda[i] * (1 - s_alpha[i]) * 0.5 * count_kernels;
         // initialitation of weight coefficients vector
-        init_weight = (s_y[i] - Lasso_part)/(s_kernels_sum_sum + kernel_ridge_part);
+        init_weight = (s_y[i * count_geometries] - Lasso_part)/(s_kernels_sum_sum + kernel_ridge_part);
         for (j = 0; j < count_kernels; j++)
             s_weights_vec_vec[i][j] = init_weight;
         
@@ -867,7 +888,7 @@ const bool element_invariant, unsigned int* kernel_classes)
             for (k = 1; k < count_geometries; k++)
                 {
                 // get the model prediction for another geometry
-                s_y_temp_part_vec |= s_kernels_rows_sums_vec_vec[k];
+                s_y_temp_part_vec.storesubvector(0, s_kernels_rows_sums_vec_vec[k]); //in place, not |= (cached raw pointer)
                 s_y_temp_part_vec *= s_weights_vec_vec[i];
                 y_pred = s_y_temp_part_vec.sum();
                 // calculating kernel ridge part of prediction
@@ -880,12 +901,12 @@ const bool element_invariant, unsigned int* kernel_classes)
                 // calculating difference
                 y_diff = y_pred_3 - s_y[k + (i * count_geometries)];
                 // calculating new weights
-                s_y_temp_part_vec |= s_kernels_diff_vec_vec[k];
+                s_y_temp_part_vec.storesubvector(0, s_kernels_diff_vec_vec[k]); //in place, not |= (cached raw pointer)
                 s_y_temp_part_vec /= s_kernels_diff_sums_vec[k];
                 // optimalization of kernel ridge regression
                 if (kernel_ridge_part != 0)
                     {
-                    s_y_temp_vec |= s_weights_vec_vec[i];
+                    s_y_temp_vec.storesubvector(0, s_weights_vec_vec[i]); //in place, not |= (cached raw pointer)
                     s_y_temp_vec /= s_weights_vec_vec[i].sum()/y_pred_2;
                     s_y_temp_part_vec -= s_y_temp_vec;
                     }
@@ -902,7 +923,7 @@ const bool element_invariant, unsigned int* kernel_classes)
                                 break;
                             if (kernel_classes_index[m] == kernel_classes_index[l] and m >= l)
                                 {
-                                element_sum += s_y_temp_part[l];
+                                element_sum += s_y_temp_part[m];
                                 element_count += 1; 
                                 }
                             }
@@ -918,7 +939,7 @@ const bool element_invariant, unsigned int* kernel_classes)
                             }
                         }
                     }
-                s_y_temp_part_vec /= (T(count_geometries)/(learning_rate * y_diff));
+                s_y_temp_part_vec *= learning_rate * y_diff/T(count_geometries);
                 s_weights_vec_vec[i] -= s_y_temp_part_vec;
                 }
             // convergence criteria check
@@ -1066,7 +1087,7 @@ const T* geom, const unsigned int* surfaces, T* predictions)
             // getting prediction
             if (surfaces[j] < s_count_levels)
                 {
-                s_y_temp_part_vec |= s_y_temp_vec;
+                s_y_temp_part_vec.storesubvector(0, s_y_temp_vec); //in place, not |= (cached raw pointer)
                 s_y_temp_part_vec *= s_weights_vec_vec[surfaces[j]];
                 }
             else
@@ -1093,10 +1114,10 @@ const T* geom, const unsigned int* surfaces, T* predictions)
 
 template <typename T>
 unsigned int REGSURF<T>::s_Score(const unsigned int count_geometries, const unsigned int count_levels,
-const T* geom, const unsigned int* surfaces, T* predictions, T* y_values, T* score)
+const T* geom, const unsigned int* surfaces, T* predictions, const T* y_values, T* score)
     {
     unsigned int i;
-    T RMSE;
+    T RMSE = 0;
     
     s_Get_predictions(count_geometries, count_levels, geom, surfaces, predictions);
     for (i = 0; i < count_geometries * count_levels; i++)
@@ -1140,6 +1161,16 @@ unsigned int REGSURF<T>::s_Set_params(const string descriptor, const string kern
         new_kernel_id = 3;
         
     s_descriptor_type = descriptor;
+    if (descriptor != "RE" and descriptor != "Coulomb_matrix" and descriptor != "Inverse_pairs")
+        {
+        laerror("invalid type of descriptor");
+        return(1);
+        }
+    if (descriptor == "Coulomb_matrix" and s_Z == nullptr)
+        {
+        laerror("Coulomb_matrix descriptor needs Z");
+        return(1);
+        }
     if (descriptor == "RE")
         new_descriptor_id = 0;
     if (descriptor == "Coulomb_matrix")
@@ -1171,6 +1202,9 @@ unsigned int REGSURF<T>::s_Set_params(const string descriptor, const string kern
         if (s_alpha[i - count_levels] < 0)
             s_alpha[i - count_levels] = 0;
         }
+    // kernel matrices depend on sigma and n (not on lambda, alpha): rebuild them in the next fit
+    if (params[2 * count_levels] != s_sigma)
+        s_kernels_mat_init = false;
     s_sigma = params[2 * count_levels];
     
     if (s_kernel_id == 3)
@@ -1182,6 +1216,9 @@ unsigned int REGSURF<T>::s_Set_params(const string descriptor, const string kern
     
     if (s_kernel_id == 3)
         {
+        // s_n is read only if the kernel was Matern before (otherwise s_kernels_mat_init is already false)
+        if (s_kernels_mat_init and static_cast<unsigned int>(params[(2 * count_levels) + 1] + 0.5) != s_n)
+            s_kernels_mat_init = false;
         s_n = static_cast<unsigned int>(params[(2 * count_levels) + 1] + 0.5);
         if (s_Matern_comb_number != nullptr)
             {
@@ -1189,7 +1226,7 @@ unsigned int REGSURF<T>::s_Set_params(const string descriptor, const string kern
             s_Matern_comb_number = nullptr;
             }
             {
-            s_Matern_comb_number = new T[s_n];
+            s_Matern_comb_number = new T[s_n + 1];
 	    if(!s_Matern_comb_number) laerror("allocation error of s_Matern_comb_number");
             Matern_coefficient(s_n, s_Matern_comb_number);
             }
@@ -1381,25 +1418,25 @@ unsigned int REGSURF<T>::s_Predict_ML_NEA_geometries()
 template <typename T>
 unsigned int REGSURF<T>::s_Compute_ML_NEA_spectra(const T E_min, const T step, const unsigned int count_steps, const T delta)
     { // sigma(E) = (e^2 *h)/(4*m_e*c*E_0*E) * sum_{n=1}^N\(1/Np * sum_{i=1}^Np * delta_E_0n(x_i) * f_0n(x_i) * f_g(E - delta_E_0n, delta))
-      // delta_E_0n(x_i) = delta_E_min_n/delta_E_0n
-      // f_g = 1/(sqrt(Phi) * delta * delta) * exp(-((E-delta_E_0n)^2)/(0.5 * delta * delta))
-    unsigned int i, j, k;
-    unsigned int count_kernels, count_levels, count_geometries;
+      // f_0n(x_i) = delta_E_min_n/delta_E_0n(x_i) is a placeholder for the true oscillator strength (not predicted by the model)
+      // f_g = sqrt(2/pi)/delta * exp(-2*(E-delta_E_0n)^2/(delta * delta)) (normalized Gaussian, standard deviation delta/2)
+    unsigned int i, j;
+    unsigned int count_levels, count_geometries;
+    long k, k_lo, k_hi;
     T y_min;
     T h = 6.62607015E-34;
     T e = 1.602176634E-19;
     T m_e = 9.1093837E-31;
-    T c = 299796000;
+    T c = 299792458;
     T E_0 = 8.8541878128E-12;
-    T Phi = (1.00 + std::sqrt(5))/2.00;
     T pre_sum_part;
+    T f_g_norm, f_g_exp, cutoff;
     T E;
     T delta_E_0n;
     T f_0n;
     T f_g;
     T sigma_part;
 
-    count_kernels = s_count_kernels;
     count_levels = s_count_levels;
     count_geometries = ML_NEA_count_geometries;
     if (s_base_init == false)
@@ -1413,16 +1450,16 @@ unsigned int REGSURF<T>::s_Compute_ML_NEA_spectra(const T E_min, const T step, c
         return(1);
         }
     
-    // calculating minima of surfaces
+    // calculating minima of surfaces, s_ML_NEA_y is [geometry * count_levels + level] as stored by s_Get_predictions
     s_ML_NEA_min_y_vec = NRVec<T>(s_count_levels);
     s_ML_NEA_min_y = s_ML_NEA_min_y_vec.operator T*();
     for (i = 0; i < count_levels; i++)
         {
-        y_min = s_ML_NEA_y[i * count_kernels];
-        for (j = 1; j < count_kernels; j++)
+        y_min = s_ML_NEA_y[i];
+        for (j = 1; j < count_geometries; j++)
             {
-            if (s_ML_NEA_y[(i * count_kernels) + j] < y_min)
-                y_min = s_ML_NEA_y[(i * count_kernels) + j];
+            if (s_ML_NEA_y[(j * count_levels) + i] < y_min)
+                y_min = s_ML_NEA_y[(j * count_levels) + i];
             }
         s_ML_NEA_min_y[i] = y_min;
         }
@@ -1430,7 +1467,10 @@ unsigned int REGSURF<T>::s_Compute_ML_NEA_spectra(const T E_min, const T step, c
     s_ML_NEA_spectra_vec = NRVec<T>(count_steps);
     s_ML_NEA_spectra = s_ML_NEA_spectra_vec.operator T*();
     pre_sum_part = (e * e * h)/(4 * m_e * c * E_0);
-    E = E_min;
+    f_g_norm = std::sqrt(2/M_PI)/delta;
+    f_g_exp = 2/(delta * delta);
+    // exp(-f_g_exp*x^2) underflows to 0 for |x| > 19.3 delta: grid points outside 20 delta are skipped
+    cutoff = 20 * delta;
     for (i = 0; i < count_steps; i++)
         s_ML_NEA_spectra[i] = 0;
     
@@ -1439,25 +1479,29 @@ unsigned int REGSURF<T>::s_Compute_ML_NEA_spectra(const T E_min, const T step, c
         for (j = 0; j < count_levels; j++)
             {
             // calculating the oscilator strenght
-            delta_E_0n = s_ML_NEA_y[(j * count_geometries) + i];
+            delta_E_0n = s_ML_NEA_y[(i * count_levels) + j];
             f_0n = s_ML_NEA_min_y[j]/delta_E_0n;
-            E = E_min;
             if (delta_E_0n > 0 and f_0n > 0)
-                for (k = 0; k < count_steps; k++)
+                {
+                // grid points E_k = E_min + k*step within the cutoff
+                k_lo = static_cast<long>(std::ceil((delta_E_0n - cutoff - E_min)/step));
+                k_hi = static_cast<long>(std::floor((delta_E_0n + cutoff - E_min)/step));
+                if (k_lo < 0)
+                    k_lo = 0;
+                if (k_hi >= static_cast<long>(count_steps))
+                    k_hi = static_cast<long>(count_steps) - 1;
+                for (k = k_lo; k <= k_hi; k++)
                     {
                     // calculating gaussian function f_g partial intensity and adding to ML_NEA intensities vector
-                    if (abs(E - delta_E_0n)/delta < 100)
+                    E = E_min + k * step;
+                    f_g = f_g_norm * std::exp(-f_g_exp * (E - delta_E_0n)*(E - delta_E_0n));
+                    if (E > 0 and f_g > 0)
                         {
-                        f_g = 1/(std::sqrt(Phi) * delta);
-                        f_g *= std::exp(-((E - delta_E_0n)*(E - delta_E_0n))/(0.5 * delta * delta));
-                        if (E > 0 and f_g > 0)
-                            {
-                            sigma_part = pre_sum_part/E * delta_E_0n * f_0n * f_g;
-                            s_ML_NEA_spectra[k] += sigma_part;
-                            }
+                        sigma_part = pre_sum_part/E * delta_E_0n * f_0n * f_g;
+                        s_ML_NEA_spectra[k] += sigma_part;
                         }
-                    E += step;
                     }
+                }
             }
         }
     s_ML_NEA_spectra_init = true;

@@ -59,7 +59,7 @@ public:
     const unsigned int count_levels, const string descriptor, const string kernel, const T* params,  const T* geometries,
     const T* values, const unsigned int* Z);
     // General kernel function
-    inline T Kernel(const T* x, const unsigned int dimensions, const unsigned int kernel_id);
+    T Kernel(const T* x, const unsigned int dimensions, const unsigned int kernel_id);
     // function for building matrix of geometry distances between kernels
     unsigned int Build_s_distances_mat(const unsigned int count_geometries, const T* geometries, T* distances);
     // function for building descriptor matrix
@@ -84,7 +84,7 @@ public:
     const T* geom, const unsigned int* surfaces, T* predictions);
     // Function, that uses the regression surface to predict y for new data and investigate the model precision
     unsigned int  s_Score(const unsigned int count_geometries, const unsigned int count_levels,
-    const T* geom, const unsigned int* surfaces, T* predictions, T* y_values, T* score);
+    const T* geom, const unsigned int* surfaces, T* predictions, const T* y_values, T* score);
     // Setting parameters of regression surface models
     unsigned int  s_Set_params(const string descriptor, const string kernel, const T* params);
     // Getting parameters of regression surface models

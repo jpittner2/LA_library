@@ -70,50 +70,32 @@ const T* Matern_comb_number)
     unsigned int i;
     unsigned int k;
     T part_1 = 0; // sum(x^2)^1/2
-    T exponential_part;
-    T Matern_part = 0;
-    T result;
+    T z;
+    T Matern_part;
     
     for (i = 0; i < dimensions; i++)
         part_1 = part_1 + (x[i] * x[i]);
     
-    part_1 = std::pow(part_1, 0.5);
-    exponential_part = std::exp(-part_1/(sigma));
+    part_1 = std::sqrt(part_1);
+    z = 2 * part_1/sigma;
+    // Horner scheme for sum_{k=0}^{n} c_k z^(n-k)
+    Matern_part = Matern_comb_number[0];
+    for (k = 1; k <= n; k++)
+        Matern_part = Matern_part * z + Matern_comb_number[k];
     
-    for (k = 0; k < n; k++)
-        Matern_part +=  Matern_comb_number[i] * std::pow(2 * part_1/sigma, n - k);
-    
-    result = exponential_part * Matern_part;
-    return(result);
+    return(std::exp(-part_1/sigma) * Matern_part);
     }
 
 
 template <typename T>
-unsigned int Matern_coefficient(const unsigned int n, T* comb_number) // values of (n + k)!/(2 n)! * n!/(k!(n-k)!)
+unsigned int Matern_coefficient(const unsigned int n, T* comb_number) // values of (n + k)!/(2 n)! * n!/(k!(n-k)!), k = 0..n
     {
-    unsigned int i , j;
     unsigned int k;
-    unsigned int part_1; // reverse value of (n + k)!/(2 n)!
-    unsigned int part_2; // n!/(n-k)!
-    unsigned int part_3; // k!
     
-    for (k = 0; k < n; k++)
-        {
-        part_1 = 1;
-        part_2 = 1;
-        part_3 = 1;
-        
-        for (i = n + k + 1; i <= 2 * n; i++)
-            part_1 = part_1 * i;
-        
-        for (i = n - k + 1; i <= n; i++)
-            part_2 = part_2 * i;
-        
-        for (i = 1; i < k; i++)
-            part_3 = part_3 * i;
-        
-        comb_number[k] = T(part_2)/T(part_1 * part_3);
-        }
+    // downward recurrence c_n = 1, c_{k-1} = c_k k/((n+k)(n-k+1)), no factorials (no overflow)
+    comb_number[n] = 1;
+    for (k = n; k > 0; k--)
+        comb_number[k - 1] = comb_number[k] * T(k)/(T(n + k) * T(n - k + 1));
     return(0);
     }
 
@@ -260,7 +242,7 @@ const string kernel)
             {
             for (i = 0; i < 4; i++)
                 REG_params[i] = params[i];
-            REG_Matern_comb_number_vec = NRVec<T>(REG_n);
+            REG_Matern_comb_number_vec = NRVec<T>(REG_n + 1);
             REG_Matern_comb_number = REG_Matern_comb_number_vec.operator T*();
             }
         else
@@ -273,13 +255,15 @@ const string kernel)
             }
         }
 
+    // raw pointers to the data of the vectors below are cached for speed; the vectors must therefore never be
+    // reallocated: a |= b frees the old buffer of a (pointers would dangle), use a.storesubvector(0,b) (copy in place)
     // copy data
     REG_coordinates_vec = NRVec<T>(x, data_size * REG_count_dimensions);
     REG_coordinates = REG_coordinates_vec.operator T*();
     REG_y_vec = NRVec<T>(y , data_size);
     REG_Y = REG_y_vec.operator T*();
     // for fitting model
-    REG_distances_mat = NRMat<T>(data_size, data_size);
+    REG_distances_mat = NRMat<T>(data_size, data_size*REG_count_dimensions); //difference vectors of all pairs
     REG_distances = REG_distances_mat.operator T*();
     REG_kernels_mat = NRMat<T>(data_size, data_size);
     REG_kernels = REG_kernels_mat.operator T*();
@@ -288,7 +272,7 @@ const string kernel)
     REG_weights_vec = NRVec<T>(data_size);
     REG_weights = REG_weights_vec.operator T*();
     // for predictions
-    REG_coordinates_diff_vec = NRVec<T>(data_size);
+    REG_coordinates_diff_vec = NRVec<T>(data_size*REG_count_dimensions);
     REG_coordinates_diff = REG_coordinates_diff_vec.operator T*();
     REG_kernels_diff_vec = NRVec<T>(data_size);
     REG_kernels_diff = REG_kernels_diff_vec.operator T*();
@@ -324,7 +308,7 @@ T REG<T>::Kernel(const T* x, const unsigned int dimensions, const unsigned int k
         result = Laplacian_kernel(x, dimensions, REG_sigma);
         break;
     case 2:
-        result = Laplacian_kernel(x, dimensions, REG_sigma);
+        result = Exponential_kernel(x, dimensions, REG_sigma);
         break;
     case 3:
         result = Matern_kernel(x, dimensions, REG_sigma, REG_n, REG_Matern_comb_number);
@@ -443,7 +427,7 @@ T REG<T>::REG_RMSE()
     T y_max = REG_y_vec.amax();
     T y_min = REG_y_vec.amin();
    
-    REG_y_delta_vec |= REG_y_preds_vec;
+    REG_y_delta_vec.storesubvector(0, REG_y_preds_vec); //in place, not |= (cached raw pointer)
     REG_y_delta_vec -= REG_y_vec;
     REG_y_delta_vec *= REG_y_delta_vec;
     delta_square = REG_y_delta_vec.sum();
@@ -509,7 +493,7 @@ unsigned int REG<T>::REG_Fit(const T max_Loss, const unsigned int max_learning_c
         REG_mat_init = true;
         }
     // initialitation of weight coefficients vector
-    REG_weights_vec |= REG_y_vec;
+    REG_weights_vec.storesubvector(0, REG_y_vec); //in place, not |= (cached raw pointer)
     // Linear learning cycle of weight coefficient for learning
     for (i = 0; i < max_learning_cycles; i++)
         {
@@ -523,7 +507,7 @@ unsigned int REG<T>::REG_Fit(const T max_Loss, const unsigned int max_learning_c
             REG_y_preds_vec += Lasso_part;
         
         // calculating new weights
-        REG_y_temp_vec |= REG_y_vec;
+        REG_y_temp_vec.storesubvector(0, REG_y_vec); //in place, not |= (cached raw pointer)
         REG_y_temp_vec /= REG_y_preds_vec;
         REG_weights_vec *= REG_y_temp_vec;
         // checking the Loss_Function value
@@ -580,8 +564,8 @@ unsigned int REG<T>::REG_Fit_grad(const T max_Loss, const unsigned int max_learn
         REG_mat_init = true;
         }
     // initialitation of weight coefficients vector
-    REG_weights_vec |= REG_y_vec;
-    kernel_ridge_part = REG_lambda * (1.00 - REG_alpha);
+    REG_weights_vec.storesubvector(0, REG_y_vec); //in place, not |= (cached raw pointer)
+    kernel_ridge_part = REG_lambda * (1.00 - REG_alpha) * 0.5;
     Lasso_part = REG_lambda * REG_alpha;
     sqrt_count_x = std::sqrt(count_x);
     // gradient descent Learning cycle of weight coefficient for learning
@@ -760,6 +744,9 @@ unsigned int REG<T>::REG_Get_Score(const T* x, T* y_preds,  const unsigned int d
 template <typename T>
 unsigned int REG<T>::REG_Set_params(const T* params, const string kernel)
     {
+    const unsigned int old_kernel_id = REG_kernel_id;
+    const unsigned int old_n = (REG_kernel_id == 3) ? REG_n : 0; // REG_n is set only for Matern
+    const T old_sigma = REG_sigma;
     // setting type of kernel
     REG_kernel_type = kernel;
     if (kernel == "Gaussian")
@@ -784,10 +771,13 @@ unsigned int REG<T>::REG_Set_params(const T* params, const string kernel)
     // calculating Matern coefficients, if Matern kernel is selected
     if (REG_kernel_id == 3)
         {
-        REG_Matern_comb_number_vec.resize(REG_n);
+        REG_Matern_comb_number_vec.resize(REG_n + 1);
         REG_Matern_comb_number = REG_Matern_comb_number_vec.operator T*();
         Matern_coefficient(REG_n, REG_Matern_comb_number);
         }
+    // kernel matrices depend on kernel, sigma and n (not on lambda, alpha): rebuild them in the next fit
+    if (REG_kernel_id != old_kernel_id || REG_sigma != old_sigma || (REG_kernel_id == 3 && REG_n != old_n))
+        REG_mat_init = false;
     return(0);
     }
 
@@ -800,7 +790,7 @@ unsigned int REG<T>::REG_Get_params(T* params, string* kernel)
     params[1] = REG_alpha;
     params[2] = REG_sigma;
     
-    if (REG_kernel_type == "Mattern")
+    if (REG_kernel_id == 3)
         params[3] = REG_n;
     
     return(0);
