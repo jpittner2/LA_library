@@ -114,7 +114,8 @@ if(it>0) //if this is the first iteration just need to diagonalise the matrix
 	for(j=0; j<krylovsize; ++j)
 		{
 		if(!incore) s0->get(vec2,j);
-            	smallS(krylovsize,j) = smallS(j,krylovsize) = vec1*(incore?v0[j]:vec2);
+            	smallS(krylovsize,j) = vec1*(incore?v0[j]:vec2);
+		smallS(j,krylovsize) = LA_traits<T>::conjugate(smallS(krylovsize,j));
 		}
         smallS(krylovsize,krylovsize) = vec1*vec1;
 	bigmat.gemv(0,vec2,'n',1,vec1);
@@ -126,7 +127,7 @@ if(it>0) //if this is the first iteration just need to diagonalise the matrix
 		{
 		if(!incore) s0->get(vec1,j);
 		smallH(j,krylovsize) = (incore?v0[j]:vec1)*vec2;
-            	if(bigmat.issymmetric()) smallH(krylovsize,j) = smallH(j,krylovsize);
+            	if(bigmat.issymmetric()) smallH(krylovsize,j) = LA_traits<T>::conjugate(smallH(j,krylovsize)); //hermitian
 		}
 	if(!bigmat.issymmetric())
 		{
@@ -197,7 +198,7 @@ for(int iroot=0; iroot<=std::min(krylovsize,nroots-1); ++iroot)
 		}
 	}
 
-if(verbose && oldnroot!=nroot) {std::cout <<"root no. "<<oldnroot<<" converged\n"; std::cout.flush();}
+if(verbose && nroot>oldnroot) {std::cout <<"root no. "<<oldnroot<<" converged\n"; std::cout.flush();}
 if (nroot>=nroots) goto converged;
 if (it==maxit-1) break; //not converged
 
@@ -250,24 +251,26 @@ if(vnorm==0.)
 else
 {
 vec1 *= (1./vnorm);
-for(j=0; j<=krylovsize; ++j)
-	{
-	typename LA_traits<T>::normtype vnorm2;
-        if(!incore) s0->get(vec2,j);
-	do	{
+//full Gram-Schmidt sweeps, repeated if the norm dropped below 1/sqrt(2) (strong cancellation would lose orthogonality)
+typename LA_traits<T>::normtype vnorm2;
+int sweep=0;
+do	{
+	for(j=0; j<=krylovsize; ++j)
+		{
+	        if(!incore) s0->get(vec2,j);
 		 // For COMPLEX the order matters, the first one gets conjuagted, changed vec1 to the right!
           	T ab = (incore?v0[j]:vec2)*vec1 /smallS(j,j);
             	vec1.axpy(-ab,incore?v0[j]:vec2);
-		vnorm2 = vec1.norm();
-		if(vnorm2==0) 
-			{
-			std::cout<<"Davidson: warning: zero residual in orthogonalization\n";
-        		std::cout.flush();
-			goto converged; //nothing remained after orthogonalization
-			}
-		vec1 *= (1./vnorm2);
-		} while (vnorm2<0.99);
-	}
+		}
+	vnorm2 = vec1.norm();
+	if(vnorm2==0) 
+		{
+		std::cout<<"Davidson: warning: zero residual in orthogonalization\n";
+        	std::cout.flush();
+		goto converged; //nothing remained after orthogonalization
+		}
+	vec1 *= (1./vnorm2);
+	} while (vnorm2<0.7 && ++sweep<3);
 }
 
 //here it is possible to apply some purification procedure if the eivector has to fulfill other conditions
@@ -285,7 +288,7 @@ if(verbose) {std::cout << "Davidson converged in "<<it<<" iterations.\n"; std::c
 for(nroot=0; nroot<nroots; ++nroot)
 	{
         eivals[nroot]=r[nroot];
-	if(eivecs)
+	if(eivecs || eivecsfile)
 		{
 		vec1=0;
 		for(j=0; j<=krylovsize; ++j )
