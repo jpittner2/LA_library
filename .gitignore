@@ -66,4 +66,5 @@ npytest
 *.npy
 *.prompt
 testoptimize
+readme.gelfand
 # CVS default ignores end
