@@ -47,6 +47,29 @@ c[k] = d[k]/R(k,k);
 for (int i=k-1;i>=0;i--) c[i] = (d[i]-xdot(k-i,&R(i,i+1),1,&c[i+1],1)) / R(i,i);
 }
 
+//rotate columns 0..k of H to the triangular R (rotations 0..k), solve R c = -d and add the k+1 Krylov vectors to x
+template<typename T>
+void gmres_update(NRMat<T> &H, const NRVec<T> &cci, const NRVec<T> &ssi, NRVec<T> &d, NRVec<T> &c, const int k, NRVec<T> *v, AuxStorage<T> *st, const int incore, NRVec<T> &x)
+{
+for(int i=0;i<=k;i++)
+	{
+	T ci = cci[i], si = ssi[i];
+	for(int j=i;j<=k;j++)
+		{
+		T a = H(i,j);
+		H(i,j) = ci*a+si*H(i+1,j);
+		H(i+1,j) = -si*a+ci*H(i+1,j);
+		}
+	}
+d *= -1.;
+gmres_backsubstitute(H,c,d,k);
+for(int i=0;i<=k;i++)
+	{
+	if(!incore) st->get(v[0],i);
+	x.axpy(c[i],v[incore?i:0]);
+	}
+}
+
 
 //x contains ev. initial guess and on return the solution
 template<typename T, typename Matrix>
@@ -82,7 +105,6 @@ if(doguess)
 	x.normalize();
 	}
 
-neustart:
 for (int l=0;l<neustart;l++)  // main loop for restarts
 	{
 	if(square) // r_0 = b + A x_0
@@ -106,6 +128,7 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	 v[0] = r_k* (1./beta);
 	 if(!incore) st->put(v[0],0);
 
+	bool updated=false;
          // Iteration
 	 for (int k=0;k<MAXIT;k++) 
 		{
@@ -137,33 +160,16 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 		//Schritt 4
 		double tmp;
 	    	H(k+1,k) = tmp= z.norm();
-	    	if(tmp < 1.e-2*eps )
+		bool breakdown = tmp < 1.e-2*eps; //Krylov space invariant: the solution in it is final for this restart
+		if(breakdown)
 			{
-	    		if(verbose) std::cerr <<("gmres restart performed\n");
-	       		// Abbruchbedingung, konstruiere x_k
-	       		for (int i=0;i<k;i++) 
-				{
-		  		ci = cci[i];si = ssi[i];
-		  		for (int j=0;j<k;j++) 
-					{
-		     			T a = H(i,j);
-		     			H(i,j) = ci*a+si*H(i+1,j);
-		     			H(i+1,j) = -si*a+ci*H(i+1,j);
-		  		}
-	       				}
-	       		// Loese R_k c = - d_k
-			d *= -1.;
-	       		gmres_backsubstitute(H,c,d,k-1);
-	       		for (int i=0;i<k-1;i++) 
-				{
-				if(!incore) st->get(v[0],i);
-				x.axpy(c[i],v[incore?i:0]);
-				}
-	       		flag=0; goto neustart;
-	    		} // Ende Abbruch
-
-	   	v[incore?k+1:0] = z * (1./H(k+1,k));
-		if(!incore) st->put(v[0],k+1);
+	    		if(verbose) std::cerr <<("gmres breakdown, restart performed\n");
+			}
+		else
+			{
+		   	v[incore?k+1:0] = z * (1./H(k+1,k));
+			if(!incore) st->put(v[0],k+1);
+			}
 
 	        // Schritt 5  - berechne Phi_k
 	    	for (int j=0;j<k+2;j++) d[j] = H(j,k);
@@ -177,8 +183,12 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	    		}
 	    	//phi[k]= atan(d[k+1]/d[k]);
 	    	ci=hypot(d[k],d[k+1]); 
-		cci[k]=d[k]/ci; 
-		ssi[k]=d[k+1]/ci;
+		if(ci==0) {cci[k]=1; ssi[k]=0;} //singular
+		else
+			{
+			cci[k]=d[k]/ci; 
+			ssi[k]=d[k+1]/ci;
+			}
 
 	    	//berechne neuen d-Vektor
 		d= 0.;
@@ -204,53 +214,17 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 		
 		d_alt = abs(d[k+1]);
             	//*err= d_alt;
-	    	if (d_alt < eps*beta_0) 
+	    	if (d_alt < eps*beta_0 || breakdown) 
 			{
-	       		// konstruiere R_k
-	       		for (int i=0;i<k;i++) 
-				{
-                  		ci = cci[i];
-				si = ssi[i];
-		    		for (int j=0;j<k;j++)
-					{
-			 		T a = H(i,j);
-			 		H(i,j) = ci*a+si*H(i+1,j);
-			 		H(i+1,j) = -si*a+ci*H(i+1,j);
-		    			} 
-	       			} 
-
-	       		// Loese R_k c = - d_k 
-			d *= -1.;
-	       		gmres_backsubstitute(H,c,d,k-1);
-	       		for(int i=0;i<k;i++) 
-				{
-				if(!incore) st->get(v[0],i);
-				x.axpy(c[i],v[incore?i:0]);
-				}
-	       		flag=0; goto myreturn;
+			gmres_update(H,cci,ssi,d,c,k,v,st,incore,x);
+			updated=true;
+			if(d_alt < eps*beta_0) {flag=0; goto myreturn;}
+			break; //breakdown without convergence: next restart
 	    		}
          	} // k-Schleife
 
-	 // zum Neustart: Konstruiere R_k 
-	 for (int i=0;i<MAXIT;i++) 
-		{
-                ci = cci[i];si = ssi[i];
-	     	for (int j=0;j<MAXIT;j++)
-			{
-		 	T a = H(i,j);
-		 	H(i,j) = ci*a+si*H(i+1,j);
-		 	H(i+1,j) = -si*a+ci*H(i+1,j);
-	     		}
-	 	}
-
-	// Loese R_k c = - d_k
-	d *= -1.;
-	gmres_backsubstitute(H,c,d,MAXIT-1);
-	for(int i=0;i<MAXIT;i++)
-		{
-                if(!incore) st->get(v[0],i);
-                x.axpy(c[i],v[incore?i:0]);
-                }
+	 // zum Neustart: Konstruiere R_k und loese R_k c = - d_k
+	if(!updated) gmres_update(H,cci,ssi,d,c,MAXIT-1,v,st,incore,x);
 
       	} // l schleife
 flag=1;
