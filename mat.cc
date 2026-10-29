@@ -2565,7 +2565,7 @@ const double* NRMat<double>::diagonalof(NRVec<double> &r, const bool divide, boo
 		}else{
 			NRVec<double> tmp(mm, cpu);
 			for(int i=0;i<mm;i++){
-				const double x = cublasDdot(nn, v + i, 1, v + i, 1);
+				const double x = cublasDdot(nn, v + i, mm, v + i, mm); //column i
 				tmp[i] = x;
 			}
 			tmp.moveto(location);
