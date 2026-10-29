@@ -199,7 +199,7 @@ if(verbose) {std::cout << "Lanczos converged in "<<it<<" iterations.\n"; std::co
 for(nroot=0; nroot<nroots; ++nroot)
 	{
         eivals[nroot]=r[nroot];
-	if(eivecs)
+	if(eivecs || eivecsfile)
 		{
 		vec1=0;
 		for(j=0; j<krylovsize; ++j )
