@@ -223,90 +223,90 @@ switch(Euler_case(type[0],type[1],type[2]))
 case Euler_case('x','z','x'):
 	{
         q[0] = c2*(c1*c3-s1*s3);
-        q[1] = c2*(s1*c3+c1*s3);
-        q[2] = -s2*(s1*c3-c1*s3);
-        q[3] = s2*(c1*c3+s1*s3);
+        q[1] = -c2*(s1*c3+c1*s3);
+        q[2] = s2*(s1*c3-c1*s3);
+        q[3] = -s2*(c1*c3+s1*s3);
 	}
 	break;
 
 case Euler_case('x','y','x'):
 	{
         q[0] = c2*(c1*c3-s1*s3);
-        q[1] = c2*(s1*c3+c1*s3);
-        q[2] = s2*(c1*c3+s1*s3);
-        q[3] = s2*(s1*c3-c1*s3);
+        q[1] = -c2*(s1*c3+c1*s3);
+        q[2] = -s2*(c1*c3+s1*s3);
+        q[3] = -s2*(s1*c3-c1*s3);
 	}
 	break;
 
 case Euler_case('y','x','y'):
         {
         q[0] = c2*(c1*c3-s1*s3);
-        q[1] = s2*(c1*c3+s1*s3);
-        q[2] = c2*(s1*c3+c1*s3);
-        q[3] = -s2*(s1*c3-c1*s3);
+        q[1] = -s2*(c1*c3+s1*s3);
+        q[2] = -c2*(s1*c3+c1*s3);
+        q[3] = s2*(s1*c3-c1*s3);
         }
 	break;
 
 case Euler_case('y','z','y'):
         {
         q[0] = c2*(c1*c3-s1*s3);
-        q[1] = s2*(s1*c3-c1*s3);
-        q[2] = c2*(s1*c3+c1*s3);
-        q[3] = s2*(c1*c3+s1*s3);
+        q[1] = -s2*(s1*c3-c1*s3);
+        q[2] = -c2*(s1*c3+c1*s3);
+        q[3] = -s2*(c1*c3+s1*s3);
         }
 	break;
 
 case Euler_case('z','y','z'):
         {
         q[0] = c2*(c1*c3-s1*s3);
-        q[1] = -s2*(s1*c3-c1*s3);
-        q[2] = s2*(c1*c3+s1*s3);
-        q[3] = c2*(s1*c3+c1*s3);
+        q[1] = s2*(s1*c3-c1*s3);
+        q[2] = -s2*(c1*c3+s1*s3);
+        q[3] = -c2*(s1*c3+c1*s3);
         }
 	break;
 
 case Euler_case('z','x','z'):
         {
         q[0] = c2*(c1*c3-s1*s3);
-        q[1] = s2*(c1*c3+s1*s3);
-        q[2] = s2*(s1*c3-c1*s3);
-        q[3] = c2*(s1*c3+c1*s3);
+        q[1] = -s2*(c1*c3+s1*s3);
+        q[2] = -s2*(s1*c3-c1*s3);
+        q[3] = -c2*(s1*c3+c1*s3);
         }
 	break;
 
 case Euler_case('x','z','y'):
         {
         q[0] = s1*s2*s3 +c1*c2*c3;
-        q[1] = s1*c2*c3 - c1*s2*s3;
-        q[2] = -s1*s2*c3+c1*c2*s3;
-        q[3] = s1*c2*s3 +c1*s2*c3;
+        q[1] = -(s1*c2*c3 - c1*s2*s3);
+        q[2] = -(-s1*s2*c3+c1*c2*s3);
+        q[3] = -(s1*c2*s3 +c1*s2*c3);
         }
 	break;
 
 case Euler_case('x','y','z'):
         {
 	q[0] = -s1*s2*s3 + c1*c2*c3;
-	q[1] = s1*c2*c3 +c1*s2*s3;
-	q[2] = -s1*c2*s3 + c1*s2*c3;
-	q[3] = s1*s2*c3 + c1*c2*s3;
+	q[1] = -(s1*c2*c3 +c1*s2*s3);
+	q[2] = -(-s1*c2*s3 + c1*s2*c3);
+	q[3] = -(s1*s2*c3 + c1*c2*s3);
         }
 	break;
 
 case Euler_case('y','x','z'):
         {
         q[0] = s1*s2*s3 + c1*c2*c3;
-        q[1] = s1*c2*s3 + c1*s2*c3;
-        q[2] = s1*c2*c3 - c1*s2*s3;
-        q[3] = -s1*s2*c3 + c1*c2*s3;
+        q[1] = -(s1*c2*s3 + c1*s2*c3);
+        q[2] = -(s1*c2*c3 - c1*s2*s3);
+        q[3] = -(-s1*s2*c3 + c1*c2*s3);
         }
 	break;
 
 case Euler_case('y','z','x'):
         {
         q[0] = -s1*s2*s3 + c1*c2*c3;
-        q[1] = s1*s2*c3 + c1*c2*s3;
-        q[2] = s1*c2*c3 + c1*s2*s3;
-        q[3] = -s1*c2*s3 + c1*s2*c3;
+        q[1] = -(s1*s2*c3 + c1*c2*s3);
+        q[2] = -(s1*c2*c3 + c1*s2*s3);
+        q[3] = -(-s1*c2*s3 + c1*s2*c3);
         }
 	break;
 
@@ -322,9 +322,9 @@ case Euler_case('z','y','x'):
 case Euler_case('z','x','y'):
         {
         q[0] = -s1*s2*s3 + c1*c2*c3;
-        q[1] = -s1*c2*s3 + c1*s2*c3;
-        q[2] = s1*s2*c3 +  c1*c2*s3;
-        q[3] = s1*c2*c3 + c1*s2*s3;
+        q[1] = -(-s1*c2*s3 + c1*s2*c3);
+        q[2] = -(s1*s2*c3 +  c1*c2*s3);
+        q[3] = -(s1*c2*c3 + c1*s2*s3);
         }
 	break;
 }//switch

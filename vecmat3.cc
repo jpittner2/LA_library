@@ -1205,6 +1205,7 @@ void Mat3<T>::svd(Mat3 &u, Vec3<T> &w, Mat3 &v, bool proper_rotations) const
 Mat3 ata= this->Ttimes(*this);
 Vec3<T> ww; //actually not needed squares of singular values
 ata.eivec_sym(ww,v,true);
+if(proper_rotations && v.determinant()<0) {v[0][2]= -v[0][2]; v[1][2]= -v[1][2]; v[2][2]= -v[2][2];} //det v = +1, the sign goes to w[2]
 Mat3 uw = (*this)*v;
 Mat3 r;
 uw.qrd(u,r);
