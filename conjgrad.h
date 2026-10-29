@@ -46,7 +46,7 @@ double t,tt,bscal,ascal;
 
 NRVec<T> p,rr, *r;
 NRVec<T> q(m),s(m);
-if(issquare) r=&s; else r = new NRVec<T>(m);
+if(issquare) r=&s; else r = new NRVec<T>(n); //A^T s
 
 if(doguess)
 	{
