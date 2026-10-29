@@ -181,16 +181,30 @@ void symmetry_faktor(const fourindexsymtype symmetry,const union packed_index<I>
 {
 switch(symmetry)
 	{
-	case twoelectronrealmullikanreducedsymAA:
-		if(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l) elem*=.5;
-		if(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l) elem*=.5;
+	case twoelectronrealmullikanreducedsymAA: //the element occurs 1+m times, m = number of nontrivial permutations leaving the indices unchanged (0, 1 or 3)
+		{
+		int m=(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l)
+		     +(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l)
+		     +(index.indiv.i==index.indiv.l && index.indiv.j==index.indiv.k);
+		if(m) elem /= (T)(1+m);
+		}
 		break;
 	case twoelectronrealmullikanreducedsymAB:
 		if(index.indiv.i==index.indiv.j && index.indiv.k==index.indiv.l) elem*=.5;
 		break;
-	case antisymtwoelectronrealdirac: 
-	case antisymtwoelectronrealdiracAB: 
-		laerror("not implemented");
+	case antisymtwoelectronrealdirac: //i==j or k==l: element vanishes by antisymmetry
+		if(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l
+			|| index.indiv.i==index.indiv.l && index.indiv.j==index.indiv.k	) elem*=.5;
+		break;
+	case antisymtwoelectronrealdiracAB:
+		if(index.indiv.i==index.indiv.k && index.indiv.j==index.indiv.l) elem*=.5;
+		break;
+	case twoelectronrealmullikanAB:
+		if(index.indiv.i==index.indiv.j) elem*=.5;
+		if(index.indiv.k==index.indiv.l) elem*=.5;
+		break;
+	case T2ijab_unitary: break; //all index coincidences make the element vanish due to the generated (anti)symmetry
+	case T2IjAb_unitary: break; //the same
 	case twoelectronrealmullikan:
 		if(index.indiv.i==index.indiv.j) elem*=.5;
 		if(index.indiv.k==index.indiv.l) elem*=.5;
@@ -429,7 +443,8 @@ public:
 //large file sequentially is implemented:
 //the user of the class must open the file with O_DIRECT
 //NOTE!!! it will not work on linux 2.4, where O_DIRECT requires filesize to be a multiple of the block; 2.6 kernel is necessary!!!
-//it used to work on older 2.6 kernels, but now does not work again since there is restriction to 512-byte alignment
+//the buffer is page-aligned and its size a multiple of the page and block size, as O_DIRECT requires;
+//tested on linux 6.6 / ext4 in 2026 (bugtests/tensor/Q25.cc), also for a file size not a multiple of the block
 
 template <class I, class T>
 class fourindex_ext {
@@ -765,6 +780,8 @@ template <class I, class T>
 fourindex<I,T> & fourindex<I,T>::operator+=(const fourindex<I,T> &rhs)
 {
 if(nn!=rhs.nn) laerror("incompatible dimensions for +=");
+if(symmetry==undefined_symmetry && !list) symmetry=rhs.symmetry; //empty object adopts the symmetry
+if(symmetry!=rhs.symmetry) laerror("incompatible symmetries for +=");
 if(!count) {count=new int;  *count=1; list=NULL;}
 else copyonwrite();
 register matel4<I,T> *l=rhs.list;
@@ -780,6 +797,8 @@ template <class I, class T>
 fourindex<I,T> & fourindex<I,T>::join(fourindex<I,T> &rhs)
 {
 if(nn!=rhs.nn) laerror("incompatible dimensions for join");
+if(symmetry==undefined_symmetry && !list) symmetry=rhs.symmetry; //empty object adopts the symmetry
+if(symmetry!=rhs.symmetry) laerror("incompatible symmetries for join");
 if(*rhs.count!=1) laerror("shared rhs in join()");
 if(!count) {count=new int;  *count=1; list=NULL;}
 else copyonwrite();
