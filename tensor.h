@@ -107,8 +107,11 @@ public:
 	Signedpointer(T *p, int s) : ptr(p),sgn(s) {};
 	//dereferencing *ptr  should be ignored for sgn==0
 	const T operator=(const T rhs) {if(ptr_ok(ptr)) *ptr = signeddata(sgn,rhs); return rhs;}
-	void operator*=(const T rhs) {if(ptr_ok(ptr)) *ptr *= rhs;}
-	void operator/=(const T rhs) {if(ptr_ok(ptr)) *ptr /= rhs;}
+	//the element L is related to the stored value S by L=signeddata(sgn,S): S, -S, conj(S) (sgn 2) or -conj(S) (sgn -2)
+	//for sgn +-1: L*a = +-S*a, so S*=a; for sgn +-2: L*a = +-conj(S)*a = +-conj(S*conj(a)), so S*=conj(a)
+	//(signeddata(sgn,rhs) cannot be used here, for negative sgn it would also negate the factor)
+	void operator*=(const T rhs) {if(ptr_ok(ptr)) *ptr *= (sgn==2||sgn== -2)? LA_traits<T>::conjugate(rhs) : rhs;}
+	void operator/=(const T rhs) {if(ptr_ok(ptr)) *ptr /= (sgn==2||sgn== -2)? LA_traits<T>::conjugate(rhs) : rhs;}
 	void operator+=(T rhs) {if(ptr_ok(ptr)) *ptr += signeddata(sgn,rhs);}
 	void operator-=(T rhs) {if(ptr_ok(ptr)) *ptr -= signeddata(sgn,rhs);}
 };
