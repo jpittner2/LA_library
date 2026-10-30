@@ -57,7 +57,7 @@ public:
 	~DIIS();
 	DIIS(const DIIS &) = delete; //owns raw storage, not copyable
 	DIIS & operator=(const DIIS &) = delete;
-	typename LA_traits<U>::normtype extrapolate(T &vec, U &errvec, bool verbose=false, const Un diiseps=0, bool errvecout=false); //vec is input/output, errvec optionally too; returns square residual norm
+	typename LA_traits<U>::normtype extrapolate(T &vec, U &errvec, bool verbose=false, const Un diiseps=0, bool errvecout=false); //vec is input/output, errvec optionally too; returns the norm of the input errvec (1 in the first call)
 	};
 
 template<typename T, typename U>

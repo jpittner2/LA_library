@@ -42,7 +42,7 @@ namespace LA {
 //@@@implement start from larger Krylov space than a single vector - useful for multiroot solutions
 
 
-//Davidson algorithm: J. Comp. Phys. 17:817 (1975) 
+//Davidson algorithm: J. Comput. Phys. 17, 87 (1975)
 
 
 template <typename T, typename Matrix>

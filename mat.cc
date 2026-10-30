@@ -1402,7 +1402,7 @@ const NRSMat<T> NRMat<T>::timestransposed() const {
 
 /***************************************************************************//**
  * fill given real matrix with random numbers
- * @param[in] x generate random numbers from the interval [0, x]
+ * @param[in] x generate random numbers from the interval [-x, x)
  ******************************************************************************/
 template<>
 void NRMat<double>::randomize(const double &x) {
@@ -1432,7 +1432,7 @@ void NRMat<double>::randomize(const double &x) {
 /***************************************************************************//**
  * fill given complex matrix with random numbers
  * real/imaginary components are generated independently
- * @param[in] x generate random numbers from the interval [0, x]
+ * @param[in] x generate random numbers from the interval [-x, x)
  ******************************************************************************/
 template<>
 void NRMat<std::complex<double> >::randomize(const double &x) {

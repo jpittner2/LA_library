@@ -207,9 +207,9 @@ public:
 	//! unary minus
 	const NRMat operator-() const;
 
-	//! add scalar value to all matrix elements and return the result by value
+	//! add scalar value to the diagonal elements and return the result by value
 	inline const NRMat operator+(const T &a) const;
-	//! subtract scalar value from all matrix elements and return the result by value
+	//! subtract scalar value from the diagonal elements and return the result by value
 	inline const NRMat operator-(const T &a) const;
 	//! multiply all matrix elements by a scalar value and return the result by value
 	inline const NRMat operator*(const T &a) const;
