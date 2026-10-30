@@ -18,6 +18,7 @@
 #ifndef _LAERROR_H_
 #define _LAERROR_H_
 #include <iostream>
+#include <string>
 
 #include <signal.h>
 
@@ -36,8 +37,9 @@ extern  bool _LA_count_check; //intentionally not const
 class LAerror : public std::exception
 	{
 	public:
-	const char *msg;
-	LAerror(const char *s) {msg=s;};
+	std::string msg; //own copy: the argument may be a local buffer of an error handler
+	LAerror(const char *s) : msg(s?s:"unspecified") {};
+	const char *what() const noexcept {return msg.c_str();};
 	};
 
 #ifdef __GNUG__
