@@ -1,0 +1,123 @@
+\chapter{Bit vectors and polynomials over GF(2)}\label{ch:bitvector}
+\laheader{bitvector.h, bitvector.cc}
+
+Compressed bit vectors, which also represent polynomials over GF(2) and elements of GF($2^n$). \code{bitvector} is a reference-counted class derived from \code{NRVec} (see section~\ref{sec:concepts:refcount}).
+
+\section{Purpose and storage}
+\code{bitvector} is a compressed vector of bits stored in 64-bit blocks
+(\code{typedef uint64_t bitvector_block}, macro \code{blockbits}=64). It is publicly derived from
+\code{NRVec<bitvector_block>}, so it shares its reference counting and copy-on-demand
+behaviour; the number of blocks is \code{NRVec::size()} of the base, the number of bits is
+the (hiding) \code{bitvector::size()}. Bit $i$ is bit $i \bmod 64$ of block $\lfloor i/64\rfloor$
+(least significant first). The private member \code{modulo} $=n \bmod 64$ remembers the
+bit length; the unused high bits of the last block (``padding'') may contain garbage and are
+cleared by \code{zero_padding()} where needed. \code{bitvector_rounded(n)} rounds $n$ up to a
+multiple of 64.
+
+Besides a plain bit set, a \code{bitvector} is interpreted as a polynomial over GF(2): bit $i$ is
+the coefficient of $x^i$. Addition and subtraction are XOR, multiplication and division are
+polynomial operations, and with an irreducible polynomial the field GF($2^n$) is available.
+A comment in the header plans a \code{monic_bitvector} class (not storing the leading 1, so that
+field operations need no resizing); it is \emph{not implemented}.
+
+\section{Copy on demand}
+Copy constructor and \code{operator=} share the data (\code{operator=} is compiler-generated,
+calling \code{NRVec::operator=}), \code{|=} of the base class makes a deep copy (but beware it is
+overloaded as bitwise OR here, see Pitfalls). The following members call \code{copyonwrite()}:
+\code{clear}, \code{fill}, \code{randomize}, \code{operator++}, \code{operator--}, \code{&=}, \code{|=}, \code{^=}
+(with a bitvector argument), \code{>>=}, \code{leftshift}/\code{<<=}; \code{resize} detaches.
+The single-bit and block setters do \emph{not}: \code{set}, \code{reset}, \code{flip}, \code{assign},
+\code{setblock}, and \code{&=}, \code{|=}, \code{^=} with a \code{bitvector_block} argument (also the
+\code{bitmatrix} and \code{bitvector_from1} wrappers of \code{set}/\code{reset}/\code{flip}/\code{assign}).
+They are element-level access by design (used in inner loops) and behave like writes through \code{operator[]}:
+call \code{x.copyonwrite()} once before using them on a possibly shared vector. In DEBUG builds they raise \code{laerror}
+when the data are shared (count check as in \code{NRVec::operator[]}).
+
+\section{Reference: construction, access}
+\begin{lareference}
+\lafunc{bitvector(); explicit bitvector(const unsigned int n)}{Empty; $n$ bits, cleared.}
+\lafunc{bitvector(const bitvector_block a, const unsigned int n)}{$n$ bits, every \emph{block} set to \code{a}.}
+\lafunc{bitvector(const bitvector &rhs)}{Shallow copy.}
+\lafunc{explicit bitvector(const uint8_t *data, const unsigned int n); void getdata(uint8_t *data)}{Import/export $n$ bits from/to a byte array (\code{(n+7)/8} bytes, bit $i$ in byte \code{i/8}); little-endian machines only (laerror otherwise).}
+\lafunc{void resize(const unsigned int n, bool preserve=false)}{New bit length; with \code{preserve} keep the old bits and zero the new ones, otherwise clear everything.}
+\lafunc{unsigned int size() const}{Number of bits.}
+\lafunc{const bool operator[](const unsigned int i) const; const bool get(const unsigned int i) const}{Read bit $i$ (no assignable non-const \code{[]} exists).}
+\lafunc{bitvector_block getblock(const unsigned int i) const; void setblock(const unsigned int i, const bitvector_block b); int getblocksize() const}{Raw block access, block size in bits (64).}
+\lafunc{void set(const unsigned int i); void reset(const unsigned int i); void flip(const unsigned int i); const bool assign(const unsigned int i, const bool r)}{Set to 1, to 0, negate, assign bit $i$ (range checked in DEBUG; no copyonwrite, see above).}
+\lafunc{void clear(); void fill()}{All bits 0 / 1.}
+\lafunc{void zero_padding() const}{Clear the unused bits of the last block (logically const).}
+\lafunc{bool is_zero() const; bool iszero() const; bool is_one() const}{Test for the zero vector / the polynomial 1.}
+\lafunc{void randomize()}{Random bits via \code{RANDINT64} (chapter~\ref{ch:utilities}).}
+\lafunc{void read(int fd, bool dimensions=1, bool transp=0); void write(int fd, bool dimensions=1, bool transp=0)}{Binary I/O on a file descriptor: \code{modulo} followed by \code{NRVec::get}/\code{put} (section~\ref{sec:concepts:io}).}
+\end{lareference}
+
+\section{Reference: bitwise and integer operations}
+\begin{lareference}
+\lafunc{bitvector &operator++(); bitvector &operator--()}{Increment/decrement as a multi-word binary integer (bit 0 least significant), wrapping around.}
+\lafunc{bool operator==(const bitvector &) const; bool operator!=(const bitvector &) const}{Equality; vectors of different length are equal iff the extra bits of the longer one are zero.}
+\lafunc{bool operator<(const bitvector &) const; operator>, operator<=, operator>=}{Comparison as unsigned integers (bit $i$ has the weight $2^i$, the same reading as \code{getblock} and \code{++}), only for equal lengths (laerror otherwise).}
+\lafunc{bitvector operator~() const}{Bitwise negation.}
+\lafunc{bitvector &operator&=(const bitvector &); operator|=, operator^=; operator&, operator|, operator^}{Bitwise operations; \code{*this} is enlarged (zero-filled) if \code{rhs} is longer.}
+\lafunc{bitvector &operator&=(const bitvector_block rhs); operator|=, operator^=}{Bitwise operation with the \emph{first block} only.}
+\lafunc{bitvector &operator>>=(unsigned int i); bitvector operator>>(unsigned int i) const}{Logical right shift (towards bit 0), length kept.}
+\lafunc{bitvector &leftshift(unsigned int i, bool autoresize=false); bitvector &operator<<=(unsigned int i); bitvector operator<<(unsigned int i) const}{Logical left shift; \code{<<} and \code{<<=} enlarge the vector by $i$ bits (autoresize), \code{leftshift} by default keeps the length and drops the top bits.}
+\lafunc{unsigned int population(const unsigned int before=0) const}{Hamming weight (number of ones); \code{before}$\neq0$ is not implemented (laerror).}
+\lafunc{unsigned int bitdiff(const bitvector &y) const}{Hamming distance (same number of blocks required).}
+\lafunc{unsigned int nlz() const; unsigned int ntz() const}{Number of leading (from the top bit) and trailing zeros.}
+\end{lareference}
+
+\section{Reference: polynomials over GF(2) and GF($2^n$)}
+\begin{lareference}
+\lafunc{bitvector operator+(const bitvector &) const; operator-, operator+=, operator-=}{Addition = subtraction = XOR.}
+\lafunc{bitvector multiply(const bitvector &rhs, bool autoresize=true) const; bitvector operator*(const bitvector &rhs) const; bitvector &operator*=(const bitvector &rhs)}{Polynomial product (naive shift-and-add, no carry-less multiply instructions; for short vectors). With \code{autoresize} the result has \code{size()+rhs.size()} bits, otherwise \code{max} of the sizes (the caller guarantees no overflow).}
+\lafunc{bitvector pow(unsigned int n) const}{$p^n$ by repeated squaring.}
+\lafunc{bitvector division(const bitvector &rhs, bitvector &remainder) const; bitvector operator/(const bitvector &) const}{Polynomial division with remainder (\texttt{operator\%} returns the remainder); the remainder is resized to \code{rhs.size()}. Division by zero: laerror.}
+\lafunc{bitvector gcd(const bitvector &rhs) const; bitvector lcm(const bitvector &rhs) const}{Greatest common divisor (Euclid) and least common multiple.}
+\lafunc{bitvector composition(const bitvector &rhs) const}{$p(r(x))$ by the Horner scheme.}
+\lafunc{unsigned int degree() const}{Polynomial degree (0 for the zero polynomial).}
+\lafunc{void truncate(int t=0)}{Resize to \code{max(degree()+1, t)} bits, preserving data.}
+\lafunc{bool is_irreducible() const}{Irreducibility test over GF(2) (Rabin-type test: $x^{2^d}\equiv x$ and $\gcd(x^{2^{d/p}}-x, f)=1$ for prime divisors $p$ of the degree $d$, cf.\ Brent--Zimmermann; uses \code{factorization} of section~\ref{sec:utilities:numbers}).}
+\lafunc{bitvector field_mult(const bitvector &rhs, const bitvector &irpolynom) const}{Product in GF($2^n$)$\,=\,$GF(2)[x]/(irpolynom), $n=\deg(\mathrm{irpolynom})$; the operands must have at least $n$ bits.}
+\lafunc{bitvector field_inv(const bitvector &irpolynom) const; bitvector field_div(const bitvector &rhs, const bitvector &irpolynom) const}{Multiplicative inverse (extended Euclid; laerror if the polynomial is reducible or the input is 0 modulo it) and division in GF($2^n$).}
+\lafunc{bitvector field_pow(unsigned int n, const bitvector &irpolynom) const; bitvector field_sqrt(const bitvector &irpolynom) const}{Power and square root ($\sqrt a=a^{2^{n-1}}$) in GF($2^n$).}
+\lafunc{bitvector field_composition(const bitvector &rhs, const bitvector &irpolynom) const}{$p(r)$ evaluated in GF($2^n$).}
+\lafunc{bitvector find_irreducible(int deg, int pop=-1, int nth=1)}{Free function: an irreducible polynomial of degree \code{deg}. With \code{pop}$=-1$ random trials; otherwise the \code{nth} one (in the order of a recursive search) with Hamming weight \code{pop} (odd, $\ge3$); returns a zero vector if none was found.}
+\end{lareference}
+
+\section{bitmatrix, bitvector\_from1 and helper functions}
+\code{bitmatrix} (derived from \code{bitvector}) stores an $n\times m$ bit matrix row-wise
+(bit \code{i*m+j}). \code{bitvector_from1} is a \code{bitvector} indexed from 1.
+\begin{lareference}
+\lafunc{bitmatrix(); bitmatrix(unsigned int nn0, unsigned int mm0); void resize(const unsigned int n, const unsigned int m)}{Construct/resize (data cleared).}
+\lafunc{unsigned int nrows() const; unsigned int ncols() const}{Dimensions.}
+\lafunc{const bool operator()(const unsigned int i, const unsigned int j) const}{Read element.}
+\lafunc{void set(i,j); void reset(i,j); void flip(i,j); const bool assign(i,j,const bool r)}{Write element (no copyonwrite).}
+\lafunc{bitvector_from1(); bitvector_from1(const bitvector &rhs); explicit bitvector_from1(const unsigned int n)}{Constructors.}
+\lafunc{operator[](i); get(i); set(i); reset(i); assign(i,r); population(before)}{As in \code{bitvector}, with indices shifted by one. (Note \code{operator[]} and \code{get} are non-const here.)}
+\lafunc{void bitvector_expand(const bitvector &v, NRVec<T> &r); void bitvector_compress(bitvector &r, const NRVec<T> &v)}{Convert to/from a vector of 0/1 values of type \code{T}.}
+\lafunc{bitvector mantissa(T x, int nbits, int shift=0)}{Binary expansion of $x\,2^{\mathrm{shift}}\in[0,1)$ (laerror otherwise): bit $i$ ($1\le i<\mathrm{nbits}$) is the coefficient of $2^{-i}$.}
+\lafunc{void bitvector_decimal(T &x, const bitvector &b, int shift=0)}{Inverse of \code{mantissa}: $x=2^{\mathrm{shift}}\sum_i b_i 2^{-i}$.}
+\lafunc{std::ostream &operator<<(std::ostream &, const bitvector &); std::istream &operator>>(std::istream &, bitvector &)}{Text I/O as a string of 0/1 characters, bit 0 first, no length (input: one whitespace-delimited token, any character other than \code{'0'} is 1).}
+\lafunc{std::ostream &operator<<(std::ostream &, const bitmatrix &); std::istream &operator>>(std::istream &, bitmatrix &)}{Dimensions, then rows of 0/1 (input: whitespace-separated integers).}
+\end{lareference}
+\code{LA_traits<bitvector>} declares \code{elementtype} and \code{normtype} \code{bool}.
+
+\section{Example}
+\begin{lstlisting}
+int d=13;
+bitvector ir=find_irreducible(d,3);     //trinomial, if any
+if(ir.is_zero()) ir=find_irreducible(d,5);
+bitvector a(d);
+do a.randomize(); while(a.is_zero());
+bitvector ai = a.field_inv(ir);
+if(!a.field_mult(ai,ir).is_one()) laerror("GF(2^n) inversion failed");
+bitvector s = a.field_sqrt(ir);         //s*s == a in GF(2^13)
+bitvector u(100),v(100);
+u.randomize(); v.randomize();
+bitvector w=u*v;                        //polynomial product, 200 bits
+if(!(w%u).is_zero() || !(w/u-v).is_zero()) laerror("division");
+\end{lstlisting}
+
+\section{Pitfalls}
+\lawarning{\code{|=} is bitwise OR here, not the deep copy of the base class \code{NRVec}; to get an independent copy use \code{bitvector b(a); b.copyonwrite();}.}
+\lawarning{Bits beyond \code{size()} in the last block may be nonzero after \code{fill()}, \code{setblock()} or the block constructor; most predicates call \code{zero_padding()}, but use it explicitly before raw block access.}

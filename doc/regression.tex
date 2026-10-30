@@ -1,0 +1,174 @@
+\chapter{Regression}\label{ch:regression}
+
+This chapter describes the kernel regression module: the class \code{REG} for kernel
+regression of a scalar function of points in $\mathbb R^d$, and the class \code{REGSURF} for
+regression of (potential energy and other) surfaces of molecular geometries, including the
+computation of absorption spectra by the machine-learning nuclear ensemble approach (ML-NEA).
+
+\paragraph{Authorship and status.} The files \header{reg.h}, \header{reg.cc},
+\header{regsurf.h}, \header{regsurf.cc} and the test programs \header{test_reg.cc},
+\header{test_regsurf.cc} state ``Kernel ridge regression module Copyright (C) 2024 Pavel Florian
+\texttt{<florian43@seznam.cz>} and Jiri Pittner'', under the same GNU GPL version~3 (or later)
+licence as the rest of \LA{}. The module is written in a different style from the rest of the
+library: it works mostly with raw pointers into internally allocated \code{NRVec}/\code{NRMat}
+objects, returns \code{unsigned int} status codes (0 = success) in addition to calling
+\code{laerror}, and reads its input from text files. The headers are \emph{not} included by
+\header{la.h}; include \header{reg.h} or \header{regsurf.h} explicitly. Note that both headers
+include \code{<bits/stdc++.h>} (GCC specific) and contain \code{using namespace std;} at global
+scope. The classes are instantiated for \code{T=double} only.
+
+The descriptions below say what the code does.
+\lawarning{The regression module is experimental and has not yet been tested much in practice: a number of
+errors were found and fixed only in October 2026. The comments in the code mention an elastic-net loss, which
+the fitting algorithms do not implement; the descriptions below document what the code actually does.}
+
+%=====================================================================
+\section{Kernel functions}\label{sec:regression:kernels}
+\laheader{reg.h, reg.cc}
+All kernels take a difference vector \code{x} of length \code{dimensions} and a width $\sigma$.
+\begin{lareference}
+\lafunc{T Gaussian_kernel(const T *x, const unsigned int dimensions, const T sigma)}{$\exp(-|\mathbf x|^2/2\sigma^2)$.}
+\lafunc{T Laplacian_kernel(const T *x, const unsigned int dimensions, const T sigma)}{$\exp(-\sum_i|x_i|/\sigma)$ (1-norm).}
+\lafunc{T Exponential_kernel(const T *x, const unsigned int dimensions, const T sigma)}{$\exp(-|\mathbf x|/\sigma)$ (2-norm).}
+\lafunc{T Matern_kernel(const T *x, const unsigned int dimensions, const T sigma, const unsigned int n, const T *Matern_comb_number)}{Mat\'ern kernel of half-integer order $\nu=n+\frac12$: $e^{-r/\sigma}\sum_{k=0}^{n} c_k\,(2r/\sigma)^{n-k}$, $r=|\mathbf x|$, i.e.\ the usual form with length scale $l=\sigma\sqrt{2\nu}$ ($n=0$ exponential, $n=1$: $(1+r/\sigma)e^{-r/\sigma}$); evaluated by the Horner scheme, $k(0)=1$. \code{Matern_comb_number} must have $n+1$ elements.}
+\lafunc{unsigned int Matern_coefficient(const unsigned int n, T *comb_number)}{Fills $c_k=\frac{(n+k)!}{(2n)!}\binom nk$, $k=0..n$ ($n+1$ elements), by the recurrence $c_n=1$, $c_{k-1}=c_k\,k/((n+k)(n-k+1))$ (no factorials, no overflow for large $n$).}
+\end{lareference}
+The kernel is selected by name: \code{"Gaussian"}, \code{"Laplacian"}, \code{"Exponential"},
+\code{"Matern"}; for Mat\'ern the order $n$ is an additional parameter (rounded to an integer).
+
+%=====================================================================
+\section{REG: kernel regression in $\mathbb R^d$}\label{sec:regression:reg}
+\laheader{reg.h, reg.cc}
+
+\subsection{Model and parameters}
+The training set consists of $N$ points $\mathbf x_i\in\mathbb R^d$ (array of $N\cdot d$ values,
+point after point) with values $y_i$. The model is a weighted sum of kernels centred at the
+training points. The parameter array is $(\lambda, \alpha, \sigma[, n])$: regularization strength
+$\lambda$, mixing $\alpha\in[0,1]$ (clamped) between the ``kernel ridge'' part $\kappa=\lambda(1-\alpha)/2$
+and the ``lasso'' part $\lambda\alpha$, kernel width $\sigma$ and, for the Mat\'ern kernel, the order $n$.
+As implemented, the prediction for a point $\mathbf x$ is
+\[
+  \hat y(\mathbf x) = \Bigl(\sum_j w_j k(\mathbf x-\mathbf x_j)\Bigr)\,\frac{S+\kappa}{S} + \lambda\alpha,
+  \qquad S=\sum_j k(\mathbf x-\mathbf x_j),
+\]
+(the factor is omitted if $\kappa=0$ or $S=0$).
+
+\subsection{Construction}
+\begin{lareference}
+\lafunc{REG(const T *x, const T *y, const T *params, const unsigned int data_size, const unsigned int x_dimensions, const string kernel)}{Model from memory (data are copied).}
+\lafunc{REG(const string x_file, const string y_file, const string param_file)}{Model from text files, see below.}
+\lafunc{void Init(const T *x, const T *y, const T *params, const unsigned int data_size, const unsigned int x_dimensions, const string kernel)}{Called by the constructors; allocates the working storage. With an unknown kernel name it returns silently and the object stays uninitialized (later calls fail with laerror).}
+\lafunc{~REG()}{Frees the internal buffers.}
+\end{lareference}
+File formats (one number per line): \code{param_file} contains $N$, $d$, the kernel name,
+$\lambda$, $\alpha$, $\sigma$ and for \code{"Matern"} $n$; \code{x_file} contains $N\cdot d$
+coordinates, \code{y_file} $N$ values. If a file cannot be read the constructor returns silently
+without initializing the object.
+
+\subsection{Fitting and prediction}
+\begin{lareference}
+\lafunc{unsigned int REG_Fit(const T max_Loss, const unsigned int max_learning_cycles)}{Iterative fit. Builds the kernel matrix $K_{ij}=k(\mathbf x_i-\mathbf x_j)$ (unit diagonal) and its row sums $s_i$ on first use, starts from $w=y$ and repeats at most \code{max_learning_cycles} times the multiplicative update $p=Kw$, $p_i\leftarrow p_i(s_i+\kappa)/s_i+\lambda\alpha$, $w_i\leftarrow w_i y_i/p_i$. If \code{max_Loss}$>0$, stops when \code{Loss_Function()}$<$\code{max_Loss}.}
+\lafunc{unsigned int REG_Fit_grad(const T max_Loss, const unsigned int max_learning_cycles, const T learning_rate)}{Gradient-type variant: with $p$ as above (same $\kappa$), $g_j=\sum_k(p_k-y_k)K_{jk}/\sqrt N$ and $w_j\leftarrow w_j/(1-\eta g_j)$, $\eta$=\code{learning_rate}.}
+\lafunc{T REG_RMSE()}{Root mean square deviation of the predictions stored during the last fitting cycle from the training values.}
+\lafunc{T Loss_Function()}{Currently identical to \code{REG_RMSE()} (the regularization terms mentioned in the comment are not added).}
+\lafunc{unsigned int REG_Get_predictions(const T *x, T *y_preds, const unsigned int data_size)}{Predictions for \code{data_size} new points (array of \code{data_size}$\cdot d$ values).}
+\lafunc{unsigned int REG_Get_Score(const T *x, T *y_preds, const unsigned int data_size, const T *y, T *score)}{Predictions and \code{score[0]}$=\sum_i(y_i-\hat y_i)^2$ (sum of squares, not RMSE).}
+\lafunc{unsigned int REG_Save_fitted(const string model_file); unsigned int REG_Load_fitted(const string model_file)}{Write/read the $N$ weights, one per line (the model itself must be constructed with the same data and parameters).}
+\lafunc{unsigned int REG_Set_params(const T *params, const string kernel); unsigned int REG_Get_params(T *params, string *kernel)}{Set/get $(\lambda,\alpha,\sigma[,n])$ and the kernel name. If the kernel, $\sigma$ or $n$ changes, the kernel matrix is rebuilt in the next fit (a change of $\lambda$, $\alpha$ only needs no rebuild).}
+\lafunc{unsigned int REG_Get_weight_coeff(T *weight)}{Copy the $N$ weights.}
+\lafunc{unsigned int Build_REG_distances_mat(); unsigned int Build_REG_kernels_mat(); unsigned int Build_REG_kernels_mat_sums(); T Kernel(const T *x, const unsigned int dimensions, const unsigned int kernel_id)}{Internal steps, public in the class: difference vectors, kernel matrix, its row sums, kernel by numeric id (0 Gaussian, 1 Laplacian, 2 Exponential, 3 Mat\'ern).}
+\end{lareference}
+
+
+\subsection{Example}
+Abridged from \header{test_reg.cc}:
+\begin{lstlisting}
+#include "reg.h"
+using namespace LA;
+
+REG<double> reg("reg_test_x.csv", "reg_test_y.csv", "reg_test_p.csv");
+reg.REG_Fit(0.0, 20);          //20 cycles, no loss threshold
+double x=0.5, y;
+reg.REG_Get_predictions(&x, &y, 1);
+reg.REG_Save_fitted("reg_test_m.csv");
+\end{lstlisting}
+
+%=====================================================================
+\section{REGSURF: regression of molecular surfaces and ML-NEA spectra}\label{sec:regression:regsurf}
+\laheader{regsurf.h, regsurf.cc}
+
+\subsection{Model}
+A \code{REGSURF} model describes \code{count_levels} surfaces (e.g.\ the ground and excited state
+energies) as functions of the geometry of a system of \code{count_kernels} particles (atoms) in
+\code{count_dimensions} dimensions, trained on \code{count_geometries} geometries. For each
+geometry the matrix of interparticle distances $r_{jk}$ is converted to a \emph{descriptor}
+matrix $D_{jk}$:
+\begin{itemize}
+\item \code{"RE"}: $D_{jk}=r^{(0)}_{jk}/r_{jk}$, with the first training geometry as reference, zero diagonal;
+\item \code{"Coulomb_matrix"}: $D_{jk}=Z_jZ_k/r_{jk}$, $D_{jj}=Z_j^{2.4}$ (needs the nuclear charges $Z$);
+\item \code{"Inverse_pairs"}: $D_{jk}=1/r_{jk}$, zero diagonal;
+\item a user function set by \code{s_Set_extern_descriptor}.
+\end{itemize}
+For geometry $g$ the kernel matrix is $K^{(g)}_{jk}=k(D^{(g)}_{jk}-D^{(0)}_{jk})$ (one-dimensional
+kernel of the descriptor difference with respect to the first geometry) and its row sums
+$s^{(g)}_j$ enter the prediction for level $\ell$, which is essentially $\sum_j w^{(\ell)}_j s^{(g)}_j$
+with one weight per particle and level, corrected by a kernel ridge factor and the additive
+$\lambda_\ell\alpha_\ell$ as in \code{REG}. The parameter array is
+$(\lambda_0..\lambda_{L-1}, \alpha_0..\alpha_{L-1}, \sigma[, n])$, $L$=\code{count_levels}.
+
+\subsection{Construction and data files}
+\begin{lareference}
+\lafunc{REGSURF(const unsigned int count_dimensions, const unsigned int count_kernels, const unsigned int count_geometries, const unsigned int count_levels, const string descriptor, const string kernel, const T *params, const T *geometries, const T *values, const unsigned int *Z = nullptr)}{Model from memory. \code{geometries}: $G\cdot K\cdot d$ coordinates (geometry, particle, coordinate); \code{values}: $L\cdot G$ values, level-major (all geometries of level 0 first); \code{Z}: $K$ charges (needed for \code{"Coulomb_matrix"}, otherwise \code{laerror}; may be omitted for the other descriptors).}
+\lafunc{REGSURF(const string geometries_file, const string energies_file, const string parameters_file, const string Z_file = "")}{Model from text files, see below.}
+\lafunc{void Init(...)}{Same arguments as the memory constructor; called by both constructors. Unknown kernel: laerror.}
+\lafunc{~REGSURF()}{Frees the internal buffers.}
+\end{lareference}
+File formats: the parameters file contains, one per line, $d$, $K$, $G$, $L$, the descriptor
+name, the kernel name, $\lambda_0..\lambda_{L-1}$, $\alpha_0..\alpha_{L-1}$, $\sigma$ and for
+\code{"Matern"} $n$. The geometries file is free format: all numbers containing a decimal point
+(or comma) are read in order, other tokens (atom counts, element symbols, comments) are skipped,
+so concatenated XYZ files can be used. The energies file has one value per line in level-major
+order, the $Z$ file one integer per line.
+
+\subsection{Fitting, prediction and parameters}
+\begin{lareference}
+\lafunc{unsigned int s_Fit(const T max_Loss, const unsigned int max_learning_cycles, const T learning_rate, const bool element_invariant=true, unsigned int *kernel_classes=nullptr)}{Fits the weights of all levels: builds distances, descriptors, kernel matrices and row sums on first use, initializes the weights of level $i$ to the constant $(y_{i,0}-\lambda_i\alpha_i)/(K^2+\kappa_i)$ ($y_{i,0}$ value at the base geometry 0, $\kappa_i=\lambda_i(1-\alpha_i)K/2$) and performs at most \code{max_learning_cycles} sweeps of gradient-like updates over geometries $1..G-1$ with step \code{learning_rate}; stops a level early if \code{max_Loss}$>0$ and its loss is below \code{max_Loss}. With \code{element_invariant}, the update of each weight is replaced by the mean over the particles of the same class (\code{kernel_classes}, default the charges $Z$; without both no averaging is done).}
+\lafunc{T s_RMSE(unsigned int level); T Loss_Function(unsigned int level)}{RMSE of the predictions on the training geometries for one level; \code{Loss_Function} currently returns the same.}
+\lafunc{unsigned int s_Get_predictions(const unsigned int count_geometries, const unsigned int count_levels, const T *geom, const unsigned int *surfaces, T *predictions)}{Predictions for new geometries \code{geom} and the levels listed in \code{surfaces[0..count_levels-1]}; \code{predictions[i*count_levels+j]} is geometry $i$, level \code{surfaces[j]}.}
+\lafunc{unsigned int s_Score(const unsigned int count_geometries, const unsigned int count_levels, const T *geom, const unsigned int *surfaces, T *predictions, const T *y_values, T *score)}{Predictions and their RMSE against \code{y_values} in \code{score[0]}.}
+\lafunc{unsigned int s_Save_fitted(const string weights); unsigned int s_Load_fitted(const string weights)}{Write/read the $L\cdot K$ weights, one per line.}
+\lafunc{unsigned int s_Set_params(const string descriptor, const string kernel, const T *params); unsigned int s_Get_params(string *descriptor, string *kernel, T *params)}{Change/query descriptor, kernel and parameter array; a change of descriptor, kernel, $\sigma$ or $n$ invalidates the precomputed matrices (rebuilt in the next fit; $\lambda$, $\alpha$ need no rebuild). Unknown descriptor or kernel names raise \code{laerror} (also in the constructors). The descriptor is always set from its name, so a descriptor installed by \code{s_Set_extern_descriptor} must be installed again after \code{s_Set_params}.}
+\lafunc{unsigned int s_Set_extern_descriptor(unsigned int (*extern_func)(const unsigned int, const unsigned int, const T*, T*))}{Use a user descriptor function \code{f(count_particles, count_geometries, distances, desc)} which maps the $K\times K$ distance matrices of all geometries (consecutive) to descriptor matrices of the same layout.}
+\lafunc{unsigned int s_Get_weight_coeff(const unsigned int s_number, T *weights)}{Copy the $K$ weights of level \code{s_number}.}
+\lafunc{T Kernel(const T *x, const unsigned int dimensions, const unsigned int kernel_id); unsigned int Build_s_distances_mat(...); unsigned int Build_s_descriptor_mat(...); unsigned int Build_s_kernels_mat(...); unsigned int Build_s_kernels_mat_sums()}{Internal steps, public in the class.}
+\end{lareference}
+Free functions \code{Build_s_RE_descriptor_mat}, \code{Build_s_coulomb_}\allowbreak\code{matrix_descriptor_mat},
+\code{Build_s_inverse_}\allowbreak\code{pairs_descriptor_mat} (\code{count_particles, count_geometries, distances, desc}
+and the reference distances resp.\ $Z$) implement the built-in descriptors.
+
+\subsection{ML-NEA absorption spectra}
+\begin{lareference}
+\lafunc{unsigned int s_Load_ML_NEA_geometries(const unsigned int count_geometries, const T *geometries); unsigned int s_Load_ML_NEA_geometries(const unsigned int count_geometries, const string geometries_file)}{Load an ensemble of geometries (e.g.\ sampled from a ground-state distribution) from memory or from a free-format geometry file as above.}
+\lafunc{unsigned int s_Predict_ML_NEA_geometries()}{Predict all levels for all ensemble geometries.}
+\lafunc{unsigned int s_Compute_ML_NEA_spectra(const T E_min, const T step, const unsigned int count_steps, const T delta)}{Spectrum on the grid $E_k=E_{\min}+k\cdot\mathrm{step}$, $k<\mathrm{count\_steps}$, as a sum over geometries and levels of Gaussians of width $\delta$ centred at the predicted excitation energies $\Delta E$ (energies assumed in atomic units), weighted by $\Delta E\,f/E$. The Gaussians are normalized, $\sqrt{2/\pi}\,\delta^{-1}\exp(-2(E-\Delta E)^2/\delta^2)$ (standard deviation $\delta/2$), and only grid points within $20\delta$ of $\Delta E$ are evaluated (beyond that the exponential underflows to zero). The oscillator strength $f=\Delta E_{\min}/\Delta E$ ($\Delta E_{\min}$ the minimum of the level over the ensemble) is only a placeholder for the true oscillator strength, which the model does not predict.}
+\lafunc{unsigned int s_Save_ML_NEA_spectra(const string ML_NEA_spectra_file)}{Write the spectrum normalized to unit sum, one value per line.}
+\end{lareference}
+
+\subsection{Example}
+Abridged from \header{test_regsurf.cc} (10 levels):
+\begin{lstlisting}
+#include "regsurf.h"
+using namespace LA;
+
+REGSURF<double> regsurf("xyz.dat", "E_sum.dat", "conf_surf.dat", "Z.dat");
+regsurf.s_Fit(0.0, 100, 0.5);
+for(unsigned int i=0; i<10; ++i) cout << regsurf.s_RMSE(i) << endl;
+regsurf.s_Load_ML_NEA_geometries(50000, "nea_geoms.xyz");
+regsurf.s_Predict_ML_NEA_geometries();
+regsurf.s_Compute_ML_NEA_spectra(0.00, 0.0025, 4000, 0.2);
+regsurf.s_Save_ML_NEA_spectra("spectra.dat");
+\end{lstlisting}
+
+\section{Pitfalls}\label{sec:regression:pitfalls}
+\lawarning{\code{REG} and \code{REGSURF} hold raw pointers to their own buffers and have no user-defined copy constructor or assignment: copying an object leads to double deletion. Pass them by reference.}
+\lawarning{Errors in the input files are partly reported by \code{laerror} and partly lead to a silently uninitialized object (\code{REG}); check the return codes and the results.}

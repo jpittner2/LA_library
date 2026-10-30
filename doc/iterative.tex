@@ -1,0 +1,432 @@
+\chapter{Iterative methods}\label{ch:iterative}
+
+\laheader{davidson.h, lanczos.h, conjgrad.h, gmres.h, diis.h, bisection.h}
+
+\section{Purpose and main idea}\label{sec:iterative:purpose}
+
+This chapter describes the header-only iterative algorithms of \LA{}:
+\begin{itemize}
+\item \code{davidson()} (\header{davidson.h}): a few lowest (or closest to a target) eigenpairs of a large real symmetric or
+complex hermitian matrix, or right eigenpairs with real eigenvalues of a real non-symmetric matrix;
+\item \code{lanczos()} (\header{lanczos.h}): a few lowest (or closest to a target) eigenpairs of a large hermitian matrix;
+\item \code{conjgrad()} (\header{conjgrad.h}) and \code{gmres()} (\header{gmres.h}): solution of large linear systems $Ax=b$,
+or of the normal equations $A\Tr Ax=A\Tr b$ for rectangular $A$ (least squares);
+\item the class \code{DIIS} (\header{diis.h}): Pulay's DIIS convergence acceleration of a general fixed-point iteration;
+\item \code{bisection_find()} and \code{interpolation_find()} (\header{bisection.h}): search in a sorted array.
+\end{itemize}
+Dense (LAPACK based) diagonalization, linear solvers and matrix functions are in chapter~\ref{ch:nonclass}; the small
+subspace problems of \code{davidson} and \code{lanczos} are solved by the routines described there
+(\code{diagonalize}, \code{gdiagonalize}, \code{diagonalize3}, \code{linear_solve}). The quasi-Newton GDIIS optimizer built on
+the \code{DIIS} class is in chapter~\ref{ch:optimize}.
+
+All functions are templates defined in the headers (all except \header{bisection.h} are included by \header{la.h}) and are
+instantiated by the user's code. The matrix is a template parameter \code{Matrix} which is accessed only through a few member
+functions, so that the matrix need not be stored at all: the matrix-vector product may be computed ``directly'' from other
+data (direct CI in quantum chemistry, operators given by a formula, a product of several matrices, \dots). Any of the \LA{}
+matrix classes providing these functions (\code{NRMat}, \code{NRSMat}, \code{SparseMat}, \code{SparseSMat}, \code{CSRMat},
+\code{SemiSparseMat}, chapters~\ref{ch:mat}, \ref{ch:smat}, \ref{ch:sparse}) can also be used directly.
+
+\section{Requirements on the matrix class}\label{sec:iterative:matrix}
+
+The member functions used are listed in table~\ref{tab:iterative:matrix}; they must be \code{const}. Their semantics follow
+the \LA{} matrix classes:
+\begin{lareference}
+\lafunc{int nrows() const;  int ncols() const}{Dimensions (any integer type). The eigensolvers require a square matrix
+(\code{laerror} otherwise).}
+\lafunc{bool issymmetric() const}{\code{true} if the matrix is real symmetric or complex hermitian. \code{davidson} chooses the
+symmetric or non-symmetric algorithm by it; \code{lanczos} calls \code{laerror} if it is \code{false}. Note that
+\code{NRMat::issymmetric()} always returns \code{false}, \code{NRSMat} and \code{SparseSMat} return \code{true}, \code{SparseMat}
+returns its symmetric flag.}
+\lafunc{const T* diagonalof(NRVec<T> &r, const bool divide=0, bool cache=false) const}{With \code{divide==false}: store the
+diagonal $A_{ii}$ into \code{r} (allocated by the caller with \code{nrows()} elements) and return a pointer to the $n$ diagonal
+elements, normally \code{&r[0]}. The eigensolvers call it with \code{cache=true}; a direct matrix may then compute the diagonal
+once, keep it, and return a pointer to its own copy (the comment in davidson.h recommends this ``for efficiency in a direct
+CI case''); the library classes ignore \code{cache}. With \code{divide==true}: divide \code{r} element-wise by the nonzero
+diagonal elements (Jacobi preconditioning) and return \code{NULL}. For a rectangular matrix ($m\times n$, $m\ne n$) the
+library classes use the diagonal of $A\Tr A$ (squared column norms, \code{r} with $n=$\code{ncols()} elements) instead, which is
+the right (Jacobi) preconditioner for the normal equations used by \code{conjgrad} and \code{gmres} in that case; user matrix
+classes should follow the same convention.}
+\lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const}{$r\leftarrow\beta r+
+\alpha\,\mathrm{op}(A)\,x$ with $\mathrm{op}(A)=A$ for \code{trans=='n'} and $A\Tr$ for \code{'t'}; \code{r} is allocated by
+the caller with the right size. With $\beta=0$ the previous contents of \code{r} must be ignored (it can be uninitialized).}
+\end{lareference}
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}p{2.9cm}@{}}
+\toprule
+ & \code{issymmetric} & \code{diagonalof} & \code{gemv} \\
+\midrule
+\code{davidson} & yes & \code{divide=false} & \code{'n'}, $\beta=0$ \\
+\code{lanczos} & yes (must be true) & \code{divide=false}, only without \code{initguess} & \code{'n'}, $\beta=0$ and $\beta=1$ \\
+\code{conjgrad} & -- & \code{divide=true}, if \code{precondition} & \code{'n'}; \code{'t'} if \code{doguess} or non-square \\
+\code{gmres} & -- & \code{divide=true}, if \code{precondition} & \code{'n'}; \code{'t'} if \code{doguess} or non-square \\
+\code{explicit_matrix} & -- & -- & \code{'n'}, $\beta=0$ \\
+\bottomrule
+\end{tabular}
+\caption{Member functions of \code{Matrix} used by the iterative solvers; all of them also use \code{nrows()} and \code{ncols()}.}\label{tab:iterative:matrix}
+\end{table}
+
+\paragraph{Copy on demand.} The solvers keep the Krylov vectors as shallow copies of their work vectors
+(sec.~\ref{sec:concepts:refcount}), so the vectors \code{r} passed to \code{gemv} and \code{diagonalof} frequently share their
+data with stored vectors. A user implementation must therefore not write elements of \code{r} through \code{operator[]} or a raw
+pointer before calling \code{r.copyonwrite()}; whole-object operations (\code{r=0.}, \code{r*=beta}, \code{r|=d}, \code{axpy},
+and the \code{gemv} of the library classes) call it themselves. Forgetting it silently corrupts the Krylov space (in DEBUG
+builds the non-const \code{operator[]} of a shared vector raises \code{laerror}). The input vector \code{x} is a const reference
+and can be read freely. The library classes satisfy this.
+
+\paragraph{Out-of-core storage.} \code{davidson}, \code{lanczos}, \code{gmres} and \code{DIIS} can keep their vectors in
+scratch files instead of memory (parameter \code{incore}). They use \code{AuxStorage<T>} (\header{auxstorage.h},
+chapter~\ref{ch:utilities}): a binary file with fixed-length records of raw elements, created by \code{mkostemp} as
+\texttt{AUX\_XXXXXX} in \code{\$TMPDIR} (if set, otherwise in the current working directory) and unlinked at once, so no file
+remains, even after a crash or an exception. Only one $n$-vector (two in
+\code{davidson}) is then kept in memory per stored set besides the work vectors, at the price of reading all stored vectors in
+every iteration. If a solver is left by an exception, the storage objects themselves are not freed (raw pointers), but the
+disk space is released when the process ends.
+
+\paragraph{Template argument deduction.} The element type \code{T} of \code{davidson} and \code{lanczos} is deduced from the
+vector arguments. A literal \code{NULL} passed for one of the pointer parameters depending on \code{T} (\code{eivecs},
+\code{initguess}, \code{target}) makes the deduction fail; either cast it (\code{(NRVec<double> *)NULL}, as in t.cc) or give
+\code{T} explicitly: \code{davidson<double>(a,e,NULL,NULL,2)} (verified). Arguments left at their default values are not a
+problem.
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Davidson diagonalization}\label{sec:iterative:davidson}
+
+\laheader{davidson.h}
+
+\begin{lareference}
+\lafunc{template <typename T, typename Matrix> void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=1e-6, const bool incore=1, int maxit=100, const int maxkrylov = 500, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)}{
+Davidson's method \cite{iterative:davidson1975} for the \code{nroots} lowest eigenvalues of \code{bigmat}.
+\begin{itemize}
+\item \code{eivals}: on return the eigenvalues in its first \code{nroots} elements (ascending, or by increasing distance from
+\code{*target}); it must have at least \code{nroots} elements (\code{laerror}), it is not resized.
+\item \code{eivecs}: \code{NULL} or an array of at least \code{nroots} vectors receiving the normalized eigenvectors (by deep
+copy, \code{|=}, so their previous size does not matter).
+\item \code{eivecsfile}: \code{NULL} or a file name; the eigenvectors are then also written into this file as binary records
+of $n$ elements of type \code{T}, record $i$ = root $i$ (an existing file is removed first), also if
+\code{eivecs==NULL}.
+\item \code{nroots}: number of roots; reduced silently to \code{maxkrylov-1} if larger.
+\item \code{verbose}: print the eigenvalue estimates in each iteration and the convergence of each root to \code{std::cout}.
+\item \code{eps}: convergence threshold (see below).
+\item \code{incore}: keep the Krylov vectors $v_k$ and $Av_k$ in memory (\code{true}) or in two \code{AuxStorage} scratch files.
+\item \code{maxit}: maximum number of iterations, i.e.\ of matrix-vector products after the initial one (restarts included).
+\item \code{maxkrylov}: maximum dimension of the subspace; the subspace matrices are allocated with this dimension. When it
+is reached, the method restarts (see below).
+\item \code{initguess}: function filling its argument (allocated with $n$ elements, uninitialized) with the start vector,
+which need not be normalized. By default the unit vector $e_j$ with $j$ the index of the lowest (real part of the) diagonal
+element is used.
+\item \code{target}: if not \code{NULL}, the subspace eigenpairs are sorted by $|\lambda-\mathtt{*target}|$ instead of
+ascending order, i.e.\ the roots closest to the target value are sought.
+\end{itemize}
+Throws \code{laerror} if not converged within \code{maxit} iterations.}
+\end{lareference}
+
+\paragraph{Algorithm.} The method keeps the subspace vectors $v_k$ (not orthonormalized exactly, therefore the overlap matrix
+$S_{jk}=v_j\cdot v_k$ is kept too), the products $Av_k$, and the subspace matrix $H_{jk}=v_j\cdot Av_k$. In each iteration the
+generalized subspace eigenproblem $Hc=\lambda Sc$ is solved by \code{diagonalize} (symmetric case) or by \code{gdiagonalize}
+with \code{sorttype=2} (real eigenvalues first, in ascending order; non-symmetric case, right eigenvectors; the imaginary parts
+of complex eigenvalues are discarded). The roots are converged one after another: for the current root $\lambda$ with the
+Ritz vector $y=\sum_kc_kv_k$ the residual $\rho=\sum_kc_k(Av_k-\lambda v_k)$ is formed and the correction vector is
+$\delta_i=\rho_i/\mathrm{d}_i$ with $\mathrm{d}_i=A_{ii}-\lambda$, where $|\mathrm{d}_i|$ is limited from below by $0.1$
+(keeping its sign). The correction is normalized and orthogonalized by Gram-Schmidt to all previous subspace vectors (the
+projection on each $v_j$ is repeated while it removes more than 1\,\% of the norm) and appended to the subspace. Each iteration
+costs one \code{gemv} with \code{'n'} and one \code{diagonalof}.
+
+\paragraph{Convergence.} A root is considered converged when the coefficient of the most recently added subspace vector in its
+subspace eigenvector, $|c_{\rm last}|$, is below \code{eps}; this is \emph{not} the residual norm, and the error of the
+eigenvalue is typically much smaller than \code{eps}. After each iteration the method continues with the lowest root not yet
+converged, and returns to a lower root if its $|c_{\rm last}|$ exceeds \code{eps} again. The method finishes successfully when
+all \code{nroots} roots are converged, or (with a warning on \code{std::cout}) when the new correction vector vanishes before or
+during the orthogonalization; in this case the current Ritz values are returned even if not all roots satisfy the criterion
+(intended for tiny matrices). If $|c_{\rm last}|>100$ for the current root, ``Divergence in Davidson'' is printed and
+\code{laerror} is called.
+
+\paragraph{Restart.} When the subspace dimension reaches \code{maxkrylov}, the method restarts from the current approximation
+of the lowest root alone, but only if no root has converged yet; otherwise it fails with \code{laerror}. For several roots
+\code{maxkrylov} has therefore to be large enough to converge all of them without restart.
+
+\paragraph{Element types.} \code{T=double} is the main case. For complex hermitian matrices (\code{T=std::complex<double>})
+the method works, but according to the source comment ``does not converge so well for more than 1 root''; non-hermitian complex
+matrices are not supported. The non-symmetric real case yields right eigenvectors belonging to real eigenvalues only.
+
+The file has no header; it is read back with the \code{get} methods without dimensions, e.g.\ all roots as the rows of a matrix,
+\code{NRMat<T> V(nroots,n); V.get(fd,false);}, or root by root with \code{NRVec<T>::get(fd,false)} (\code{fd} from
+\code{open(eivecsfile,O_RDONLY)}). \code{AuxStorage(name)} cannot be used for reading, it recreates the file.
+
+
+\begin{lareference}
+\lafunc{template <typename T, typename Matrix> NRMat<T> explicit_matrix(const Matrix &bigmat)}{The explicit dense matrix of an
+implicitly given one, built column by column by \code{gemv} on unit vectors (for debugging). \code{T} must be given:
+\code{explicit_matrix<double>(a)}. Same as \code{reconstructmatrix} in chapter~\ref{ch:nonclass}.}
+\end{lareference}
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Lanczos diagonalization}\label{sec:iterative:lanczos}
+
+\laheader{lanczos.h}
+
+\begin{lareference}
+\lafunc{template <typename T, typename Matrix> void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=1e-6, const bool incore=1, int maxit=100, const int maxkrylov = 1000, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)}{
+Lanczos method for the \code{nroots} lowest (or closest to \code{*target}) eigenvalues of a hermitian matrix. The parameters
+have the same meaning as for \code{davidson}, with these differences: \code{bigmat.issymmetric()} must be \code{true}
+(\code{laerror} otherwise); the start vector is normalized by the function; \code{incore=false} keeps only the Lanczos vectors
+$v_k$ in one scratch file; the default \code{maxkrylov} is 1000.}
+\end{lareference}
+
+\paragraph{Algorithm.} Plain three-term Lanczos recurrence $w=Av_j-\beta_{j-1}v_{j-1}$, $\alpha_j=v_j\cdot w$,
+$w\leftarrow w-\alpha_jv_j$, $\beta_j=|w|$, $v_{j+1}=w/\beta_j$, one \code{gemv} per iteration (with $\beta=1$ in the
+\code{gemv} sense, accumulating into $-\beta_{j-1}v_{j-1}$). The vectors are not reorthogonalized, so that in long runs
+copies of converged eigenvalues may appear (a known property of the method in finite precision). If $\beta_j=0$ (invariant
+subspace), a random vector orthonormalized to all previous $v_k$ is used to continue. The tridiagonal matrix is diagonalized
+in each iteration by \code{diagonalize3}. All $v_k$ are stored (in core or in the scratch file) to build the eigenvectors at the
+end. If the diagonal elements $v_j\cdot Av_j$ have an imaginary part larger than $10^{-6}$, \code{laerror} reports a
+non-hermitian matrix.
+
+\paragraph{Convergence.} Converged when the changes of the \code{nroots} lowest (or closest to the target) eigenvalues
+between two iterations are all $\le$ \code{eps}; this is checked once the dimension exceeds \code{nroots}. There is no restart:
+the method fails with \code{laerror} when more than \code{maxit} iterations are needed or when the dimension reaches
+\code{maxkrylov} (the effective limit is $\min(\mathtt{maxit},\mathtt{maxkrylov}-1)$ iterations).
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Conjugate gradients}\label{sec:iterative:conjgrad}
+
+\laheader{conjgrad.h}
+
+\begin{lareference}
+\lafunc{template<typename T, typename Matrix> bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=true, const double tol=1e-8, const int itmax=1000, const bool verbose=true, bool issquare=1, const bool precondition=1)}{
+Solves $Ax=b$ by the (Jacobi preconditioned) conjugate gradient method (the source refers to the book of Stoer and Bulirsch).
+Returns \code{true} if converged, \code{false} after \code{itmax}+1 iterations without convergence; \code{x} then holds the
+last iterate.
+\begin{itemize}
+\item \code{b}: right-hand side with \code{nrows()} elements; \code{x}: initial guess and solution, must have \code{ncols()}
+elements (\code{laerror} otherwise).
+\item \code{doguess}: overwrite \code{x} by the start vector $-A\Tr b$ (divided by the diagonal if \code{precondition}),
+normalized to 1. With \code{false} the contents of \code{x} are the start vector.
+\item \code{tol}: convergence threshold, see below.
+\item \code{itmax}: maximum number of iterations; \code{verbose}: print the error in each iteration (default \code{true}).
+\item \code{issquare}: \code{true} solves $Ax=b$ directly, which requires a symmetric positive definite matrix; \code{false}
+applies CG to the normal equations $A\Tr Ax=A\Tr b$ (two \code{gemv} per iteration), usable for non-symmetric matrices.
+It is set to \code{false} automatically for a rectangular matrix.
+\item \code{precondition}: divide the residual by the diagonal (\code{diagonalof(r,true)}) in each iteration. The diagonal must
+then be positive. For a square matrix with \code{issquare=false} the diagonal of $A$ (not of $A\Tr A$) is used, since
+\code{diagonalof} cannot know that the normal equations are solved; this is not the proper preconditioner for $A\Tr A$ (the
+Jacobi preconditioner would be the squared column norms) and may slow down or break the convergence if $A$ has non-positive
+diagonal elements; use \code{precondition=false} then.
+\end{itemize}}
+\end{lareference}
+
+\paragraph{Convergence.} The criterion is $|p|\le$ \code{tol} for the current search direction $p$ (an absolute criterion;
+in the first iteration $p$ is the preconditioned residual). The function calls \code{laerror} (``singular matrix'') if
+$p\cdot Ap$ (or $|Ap|^2$) or the residual product $r\cdot z$ vanishes. Only real \code{T} is supported (the scalars are
+\code{double}).
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{GMRES}\label{sec:iterative:gmres}
+
+\laheader{gmres.h}
+
+\begin{lareference}
+\lafunc{template<typename T, typename Matrix> bool gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=1e-7, const int MAXIT=50, const bool verbose=1, bool square=1, const bool precondition=1, int neustart=0, const int incore=1)}{
+Solves $Ax=b$ by restarted GMRES with Givens rotations (after H.~R.~Schwarz, original implementation by M.~Warken). Returns
+\code{true} if converged; otherwise \code{false}, with \code{x} holding the last iterate.
+\begin{itemize}
+\item \code{b}, \code{x}, \code{doguess}, \code{precondition}: as for \code{conjgrad}; the preconditioner $D^{-1}$ (Jacobi) is
+applied from the left, i.e.\ GMRES minimizes $|D^{-1}(Ax-b)|$.
+\item \code{eps}: relative threshold; converged when the estimated (preconditioned) residual norm is below
+\code{eps}$\cdot\beta_0$, $\beta_0$ being the preconditioned residual norm of the start vector.
+\item \code{MAXIT}: dimension of the Krylov space in one cycle; \code{MAXIT+1} vectors are stored.
+\item \code{verbose}: print the residual estimate in each step (default \code{true}).
+\item \code{square}: \code{false} solves the normal equations $A\Tr Ax=A\Tr b$; set automatically for a rectangular matrix.
+\item \code{neustart}: maximum number of cycles (restarts); 0 means \code{nrows()/10}, and at least 10 cycles are always allowed.
+\item \code{incore}: 0 stores the Krylov vectors in an \code{AuxStorage} scratch file.
+\end{itemize}
+On convergence the minimizer over the whole current Krylov space is returned. A breakdown ($|h_{k+1,k}|<0.01\,$\code{eps},
+the Krylov space is invariant) ends the current cycle with the solution in that space; if it is not converged (singular
+matrix), the next cycle starts from the new residual.
+Calls \code{laerror} for a $1\times1$ system (\code{ncols()==1}), for incompatible sizes and for an exactly singular triangular
+factor. The scalars are \code{double}, so only real \code{T} is supported.}
+\lafunc{template<class T> void gmres_backsubstitute(const NRMat<T> &R, NRVec<T> &c, const NRVec<T> &d, const int k)}{Auxiliary:
+solves the upper triangular system $R_{0..k,0..k}\,c=d$ (calls \code{c.copyonwrite()}; \code{c} must be allocated).}
+\lafunc{template<typename T> void gmres_update(NRMat<T> &H, const NRVec<T> &cci, const NRVec<T> &ssi, NRVec<T> &d, NRVec<T> &c, const int k, NRVec<T> *v, AuxStorage<T> *st, const int incore, NRVec<T> &x)}{Auxiliary:
+applies the Givens rotations $0..k$ to the Hessenberg matrix \code{H} (in place), solves $Rc=-d$ and adds $\sum_{i=0}^{k}c_iv_i$ to \code{x}.}
+\end{lareference}
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{DIIS convergence acceleration}\label{sec:iterative:diis}
+
+\laheader{diis.h}
+
+Direct inversion in the iterative subspace \cite{iterative:pulay1980,iterative:pulay1982}: given the last $m$ iterates $x_i$ of
+some iterative procedure and their error vectors $e_i$, the extrapolated vector is $\sum_ic_ix_i$ with the coefficients
+minimizing $|\sum_ic_ie_i|$ subject to $\sum_ic_i=1$, obtained from the linear system
+\begin{equation}\label{eq:iterative:diis}
+\begin{pmatrix}0&-1&\cdots&-1\\-1&B_{11}&\cdots&B_{1m}\\\vdots&\vdots&&\vdots\\-1&B_{m1}&\cdots&B_{mm}\end{pmatrix}
+\begin{pmatrix}\lambda\\c_1\\\vdots\\c_m\end{pmatrix}=\begin{pmatrix}-1\\0\\\vdots\\0\end{pmatrix},\qquad B_{ij}=e_i\cdot e_j .
+\end{equation}
+
+\begin{lareference}
+\lafunc{template<typename T, typename U> class DIIS}{\code{T} is the type of the iterated quantity, \code{U} the type of the
+error vector, typically \code{NRVec}, \code{NRMat} or \code{NRSMat} (e.g.\ \code{T=NRSMat<double>} for a Fock or density
+matrix and \code{U=NRMat<double>} for the commutator error). Both template arguments must be given (there is no default).
+Requirements: \code{T} and \code{U} need \code{operator|=}, \code{clear()}, \code{axpy()}, \code{copyonwrite()} and the traits
+\code{LA_traits<>::elementtype} and \code{normtype}; \code{U} also \code{dot()} and \code{norm()}. The element types of
+\code{T} and \code{U} must be the same (the matrix of eq.~\eqref{eq:iterative:diis} is built over the element type of \code{U}
+and converted to that of \code{T}). For out-of-core storage \code{T} and \code{U} must be \code{NRVec}, \code{NRMat} or
+\code{NRSMat} of plain data (\code{AuxStorage}) and keep their size.}
+\lafunc{DIIS()}{Uninitialized object (for arrays of \code{DIIS}); \code{setup()} must be called before use, otherwise
+\code{extrapolate} calls \code{laerror}.}
+\lafunc{DIIS(const int n, const bool core=1)}{Subspace of at most \code{n} stored iterates, kept in memory (\code{core=true}) or
+in two \code{AuxStorage} scratch files.}
+\lafunc{void setup(const int n, const bool core=1)}{(Re)initialize as by the constructor; the previous storage is released and
+all stored vectors are forgotten. Can be called repeatedly.}
+\lafunc{void reset()}{Forget all stored vectors (the next \code{extrapolate} starts a new subspace) but keep the allocated storage
+and the dimension. Used to restart DIIS, e.g.\ after a step judged unreasonable (\code{GDIIS_Optimizer}, chapter~\ref{ch:optimize}).
+After \code{reset()} the object behaves exactly as a freshly constructed one (tested in testoptimize.cc).}
+\lafunc{typename LA_traits<U>::normtype extrapolate(T &vec, U &errvec, bool verbose=false, const Un diiseps=0, bool errvecout=false)}{
+Stores deep copies of \code{vec} and \code{errvec} as the newest pair (when \code{n} pairs are already stored, the oldest is
+dropped: circular buffer), updates $B$ with the products \code{errvec.dot(}$e_i$\code{)} and solves
+eq.~\eqref{eq:iterative:diis} for the current number $m$ of stored pairs (\code{linear_solve} for \code{NRSMat},
+chapter~\ref{ch:nonclass}). \code{vec} is overwritten by $\sum_ic_ix_i$, and with \code{errvecout=true} also \code{errvec} by
+$\sum_ic_ie_i$ (the estimated error of the extrapolated vector). \code{diiseps} (type \code{LA_traits<U>::normtype}) is added
+to the diagonal element $B_{mm}$ of the new vector as a regularization. \code{verbose} prints the solution vector
+$(\lambda,c_1,\dots,c_m)$. Returns $|\mathtt{errvec}|$ of the input error vector. On the first call after construction, \code{setup} or \code{reset} the pair is only stored, \code{vec} and
+\code{errvec} are unchanged, and the return value is 1.}
+\end{lareference}
+
+Typical use: in each iteration compute the new iterate $x$ and its error $e$ (e.g.\ $e=x_{\rm new}-x_{\rm old}$ for a
+fixed-point iteration, or the commutator $FDS-SDF$ in SCF), call \code{diis.extrapolate(x,e)} and continue with the
+extrapolated $x$. The stored copies are independent of the user's objects (deep copies by \code{|=}), so the user may modify
+\code{vec} and \code{errvec} freely afterwards.
+
+For complex \code{U} the matrix $B_{ij}=e_i^\dagger e_j$ is hermitian: \code{errvec.dot(}$e_i$\code{)}$=e_{\rm new}^\dagger e_i$ is
+stored in the lower triangle of the complex \code{NRSMat}, which is hermitian in arithmetic (chapter~\ref{ch:smat}), and the
+coefficients $c_i$ are complex (tested on a complex fixed-point iteration, in core and out of core).
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Search in sorted arrays}\label{sec:iterative:bisection}
+
+\laheader{bisection.h}
+
+The header is included by \header{la.h}; included alone it needs \code{laerror} declared before (it does not include
+\header{laerror.h}).
+
+\begin{lareference}
+\lafunc{template<typename INDEX, typename COMPAR, typename SUBJECT> INDEX bisection_find(INDEX dm, INDEX hm, const SUBJECT *key, const SUBJECT *base, unsigned int lead_dimension_base, COMPAR (*cmp)(const SUBJECT *, const SUBJECT *))}{
+Bisection search of \code{*key} among the elements \code{base[i*lead_dimension_base]}, $i=\mathtt{dm},\dots,\mathtt{hm}$
+(inclusive), which must be sorted in ascending order with respect to \code{cmp}. \code{cmp(a,b)} returns 0 if equal, a positive
+value if \code{*a} $>$ \code{*b}, negative otherwise; it is always called with the array element as the first argument.
+\code{lead_dimension_base} allows searching e.g.\ the first column of a row-major matrix (\code{SUBJECT} is the element type, the
+key is compared with one element only). Returns the index $i$ of a matching element, or \code{dm-1} if not found (also for
+\code{dm>hm}). \code{INDEX} should be a signed type (for \code{dm=0} the failure value is $-1$).}
+\lafunc{template<typename INDEX, typename DISTANCE, typename SUBJECT> int interpolation_find(INDEX dm0, INDEX high, const SUBJECT *x, const SUBJECT *base, unsigned int lead_dimension_base, DISTANCE (*dist)(const SUBJECT *, const SUBJECT *))}{
+Interpolation search with the same layout and result convention (index or \code{dm0-1}). \code{dist(a,b)} is a signed distance
+$a-b$ (positive if \code{*a} $>$ \code{*b}, zero if equal); the next probe is placed by linear interpolation, so the speed
+depends on how well \code{dist} reflects the distribution of the keys. Calls \code{laerror} if an interpolated index falls
+outside the current interval (inconsistent \code{dist}).}
+\end{lareference}
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Examples}\label{sec:iterative:examples}
+
+\subsection{Davidson with a user-defined direct matrix}
+
+The matrix $H_{ij}=d_i\delta_{ij}+c\,(\delta_{i,j+1}+\delta_{i+1,j})$ is never stored; the class provides only the functions
+of table~\ref{tab:iterative:matrix}. The program was compiled and run; the three eigenvalues agree with dense diagonalization
+and the residual norms $|Hv-\lambda v|$ are $10^{-12}$--$10^{-10}$ for \code{eps=1e-8}.
+\begin{lstlisting}
+#include "la.h"
+using namespace LA;
+
+//H = diag(d) + c*(nearest neighbour coupling), never stored
+class Chain {
+	NRVec<double> d;
+	double c;
+public:
+	Chain(int n, double cc) : d(n), c(cc) {for(int i=0; i<n; ++i) d[i]=i+0.1*i*i;}
+	int nrows() const {return d.size();}
+	int ncols() const {return d.size();}
+	bool issymmetric() const {return true;}
+	const double *diagonalof(NRVec<double> &r, const bool divide=false, bool cache=false) const
+		{
+		if(divide) {r.copyonwrite(); for(int i=0; i<r.size(); ++i) r[i]/=d[i]; return NULL;}
+		r|=d; return &r[0]; //deep copy, r may share data with a stored Krylov vector
+		}
+	void gemv(const double beta, NRVec<double> &r, const char trans, const double alpha, const NRVec<double> &x) const
+		{
+		int n=d.size();
+		if(beta==0) r=0.; else r*=beta;
+		r.copyonwrite(); //before writing r[i]
+		for(int i=0; i<n; ++i)
+			{
+			double t=d[i]*x[i];
+			if(i>0) t+=c*x[i-1];
+			if(i<n-1) t+=c*x[i+1];
+			r[i]+=alpha*t;
+			}
+		}
+};
+
+int main()
+{
+const int n=2000, nroots=3;
+Chain h(n,0.5);
+NRVec<double> e(nroots);
+NRVec<double> *v = new NRVec<double>[nroots];
+davidson(h,e,v,NULL,nroots,false,1e-8);            //vectors in memory
+std::cout << "eigenvalues "<<e;
+davidson(h,e,v,NULL,nroots,false,1e-8,false);      //vectors in scratch files
+lanczos(h,e,v,NULL,nroots,false,1e-10);            //the same by Lanczos
+NRMat<double> hd = explicit_matrix<double>(h);     //for checking by dense diagonalization
+delete[] v;
+}
+\end{lstlisting}
+The \code{gemv} above ignores \code{trans} since the matrix is symmetric; for \code{conjgrad} or \code{gmres} on a
+non-symmetric direct matrix, \code{'t'} has to be implemented as well (or \code{doguess=false} used with a square matrix).
+
+\subsection{Linear systems and DIIS}
+
+\begin{lstlisting}
+NRMat<double> a(n,n); ...          //non-symmetric, diagonally dominant
+NRVec<double> b(n), x(n); ...
+bool ok=gmres(a,b,x,true,1e-10,50,false);           //x: solution
+NRSMat<double> s(n); ...           //symmetric positive definite
+ok=conjgrad(s,b,x,true,1e-10,1000,false);
+
+//DIIS acceleration of a fixed-point iteration x=f(x) (from testoptimize.cc)
+DIIS<NRVec<double>,NRVec<double> > diis(4);
+NRVec<double> x(0.,n);
+for(int it=0; it<maxit; ++it)
+	{
+	NRVec<double> xn=f(x);
+	NRVec<double> err=xn-x;
+	diis.extrapolate(xn,err);      //xn becomes the extrapolated vector
+	x=xn;
+	}
+\end{lstlisting}
+
+t.cc contains further calls: \code{davidson} on \code{NRMat}, \code{NRSMat}, \code{SparseMat} (symmetric and non-symmetric,
+out of core), \code{lanczos} and \code{davidson} compared with dense diagonalization, and \code{gmres} on dense and sparse
+matrices. testoptimize.cc tests the in-core and out-of-core \code{DIIS} and \code{reset()}.
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Pitfalls}\label{sec:iterative:pitfalls}
+
+\begin{itemize}
+\item A user \code{gemv} or \code{diagonalof} writing into \code{r} via \code{operator[]} without \code{r.copyonwrite()}
+corrupts the stored Krylov vectors (sec.~\ref{sec:iterative:matrix}).
+\item A literal \code{NULL} for \code{eivecs}, \code{initguess} or \code{target} breaks template argument deduction of
+\code{davidson}/\code{lanczos}; cast it or write \code{davidson<double>(...)}.
+\item \code{NRMat::issymmetric()} is \code{false}: \code{davidson} on an \code{NRMat} always uses the non-symmetric algorithm, and
+\code{lanczos} refuses it. Use \code{NRSMat} (or a \code{SparseMat} with the symmetric flag) for symmetric matrices.
+\item The Davidson threshold \code{eps} bounds the last expansion coefficient, the Lanczos one the change of the eigenvalues,
+the CG one the norm of the search direction (absolute) and the GMRES one the residual relative to the initial one.
+\item \code{davidson} with several roots fails if \code{maxkrylov} is reached after the first root has converged; \code{lanczos}
+has no restart at all.
+\item The diagonal used for preconditioning must have no small elements of the wrong sign (zero elements are skipped by the
+library classes); in \code{davidson} the denominators $|A_{ii}-\lambda|$ are bounded by 0.1 from below.
+\item \code{doguess=true} (the default of \code{conjgrad} and \code{gmres}) discards the contents of \code{x}.
+\item Scratch files of the out-of-core variants are created in the current directory and survive an exception.
+\item \code{DIIS} is not copyable (copy constructor and assignment are deleted, it owns raw storage); use references or pointers,
+or default-construct it in arrays (\code{NRVec<DIIS<...> >}) and call \code{setup()}.
+\end{itemize}

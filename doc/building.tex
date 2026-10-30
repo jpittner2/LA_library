@@ -1,0 +1,121 @@
+\chapter{Building and using the library}\label{ch:building}
+
+\section{Requirements}
+
+\begin{itemize}
+\item a C++11 capable compiler (the library is developed with GNU g++),
+\item BLAS and LAPACK (Fortran interface); optionally the C interfaces CBLAS and CLAPACK,
+	or Intel MKL, or ATLAS,
+\item GNU autotools (autoconf, automake, libtool) when building from the git repository,
+\item optionally NVIDIA CUBLAS (experimental, section~\ref{sec:concepts:gpu}),
+\item optionally doxygen for the generated source code reference, which is independent of this manual.
+\end{itemize}
+
+\section{Configuration and installation}
+
+\begin{lstlisting}[language=bash]
+autoreconf --install       # only if ./configure does not exist yet
+./configure [options] CXXFLAGS=-I<path> LDFLAGS=-L<path>
+make                       # library, and this manual and the doxygen pages if pdflatex/doxygen were found
+make check                 # builds the test programs, runs testoptimize
+make install
+\end{lstlisting}
+\code{CXXFLAGS} and \code{LDFLAGS} should point to the preferred BLAS/LAPACK installation; after
+running \code{configure}, check in the generated \header{Makefile} that the intended library was found.
+\code{./configure --disable-optimize CXXFLAGS='' LDFLAGS=''} gives a fast compilation for development.
+
+\code{configure} looks for the libraries in the following order and sets the preprocessor macros
+accordingly:
+\begin{enumerate}
+\item Intel MKL (\code{mkl_intel_lp64}, \code{mkl_sequential}, \code{mkl_core} and the header
+	\header{mkl_cblas.h}); if found, \code{-DHAS_MKL -DNONCLAPACK} is used;
+\item otherwise ATLAS (optional) and the reference BLAS (mandatory), CBLAS (if \code{cblas_ddot} and \header{cblas.h}
+	are not found, \code{-DNONCBLAS} is set) and LAPACK (mandatory; if the C interface \code{clapack_dgesv}
+	with \header{clapack.h} is not found, \code{-DNONCLAPACK} is set);
+\item CUBLAS: if \code{cublasInit} and \header{cublas.h} are found, the GPU support is switched on
+	(\code{-DCUDALA}) and the C interfaces of BLAS and LAPACK are not used.
+\end{enumerate}
+
+\subsection{Configure options}
+
+\begin{longtable}{@{}p{0.36\linewidth}p{0.6\linewidth}@{}}
+\toprule
+\textbf{Option} & \textbf{Effect} \\
+\midrule
+\endhead
+\code{--disable-debug} & do not define \code{DEBUG}; by default range checks and other consistency checks are compiled in (section~\ref{sec:concepts:errors}) \\
+\code{--enable-optimize=<flags>} & compiler optimization flags, default \code{-O3 -finline-limit=1000}; \code{--disable-optimize} for none \\
+\code{--enable-profile} & compile with \code{-pg} \\
+\code{--enable-matptr} & define \code{MATPTR}: \code{NRMat} stores an array of row pointers (\code{T**}), see chapter~\ref{ch:mat}; incompatible with CUDA \\
+\code{--enable-fortran64int} & define \code{LONG_FORTRAN_INT} to link with BLAS and LAPACK using 64-bit integers; implies \code{NONCBLAS} and \code{NONCLAPACK} (the old misspelling \code{--enable-fotran64int} is accepted as an alias) \\
+\bottomrule
+\end{longtable}
+
+\subsection{Preprocessor macros}
+
+The macros below are set by \code{configure} in the \header{Makefile}. Since most of the library consists of
+templates compiled in the user's code, \emph{a program using the library must be compiled with the same
+macros} (at least \code{DEBUG}, \code{MATPTR}, \code{CUDALA}, \code{NONCBLAS}, \code{NONCLAPACK},
+\code{HAS_MKL}, \code{LONG_FORTRAN_INT}, \code{FORTRAN_}), otherwise the object layouts or the called
+functions do not match.
+
+\begin{longtable}{@{}p{0.25\linewidth}p{0.71\linewidth}@{}}
+\toprule
+\textbf{Macro} & \textbf{Meaning} \\
+\midrule
+\endhead
+\code{DEBUG} & range checks of indices, dimension checks, the check of the reference count in non-const element access \\
+\code{NONCBLAS} & no CBLAS library: the \code{cblas_*} functions used by the library are provided by the wrappers in \header{noncblas.cc}, which call the Fortran BLAS \\
+\code{NONCLAPACK} & the same for the C interface of LAPACK (the library calls the Fortran LAPACK routines) \\
+\code{HAS_MKL} & use the headers of Intel MKL \\
+\code{FORTRAN_} & Fortran routine names have a trailing underscore (always set in \header{Makefile.am}) \\
+\code{LONG_FORTRAN_INT} & Fortran integers are 64-bit (\code{long}) \\
+\code{MATPTR} & row pointer representation of \code{NRMat} \\
+\code{CUDALA} & GPU support via CUBLAS (experimental) \\
+\code{NO_STRASSEN} & do not compile the experimental Strassen matrix multiplication interface (\header{strassen.cc}, needs an external library); always set in \header{Makefile.am} \\
+\bottomrule
+\end{longtable}
+
+The headers \header{fortran.h}, \header{noncblas.h}, \header{cuda_la.h}, \header{config.h} and
+\header{LA_version.h} are internal to the library and are not documented in this manual.
+
+\section{Compiling and linking user programs}
+
+Include \header{la.h} (or the individual headers) and link with \code{-lla}, followed by the
+libraries found by \code{configure}, e.g.
+\begin{lstlisting}[language=bash]
+g++ -O3 -DDEBUG -DFORTRAN_ -DNONCLAPACK -I$PREFIX/include prog.cc \
+    -L$PREFIX/lib -lla -llapack -lcblas -lblas
+\end{lstlisting}
+The variables \code{AM_CXXFLAGS} and \code{AM_LDFLAGS} in the generated \header{Makefile} show the exact
+options used for the library itself.
+
+The string \code{LA::version} (declared in \header{LA_version.h}) contains the git version, the commit date
+and the time and place of compilation of the library; it is generated by the script \header{get_git_version}
+at every \code{make}.
+
+\section{Test programs}
+
+\code{make check} builds the programs
+\begin{description}
+\item[\code{t}] a large collection of tests and usage examples of nearly all parts of the library
+	(\header{t.cc}, \header{t2.cc}); the individual tests are switched on and off by \code{if(0)} / \code{if(1)}
+	blocks in the source, many of them read their input from the standard input;
+\item[\code{test}] further small tests (\header{test.cc});
+\item[\code{tX}] a test with X11 graphics (\header{tX.cc});
+\item[\code{test_reg}, \code{test_regsurf}] tests of the regression module;
+\item[\code{testoptimize}] the regression test of the optimization module (chapter~\ref{ch:optimize}); it
+	prints PASS/FAIL lines and its exit code is the number of failed checks.
+\end{description}
+\code{make check} builds all these programs and runs \code{testoptimize} (automake \code{TESTS}); its result is in
+\header{test-suite.log}.
+
+\section{Documentation}
+
+This manual is in the subdirectory \header{doc}. \code{make manual} (alias \code{make doc}) compiles it by running
+\code{pdflatex} three times in the scratch directory \header{doc/.build} and copies the result to \header{doc/manual.pdf}; this
+is done only when a \code{.tex} file is newer than the PDF, and a \LaTeX{} error stops the build with the end of the log.
+A source code reference is generated by doxygen with the configuration file \header{doxygen.cfg} by \code{make doxygen}
+(output in \header{doxygen-doc}, rebuilt when a source file changes); it is independent of this manual.
+\code{make} (i.e.\ \code{make all}) builds both in addition to the library, each only if \code{configure} found
+\code{pdflatex} resp.\ \code{doxygen}; \code{make clean} removes \header{doc/.build} and \header{doxygen-doc} (not the PDF).

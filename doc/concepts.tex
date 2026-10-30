@@ -1,0 +1,278 @@
+\chapter{Common concepts}\label{ch:concepts}
+
+This chapter describes the design common to all classes of the library. The class chapters refer to
+it and describe only what is specific to the class.
+
+\section{Reference counting and copy on demand}\label{sec:concepts:refcount}
+
+\subsection{Shared data}
+
+An object of \code{NRVec}, \code{NRMat}, \code{NRSMat} and of all other classes holding large data
+(\code{SparseMat}, \code{SparseSMat}, \code{Tensor}, \code{fourindex}, \code{Polynomial}, the permutation
+classes, \code{bitvector}, \dots) consists of a small header (dimensions, a pointer to the data and a pointer
+to a reference counter) and the data block. The copy constructor and the assignment operator between objects
+of the same type copy only the header and increment the reference counter, so that both objects share the
+same data:
+\begin{lstlisting}
+NRVec<double> a(1.,1000);   //1000 elements equal to 1
+NRVec<double> b(a);         //no copy of the data, a.getcount()==2
+NRVec<double> c;
+c = a;                      //no copy, count is 3 now
+\end{lstlisting}
+The data are deallocated when the last object referring to them is destroyed or assigned a different
+value. The current value of the counter is returned by \code{getcount()}.
+
+Consequently, objects can be passed to and returned from functions by value at low cost, and expressions
+like \code{x = A*x} are safe, since the result is computed into a new temporary object which is then
+assigned to \code{x}.
+
+\subsection{Copy on demand}
+
+Before shared data are modified, the object must obtain its own copy of them. This is done by the member
+function
+\begin{lareference}
+\lafunc{void copyonwrite(bool detachonly=false, bool deep=true)}{If the reference count is larger than one,
+allocate a private copy of the data (copy them unless \code{detachonly}, which only allocates
+uninitialized memory) and decrement the count of the shared block. For nested element types (see
+section~\ref{sec:concepts:traits}) it is applied recursively to the elements when \code{deep} is true, also when the
+outer object is not shared. For an object with count one it does nothing (apart from the recursion).}
+\end{lareference}
+
+The rules are:
+\begin{enumerate}
+\item \emph{Every member function and operator of the library which modifies the data of an object as a whole calls
+	\code{copyonwrite()} itself} (\code{axpy}, \code{gemv}, \code{gemm}, \code{+=}, \code{*=}, assignment of a
+	scalar, \code{randomize}, \code{storesubmatrix}, \code{resize}, \dots). Explicit calls before these
+	functions are not needed.
+\item \emph{Before writing to individual elements through \code{operator[]}, \code{operator()}, a raw pointer}
+	(\code{operator T*()}, \code{&x[0]}, \dots) \emph{or a member function accessing individual elements} (such as
+	\code{swap(i,j)} of \code{NRVec}, used in sorting loops) the user has to call \code{copyonwrite()} explicitly.
+	In the first cases the library cannot distinguish a write access from a read access; element-level members do not call it
+	by design, since a \code{copyonwrite()} inside inner loops over individual elements would be an unacceptable overhead:
+\begin{lstlisting}
+NRVec<double> b(a);   //b shares data with a
+b.copyonwrite();      //b gets its own copy
+b[0] = 5.;            //a is not changed
+\end{lstlisting}
+	Without the \code{copyonwrite()}, the assignment would silently change \code{a} as well.
+	The rule applies to every object which might share its data: objects obtained by copying or assignment,
+	objects received as function arguments by reference or pointer (they may share data with other copies in
+	the caller), objects stored in other containers. A freshly constructed object (by a constructor taking
+	dimensions) has count one, but calling \code{copyonwrite()} for it costs nothing.
+\item \code{resize()} detaches an object from shared data: a shared object always gets newly allocated
+	memory (with the old contents only if their preservation is requested), even when the size does not change.
+	An object which has just been resized can be written to. \code{resize(0)} deallocates.
+\end{enumerate}
+
+\subsection{The DEBUG check of the reference count}
+
+In programs compiled with \code{DEBUG}, the non-const versions of \code{operator[]} and \code{operator()}
+of the basic classes call \code{laerror} (section~\ref{sec:concepts:errors}) when the reference count is larger
+than one, since this is a possible write to shared data:
+\begin{lstlisting}
+NRVec<double> c = a;
+c[1] = 7.;   //DEBUG: LA:ERROR - possible use of NRVec[] with count>1 as l-value
+\end{lstlisting}
+The check cannot distinguish reading from writing. Reading elements of a possibly shared object should
+therefore be done through a const reference, which selects the const version of the operator:
+\begin{lstlisting}
+void f(NRVec<double> &x)   //non-const, x may share data with another vector
+{
+const NRVec<double> &xc = x;
+double s = xc[0] + xc[1];  //no false alarm
+x.copyonwrite();
+x[0] = s;                  //write
+}
+\end{lstlisting}
+The check can be switched off at run time by setting the global variable \code{LA::_LA_count_check=false}.
+It is a safety net only: writes through raw pointers and writes in programs compiled without \code{DEBUG}
+are not checked.
+
+\lawarning{A missing \code{copyonwrite()} does not cause a crash, it silently modifies other objects which share
+the data. It is the most frequent error when using the library. A library member function which modifies
+data without calling \code{copyonwrite()} is a bug of the library.}
+
+\subsection{Objects referring to external memory}
+
+The constructor \code{NRVec(T *a, int n, bool skeleton)} with \code{skeleton=true} (and analogous
+constructors of other classes, see the class chapters) creates an object which refers to memory owned by
+somebody else, without copying. Its reference count is set to two, so that the memory is never deallocated by
+the library and any modification by a library function first makes a private copy (writes through
+\code{operator[]} go to the external memory, but are reported by the DEBUG check). It is useful for applying
+library functions to data stored elsewhere. Such an object is intended as a \emph{read-only view} of the external data.
+
+\section{Shallow and deep copy}\label{sec:concepts:assign}
+
+\begin{lareference}
+\lafunc{X(const X &rhs); X &operator=(const X &rhs)}{shallow copy: share the data with \code{rhs}
+(section~\ref{sec:concepts:refcount}).}
+\lafunc{X &operator|=(const X &rhs)}{deep copy: \code{*this = rhs} followed by \code{copyonwrite()}; this object gets its own copy
+of the data, recursively for nested types.}
+\lafunc{X &operator=(const T &a)}{assignment of a scalar. For vectors every element is set to \code{a}; for square matrices
+(\code{NRMat}, \code{NRSMat}) the matrix is set to $a\,\mathbf{1}$, i.e.\ the diagonal is set to \code{a} and the
+off-diagonal elements to zero. In the same spirit \code{+=} and \code{-=} with a scalar add to the diagonal of a matrix.}
+\end{lareference}
+The deep copy is needed when the copy will be modified by element access, or when a function
+destroys its argument (e.g.\ \code{diagonalize}):
+\begin{lstlisting}
+NRMat<double> a(n,n);
+...
+NRMat<double> asave;
+asave |= a;          //a will be overwritten
+\end{lstlisting}
+\code{x.swap(y)} exchanges the contents of two objects without any copying.
+
+Conversions between different classes (e.g.\ \code{NRSMat} $\to$ \code{NRMat}, \code{NRMat} $\to$ \code{NRVec},
+real $\to$ complex) are done by explicit constructors and always create new data, unless stated otherwise
+in the class chapters.
+
+\section{Traits and element types}\label{sec:concepts:traits}
+
+\laheader{la_traits.h}
+
+The algorithms of the library are written generically with the help of the traits class template
+\code{LA_traits<T>}, which is defined for all scalar types and for all container classes of the library.
+Its main members are:
+\begin{lareference}
+\lafunc{typedef ... elementtype}{type of the elements (for a scalar the type itself)}
+\lafunc{typedef ... normtype}{type of the norm, e.g.\ \code{double} for \code{std::complex<double>} and for \code{NRMat<std::complex<double> >}}
+\lafunc{typedef ... realtype; typedef ... complextype}{the corresponding real and complex type, e.g.\ \code{NRVec<double>} and \code{NRVec<std::complex<double> >}}
+\lafunc{typedef ... producttype}{type of the product of two objects (for \code{NRSMat} it is \code{NRMat})}
+\lafunc{static bool is_plaindata()}{true for scalar types, which can be copied by \code{memcpy}, false for the classes}
+\lafunc{static bool is_complex()}{whether the (innermost) element type is complex}
+\lafunc{static normtype norm(const T &x); static void axpy(T &s, const T &x, const elementtype c)}{norm and $s \leftarrow s + c\,x$, used by generic algorithms such as \code{matexp.h}}
+\lafunc{static void copyonwrite(T &x); static void clearme(T &x); static void deallocate(T &x)}{generic versions of the member functions (no operation for scalars)}
+\lafunc{static void put(int fd, const T &x, ...); static void get(int fd, T &x, ...); multiput; multiget}{binary I/O, recursive for nested types}
+\lafunc{static T conjugate(const T &x); realpart(x); imagpart(x); setrealpart(x,y); setimagpart(x,y)}{complex helpers, trivial for real types}
+\lafunc{static bool bigger(const T &x, const T &y); smaller(x,y)}{comparison used for sorting; for complex types it is an error}
+\end{lareference}
+The auxiliary template \code{isscalar<T>} distinguishes scalars from classes, \code{LA_traits_complex<T>}
+gives for a complex type the component type and the corresponding real vector and matrix types (used by
+the mixed real--complex functions such as \code{gemv} of a complex vector with a real matrix), and
+\code{LA_traits_io<T>} makes \code{char} types be read and written as numbers by the stream operators.
+The functions \code{LA::real(c)} and \code{LA::imag(c)} return references to the real and imaginary part of a
+\code{std::complex}, which can be used as l-values.
+
+\subsection{Element types and instantiation}
+
+The class templates are explicitly instantiated in the library for \code{double}, \code{std::complex<double>}
+and the integer types \code{char}, \code{short}, \code{int}, \code{long}, \code{long long} and their unsigned
+variants. The BLAS and LAPACK backed functions are implemented for \code{double} and \code{std::complex<double>}
+(some also for mixed real--complex arguments); calling them for other types results in a run-time
+\code{laerror} (``not implemented for this type'') or a link error. Functions implemented in the headers work
+for any type with the necessary arithmetic operations.
+
+\subsection{Nested types}
+
+The element type can be a class of the library, e.g.\ \code{NRVec<NRMat<double> >} (a list of matrices) or
+\code{NRMat<NRVec<double> >}. Copy on demand is then applied on both levels: \code{copyonwrite()} of the outer
+object copies the inner objects shallowly and calls their \code{copyonwrite()}, so that \code{|=} makes a
+complete deep copy; \code{put} and \code{get} write and read the inner objects including their dimensions.
+Arithmetic operations of the outer class (e.g.\ \code{axpy}) work elementwise via the traits.
+\lawarning{Writing into an inner object obtained through \code{operator[]} of the outer object
+(\code{v[i](j,k)=x}) requires both objects to be unshared: call \code{v.copyonwrite()} (which recursively
+detaches the inner objects as well) before.}
+
+\section{Storage conventions}\label{sec:concepts:storage}
+
+\begin{itemize}
+\item Indices run from 0. The classes \code{NRVec_from1}, \code{NRMat_from1} and \code{NRSMat_from1} are
+	derived from the basic classes and differ only in their element access operators, which take indices from 1.
+	They convert to and from their base classes without copying.
+\item \code{NRVec}: contiguous array of \code{size()} elements.
+\item \code{NRMat}: row major (C) order, element $(i,j)$ of an $n\times m$ matrix is at position $i\,m+j$;
+	\code{a[i]} is a pointer to the $i$-th row. Note that BLAS and LAPACK use column major order, so the
+	library internally works with the transposed matrices; the user does not need to care, except when calling
+	Fortran routines directly.
+\item \code{NRSMat}: lower triangle of a symmetric or hermitian matrix, packed by rows, element $(i,j)$ with
+	$i \ge j$ is at position $i(i+1)/2+j$ (which is also the upper triangle packed by columns, the format of the
+	BLAS/LAPACK packed routines). The macros/functions \code{SMat_index} compute these positions.
+\item \code{Tensor}: the leftmost index changes fastest (chapter~\ref{ch:tensor}).
+\end{itemize}
+All classes can return a raw pointer to their data (e.g.\ \code{operator T*()} of \code{NRVec} and \code{NRMat}),
+for passing them to external routines; the copy on demand rule for writes through pointers applies.
+
+\section{GPU support (experimental)}\label{sec:concepts:gpu}
+
+When compiled with \code{CUDALA} (configure finds CUBLAS), the data of \code{NRVec}, \code{NRMat} and
+\code{NRSMat} can reside either in the main memory or in the memory of a GPU. The location is described by
+the enumeration
+\begin{lstlisting}
+typedef enum {undefined=-1, cpu=0, gpu1=1, gpu2=2, gpu3=3, gpu4=4} GPUID;
+\end{lstlisting}
+Constructors take an optional location argument (default \code{undefined}, which means the global default
+location \code{DEFAULT_LOC}, settable by \code{set_default_loc()}); \code{getlocation()} returns the location
+and \code{moveto(loc)} moves the data. BLAS-like operations of objects on the GPU are performed by CUBLAS;
+operands of a binary operation must reside in the same location. Operations which are not implemented for the
+GPU call \code{laerror} (``Operation not implemented on GPU (yet). Use .moveto(0) first.''); element access
+by \code{operator[]} and \code{operator()} is possible only in the main memory. Without \code{CUDALA},
+\code{getlocation()} always returns \code{cpu} and \code{moveto()} does nothing, so that code written for
+the GPU compiles also without it.
+
+\lawarning{The GPU support is experimental and has not been thoroughly tested. It is not documented in
+detail in this manual; the class chapters at most mention operations restricted to the CPU.}
+The GPU code is currently not maintained: it uses the legacy CUBLAS API (\code{cublasInit}) and a compute capability
+(\code{-arch sm_20}) not supported by current CUDA versions, and the \code{CUDALA} build has known compile errors. It will be revisited
+with current NVIDIA hardware.
+
+\section{Error handling and DEBUG checks}\label{sec:concepts:errors}
+
+\laheader{laerror.h, laerror.cc}
+
+Errors are reported by the macro \code{laerror(message)}, which calls \code{LA::laerror2(message, function)}
+with the name of the calling function. \code{laerror2} prints the message and the function name to both
+\code{std::cout} and \code{std::cerr}, the system error message if \code{errno} is set, the command line, the
+user name, host name and working directory (and the list of files in the working directory if
+\code{LA_error_list_files} is true), and then throws an exception of the class
+\begin{lstlisting}
+class LAerror : public std::exception {public: std::string msg; ... const char *what() const noexcept;};
+\end{lstlisting}
+which can be caught and printed by \code{operator<<}:
+\begin{lstlisting}
+try { ... }
+catch(LAerror &e) {std::cerr << "error: " << e << std::endl;}
+\end{lstlisting}
+Errors detected by BLAS, CBLAS and ATLAS (via \code{xerbla} and its variants) are converted to \code{laerror}
+as well. Users may call \code{laerror} in their own code. The function \code{sigtraceback(signal,flags)}
+installs a handler printing a stack trace (by running \code{gdb} on the process) when the given signal arrives,
+e.g.\ \code{sigtraceback(SIGSEGV,1)}; see chapter~\ref{ch:utilities}.
+
+With \code{DEBUG} defined, the library checks index ranges, dimensions of operands, allocation of objects
+and the reference count in element access (section~\ref{sec:concepts:refcount}). Without \code{DEBUG}, these
+errors lead to undefined behaviour. Programs should be developed and tested with \code{DEBUG}.
+
+\section{Input and output}\label{sec:concepts:io}
+
+All classes support three kinds of I/O:
+\begin{description}
+\item[Stream operators] \code{operator<<} and \code{operator>>} write and read a human readable text format:
+	the dimensions followed by the elements (a matrix by rows, one row per line). The input operator resizes the
+	object. \code{char} elements are written as numbers.
+\item[\code{fprintf}, \code{fscanf}] formatted output with a \code{printf} format for the elements and input
+	from a C \code{FILE*} (see the class chapters).
+\item[\code{put}, \code{get}] unformatted binary I/O to a POSIX file descriptor:
+\begin{lstlisting}
+void put(int fd, bool dimensions=1, bool transp=0, bool orca_format=false) const;
+void get(int fd, bool dimensions=1, bool transp=0, bool orca_format=false);
+\end{lstlisting}
+	With \code{dimensions} true, a header with the dimensions is written before the data and \code{get} resizes the
+	object accordingly; otherwise nothing but the elements is written and the object must already have the right size.
+	The format is the binary representation of the machine (no conversion of endianity). Per class:
+	\begin{itemize}
+	\item \code{NRVec}: header $n$ and a padding \code{int} 1 (8-byte alignment), then the $n$ elements; \code{transp} is ignored.
+	\item \code{NRMat}: header \code{nrows}, \code{ncols}, then the elements by rows. With \code{transp} the transposed matrix is
+	written (dimensions swapped, elements column by column); \code{get} with \code{transp} reads such data back into the
+	original orientation, i.e.\ it reads a file stored by columns.
+	\item \code{NRSMat}: header $n$, $n$, then the packed lower triangle; \code{transp} is ignored.
+	\item \code{SparseMat}: header \code{nrows}, \code{ncols} (\code{SPMatindex}) and the \code{int} flags \code{symmetric} and
+	\code{nonzero}, then triples (row, column, element) and a terminating pair of indices $-1$; \code{SparseSMat}: header
+	\code{nrows}, \code{ncols}, triples and the terminating pair. With \code{transp} rows and columns are swapped.
+	\item \code{Tensor} and \code{fourindex} have their own \code{put}/\code{get} (see their chapters).
+	\end{itemize}
+	\code{orca_format} (dense classes only; \code{laerror} for the sparse ones) writes the header of the ORCA program: the
+	dimensions followed by \code{sizeof(T)} instead of the padding; ORCA matrices are stored by columns, so they are read by
+	\code{get(fd,true,true,true)}. Elements of class type (e.g.\ a vector of matrices) are written recursively by their own
+	\code{put}, with the same \code{dimensions} flag; \code{transp} is passed on to them only by the transposed
+	\code{NRMat} and the sparse matrices.
+\end{description}
+For storing many objects of the same size in a scratch file, see \code{AuxStorage} (chapter~\ref{ch:utilities}).

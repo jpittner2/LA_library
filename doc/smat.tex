@@ -1,0 +1,265 @@
+\chapter{Packed symmetric and hermitian matrices: NRSMat}\label{ch:smat}
+\laheader{smat.h, smat.cc}
+
+\section{Purpose}\label{sec:smat:purpose}
+\code{NRSMat<T>} stores a square symmetric (real \code{T}) or hermitian (complex \code{T})
+matrix of order $n$ in packed form, i.e.\ only $n(n+1)/2$ elements of one triangle are kept.
+It halves the memory compared to \code{NRMat<T>} and gives access to the packed BLAS/LAPACK
+routines (\code{dspmv}, \code{zhpmv}, \code{dspr2}, \code{zhpr2}, \code{dspev}, \ldots).
+Typical uses are Hamiltonians, overlap and density matrices, Hessians (see \ref{ch:optimize})
+and as input for \code{diagonalize()} (see \ref{ch:nonclass}).
+Results of operations which are not symmetric in general (e.g.\ the product of two symmetric
+matrices) are returned as \code{NRMat<T>}.
+
+\code{NRSMat_from1<T>} (section~\ref{sec:smat:from1}) is the same class with the
+two-index \code{operator()} counting from 1.
+
+The file \code{smat.cc} contains explicit instantiations for the element types \code{double},
+\code{std::complex<double>} and the integer types \code{char}, \code{short}, \code{int}, \code{long}, \code{long long} and
+their unsigned variants (\code{float} is not instantiated).
+Most numerical members have BLAS-based specializations only for the two types \code{double} and
+\code{std::complex<double>}. Some members are defined only for these two types:
+\code{amax}, \code{amin}, \code{norm}, \code{dot}, \code{axpy}, \code{randomize}, \code{inverse}
+and the products with \code{NRMat} and \code{NRSMat}.
+
+\section{Storage and concepts}\label{sec:smat:storage}
+
+\subsection{Packed lower triangle}
+The elements $A_{ij}$ with $i\ge j$ (lower triangle) are stored row by row, i.e.\ the
+row-major packed lower triangle, which is the same memory layout as the column-major packed
+upper triangle (Fortran \code{UPLO='U'}):
+\begin{equation}\label{eq:smat:index}
+A_{ij} \;\to\; \mathtt{v}[k],\qquad k = \frac{i(i+1)}{2}+j \quad (0\le j\le i<n),
+\end{equation}
+so the order is $A_{00}, A_{10}, A_{11}, A_{20}, A_{21}, A_{22}, \ldots$
+\code{size()} returns the length of the packed data $n(n+1)/2$, \emph{not} $n$; \code{nrows()} and
+\code{ncols()} both return $n$.
+The packed data can be accessed linearly by \code{operator[]} and by the conversion to a raw pointer.
+The data of an \code{NRSMat<T>} can be viewed as an \code{NRVec<T>} of length $n(n+1)/2$ and
+vice versa without copying (see section~\ref{sec:smat:construct}).
+
+\code{smat.h} defines the macro \code{NN2} (\code{(size_t)nn*(nn+1)/2}) which it uses internally and
+does not undefine; avoid using this name in your own code.
+
+\subsection{Index functions}\label{sec:smat:indexfunc}
+The following inline function templates (namespace \code{LA}, template parameter = integer type of the
+indices) compute the packed index and return \code{size_t}. They are used by the class itself and
+are useful for code working directly with packed data (e.g.\ two-electron integrals in \ref{ch:fourindex}).
+
+\begin{lareference}
+\lafunc{size_t SMat_index(T i, T j)}{Index (\ref{eq:smat:index}) for $0\le i,j<n$, either order: $(i,j)$ and $(j,i)$ give the same result.}
+\lafunc{size_t SMat_index_igej(T i, T j); size_t SMat_index_ilej(T i, T j)}{As \code{SMat_index}, faster, assuming $i\ge j$ resp.\ $i\le j$ (not checked).}
+\lafunc{size_t SMat_index_1(T i, T j)}{Index for indices counting from 1 ($1\le i,j\le n$): $i(i-1)/2+j-1$ for $i\ge j$; the resulting packed index counts from 0.}
+\lafunc{size_t SMat_index_1igej(T i, T j); size_t SMat_index_1ilej(T i, T j)}{As \code{SMat_index_1}, assuming $i\ge j$ resp.\ $i\le j$.}
+\lafunc{size_t ASMat_index(T i, T j)}{Packed index of the strictly lower triangle (antisymmetric matrices, used by \ref{ch:fourindex}): $i(i-1)/2+j$ for $i>j$, symmetric in $i,j$; returns \code{(size_t)-1} for $i=j$.}
+\lafunc{size_t ASMat_index_1(T i, T j)}{The same for indices counting from 1: $(i-2)(i-1)/2+j-1$ for $i>j$; \code{(size_t)-1} for $i=j$. Computed in the arithmetic of \code{T} (no cast to \code{size_t}), so it may overflow for large \code{int} indices.}
+\end{lareference}
+
+\subsection{Hermitian interpretation of complex matrices}\label{sec:smat:hermitian}
+For complex \code{T} an \code{NRSMat} is a \emph{hermitian} matrix: the lower triangle is stored and the
+upper triangle is its complex conjugate, $A_{ij}=A_{ji}^*$ for $i<j$. For real \code{T} this is just the
+symmetric matrix. The arithmetic of the library follows this convention:
+\begin{itemize}
+\item products: \code{NRSMat*NRVec}, \code{NRSMat*NRMat}, \code{NRMat*NRSMat}, \code{NRVec*NRSMat} ($x\Tr H$),
+  \code{NRSMat*NRSMat}, \code{NRVec::gemv} (\code{zhpmv}, \code{trans}='t' gives $H\Tr x = H^* x$),
+  \code{rank2update} (\code{zhpr2}), \code{diagonalize()}, \code{linear_solve()}, \code{trace2()} and the other
+  functions of chapter~\ref{ch:nonclass};
+\item conversions: \code{NRMat<T>(const NRSMat<T>&)} conjugates the upper triangle and
+  \code{NRSMat(const NRMat<T>&)} takes the hermitian part $(A+A\Hc)/2$;
+\item \code{fprintf()}, \code{sum()} and \code{NRMat<T>::operator+=/-=} (also \code{+}, \code{-})
+  with an \code{NRSMat} operand use the full hermitian matrix; \code{operator>>} and \code{fscanf} read the full square matrix, the elements
+  of the lower triangle (read later) are the ones stored;
+\item \code{operator<<}, \code{permuted()}, \code{submatrix(const NRVec<int>&)}, \code{rsum()} and \code{csum()} are built on
+  \code{operator()} and therefore use the stored element also for $i<j$ (no conjugation);
+\item \code{randomize()} produces a hermitian matrix (real diagonal); \code{conjugateme()}/\code{conjugate()}
+  conjugate all stored elements, which is the transposition of a hermitian matrix.
+\end{itemize}
+\lawarning{Element access does \emph{not} follow the hermitian convention: \code{operator()(i,j)} (both the const
+and the non-const version, also of \code{NRSMat_from1}) and \code{operator[]} just access the storage. $(i,j)$ and $(j,i)$
+refer to the same stored element $A_{\max(i,j),\min(i,j)}$, and \emph{no} complex conjugation is performed for $i<j$:
+\code{s(0,1)} returns $A_{10}$, not $A_{01}=A_{10}^*$. Code reading the upper triangle of a complex hermitian matrix must
+conjugate itself, e.g.\ \code{std::conj(s(j,i))} for $i<j$, and must write only the elements with $i\ge j$.}
+
+\textbf{Planned extension.} \code{NRSMat} might in the future be extended by a \code{bool} member \code{hermitian}
+which would toggle the behaviour for complex types between the hermitian and the complex symmetric interpretation
+(element access, conversions, products, \code{operator<<}, \code{permuted()}, \code{submatrix()}, \code{rsum()}, \code{csum()}).
+The conversion \code{Tensor(const NRSMat&)} (chapter~\ref{ch:tensor}), which now marks complex matrices as hermitian (symmetry 2),
+would then have to respect the flag.
+
+\subsection{Reference counting}
+\code{NRSMat} follows the copy-on-demand scheme of section~\ref{sec:concepts:refcount}: the copy
+constructor and \code{operator=} share the data, \code{operator|=} copies deeply, all modifying members
+call \code{copyonwrite()} (I found no member modifying data without it, except the broken constructor
+from a raw pointer, see below), \code{resize()} detaches, and in DEBUG builds the non-const
+\code{operator[]} and \code{operator()} raise an error if the data are shared.
+Note that the constructor \code{NRSMat(const NRVec<T>&, int)} and \code{NRVec<T>(const NRSMat<T>&)}
+also share the data (the reference count is common to the vector and the matrix).
+
+GPU support (\code{CUDALA}) is experimental, see section~\ref{sec:concepts:gpu}; many members
+are CPU only (\code{NOT_GPU}).
+
+\section{Construction, assignment, conversion}\label{sec:smat:construct}
+\begin{lareference}
+\lafunc{NRSMat()}{Empty matrix (no data, no reference count).}
+\lafunc{explicit NRSMat(const int n, const GPUID loc = undefined)}{Order $n$, elements uninitialized.}
+\lafunc{NRSMat(const T &a, const int n)}{Order $n$, all $n(n+1)/2$ stored elements (i.e.\ also the off-diagonal ones) set to \code{a}.}
+\lafunc{NRSMat(const T *a, const int n)}{Copy of $n(n+1)/2$ packed elements (lower triangle by rows) from \code{a}.}
+\lafunc{NRSMat(const NRSMat &rhs)}{Shallow copy.}
+\lafunc{NRSMat(const typename LA_traits_complex<T>::NRSMat_Noncomplex_type &rhs, bool imagpart = false)}{Complex matrix from a real one: \code{rhs} becomes the real part (\code{imagpart=false}) or the imaginary part (\code{imagpart=true}), the other part is zero. Defined only for \code{T=std::complex<double>}.}
+\lafunc{explicit NRSMat(const NRMat<T> &rhs)}{Symmetric part $(A+A\Tr)/2$ of a square dense matrix (deep copy; nonsquare input is checked only in DEBUG).}
+\lafunc{explicit NRSMat(const NRVec<T> &rhs, const int n)}{Interprets a vector of length $n(n+1)/2$ as packed matrix of order $n$. \emph{Shares} the data with \code{rhs} (no copy); length checked only in DEBUG.}
+\lafunc{explicit NRSMat(const SparseMat<T> &rhs); explicit NRSMat(const SparseSMat<T> &rhs)}{Dense from sparse, see \ref{ch:sparse}.}
+\lafunc{~NRSMat()}{Destructor, frees the data when the last reference disappears.}
+\lafunc{NRSMat & operator=(const NRSMat &rhs)}{Shallow copy, see section~\ref{sec:concepts:assign}.}
+\lafunc{NRSMat & operator|=(const NRSMat &rhs)}{Deep copy.}
+\lafunc{NRSMat & operator=(const T &a)}{Scalar matrix: zero all elements (by \code{memset}), set the diagonal to \code{a}. Dimension must be set before.}
+\lafunc{void identity()}{\code{*this = (T)1}.}
+\lafunc{void clear()}{Set all elements to zero (keeps the dimension).}
+\lafunc{void resize(const int n)}{Change the order; data are not preserved and new elements are uninitialized. A shared matrix is detached; an unshared one of the same order is left untouched; \code{n=0} deallocates.}
+\lafunc{void dealloc()}{\code{resize(0)}.}
+\lafunc{void copyonwrite(bool detachonly=false, bool deep=true)}{Make the data private, see section~\ref{sec:concepts:refcount}.}
+\lafunc{void swap(NRSMat &rhs)}{Exchange contents without copying.}
+\lafunc{void moveto(const GPUID dest); GPUID getlocation() const}{GPU location (experimental), see section~\ref{sec:concepts:gpu}.}
+\lafunc{int getcount() const}{Current reference count (0 for an empty matrix).}
+\end{lareference}
+Conversions in other classes: \code{explicit NRMat<T>(const NRSMat<T>&)} expands to a full square matrix
+(hermitian for complex types, see section~\ref{sec:smat:hermitian}); \code{explicit NRVec<T>(const NRSMat<T>&)} views the
+packed data as a vector (shared data). \code{NRMat<T>::transposedtimes()} and \code{timestransposed()}
+return $A\Hc A$ and $A A\Hc$ as \code{NRSMat} (see \ref{ch:mat}).
+
+\section{Element access}\label{sec:smat:access}
+\begin{lareference}
+\lafunc{T& operator()(const int i, const int j); const T& operator()(const int i, const int j) const}{Element $(i,j)$, $0\le i,j<n$, either order; $(i,j)$ and $(j,i)$ refer to the same storage; plain storage access, no complex conjugation for $i<j$ (see section~\ref{sec:smat:hermitian}). Range checked in DEBUG.}
+\lafunc{T& operator[](const size_t ij); const T& operator[](const size_t ij) const}{Packed element number \code{ij}, $0\le$ \code{ij} $<n(n+1)/2$, see (\ref{eq:smat:index}).}
+\lafunc{operator T*(); operator const T*() const}{Pointer to the packed data.}
+\lafunc{int nrows() const; int ncols() const}{Order $n$.}
+\lafunc{size_t size() const}{Number of stored elements $n(n+1)/2$.}
+\lafunc{bool transp(const int i, const int j) const}{Returns \code{i>j}; helper for code that uses packed storage for a matrix one triangle of which is redundant but not equal to the other (e.g.\ antisymmetric), to know whether the stored element must be transformed.}
+\lafunc{bool issymmetric() const}{Always true (interface compatibility with sparse matrices).}
+\lafunc{void simplify()}{Does nothing (interface compatibility with sparse matrices).}
+\end{lareference}
+\lawarning{The non-const \code{operator()} and \code{operator[]} do not call \code{copyonwrite()}. Call
+\code{x.copyonwrite()} before writing through them; in DEBUG builds they raise an error for a shared
+matrix even when only reading, so read elements of a possibly shared matrix through a const reference.}
+
+\section{Arithmetic and BLAS/LAPACK-backed operations}\label{sec:smat:arith}
+All in-place operators call \code{copyonwrite()}. The binary operators returning \code{NRSMat} are
+generated from the in-place ones.
+\begin{lareference}
+\lafunc{NRSMat & operator*=(const T &a)}{Multiply all elements by \code{a} (\code{dscal}/\code{zscal}).}
+\lafunc{NRSMat & operator+=(const T &a); NRSMat & operator-=(const T &a)}{Add/subtract $a\cdot 1$, i.e.\ \code{a} on the diagonal only.}
+\lafunc{NRSMat & operator+=(const NRSMat &rhs); NRSMat & operator-=(const NRSMat &rhs)}{Elementwise sum/difference (\code{daxpy}/\code{zaxpy}).}
+\lafunc{const NRSMat operator-() const}{Unary minus.}
+\lafunc{const NRSMat operator*(const T &a) const; const NRSMat operator+(const T &a) const; const NRSMat operator-(const T &a) const}{As the in-place versions (\code{+}/\code{-} act on the diagonal).}
+\lafunc{const NRSMat operator+(const NRSMat &rhs) const; const NRSMat operator-(const NRSMat &rhs) const}{Sum, difference.}
+\lafunc{const NRMat<T> operator+(const NRMat<T> &rhs) const; const NRMat<T> operator-(const NRMat<T> &rhs) const}{Sum/difference with a dense matrix, dense result.}
+\lafunc{const NRMat<T> operator*(const NRSMat &rhs) const}{Matrix product (not symmetric in general). Real: dedicated BLAS-1/2 code; complex: \code{*this * NRMat(rhs)}, see section~\ref{sec:smat:hermitian}.}
+\lafunc{const NRMat<T> operator*(const NRMat<T> &rhs) const}{$S A$ by \code{dspmv}/\code{zhpmv} column by column.}
+\lafunc{const NRVec<T> operator*(const NRVec<T> &rhs) const}{$S x$ (\code{dspmv}/\code{zhpmv}).}
+\lafunc{const NRVec<std::complex<T> > operator*(const NRVec<std::complex<T> > &rhs) const}{Real symmetric matrix times complex vector (real and imaginary parts separately).}
+\lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const}{$r \leftarrow \beta r + \alpha S x$, forwards to \code{r.gemv(beta,*this,trans,alpha,x)}; \code{trans} is ignored.}
+\lafunc{void gemv(const T beta, NRVec<std::complex<T> > &r, const char trans, const T alpha, const NRVec<std::complex<T> > &x) const}{The same, real matrix and complex vectors.}
+\lafunc{void axpy(const T alpha, const NRSMat &x)}{$S \leftarrow S + \alpha x$. For hermitian complex matrices the result is hermitian only for real $\alpha$
+(not checked).}
+\lafunc{void rank2update(const T alpha, const NRVec<T> &x, const NRVec<T> &y)}{Rank-2 update $S \leftarrow S + \alpha x y\Hc + \bar\alpha y x\Hc$ (real: $\alpha(xy\Tr+yx\Tr)$); \code{dspr2}/\code{zhpr2} for \code{double}/\code{complex<double>}, generic loop otherwise. A symmetric rank-1 update $S \leftarrow S + \beta x x\Hc$ (real $\beta$) is obtained as \code{rank2update(beta/2,x,x)}; there is no separate rank-1 member.}
+\lafunc{const T dot(const NRSMat &rhs) const}{$\sum_{i\ge j} \bar A_{ij} B_{ij}$, i.e.\ the dot product of the \emph{packed} vectors (off-diagonal elements counted once; \code{ddot}/\code{zdotc}).}
+\lafunc{const T dot(const NRVec<T> &rhs) const}{Dot product of the packed data with a vector of length $n(n+1)/2$.}
+\lafunc{const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const}{Euclidean norm of the packed data of $S - \mathtt{scalar}\cdot 1$; off-diagonal elements are counted \emph{once}, so this is not the Frobenius norm of the full matrix.}
+\lafunc{const T trace() const}{Trace.}
+\lafunc{const T sum(bool onlytriangle=false) const}{Sum of all elements of the full matrix, or of the stored triangle only.}
+\lafunc{const NRVec<T> rsum() const; const NRVec<T> csum() const}{Row sums and column sums of the full matrix (equal for real, complex conjugate of each other for hermitian matrices).}
+\lafunc{inline const T amax() const; inline const T amin() const}{Stored element with the largest/smallest absolute value (complex: $|\Re|+|\Im|$); \code{double} and \code{complex<double>} only.}
+\lafunc{const T* diagonalof(NRVec<T> &r, const bool divide = 0, bool cache = false) const}{\code{divide=false}: store the diagonal into \code{r} and return \code{&r[0]}; \code{divide=true}: divide \code{r} elementwise by the nonzero diagonal elements and return \code{NULL}. \code{cache} is unused. Interface used by iterative solvers (\ref{ch:iterative}).}
+\lafunc{NRSMat inverse()}{Inverse via \code{NRMat<T>(*this).inverse()}, symmetrized back. \code{double} and \code{complex<double>} only.}
+\lafunc{NRSMat& conjugateme(); const NRSMat conjugate() const}{Complex conjugation of all stored elements (no-op for real types).}
+\lafunc{NRSMat<typename LA_traits<T>::normtype> abs() const}{Elementwise absolute values.}
+\lafunc{NRSMat<typename LA_traits<T>::normtype> diffabs(const NRSMat &rhs) const}{Elementwise $|A_{ij}|-|B_{ij}|$.}
+\lafunc{void randomize(const typename LA_traits<T>::normtype &x)}{Uniformly distributed elements in $(-x,x)$; complex: real and imaginary parts independent, imaginary part of the diagonal set to zero. \code{double} and \code{complex<double>} only.}
+\lafunc{const bool operator==(const NRSMat &rhs) const; const bool operator!=(const NRSMat &rhs) const}{Exact elementwise comparison.}
+\end{lareference}
+
+\section{Other member functions}\label{sec:smat:other}
+\subsection{Submatrices and permutations}
+\begin{lareference}
+\lafunc{const NRSMat submatrix(const int from, const int to) const}{Diagonal block with rows/columns \code{from}\ldots\code{to} (inclusive).}
+\lafunc{const NRSMat submatrix(const NRVec<int> &selection) const}{Matrix $B_{ij} = A_{s_i s_j}$ for the index list $s$ = \code{selection}.}
+\lafunc{void storesubmatrix(const int from, const NRSMat &rhs)}{Store \code{rhs} as diagonal block starting at \code{from}.}
+\lafunc{void storesubmatrix(const NRVec<int> &selection, const NRSMat &rhs)}{$A_{s_i s_j} = B_{ij}$.}
+\lafunc{const NRSMat permuted(const NRPerm<int> &p, const bool inverse=false) const}{Symmetric permutation of rows and columns by \code{p} (indices from 1, see \ref{ch:permutation}): \code{inverse=false} gives $B_{p_i p_j}=A_{ij}$, \code{inverse=true} gives $B_{ij}=A_{p_i p_j}$.}
+\end{lareference}
+
+\subsection{Input/output}
+See section~\ref{sec:concepts:io} for the general conventions.
+\begin{lareference}
+\lafunc{void put(int fd, bool dimensions = 1, bool transp = 0, bool orcaformat=false) const}{Binary output: if \code{dimensions}, $n$ is written twice (as for a square \code{NRMat}), followed by \code{sizeof(T)} if \code{orcaformat}; then the $n(n+1)/2$ packed elements. \code{transp} is ignored.}
+\lafunc{void get(int fd, bool dimensions = 1, bool transp = 0, bool orcaformat=false)}{Binary input matching \code{put}; with \code{dimensions=false} the current order is used.}
+\lafunc{void fprintf(FILE *f, const char *format, const int modulo) const}{Formatted output of the full square matrix by \code{lawritemat} (as \code{NRMat::fprintf}, see \ref{ch:mat}).}
+\lafunc{void fscanf(FILE *f, const char *format)}{Reads the dimensions (must be equal) and then the \emph{whole square} matrix row by row; this is intentional, the data are assumed symmetric. Since $(i,j)$ and $(j,i)$ share the storage, the element read later, i.e.\ the lower triangle one, wins.}
+\lafunc{void printsorted(std::ostream &s, int direction=1, bool absvalue=false, bool stable=false, typename LA_traits<T>::normtype thr=0, int topmax=0) const}{Print the stored elements sorted with their indices, see \code{NRVec::printsorted} in \ref{ch:vec}.}
+\end{lareference}
+
+\section{Related free functions}\label{sec:smat:free}
+\begin{lareference}
+\lafunc{std::ostream& operator<<(std::ostream &s, const NRSMat<T> &x)}{Text output: \code{n n}, then the full square matrix row by row.}
+\lafunc{std::istream& operator>>(std::istream &s, NRSMat<T> &x)}{Text input of the same format; the full square is read, the lower triangle element wins (as in \code{fscanf}). Error if the dimensions differ.}
+\lafunc{const NRSMat<T> operator+(const T &a, const NRSMat<T> &rhs); const NRSMat<T> operator*(const T &a, const NRSMat<T> &rhs)}{Scalar from the left: $a\cdot 1 + S$, $aS$.}
+\lafunc{const NRSMat<T> operator-(const T &a, const NRSMat<T> &rhs) = delete}{Deliberately not available (compile error); write \code{-S+a} for $a\cdot1-S$.}
+\lafunc{NRSMat<std::complex<T> > complexify(const NRSMat<T> &rhs)}{Complex copy of a real matrix.}
+\lafunc{void NRSMat_convert(NRSMat<T> &a, const NRSMat<S> &b)}{Element type conversion (\code{a} is resized, elements converted by a cast).}
+\end{lareference}
+Functions in other headers taking \code{NRSMat} (described in \ref{ch:nonclass}): \code{diagonalize()}
+(\code{dspev}/\code{zhpev}, also generalized problem), \code{linear_solve()}, \code{trace2()},
+\code{twoside_transform()} ($C\Hc S C$), \code{matrixfunction()}, \code{sqrt()}, \code{sqrtinv()}, \code{log()},
+\code{realpart()}, \code{imagpart()}. \code{NRMat<T>} has \code{operator+=}, \code{operator-=},
+\code{operator+}, \code{operator-} and \code{operator*} with an \code{NRSMat<T>} right operand, and
+\code{NRVec<T>} has \code{gemv} with an \code{NRSMat} and \code{operator*(const NRSMat<T>&)} (vector from the left);
+see \ref{ch:mat} and \ref{ch:vec}.
+
+\section{NRSMat\_from1}\label{sec:smat:from1}
+\code{NRSMat_from1<T>} is derived from \code{NRSMat<T>} and differs only in \code{operator()}, whose
+indices run from 1 to $n$ (\code{SMat_index_1}). \code{operator[]} and everything else are inherited and
+still count from 0; arithmetic operators return \code{NRSMat<T>}, which converts back implicitly.
+\begin{lareference}
+\lafunc{NRSMat_from1(); explicit NRSMat_from1(const int n); NRSMat_from1(const T &a, const int n); NRSMat_from1(const T *a, const int n)}{As for \code{NRSMat} (the last one inherits the bug of the base constructor).}
+\lafunc{NRSMat_from1(const NRSMat<T> &rhs)}{Implicit conversion from the base class (shallow).}
+\lafunc{explicit NRSMat_from1(const NRMat<T> &rhs); explicit NRSMat_from1(const NRVec<T> &rhs, const int n)}{As for \code{NRSMat}.}
+\lafunc{const T& operator()(const int i, const int j) const; T& operator()(const int i, const int j)}{Element $(i,j)$, $1\le i,j\le n$. Range checked in DEBUG; unlike the base class the non-const version does not check the reference count. Plain storage access as in the base class (no conjugation, section~\ref{sec:smat:hermitian}).}
+\end{lareference}
+
+\section{Examples}\label{sec:smat:examples}
+\begin{lstlisting}
+#include "la.h"
+using namespace LA;
+
+int main()
+{
+const int n=4;
+NRSMat<double> s(n);
+for(int i=0; i<n; ++i) for(int j=0; j<=i; ++j) s(i,j) = 1./(1.+i+j); //fill lower triangle
+NRVec<double> x(1.,n);
+NRVec<double> y = s*x;                   //dspmv
+NRMat<double> full(s);                   //full square copy
+NRSMat<double> t = s;                    //shares data with s
+t.copyonwrite(); t(0,3) = 5.;            //same storage as t(3,0); s unchanged
+t.rank2update(0.5,x,y);                  //t += 0.5*(x y^T + y x^T)
+const NRSMat<double> &sc = s;
+double sum=0; for(size_t k=0; k<sc.size(); ++k) sum += sc[k]; //packed loop
+NRVec<double> w(n); NRMat<double> v(n,n);
+NRSMat<double> work(s);                  //diagonalize() detaches work itself
+diagonalize(work,w,&v);                  //eigenvalues/vectors, work is overwritten
+std::cout << s << w;
+}
+\end{lstlisting}
+
+\section{Pitfalls}\label{sec:smat:pitfalls}
+\begin{itemize}
+\item \code{size()} is $n(n+1)/2$, use \code{nrows()} for the order.
+\item \code{dot()} and \code{norm()} work on the packed triangle; for the Frobenius quantities of the
+  full matrix use e.g.\ \code{NRMat<T>(s).norm()} or \code{trace2()}.
+\item For complex types read section~\ref{sec:smat:hermitian} carefully.
+\item \code{NRSMat(const NRVec<T>&,int)} and \code{NRVec<T>(const NRSMat<T>&)} share data with their argument.
+\item \code{NRSMat(const NRMat<T>&)} silently symmetrizes (takes the hermitian part for complex types), it does not check symmetry.
+\item Complex matrices: \code{operator()(i,j)} with $i<j$ does not conjugate (plain storage access, section~\ref{sec:smat:hermitian}).
+\item Products of two symmetric matrices return \code{NRMat<T>}; converting back with \code{NRSMat(...)} symmetrizes.
+\item \code{operator=(const T&)} produces a scalar (diagonal) matrix, whereas the constructor \code{NRSMat(a,n)} fills all elements.
+\end{itemize}

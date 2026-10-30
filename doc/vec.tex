@@ -1,0 +1,393 @@
+\chapter{Vectors: NRVec}\label{ch:vec}
+
+\laheader{vec.h, vec.cc}
+
+\section{Purpose and main idea}\label{sec:vec:purpose}
+
+\code{NRVec<T>} is the basic dense vector class template of \LA{}: a contiguous array of \code{nn} elements of type \code{T},
+indexed from zero, with reference-counted storage (copy on demand). It is used directly as the vector type of linear algebra
+(BLAS-1 and BLAS-2 operations for \code{double} and \code{std::complex<double>}), as a general resizable container of arbitrary
+elements (including nested \LA{} objects such as \code{NRVec<NRVec<int> >}), and as the storage backbone of other classes
+(\code{NRMat<T>} and \code{NRSMat<T>} can be viewed as vectors without copying, see Sec.~\ref{sec:vec:construct}).
+\code{NRVec_from1<T>} (Sec.~\ref{sec:vec:from1}) is a thin derived class with indexing from one.
+
+The class is explicitly instantiated in \texttt{vec.cc} for the element types \code{double}, \code{char}, \code{short}, \code{int},
+\code{long}, \code{long long}, their \code{unsigned} variants, and for \code{std::complex<double>}. Members defined in
+\texttt{vec.h} can be used with any other element type (user classes, nested \LA{} types, \code{float}, \dots); members defined
+only in \texttt{vec.cc} (\code{NRVec(const NRMat&)}, \code{fprintf}, \code{fscanf}, unary \code{operator-}, \code{operator<},
+\code{operator>}, \code{find}, \code{findthr}, \code{permuteme(const CyclePerm<int>&)}, \code{conjugateme}, \code{negateme},
+\code{negateconjugateme}, \code{sum}) are available only for the instantiated types. Numerical members based on BLAS are intended
+for floating-point element types only (real and complex), not for integers; at present they exist for \code{double} and
+\code{std::complex<double>} (see the remarks in the reference below).
+
+\section{Storage and class-specific concepts}\label{sec:vec:storage}
+
+The object holds the size \code{nn}, a data pointer \code{v} and a pointer \code{count} to the reference counter
+(plus a location tag in GPU builds, see Sec.~\ref{sec:concepts:gpu}). A default-constructed vector has \code{nn==0}, \code{v==0},
+\code{count==0}.
+
+\code{NRVec} follows the copy-on-demand scheme of Sec.~\ref{sec:concepts:refcount}: copy construction and \code{operator=} share
+the data, \code{operator|=} makes a deep copy (Sec.~\ref{sec:concepts:assign}), member functions that modify the data call
+\code{copyonwrite()} themselves, \code{resize()} detaches shared data, and an explicit \code{copyonwrite()} is needed only before
+writing through \code{operator[]} or a raw pointer. In DEBUG builds the non-const \code{operator[]} raises \code{laerror} if the
+reference count is larger than one and \code{_LA_count_check} is set. For element types that are not plain data
+(\code{LA_traits<T>::is_plaindata()} false, e.g.\ nested vectors), \code{copyonwrite()} recursively calls \code{copyonwrite()}
+on the elements, see Sec.~\ref{sec:concepts:traits}.
+
+The element-level member \code{swap(int,int)} does not call \code{copyonwrite()} by design, like \code{operator[]}: call
+\code{copyonwrite()} once before using it on a vector that may share its data (Sec.~\ref{sec:concepts:refcount}).
+
+Elements are stored contiguously, so \code{(T*)x} or \code{&x[0]} can be passed to C/Fortran routines expecting an array.
+The nested type \code{ROWTYPE} is \code{T}.
+
+\section{Construction, assignment, conversion}\label{sec:vec:construct}
+
+\begin{lareference}
+\lafunc{NRVec()}{Empty vector (size 0, nothing allocated).}
+\lafunc{explicit NRVec(const int n, const GPUID loc = undefined)}{Vector of \code{n} elements, \emph{not initialized} (for
+plain data). \code{loc} is the memory location in GPU builds, ignored otherwise.}
+\lafunc{NRVec(const T &a, const int n, const GPUID loc = undefined)}{Vector of \code{n} elements all equal to \code{a}. Note the
+order of arguments: value first, size second.}
+\lafunc{template<int SIZE> NRVec(const T (&a)[SIZE])}{Copy of a C array; also accepts a braced list, e.g.\
+\code{NRVec<double> x({1.,2.,3.})}.}
+\lafunc{NRVec(const T *a, const int n)}{Copy of \code{n} elements from memory at \code{a}.}
+\lafunc{NRVec(T *a, const int n, bool skeleton)}{With \code{skeleton==false} same as the previous one. With \code{skeleton==true}
+the vector \emph{wraps} the external memory \code{a} without copying; the reference count is set to 2 so that the memory is never
+freed by \LA{}. Consequently any modifying member function makes a private copy first (the external memory is \emph{not}
+modified), and DEBUG-mode \code{operator[]} for writing raises an error. Use it for read-only views of foreign data.}
+\lafunc{NRVec(const Vec3<T> &rhs)}{Copy of the three components of a \code{Vec3} (from \texttt{vecmat3.h}, see
+Chapter~\ref{ch:vecmat3}).}
+\lafunc{NRVec(const NRVec &rhs)}{Copy constructor, shares data.}
+\lafunc{explicit NRVec(const std::list<T> l)}{Copy of the elements of a \code{std::list} (the list is passed by value).}
+\lafunc{NRVec(const typename LA_traits_complex<T>::NRVec_Noncomplex_type &rhs, bool imagpart=false)}{Complex vector from a real
+one: \code{rhs} becomes the real part (or the imaginary part if \code{imagpart}), the other part is zero. Implemented only for
+\code{NRVec<std::complex<double> >} from \code{NRVec<double>}.}
+\lafunc{explicit NRVec(const NRSMat<T> &S)}{View of the packed storage of a symmetric matrix of order $n$ as a vector of
+$n(n+1)/2$ elements. \emph{Shares} the data with \code{S} (no copy).}
+\lafunc{explicit NRVec(const NRMat<T> &rhs)}{View of the row-major storage of an $n\times m$ matrix as a vector of $nm$ elements.
+\emph{Shares} the data with \code{rhs}; if the library is compiled with \code{MATPTR}, the data are copied instead.}
+\lafunc{explicit NRVec(const SparseMat<T> &rhs)}{Dense vector from a sparse matrix having one row or one column (otherwise
+\code{laerror}); duplicate entries are summed. Defined in \texttt{sparsemat.cc} for \code{double} and \code{std::complex<double>}.}
+\lafunc{~NRVec()}{Decrements the reference count, frees the data when it reaches zero.}
+\lafunc{NRVec& operator=(const NRVec &rhs)}{Shallow assignment (shares data), see Sec.~\ref{sec:concepts:assign}.}
+\lafunc{NRVec& operator|=(const NRVec &rhs)}{Deep copy; \code{rhs} must be allocated (checked in DEBUG).}
+\lafunc{NRVec& operator=(const T &a)}{Sets all elements to \code{a} (keeps the size); calls copyonwrite.}
+\lafunc{void copyonwrite(bool detachonly=false, bool deep=true)}{If the data are shared, allocate a private copy.
+\code{detachonly=true} allocates private storage without copying the contents (they are undefined afterwards).
+With \code{deep} and non-plain-data \code{T}, elements are made unique recursively even if this object is not shared.
+Calling it on an empty vector is harmless (prints a warning if \code{_LA_warn_empty_copyonwrite} is set).}
+\lafunc{int getcount() const}{Current reference count (0 for an empty vector).}
+\lafunc{void resize(const int n, const bool preserve=false, const bool preserve_at_end=false)}{Change size; detaches from shared data.
+Without \code{preserve} the new contents are undefined (no-op if the size does not change and the data are not shared).
+With \code{preserve} the first $\min(n_\text{old},n)$ elements are kept and new elements are zeroed (by \code{memset});
+with \code{preserve_at_end} the last elements are kept and aligned to the end, the new ones being at the beginning.
+\code{resize(0)} deallocates.}
+\lafunc{void dealloc(void)}{Same as \code{resize(0)}.}
+\lafunc{void clear()}{Set all elements to zero (\code{LA_traits<T>::clear}); detaches shared plain data.}
+\lafunc{void swap(NRVec &rhs)}{Exchange contents (size, data, counter) of two vectors in $O(1)$.}
+\lafunc{template<typename U> NRVec<std::complex<U> > complexify(const NRVec<U> &rhs)}{(free function) Complex vector with
+real part \code{rhs}. CPU only (NOT\_GPU) in the generic version; specialized for \code{double} via BLAS.}
+\lafunc{template<typename T, typename S> void NRVec_convert(NRVec<T> &a, const NRVec<S> &b)}{(free function) Resize \code{a} and
+set \code{a[i] = (T)b[i]}.}
+\end{lareference}
+\section{Element access}\label{sec:vec:access}
+
+\begin{lareference}
+\lafunc{T & operator[](const int i); const T & operator[](const int i) const}{Element $i$, $0\le i<n$. DEBUG builds check the
+range, allocation, and (non-const version) the reference count, see Sec.~\ref{sec:vec:storage}.}
+\lafunc{operator T*(); operator const T*() const}{Pointer to the data (DEBUG: error if unallocated). Call \code{copyonwrite()}
+before writing through the pointer.}
+\lafunc{int size() const}{Number of elements.}
+\lafunc{const NRVec subvector(const int from, const int to) const}{Copy of elements \code{from}\dots\code{to} (inclusive). If this is
+the whole vector, a shallow copy is returned. Plain data only.}
+\lafunc{const NRVec subvector(const NRVec<int> &selection) const}{Gather into a new vector: \code{r[i] = x[selection[i]]}.
+Index range is always checked.}
+\lafunc{void subvector_from(const NRVec<int> &selection, const NRVec<T> &rhs)}{Gather into \code{*this}:
+\code{x[i] = rhs[selection[i]]}; \code{x.size()} must equal \code{selection.size()} (otherwise \code{laerror}); calls copyonwrite.}
+\lafunc{void storesubvector(const int from, const NRVec &rhs)}{Copy \code{rhs} into positions \code{from}\dots\code{from+rhs.size()-1};
+plain data only; calls copyonwrite.}
+\lafunc{void storesubvector(const NRVec<int> &selection, const NRVec &rhs)}{Scatter into \code{*this}:
+\code{x[selection[i]] = rhs[i]}; sizes of \code{selection} and \code{rhs} must agree; calls copyonwrite.}
+\lafunc{void storesubvector_to(const NRVec<int> &selection, NRVec &rhs) const}{Scatter \code{*this} into \code{rhs}:
+\code{rhs[selection[i]] = x[i]}; \code{x.size()} must equal \code{selection.size()}; calls \code{rhs.copyonwrite()}.}
+\lafunc{NRVec reverse() const}{Copy with reversed order of elements.}
+\lafunc{NRVec concat(const NRVec &rhs) const; NRVec concatscaled(const NRVec &rhs, const T alpha=1) const}{New vector
+$(x, \mathtt{rhs})$, resp.\ $(x, \alpha\,\mathtt{rhs})$. If one of the vectors is empty, the other one is returned (shared; for
+\code{concatscaled} with an empty \code{*this} and $\alpha\neq1$ a scaled copy of \code{rhs}).}
+\lafunc{void concatme(const NRVec &rhs); void concatmescaled(const NRVec &rhs, const T alpha=1)}{Append \code{rhs}
+(resp.\ $\alpha\,\mathtt{rhs}$) to \code{*this} in place (via \code{resize} with preservation).}
+\lafunc{void append(const T &a); void prepend(const T &a)}{Add one element at the end / beginning. Each call reallocates;
+inefficient when repeated.}
+\lafunc{const int find(const T &val) const}{Index of the first element equal to \code{val}, $-1$ if none.}
+\lafunc{const int findthr(const T &val, const typename LA_traits<T>::normtype &thr=0) const}{Index of the first element with
+$|x_i-\mathtt{val}|<\mathtt{thr}$, $-1$ if none (note the strict inequality: the default \code{thr=0} never matches).}
+\end{lareference}
+
+
+\section{Arithmetic and BLAS-backed operations}\label{sec:vec:arith}
+
+All compound operators call \code{copyonwrite()}. Dimensions of vector operands are checked only in DEBUG builds.
+For \code{double} and \code{std::complex<double>} the operations marked BLAS are specialized to call CBLAS; the generic versions are
+element-wise loops (CPU only).
+
+\begin{lareference}
+\lafunc{NRVec& operator+=(const NRVec &rhs); NRVec& operator-=(const NRVec &rhs)}{Element-wise sum/difference (BLAS axpy).}
+\lafunc{NRVec& operator*=(const NRVec &rhs); NRVec& operator/=(const NRVec &rhs)}{Element-wise (Hadamard) product/quotient.}
+\lafunc{const NRVec operator+(const NRVec &rhs) const; const NRVec operator-(const NRVec &rhs) const}{Sum/difference. There are
+no binary element-wise \code{*} and \code{/} of two vectors; \code{x*y} is the scalar product.}
+\lafunc{NRVec& operator+=(const T &a); NRVec& operator-=(const T &a)}{Add/subtract \code{a} to/from every element (BLAS).}
+\lafunc{NRVec& operator*=(const T &a); NRVec& operator/=(const T &a)}{Scale every element (BLAS scal; division as
+multiplication by $1/a$ for the specialized types).}
+\lafunc{const NRVec operator+(const T &a) const; ... operator-, operator*, operator/}{\code{x+a}, \code{x-a}, \code{x*a},
+\code{x/a} element-wise with a scalar.}
+\lafunc{const NRVec operator+(const T &a, const NRVec &x); const NRVec operator*(const T &a, const NRVec &x)}{(free functions) Scalar on the
+left: $a+x$ and $ax$. The noncommutative \code{a-x} and \code{a/x} are deliberately not available (declared \code{= delete},
+a compile error); write \code{-x+a} explicitly.}
+\lafunc{const NRVec operator-() const}{Negated copy.}
+\lafunc{NRVec& negateme()}{$x\leftarrow -x$ in place.}
+\lafunc{NRVec& conjugateme(); NRVec conjugate() const}{Complex conjugation in place / conjugated copy (no-op for real types).}
+\lafunc{NRVec& negateconjugateme()}{$x\leftarrow -x^*$ in place (specialized for \code{std::complex<double>} and
+\code{std::complex<float>}).}
+\lafunc{const T operator*(const NRVec &rhs) const}{Scalar product $\sum_i x_i^*\, y_i$ (conjugating \code{*this} for complex types;
+BLAS dot/dotc).}
+\lafunc{const T dot(const T *a, const int stride = 1, bool conjugate=true) const}{$\sum_i \tilde x_i\, a_{i\cdot\mathrm{stride}}$,
+where $\tilde x_i=x_i^*$ if \code{conjugate} and \code{T} is complex, else $x_i$; \code{a} must have sufficient length.}
+\lafunc{const T dot(const NRVec &rhs, bool conjugate=true) const}{Same with a vector (no dimension check).}
+\lafunc{void axpy(const T alpha, const NRVec &x)}{$\mathtt{this} \leftarrow \mathtt{this} + \alpha\,\mathtt{x}$ (BLAS axpy).
+Only \code{double} and \code{std::complex<double>}.}
+\lafunc{void axpy(const T alpha, const T *x, const int stride=1)}{Same with strided raw data; CPU only.
+Only \code{double} and \code{std::complex<double>}.}
+\lafunc{void gemv(const T beta, const NRMat<T> &a, const char trans, const T alpha, const NRVec &x)}{$y\leftarrow\alpha\,\mathrm{op}(A)x+\beta y$
+with $y=$ \code{*this}; \code{trans} is \code{'n'} ($A$), \code{'t'} ($A\Tr$) or for complex \code{'c'} ($A\Hc$), case insensitive.
+\code{*this} must already have the correct size (checked in DEBUG builds) and defined contents if $\beta\neq0$.}
+\lafunc{void gemv(const T beta, const NRSMat<T> &a, const char trans, const T alpha, const NRVec &x)}{Same for a packed
+symmetric (real) or Hermitian (complex) matrix (BLAS spmv/hpmv); \code{trans}: for complex \code{'t'} gives $a\Tr x = a^* x$, \code{'n'} and \code{'c'} give $a x$; ignored for real matrices.}
+\lafunc{void gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x, const bool treat_as_symmetric = false)}{Same
+for a sparse matrix (defined in \texttt{sparsemat.cc}, see Chapter~\ref{ch:sparse}); with \code{treat_as_symmetric} only one
+triangle is assumed to be stored.}
+\lafunc{void gemv(const Component_type beta, const NRMat_Noncomplex_type &a, const char trans, const Component_type alpha, const NRVec &x);
+void gemv(const Component_type beta, const NRSMat_Noncomplex_type &a, const char trans, const Component_type alpha, const NRVec &x)}{(Types
+from \code{LA_traits_complex<T>}.) Complex vector times \emph{real} dense or packed-symmetric matrix with real coefficients;
+real and imaginary parts are processed separately.}
+\lafunc{const NRVec operator*(const NRMat<T> &mat) const}{Row vector times matrix, $x\Tr A$ (gemv with \code{'t'}; no conjugation).
+For $A x$ see \code{NRMat::operator*} in Chapter~\ref{ch:mat}.}
+\lafunc{const NRVec operator*(const NRSMat<T> &mat) const}{Row vector times packed symmetric/hermitian matrix, $x\Tr S$ (for hermitian $S$ computed as $S\Tr x = S^* x$ by \code{gemv} with \code{'t'}).}
+\lafunc{const NRVec operator*(const SparseMat<T> &mat) const}{Row vector times sparse matrix; CPU only.}
+\lafunc{const NRMat<T> otimes(const NRVec<T> &rhs, const bool conjugate = false, const T &scale = 1) const}{Outer product
+$A_{ij}=\mathrm{scale}\cdot x_i\, y_j$, with $y_j^*$ if \code{conjugate} (complex only); BLAS ger/geru/gerc.}
+\lafunc{const NRMat<T> operator|(const NRVec<T> &rhs) const}{Same as \code{otimes(rhs,true)}, i.e.\ $x y\Hc$.}
+\lafunc{const NRVec otimes2vec(const NRVec<T> &rhs, const bool conjugate = false, const T &scale = 1) const}{Outer product stored
+as a vector of length $n_x n_y$ (row-major, index $i n_y + j$).}
+\end{lareference}
+
+The real-matrix \code{gemv}, \code{normalize}, \code{otimes} and \code{otimes2vec} exist only for \code{double} and
+\code{std::complex<double>}; for the instantiated integer types (and complex integer types) they are defined to raise
+\code{laerror}.
+
+\section{Norms, reductions, extrema}\label{sec:vec:norms}
+
+\begin{lareference}
+\lafunc{const typename LA_traits<T>::normtype norm(int length= -1, int offset=0, int stride=1) const}{Euclidean norm
+(BLAS nrm2) of \code{length} elements (default all) starting at \code{offset} with \code{stride}.
+Only \code{double} and \code{std::complex<double>}.}
+\lafunc{NRVec& normalize(typename LA_traits<T>::normtype* norm = 0)}{Divide by the Euclidean norm, optionally storing the norm in
+\code{*norm}; DEBUG: error for a zero vector. Only \code{double} and \code{std::complex<double>}.}
+\lafunc{const NRVec unitvector() const}{Normalized copy.}
+\lafunc{const typename LA_traits<T>::normtype asum() const}{$\sum_i |x_i|$ (BLAS asum; for complex
+$\sum_i |\mathrm{Re}\,x_i|+|\mathrm{Im}\,x_i|$). Only \code{double} and \code{std::complex<double>}.}
+\lafunc{inline int iamax() const}{Zero-based index of the element of largest absolute value (BLAS i?amax; for complex the 1-norm
+$|\mathrm{Re}|+|\mathrm{Im}|$). Only \code{double} and \code{std::complex<double>}. \code{laerror} for an empty vector.}
+\lafunc{inline const T amax() const; inline const T amin() const}{The element (with sign) of largest / smallest absolute value
+(complex: 1-norm). Only \code{double} and \code{std::complex<double>}. \code{laerror} for an empty vector.}
+\lafunc{const T max() const; const T min() const}{Largest / smallest element (0 for an empty vector). Only real types
+(instantiated for the integer types, \code{float}, \code{double}).}
+\lafunc{const T sum() const}{$\sum_i x_i$.}
+\lafunc{const T sumsqr() const}{$\sum_i x_i^2$, 0 for an empty vector. No conjugation for complex types; use \code{norm()} for $\sqrt{\sum_i|x_i|^2}$.}
+\lafunc{const T prod() const}{$\prod_i x_i$, 1 for an empty vector.}
+\lafunc{NRVec<typename LA_traits<T>::normtype> abs() const}{Vector of $|x_i|$.}
+\lafunc{NRVec<typename LA_traits<T>::normtype> diffabs(const NRVec &rhs) const}{Vector of $|x_i|-|y_i|$.}
+\end{lareference}
+
+\section{Other member functions}\label{sec:vec:other}
+
+\subsection*{Comparison}
+\begin{lareference}
+\lafunc{const bool operator==(const NRVec &rhs) const; const bool operator!=(const NRVec &rhs) const}{Equal size and elements.
+For plain data the comparison is bytewise (\code{memcmp}), so e.g.\ \code{0.0} and \code{-0.0} differ.}
+\lafunc{const bool operator<(const NRVec &rhs) const; ... operator>, operator<=, operator>=}{Lexicographic order using
+\code{LA_traits<T>::smaller/bigger}; a proper prefix is smaller. Raises \code{laerror} for complex elements.}
+\end{lareference}
+
+\subsection*{Sorting and permutations}
+\begin{lareference}
+\lafunc{int sort(int direction = 0, int from = 0, int to = -1, int *perm = NULL, bool stable=false)}{Quicksort of elements
+\code{from}\dots\code{to} (\code{-1}: last) in place, ascending for \code{direction==0}, descending otherwise; returns the
+parity (0/1) of the applied permutation. If \code{perm} is given, \code{perm[from..to]} (initialized by the caller) is permuted
+along with the elements. \code{stable} selects a stable variant. Calls copyonwrite.}
+\lafunc{int sort(int direction, NRPerm<int> &perm, bool stable=false)}{Sort the whole vector; \code{perm} (of the same size)
+is set to the identity and returned with \code{perm[i]} = original (1-based) position of the element now at position $i$ (1-based).}
+\lafunc{void printsorted(std::ostream &s, int direction=1, bool absvalue=false, bool stable=false, typename LA_traits<T>::normtype thr=0, int topmax=0, const NRMat<int> *indexmap=NULL) const}{Print
+lines ``\emph{index value}'' in sorted order (default descending) without modifying the vector. \code{absvalue}: sort by $|x_i|$;
+\code{thr}: skip elements with $|x_i|<\mathrm{thr}$; \code{topmax}: print at most this many lines (0 = all); \code{indexmap}:
+print \code{(*indexmap)[i][0]} and \code{(*indexmap)[i][1]} instead of the index $i$.}
+\lafunc{bool bigger(int i, int j) const; bool smaller(int i, int j) const; void swap(int i, int j)}{Element comparison and
+exchange used by the sorting templates (\texttt{qsort.h}). \code{swap(i,j)} is element-level access and, like \code{operator[]}, does not call
+copyonwrite: call it before, outside the loop (Sec.~\ref{sec:vec:storage}).}
+\lafunc{const NRVec permuted(const NRPerm<int> &p, const bool inverse=false) const}{Permuted copy: \code{r[p[i]-1] = x[i-1]}, or
+with \code{inverse} \code{r[i-1] = x[p[i]-1]} ($p$ is 1-based, see Chapter~\ref{ch:permutation}).}
+\lafunc{void permuteme(const NRPerm<int> &p, const bool inverse=false); void permuteme(const CyclePerm<int> &p)}{The same in place;
+for a cycle $(c_1 \dots c_L)$ the element at $c_{k}$ moves to $c_{k+1}$ and the one at $c_L$ to $c_1$.}
+\end{lareference}
+
+\subsection*{Element-wise function application}
+\begin{lareference}
+\lafunc{NRVec& call_on_me(T (*_F)(const T &))}{$x_i\leftarrow F(x_i)$ for a plain function pointer. This non-template overload
+is kept on purpose: when the name of an \emph{overloaded} function is passed, the fixed parameter type selects the right overload
+(the template below cannot deduce its argument from an overload set). Note that the function must take \code{const T &}, so e.g.\
+\code{std::sqrt} does not match it.}
+\lafunc{template<typename F> NRVec& call_on_me(F _F)}{$x_i\leftarrow F(x_i)$ for any callable (functor, lambda, function with
+another compatible signature). For a single non-overloaded function both overloads match and the non-template one is chosen.}
+\lafunc{template<typename F> NRVec& call_on_me(F _F, const NRVec &rhs)}{Binary version $x_i\leftarrow F(x_i, \mathtt{rhs}_i)$; sizes
+checked in DEBUG.}
+\end{lareference}
+All three are CPU only and call copyonwrite.
+
+\subsection*{Random numbers}
+\begin{lareference}
+\lafunc{void randomize(const typename LA_traits<T>::normtype &x)}{Fill with uniform random numbers from $[-x,x)$ (real and
+imaginary parts independently for complex), using \code{RANDDOUBLESIGNED} (Chapter~\ref{ch:utilities}). Only \code{double} and
+\code{std::complex<double>}.}
+\end{lareference}
+
+\subsection*{Input/output}
+See Sec.~\ref{sec:concepts:io} for the general conventions.
+\begin{lareference}
+\lafunc{void put(int fd, bool dimensions=1, bool transp=0, bool orca_format=false) const}{Binary output to file descriptor.
+With \code{dimensions}: header \code{int n}, then \code{int 1} (padding), or with \code{orca_format} \code{int sizeof(T)};
+followed by the elements (\code{LA_traits<T>::multiput}, recursive for nested types). \code{transp} is unused.}
+\lafunc{void get(int fd, bool dimensions=1, bool transp=0, bool orca_format=false)}{Binary input matching \code{put}; with
+\code{dimensions} the vector is resized, otherwise the current size is used (and copyonwrite called). \code{orca_format} checks
+the element size.}
+\lafunc{void fprintf(FILE *f, const char *format, const int modulo) const}{Formatted output via \code{lawritemat} as a
+$1\times n$ matrix (Chapter~\ref{ch:nonclass}).}
+\lafunc{void fscanf(FILE *f, const char *format)}{Read the dimension and then the elements with the given \code{scanf} format
+(e.g.\ \texttt{"\%lf"} for \code{double}); resizes.}
+\end{lareference}
+
+\subsection*{Miscellaneous}
+\begin{lareference}
+\lafunc{GPUID getlocation() const; void moveto(const GPUID dest)}{Memory location (always \code{cpu} without \code{CUDALA}, then
+\code{moveto} is a no-op); see Sec.~\ref{sec:concepts:gpu}.}
+\lafunc{void setcoldim(int i); void simplify()}{Dummies for interface compatibility with other classes.}
+\end{lareference}
+
+\section{Related free functions}\label{sec:vec:free}
+
+\begin{lareference}
+\lafunc{std::ostream & operator<<(std::ostream &s, const NRVec<T> &x)}{Text output: the size on one line, then the elements
+separated by spaces on the next line (converted to \code{LA_traits_io<T>::IOtype}, so e.g.\ \code{char} is printed as a number).}
+\lafunc{std::istream & operator>>(std::istream &s, NRVec<T> &x)}{Reads the format written by \code{<<}; resizes \code{x}.}
+\lafunc{template<typename T> void NRVec_simplify(NRVec<T> &x, const typename LA_traits<T>::normtype thr=0, bool alwayskeepfirst=false)}{For
+vectors of ``coefficient $\times$ element'' terms (\code{T} must provide sorting traits, \code{operator==} comparing only the element,
+and \code{LA_traits<T>::coefficient}, \code{abscoefficient}, \code{elementtype}): sort, merge equal elements by adding coefficients,
+drop terms with zero coefficient or $|\text{coefficient}|<\mathrm{thr}$ (the first term is kept if \code{alwayskeepfirst}), and
+shrink the vector. Public API; within the library it is presently used by \code{PermutationAlgebra::simplify()}.}
+\lafunc{template<typename T> typename LA_traits<T>::normtype MYABS(const T &x)}{\code{std::abs} with pass-through specializations
+for unsigned integer types; auxiliary.}
+\end{lareference}
+\code{complexify} and \code{NRVec_convert} are listed in Sec.~\ref{sec:vec:construct}. The header also defines constants
+\code{CONE}, \code{CMONE}, \code{CZERO} (complex $1,-1,0$ for CBLAS calls) and the internal macros \code{NRVECMAT_OPER},
+\code{NRVECMAT_OPER_NONCOMMUTATIVE}, \code{NRVECMAT_OPER2} generating the binary operators from the compound ones.
+
+\section{Vectors indexed from one: NRVec\_from1}\label{sec:vec:from1}
+
+\code{NRVec_from1<T>} is derived publicly from \code{NRVec<T>} and differs only in indexing: \code{operator[]} takes
+$1\le i\le n$ (same DEBUG checks as \code{NRVec}), and \code{iamax()} returns a 1-based index. It is used e.g.\ for permutations
+(Chapter~\ref{ch:permutation}). Everything else is inherited unchanged and \emph{remains zero-based} (e.g.\ \code{subvector},
+\code{find}, \code{sort(direction,from,to,...)}, the raw pointer).
+
+\begin{lareference}
+\lafunc{NRVec_from1(); explicit NRVec_from1(const int n); NRVec_from1(const T &a, const int n); NRVec_from1(const T *a, const int n)}{As
+for \code{NRVec}.}
+\lafunc{template<int SIZE> NRVec_from1(const T (&a)[SIZE]); explicit NRVec_from1(const std::list<T> l)}{As for \code{NRVec}.}
+\lafunc{NRVec_from1(const NRVec<T> &rhs)}{Implicit conversion from the base class (shares data).}
+\lafunc{const T& operator[](const int i) const; T& operator[](const int i)}{Element $i$, 1-based.}
+\lafunc{int iamax() const}{1-based index of the element of largest absolute value.}
+\end{lareference}
+
+\lawarning{\code{NRVec_from1} does not redeclare \code{operator=(const T&)}; the implicitly declared copy assignment hides it, so
+\code{f = 0.;} does not compile for \code{NRVec_from1<double> f}. Use the \code{(value, size)} constructor or assign through a base
+class reference.}
+
+\section{Examples}\label{sec:vec:examples}
+
+\begin{lstlisting}
+#include "la.h"
+using namespace LA;
+
+double sq(const double &a) {return a*a;}
+float sq(const float &a) {return a*a;}
+
+int main()
+{
+NRVec<double> x({1.,2.,3.});
+NRVec<double> y(x);       // shares data with x
+y *= 2.;                  // y gets its own copy, x unchanged
+double d = x*y;           // scalar product = 28
+NRVec<double> z = x + y*0.5;
+z.axpy(-1.,x);            // z = x
+std::cout << d << " " << z.norm() << std::endl;
+
+NRVec<double> w(0.,5);    // five zeros
+NRVec<int> sel({4,0,2});
+w.storesubvector(sel,x);  // scatter: w[4]=x[0], w[0]=x[1], w[2]=x[2]
+NRVec<double> g(3);
+g.subvector_from(sel,w);  // gather: g[i]=w[sel[i]], i.e. g == x
+std::cout << w << g;
+
+x.call_on_me(sq);                                  // overloaded name: non-template overload
+x.call_on_me([](const double &a){return a+1.;});   // lambda: template overload
+x.call_on_me([](const double &a, const double &b){return a>b?a:b;}, y); // binary
+
+x.copyonwrite();          // needed before writing via operator[]
+x[0] = -1.;
+
+NRVec_from1<double> f(1.,3);
+f[3] = 5.;                // last element
+std::cout << f << f.iamax() << std::endl;   // prints 3
+
+NRVec<std::complex<double> > c(x,true);     // purely imaginary
+std::cout << c << complexify(x);
+}
+\end{lstlisting}
+
+Sorting with the permutation returned:
+\begin{lstlisting}
+NRVec<double> v(12);
+v.randomize(1.);
+NRPerm<int> p(v.size());
+NRVec<double> s(v);
+s.sort(0,p);              // ascending; s copied before sorting, v unchanged
+// s[i-1] == v[p[i]-1] for i=1..n
+v.printsorted(std::cout,1,true);   // descending by absolute value
+\end{lstlisting}
+
+\section{Pitfalls}\label{sec:vec:pitfalls}
+
+\begin{itemize}
+\item \code{NRVec<double> x(n)} is not initialized; use \code{NRVec<double> x(0.,n)} or \code{x.clear()}.
+The argument order of the filling constructor is \emph{(value, size)}.
+\item After \code{y=x} the data are shared: call \code{y.copyonwrite()} before \code{y[i]=...}. In DEBUG builds reading an element
+of a shared non-const vector via \code{operator[]} also triggers the error; read through a const reference.
+\item \code{NRVec(const NRMat&)} and \code{NRVec(const NRSMat&)} share the data with the matrix (unless \code{MATPTR}); writing into
+the vector after \code{copyonwrite()} does not affect the matrix, but the matrix and the vector are not independent before that.
+\item A skeleton vector \code{NRVec(ptr,n,true)} never writes into the foreign memory through modifying member functions; they
+silently make a copy.
+\item \code{x*y} is the (conjugated) scalar product, not an element-wise product; use \code{x*=y} for that.
+\item \code{a-x} and \code{a/x} with a scalar \code{a} on the left do not compile (deleted); write \code{-x+a}.
+\item \code{resize()} without \code{preserve} leaves the contents undefined.
+\item \code{norm}, \code{normalize}, \code{asum}, \code{amax}, \code{amin}, \code{iamax}, \code{axpy}, \code{randomize},
+\code{gemv}, \code{otimes} are intended for floating-point types only and are presently available for \code{double} and
+\code{std::complex<double>} (link error or \code{laerror} otherwise, by design for integer types); \code{max}/\code{min} only for real types.
+\item \code{NRVec_from1} indexing is 1-based only in \code{operator[]} and \code{iamax()}.
+\end{itemize}

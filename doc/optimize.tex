@@ -1,0 +1,1005 @@
+\chapter{Optimization}\label{ch:optimize}
+
+\laheader{optimize.h, optimize.cc}
+
+The optimization module provides local minimization of a function $f:\mathbb{R}^n\to\mathbb{R}$ (and, for two methods, the
+search for saddle points) by a family of methods sharing one interface: quasi-Newton methods with line search (BFGS, DFP, SR1,
+L-BFGS), nonlinear conjugate gradients, GDIIS, trust-region Newton and quasi-Newton methods, partitioned rational function
+optimization (P-RFO) for saddle points, Levenberg-Marquardt for least squares, the derivative-free methods of Nelder and Mead,
+Powell and COBYLA (with nonlinear inequality constraints), and the first-order and stochastic methods SGD, Adam, SPSA, the
+quantum natural gradient and Rotosolve used in machine learning and for variational quantum algorithms.
+
+The design separates three things:
+\begin{itemize}
+\item the \emph{problem}: a class derived from \code{OptProblem<T>} implementing \code{funcgrad()}, optionally also
+deriving from \emph{capability} interfaces (Hessian, metric, trigonometric structure, constraints, residuals) which some
+methods require or exploit (section~\ref{sec:optimize:problem});
+\item the \emph{method}: a class derived from \code{Optimizer<T>} with the single virtual function \code{minimize()};
+\item the \emph{hyperparameters}: plain value objects of a class hierarchy rooted in \code{hyperparameters<T>}, one derived
+class per method, passed to \code{minimize()} and returned filled with the values actually reached
+(section~\ref{sec:optimize:hyper}).
+\end{itemize}
+Methods are written on top of a small infrastructure (evaluation counter, iteration bookkeeping, line searches) and of three
+common drivers (line search, first order, trust region), so that a new method usually consists of a short class supplying the
+search direction, the update rule or the trust-region step (section~\ref{sec:optimize:drivers}).
+
+All templates are parameterized by the real type \code{T}, but optimize.cc instantiates them for \code{T = double} only.
+The capability interfaces, adapters and the hyperparameter classes are header-only templates; the optimizers, the adapters with
+member functions in optimize.cc (\code{FrozenOptProblem}, \code{ParameterShift}, \code{FiniteDifference},
+\code{OptLeastSquares}) and the auxiliary functions exist in the library only for \code{double}.
+The common drivers \code{linesearch_minimize}, \code{firstorder_minimize} and \code{trustregion_minimize}, the extension
+points for user-written methods, are explicitly instantiated for \code{double} as well.
+
+The data members of all classes of this chapter are small, except vectors held by \code{FrozenOptProblem} and
+\code{optevaluator}; these are ordinary \code{NRVec} objects following the reference counting and copy-on-demand scheme of
+section~\ref{sec:concepts:refcount}, which has consequences for user code described in section~\ref{sec:optimize:pitfalls}.
+The library code of this module calls \code{copyonwrite()} (or works on freshly allocated vectors) before every element write;
+the only weak point found is noted in section~\ref{sec:optimize:adapters}.
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Problem interface and capabilities}\label{sec:optimize:problem}
+
+\subsection{OptProblem}
+
+\begin{lareference}
+\lafunc{template<typename T> class OptProblem}{Abstract base class of every optimization problem. A user problem derives from it
+(and possibly from capability classes) and stores any auxiliary data needed to evaluate $f$.}
+\lafunc{virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const =0}{Returns $f(x)$. If \code{grad!=NULL}, also stores
+$\nabla f(x)$ in \code{*grad}. The gradient vector is allocated by the caller with \code{x.size()} elements, but it may share
+its data with another vector, so the implementation must call \code{grad->copyonwrite()} before writing its elements (or
+assign a whole new vector to \code{*grad}). Derivative-free methods always pass \code{NULL}; a problem not able to provide the
+gradient may then simply ignore \code{grad} (or call \code{laerror} if it is not \code{NULL}) and be wrapped in
+\code{FiniteDifference} or \code{ParameterShift} for gradient methods.}
+\end{lareference}
+
+\subsection{Capabilities}\label{sec:optimize:capabilities}
+
+Further information about the problem is supplied by deriving the problem class also from one or more of the following
+abstract classes (multiple inheritance). Methods look them up at run time by \code{optcapability<C>(problem)}; a method
+requiring a capability calls \code{laerror} at the start if it is missing, a method that can only use it optionally falls back
+silently (with a verbose message in some cases). Matrices and vectors passed to the capability functions are allocated by the
+caller with the right dimensions; implementations writing their elements have to call \code{copyonwrite()} first (or assign
+whole objects, e.g.\ \code{h=(T)0;} followed by element writes, since assignment of a scalar is a modifying member function).
+
+\begin{lareference}
+\lafunc{template<typename T> class OptHessian}{Hessian of $f$. Used by \code{TrustRegion_Optimizer} and
+\code{PRFO_Optimizer}.}
+\lafunc{virtual void hessian(const NRVec<T> &x, NRSMat<T> &h) const =0}{Hessian at \code{x} into \code{h} ($n\times n$
+symmetric, allocated by the caller).}
+\lafunc{virtual NRVec<T> hessian_times(const NRVec<T> &x, const NRVec<T> &v) const}{Hessian-vector product $H(x)\,v$; the
+default builds the full Hessian by \code{hessian()} and multiplies. It can be overridden for large problems.
+Currently no method calls it (the Steihaug subproblem works with the stored matrix $B$; \code{FrozenOptProblem} forwards it);
+it is kept for future Hessian-free methods.}
+
+\lafunc{template<typename T> class OptMetric}{Metric tensor of the parameter space: the Fubini-Study metric for the quantum
+natural gradient \cite{optimize:stokes2020} or the Fisher information for the natural gradient in machine
+learning \cite{optimize:amari1998}. Used by \code{QNG_Optimizer} and by every first-order method with \code{my_natural=true}.}
+\lafunc{virtual void metric(const NRVec<T> &x, NRSMat<T> &g) const =0}{Metric $G(x)$ into \code{g} ($n\times n$).}
+
+\lafunc{template<typename T> class OptTrigonometric}{Declares that $f$ as a function of the single parameter $x_i$ is a
+trigonometric polynomial $a_0+\sum_{k=1}^{R_i}\bigl(a_k\cos(k\omega_i x_i)+b_k\sin(k\omega_i x_i)\bigr)$,
+$\omega_i=2\pi/\mathrm{period}_i$. For parameterized quantum circuits with gates $\exp(-\mathrm{i}x_iP/2)$, $P$ a Pauli string,
+$R_i=1$ and the period is $2\pi$. Used by \code{Rotosolve_Optimizer} and \code{ParameterShift}.}
+\lafunc{virtual int degree(const int i) const =0}{Degree $R_i$; 0 means that $f$ is not trigonometric in $x_i$ (such
+parameters are treated by line minimization or central differences).}
+\lafunc{virtual T period(const int i) const}{Period of $f$ in $x_i$; default $2\pi$.}
+
+\lafunc{template<typename T> class OptConstraints}{Inequality constraints $c_i(x)\ge 0$, $i=0,\dots,m-1$, used by
+\code{Cobyla_Optimizer}. An equality constraint is given as two inequalities $c(x)\ge0$, $-c(x)\ge0$. Other methods ignore
+constraints.}
+\lafunc{virtual int nconstraints() const =0}{Number $m$ of constraints.}
+\lafunc{virtual void constraints(const NRVec<T> &x, NRVec<T> &c) const =0}{Values $c_i(x)$ into \code{c}, allocated by the
+caller with \code{nconstraints()} elements.}
+
+\lafunc{template<typename T> class OptResiduals}{Least-squares problem $f(x)=\frac12|r(x)|^2$ given by the residual vector
+$r\in\mathbb{R}^m$ and optionally its Jacobian. Required by \code{LM_Optimizer}.}
+\lafunc{virtual int nresiduals() const =0}{Number $m$ of residuals.}
+\lafunc{virtual void residuals(const NRVec<T> &x, NRVec<T> &r) const =0}{Residuals into \code{r} (allocated by the caller with
+\code{nresiduals()} elements).}
+\lafunc{virtual bool jacobian(const NRVec<T> &x, NRMat<T> &J) const}{Jacobian $J_{ij}=\partial r_i/\partial x_j$ into
+\code{J} ($m\times n$, allocated by the caller); returns \code{true} if provided. The default returns \code{false}, and the
+callers then use forward differences.}
+\end{lareference}
+
+\begin{lareference}
+\lafunc{template<class C, typename T> const C *optcapability(const OptProblem<T> *o)}{Returns the capability \code{C}
+(e.g.\ \code{OptHessian<T>}) of the problem, or \code{NULL}. It is found by \code{dynamic_cast} on the problem itself and, if
+the problem is an \code{OptProblemAdapter}, recursively on the wrapped problem. For an adapter with
+\code{transforms_capabilities()==true} the adapter's own implementation of \code{C} is returned only if the wrapped problem also
+provides \code{C}, and the untransformed capability of the wrapped problem is never passed on. Methods always use this function
+(not a plain \code{dynamic_cast}), so that capabilities remain available through adapters.}
+\end{lareference}
+
+\subsection{Least-squares problems: OptLeastSquares}
+
+\begin{lareference}
+\lafunc{template<typename T> class OptLeastSquares : public OptProblem<T>, public OptResiduals<T>}{Convenience base class for
+least-squares problems. The user derives from it and implements \code{nresiduals()}, \code{residuals()} and optionally
+\code{jacobian()}. Its \code{funcgrad()} provides $f=\frac12|r|^2$ and $\nabla f=J\Tr r$, so that every method, not only
+\code{LM_Optimizer}, can be applied to the problem.}
+\lafunc{T fd_step}{Relative step $h$ of the forward-difference Jacobian used when \code{jacobian()} returns \code{false}.}
+\lafunc{OptLeastSquares(const T h=1e-7)}{Sets \code{fd_step}.}
+\lafunc{void jacobian_fd(const NRVec<T> &x, const NRVec<T> &r, NRMat<T> &J) const}{Jacobian by forward differences, columns
+$(r(x+h_je_j)-r(x))/h_j$ with $h_j=h\max(1,|x_j|)$; \code{r} are the residuals at \code{x} ($n$ further residual evaluations).}
+\lafunc{virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const}{$\frac12|r(x)|^2$; with \code{grad}, the gradient $J\Tr r$
+(from \code{jacobian()} or \code{jacobian_fd()}).}
+\end{lareference}
+Note that \code{LM_Optimizer} does not call \code{funcgrad()}: it evaluates \code{residuals()} directly (counted as function
+evaluations) and uses \code{LM_hyperparameters::my_fd_step}, not \code{fd_step}, for its own finite-difference Jacobian.
+
+\subsection{Adapters}\label{sec:optimize:adapters}
+
+An adapter is a problem wrapping another one, e.g.\ to supply gradients computed from function values or to optimize in a
+subspace. Adapters can be nested.
+
+\begin{lareference}
+\lafunc{template<typename T> class OptProblemAdapter : public OptProblem<T>}{Base class of adapters; \code{funcgrad()} is left to
+the derived class.}
+\lafunc{const OptProblem<T> *p}{The wrapped problem (not owned).}
+\lafunc{OptProblemAdapter(const OptProblem<T> *pp)}{Wraps \code{pp}.}
+\lafunc{virtual bool transforms_capabilities() const}{\code{false} (default): the capabilities of the wrapped problem are
+accessible unchanged through \code{optcapability()}. \code{true}: the adapter provides them in a transformed form (e.g.\ in a
+different dimension) by its own implementations, see \code{optcapability()}.}
+\end{lareference}
+
+\paragraph{FiniteDifference.}
+\begin{lareference}
+\lafunc{template<typename T> class FiniteDifference : public OptProblemAdapter<T>}{Gradient by central differences
+$(f(x+he_i)-f(x-he_i))/(2h)$, i.e.\ $2n$ evaluations of the wrapped problem besides $f(x)$. Makes all gradient methods usable
+for a problem providing only $f$. Capabilities of the wrapped problem pass through.}
+\lafunc{T h}{Difference step (absolute).}
+\lafunc{FiniteDifference(const OptProblem<T> *pp, const T hh=1e-6)}{Wraps \code{pp}.}
+\lafunc{virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const}{$f$ of the wrapped problem; the gradient by central
+differences if requested.}
+\end{lareference}
+
+\paragraph{ParameterShift.}
+\begin{lareference}
+\lafunc{template<typename T> class ParameterShift : public OptProblemAdapter<T>}{Exact gradient of a problem providing
+\code{OptTrigonometric} by the general parameter-shift rule \cite{optimize:wierichs2022} (for degree 1 the classical two-point
+rule \cite{optimize:mitarai2018,optimize:schuld2019}): for $x_i$ of degree $R$,
+$\partial_i f=\omega\sum_{\mu=1}^{2R}(-1)^{\mu-1}f(x+s_\mu e_i/\omega)/(4R\sin^2(s_\mu/2))$, $s_\mu=(2\mu-1)\pi/(2R)$, i.e.\
+$2R_i$ evaluations per parameter. Parameters of degree 0 are differentiated by central differences with step \code{h}.
+Capabilities of the wrapped problem pass through.}
+\lafunc{const OptTrigonometric<T> *trig}{The trigonometric capability of the wrapped problem.}
+\lafunc{T h}{Central-difference step for parameters of degree 0.}
+\lafunc{ParameterShift(const OptProblem<T> *pp, const T hh=1e-6)}{Wraps \code{pp}; \code{laerror} if it does not provide
+\code{OptTrigonometric}.}
+\lafunc{virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const}{$f$ of the wrapped problem and the parameter-shift
+gradient.}
+\end{lareference}
+
+\paragraph{FrozenOptProblem.}
+Optimization in a subset of the parameters, the others (``frozen'') keeping their values.
+\begin{lareference}
+\lafunc{template<typename T> class FrozenOptProblem : public OptProblemAdapter<T>, public OptHessian<T>, public OptMetric<T>,
+public OptTrigonometric<T>, public OptConstraints<T>}{Problem in the $n_{\rm free}$ free parameters. Its
+\code{transforms_capabilities()} returns \code{true}: the Hessian and metric (submatrices for the free parameters), the
+Hessian-vector product, degree and period (of the free parameters) and the constraints are provided if and only if the wrapped
+problem provides them. \code{OptResiduals} is not forwarded, so \code{LM_Optimizer} cannot be used through it (the other
+methods can, via \code{funcgrad()} of an \code{OptLeastSquares} problem).}
+\lafunc{NRVec<T> xfull}{Full parameter vector; the values of the frozen parameters are taken from it.}
+\lafunc{NRVec<int> freeindex}{Indices of the free parameters in the full vector (ascending).}
+\lafunc{FrozenOptProblem(const OptProblem<T> *pp, const NRVec<T> &x, const bitvector &frozen)}{Wraps \code{pp}; \code{xfull}
+shares its data with \code{x} (shallow copy); \code{frozen} has bit $i$ set if $x_i$ is frozen.}
+\lafunc{void setfrozen(const bitvector &frozen)}{New set of frozen parameters (\code{laerror} if
+\code{frozen.size()!=xfull.size()}).}
+\lafunc{void setfull(const NRVec<T> &x)}{New full vector (new values of the frozen parameters); shallow copy.}
+\lafunc{NRVec<T> reduce(const NRVec<T> &full) const}{The free parameters of a full vector, \code{full.subvector(freeindex)}.}
+\lafunc{NRVec<T> expand(const NRVec<T> &reduced) const}{Full vector: a copy of \code{xfull} with the free parameters replaced by
+\code{reduced}.}
+\lafunc{virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const}{$f$ at \code{expand(x)}; the gradient is the free part of
+the full gradient.}
+\lafunc{virtual void hessian(const NRVec<T> &x, NRSMat<T> &h) const; virtual NRVec<T> hessian_times(const NRVec<T> &x, const NRVec<T> &v) const}{Free-free block of the wrapped Hessian; product with the free block.}
+\lafunc{virtual void metric(const NRVec<T> &x, NRSMat<T> &g) const}{Free-free block of the wrapped metric.}
+\lafunc{virtual int degree(const int i) const; virtual T period(const int i) const}{Of the free parameter $i$, i.e.\ of
+\code{freeindex[i]} of the wrapped problem.}
+\lafunc{virtual int nconstraints() const; virtual void constraints(const NRVec<T> &x, NRVec<T> &c) const}{Constraints of the
+wrapped problem at \code{expand(x)}.}
+\end{lareference}
+Usage: \code{FrozenOptProblem<T> fp(&problem,x,frozen); NRVec<T> xr=fp.reduce(x); optimizer.minimize(&fp,xr); x=fp.expand(xr);}
+(see example~\ref{sec:optimize:ex:frozen}).
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Optimizers, hyperparameters and results}\label{sec:optimize:hyper}
+
+\subsection{Optimizer and optresult}
+
+\begin{lareference}
+\lafunc{template<typename T> class Optimizer}{Abstract base class of all methods; the methods can be used through
+\code{Optimizer<T> *} or \code{&}. Each method class (\code{BFGS_Optimizer} etc.) has no data members and a virtual destructor.}
+\lafunc{virtual optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL) =0}{Minimizes
+\code{o} (for P-RFO: searches a stationary point of the requested order) starting from \code{x}, which is replaced by the
+result. \code{par==NULL} means the default parameters of the method; otherwise the parameters are taken from \code{*par} as
+described in section~\ref{sec:optimize:setfrom}. If \code{achieved!=NULL}, it is filled with the parameters used and with the
+values actually reached (section~\ref{sec:optimize:achieved}).}
+\lafunc{template<typename T> class optresult}{Result of \code{minimize()}.}
+\lafunc{T f; bool converged}{Final function value (for SPSA an estimate); whether a convergence criterion was satisfied
+(\code{false} if the iterations stopped on \code{my_maxstep}, \code{my_maxfunc} or a failure).}
+\lafunc{optresult(const T ff, const bool c); operator T() const}{Constructor; implicit conversion to \code{f}, so
+\code{double f=o.minimize(&p,x);} works.}
+\end{lareference}
+
+\subsection{Hyperparameter hierarchy}
+
+The hyperparameters form a class hierarchy; each method has its own class adding its specific parameters to those of the
+general classes. All members are public, named \code{my_...}, and initialized to the method's defaults by the constructor. The
+hierarchy (defaults in parentheses; a derived class may change inherited defaults, given at the method):
+
+\begin{lstlisting}
+hyperparameters                    maxstep(200) maxfunc(0) f_thr(0) x_thr(0) saddle_order(0) verbose(1)
+ +- gradient_hyperparameters       g_thr(1e-6)
+ |   +- linesearch_hyperparameters    c1(1e-4) c2(0.9) maxlinesearch(30) maxsteplength(1e10)
+ |   |   +- quasinewton_hyperparameters   sy_thr(1e-12)
+ |   |   |   +- BFGS_hyperparameters         update(QN_BFGS) sr1_thr(1e-8)
+ |   |   |   |   +- GDIIS_hyperparameters       diis_dim(5) diis_eps(0)
+ |   |   |   +- LBFGS_hyperparameters        memory(10)
+ |   |   +- CG_hyperparameters            beta(CG_PR) restart(0) powell_thr(0.2); c2=0.1
+ |   +- firstorder_hyperparameters    lr(1e-3) lr_decay(0) lr_power(1) weight_decay(0) return_best(false)
+ |   |   |                            natural(false) metric_reg(1e-3); maxstep=1000
+ |   |   +- SGD_hyperparameters           momentum(0.9) nesterov(false); lr=1e-2
+ |   |   |   +- QNG_hyperparameters          momentum=0 natural=true lr=0.05
+ |   |   +- Adam_hyperparameters          beta1(0.9) beta2(0.999) eps(1e-8) amsgrad(false)
+ |   |   +- SPSA_hyperparameters          c(0.1) gamma(0.101) resamplings(1) calibrate(20) target_step(0.1);
+ |   |                                    lr_decay=0.01 lr_power=0.602 g_thr=0
+ |   +- trustregion_hyperparameters   delta0(1) deltamax(1e3) eta(1e-4) hessian(TR_AUTO) hessian_recompute(1)
+ |   |   |                            update_thr(1e-8)
+ |   |   +- TrustRegion_hyperparameters   subproblem(TR_EIGEN) maxcg(0)
+ |   |   +- PRFO_hyperparameters          delta0=0.3
+ |   +- LM_hyperparameters            tau(1e-3) scaling(false) fd_step(1e-7)
+ +- NelderMead_hyperparameters     initstep(0.1) adaptive(true) alpha(1) gamma(2) rho(0.5) sigma(0.5);
+ |                                 maxstep=5000 f_thr=1e-8 x_thr=1e-6
+ +- Powell_hyperparameters         initstep(0.1) linmin_tol(1e-4) maxlinemin(50); maxstep=1000 f_thr=1e-10 x_thr=1e-6
+ |   +- Rotosolve_hyperparameters     reevaluate(false)
+ +- Cobyla_hyperparameters         rhobeg(0.5) rhoend(1e-6) flexible_radius(true); maxstep=100000
+\end{lstlisting}
+
+\paragraph{Base classes.}
+\begin{lareference}
+\lafunc{template<typename T> class hyperparameters}{Parameters common to all methods.}
+\lafunc{int my_maxstep}{Maximum number of iterations (default 200). What an iteration is depends on the method (a line search
+step, a sweep over all directions or parameters, a simplex operation, a trust-region step including rejected ones).}
+\lafunc{int my_maxfunc}{Maximum number of function evaluations, $\le0$ = unlimited (default 0). It counts every call of
+\code{funcgrad()} by the method (with or without gradient), and for LM every residual evaluation, including those of
+finite-difference Jacobians. Evaluations inside adapters (finite differences, parameter shifts) are not counted. Methods check
+before each iteration that the budget suffices and never exceed it, except for the unavoidable initial evaluations (the
+starting point, the initial simplex of Nelder-Mead and COBYLA, the first SPSA estimate).}
+\lafunc{T my_f_thr; T my_x_thr}{Thresholds on $|\Delta f|$ and $|\Delta x|$ (Euclidean norm) in the last step (default 0).
+The general criterion is $|\Delta f|<$ \code{my_f_thr} \emph{and} $|\Delta x|<$ \code{my_x_thr}, both strict, so with the
+default 0 it is switched off, and setting only one of them has no effect. Some methods reinterpret them (Nelder-Mead, Powell,
+Rotosolve, COBYLA, see there).}
+\lafunc{int my_saddle_order}{0 = minimum (default), $k>0$ = saddle point with $k$ negative Hessian eigenvalues. Only
+\code{PRFO_Optimizer} accepts $k>0$; all other methods call \code{laerror} if it is nonzero. For the trust-region methods it
+returns the Hessian index in \code{achieved}.}
+\lafunc{int my_verbose}{0 = silent, 1 = one line per iteration and a final report (default), 2 = more details (line searches,
+step lengths, trust-region radii, restarts). Output goes to \code{std::cout}.}
+\lafunc{hyperparameters()}{Defaults as above.}
+\lafunc{virtual void setfrom(const hyperparameters &p)}{Copies the parameters from \code{p} which exist in both classes
+(section~\ref{sec:optimize:setfrom}).}
+\lafunc{virtual bool converged(const optstate<T> &s) const}{Convergence test: \code{s.stepdone && s.df<my_f_thr && s.dx<my_x_thr}.}
+\lafunc{virtual void setreached(const optstate<T> &s)}{Stores the reached values: \code{my_maxstep} = iterations done,
+\code{my_maxfunc} = evaluations done, \code{my_f_thr}, \code{my_x_thr} = $|\Delta f|$, $|\Delta x|$ of the last step.}
+
+\lafunc{template<typename T> class gradient_hyperparameters : public hyperparameters<T>}{Methods using the gradient.}
+\lafunc{T my_g_thr}{Convergence threshold on the gradient norm (default \code{1e-6}). \code{converged()} is
+$|g|<$ \code{my_g_thr} \emph{or} the criterion of the base class; \code{setreached()} stores the last $|g|$ (or $-1$ if the
+gradient norm is not available, as for SPSA).}
+
+\lafunc{template<typename T> class linesearch_hyperparameters : public gradient_hyperparameters<T>}{Methods with the strong
+Wolfe line search.}
+\lafunc{T my_c1; T my_c2}{Sufficient decrease (Armijo) and curvature parameters of the strong Wolfe conditions,
+$0<c_1<c_2<1$ (defaults \code{1e-4}, 0.9).}
+\lafunc{int my_maxlinesearch}{Maximum number of function evaluations in one line search (30).}
+\lafunc{T my_maxsteplength}{Maximum norm of a single step in $x$ (\code{1e10}).}
+
+\lafunc{template<typename T> class firstorder_hyperparameters : public gradient_hyperparameters<T>}{First-order methods with a
+learning rate instead of a line search, suitable also for noisy functions and gradients. Default \code{my_maxstep=1000}.}
+\lafunc{T my_lr; T my_lr_decay; T my_lr_power}{Learning rate in iteration $k=0,1,\dots$ is
+$\mathrm{lr}/(1+\mathrm{lr\_decay}\cdot k)^{\mathrm{lr\_power}}$ (defaults \code{1e-3}, 0, 1).}
+\lafunc{T my_weight_decay}{Decoupled weight decay $x\mathrel{-}=\mathrm{lr}\cdot\mathrm{weight\_decay}\cdot x$
+\cite{optimize:loshchilov2019} (default 0).}
+\lafunc{bool my_return_best}{Return the point with the lowest function value seen instead of the last one (default
+\code{false}); only meaningful for (nearly) deterministic $f$, the lowest of noisy values is biased.}
+\lafunc{bool my_natural}{Use the natural gradient $(G+\mathrm{metric\_reg}\,I)^{-1}g$ with the metric $G$ of the problem
+(\code{OptMetric} required) \cite{optimize:amari1998,optimize:stokes2020}; $|g|$ in the convergence test and in the output then
+refers to the natural gradient (default \code{false}).}
+\lafunc{T my_metric_reg}{Regularization added to the diagonal of the metric (\code{1e-3}).}
+
+\lafunc{template<typename T> class trustregion_hyperparameters : public gradient_hyperparameters<T>}{Trust-region methods,
+see section~\ref{sec:optimize:tr}.}
+\end{lareference}
+
+The method-specific classes are described with their methods in section~\ref{sec:optimize:methods}. Each of them has a default
+constructor and overrides \code{setfrom()}.
+
+\subsection{How parameters are taken: setfrom()}\label{sec:optimize:setfrom}
+
+Every \code{minimize()} constructs the hyperparameter object of its own method (with the method's defaults) and calls
+\code{hp.setfrom(*par)}. Each class's \code{setfrom()} tries \code{dynamic_cast} of \code{par} to its own type; on success it
+assigns \code{*this=*q} at its own level, otherwise it delegates to its parent class. The effect is that all fields of the
+deepest class common to the method's class and the dynamic type of \code{*par} are copied from \code{*par}, while the
+method-specific fields below it keep the method's defaults. Thus one may pass
+\begin{itemize}
+\item the method's own class (all parameters given),
+\item a more general class, e.g.\ \code{gradient_hyperparameters<double>} to any gradient method, or \code{hyperparameters<double>}
+to any method,
+\item the class of another method: e.g.\ \code{CG_hyperparameters} passed to \code{BFGS_Optimizer} provides the line search
+parameters (including CG's default \code{my_c2=0.1}).
+\end{itemize}
+\lawarning{All fields of the common level are copied, including those the caller left at the defaults \emph{of that level}, which
+may differ from the defaults of the method. For example, a plain \code{hyperparameters<double>} object passed to
+\code{NelderMead_Optimizer} replaces its \code{my_maxstep=5000}, \code{my_f_thr=1e-8}, \code{my_x_thr=1e-6} by 200, 0, 0 (no
+convergence test); \code{gradient_hyperparameters} passed to Adam replaces \code{my_maxstep=1000} by 200;
+\code{SGD_hyperparameters} passed to QNG brings \code{my_momentum=0.9}. Set those fields explicitly, or use the method's own
+class.}
+
+A derived hyperparameter class written for a new method must override \code{setfrom()} in the same way (one line, see the
+header), and \code{converged()}, \code{setreached()} if it adds parameters relevant for them.
+
+\subsection{The achieved values}\label{sec:optimize:achieved}
+
+If \code{achieved!=NULL}, at the end \code{achieved->setfrom(hp)} copies the parameters used (at the common level of the two
+classes, as above) and \code{achieved->setreached()} overwrites the limits and thresholds with the values reached:
+\begin{itemize}
+\item \code{my_maxstep}: number of iterations done; \code{my_maxfunc}: number of function evaluations done;
+\item \code{my_f_thr}, \code{my_x_thr}: $|\Delta f|$ and $|\Delta x|$ of the last step (0 if no step was done); for
+Nelder-Mead the spread of $f$ and the diameter of the simplex, for COBYLA the change of $f$ and the radius $\rho$;
+\item \code{my_g_thr} (if \code{achieved} is at least a \code{gradient_hyperparameters}): the last gradient norm
+($-1$ if not available);
+\item \code{my_saddle_order} (trust-region methods only): the number of negative eigenvalues of the Hessian at the result (of the
+exact one if the problem provides \code{OptHessian}, otherwise of the approximation);
+\item \code{my_lr} (first-order methods): the initial learning rate actually used (after the SPSA calibration), if
+\code{achieved} is at least of the class \code{firstorder_hyperparameters};
+\item the other fields: the parameters as they were used.
+\end{itemize}
+The type of \code{achieved} determines what is returned: an object of the class \code{hyperparameters<double>} suffices for
+the counts, the class \code{gradient_hyperparameters<double>} is needed to obtain $|g|$.
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Infrastructure and common drivers}\label{sec:optimize:drivers}
+
+This section is needed only for writing new methods; the classes are public so that methods can be added outside the library.
+
+\subsection{Evaluation and iteration bookkeeping}
+
+\begin{lareference}
+\lafunc{template<typename T> class optevaluator}{Wraps the problem: counts evaluations and keeps the best point seen.}
+\lafunc{const OptProblem<T> *o; int maxfunc; int nfunc; T fbest; NRVec<T> xbest}{The problem, the evaluation budget ($\le0$
+unlimited), the number of evaluations done, the lowest $f$ found and its point.}
+\lafunc{optevaluator(const OptProblem<T> *oo, const int maxf=0)}{Constructor.}
+\lafunc{T operator()(const NRVec<T> &x, NRVec<T> *grad=NULL)}{\code{o->funcgrad(x,grad)}, counted; if $f$ is the lowest so far,
+\code{xbest=x} (a shallow copy sharing the data of \code{x}, see section~\ref{sec:optimize:pitfalls}).}
+\lafunc{T operator()(const OptResiduals<T> *res, const NRVec<T> &x, NRVec<T> &r)}{Residuals at \code{x} into \code{r}, returns
+$\frac12|r|^2$; counted and recorded as above.}
+\lafunc{bool exhausted() const; int remaining() const}{Budget used up; number of evaluations left
+(\code{std::numeric_limits<int>::max()} if unlimited).}
+
+\lafunc{template<typename T> class optstate}{Iteration bookkeeping common to all methods: convergence and limit tests, verbose
+output, result.}
+\lafunc{const char *name; const hyperparameters<T> &hp; const optevaluator<T> &e}{Method name for the output, the parameters
+used (their virtual \code{converged()} is called), the evaluator.}
+\lafunc{int iter; T f; T gnorm; T df; T dx; bool stepdone; bool converged}{Iterations done; current $f$; current $|g|$ ($<0$ if
+not available); $|\Delta f|$, $|\Delta x|$ of the last step; whether \code{df}, \code{dx} are valid; whether converged.}
+\lafunc{optstate(const char *nm, const hyperparameters<T> &h, const optevaluator<T> &ee)}{Constructor.}
+\lafunc{bool stop(const T ff, const T gn= -1, const int needed=1)}{To be called at the beginning of each iteration with the
+current $f$ and $|g|$: prints the iteration line (verbose $\ge1$) and returns \code{true} if converged (\code{hp.converged()}),
+if \code{iter>=my_maxstep}, or if fewer than \code{needed} evaluations (those of the next iteration) remain.}
+\lafunc{void step(const T dff, const T dxx)}{Records a step: $|\Delta f|$, $|\Delta x|$, \code{stepdone=true}.}
+\lafunc{optresult<T> finish(hyperparameters<T> *achieved) const}{Final report (verbose $\ge1$), fills \code{achieved} if not
+\code{NULL}, returns the result.}
+\end{lareference}
+
+\subsection{One-dimensional searches}
+
+\begin{lareference}
+\lafunc{template<typename T> T linesearch_wolfe(optevaluator<T> &e, NRVec<T> &x, T &f, NRVec<T> &g, const NRVec<T> &p, const T alpha1, const linesearch_hyperparameters<T> &lp)}{Line
+search along the descent direction \code{p} satisfying the strong Wolfe conditions (bracketing and zoom with safeguarded cubic
+interpolation, \cite{optimize:nocedal2006} alg.~3.5, 3.6). On input \code{x}, \code{f}, \code{g} at the starting point,
+\code{alpha1} the initial trial step; on success they are replaced by the new point and the step length $\alpha$ is returned.
+If the strong Wolfe conditions cannot be met within \code{my_maxlinesearch} evaluations (or the remaining budget), the best point
+satisfying sufficient decrease is accepted; 0 is returned on failure (also if \code{p} is not a descent direction), \code{x},
+\code{f}, \code{g} then unchanged. The step is limited to $|\alpha p|\le$ \code{my_maxsteplength}.}
+\lafunc{template<typename T> T linemin_brent(optevaluator<T> &e, NRVec<T> &x, T &f, const NRVec<T> &u, const T t1, const T tol, const T abstol, const int maxiter, const int verbose=0)}{Derivative-free
+minimization of $f(x+tu)$: bracketing starting with the trial step \code{t1} (the opposite direction is tried if uphill),
+then Brent's method \cite{optimize:brent1973} with relative and absolute tolerances \code{tol}, \code{abstol} on $t$, at most
+\code{maxiter} evaluations (and the remaining budget). On output \code{x}, \code{f} at the best point found; returns $t$, or 0
+if no decrease was found (\code{x}, \code{f} unchanged).}
+\end{lareference}
+
+\subsection{Line-search methods}
+
+\begin{lareference}
+\lafunc{template<typename T> class linesearch_direction}{Search direction of a line-search method, abstract.}
+\lafunc{virtual NRVec<T> direction(const NRVec<T> &g) =0}{Search direction at the point with gradient \code{g}.}
+\lafunc{virtual bool update(const NRVec<T> &s, const NRVec<T> &y, const NRVec<T> &p, const NRVec<T> &g) =0}{After a step
+$s=\alpha p$ with gradient change $y$ and new gradient $g$; returns \code{false} if the update was skipped (only reported).}
+\lafunc{virtual void reset() =0}{Forget the accumulated information (restart).}
+\lafunc{virtual bool steepest() const =0}{No information accumulated, \code{direction()} gives steepest descent.}
+\lafunc{virtual bool indefinite() const}{\code{true}: a non-descent direction is legitimate (SR1); the driver then takes a
+steepest-descent step without reset. Default \code{false}.}
+\lafunc{virtual bool alpha_from_previous() const}{\code{true}: initial trial step $\alpha_{k-1}\,g_{k-1}\cdot p_{k-1}/(g_k\cdot p_k)$
+(\cite{optimize:nocedal2006} eq.~3.60, used by CG); otherwise 1 (the quasi-Newton step), or a unit step in $x$ for steepest
+descent. Default \code{false}.}
+\lafunc{template<typename T> optresult<T> linesearch_minimize(const char *name, linesearch_direction<T> &dir, const OptProblem<T> *o, NRVec<T> &x, const linesearch_hyperparameters<T> &hp, hyperparameters<T> *achieved)}{Common
+driver: in each iteration \code{p=dir.direction(g)}; if $p\cdot g\ge0$, steepest descent (with \code{dir.reset()} unless
+\code{indefinite()}); \code{linesearch_wolfe()}; on its failure a restart, or the end if it failed along steepest descent;
+then \code{dir.update()} and the step is recorded. One evaluation per line search trial point.}
+\end{lareference}
+
+\subsection{First-order methods}
+
+\begin{lareference}
+\lafunc{template<typename T> class firstorder_step}{Update rule of a first-order method, abstract.}
+\lafunc{virtual NRVec<T> step(const NRVec<T> &g, const int k) =0}{Direction $d$ of the step $x\mathrel{-}=\mathrm{lr}\,d$ in
+iteration $k=1,2,\dots$ with gradient \code{g}. The gradient vector passed is freshly allocated in each iteration, so the stepper
+may keep it.}
+\lafunc{template<typename T> class gradient_estimator}{Supplies $f$ and the gradient to the driver; the default implementation
+is the exact evaluation, derived classes estimate them (SPSA).}
+\lafunc{virtual T operator()(optevaluator<T> &e, const NRVec<T> &x, NRVec<T> &g, const int k)}{Returns $f$ at \code{x} and the
+gradient in \code{g}; \code{k=0,1,...} is the iteration.}
+\lafunc{virtual int cost() const}{Number of evaluations of one call (default 1).}
+\lafunc{virtual bool exact() const}{Default \code{true}. With estimates (\code{false}) no convergence test is done, since small
+gradients or changes can occur by chance, and the iterations run until \code{my_maxstep} or \code{my_maxfunc}.}
+\lafunc{virtual T calibrate(optevaluator<T> &e, const NRVec<T> &x, const firstorder_hyperparameters<T> &hp)}{Learning rate to be
+used; default \code{hp.my_lr}.}
+\lafunc{template<typename T> optresult<T> firstorder_minimize(const char *name, firstorder_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const firstorder_hyperparameters<T> &hp, hyperparameters<T> *achieved, gradient_estimator<T> *est=NULL)}{Common
+driver: $x\leftarrow x-\mathrm{lr}_k\,d-\mathrm{lr}_k\,\mathrm{weight\_decay}\,x$ with $d$ from the stepper, \code{est==NULL}
+meaning exact gradients. With \code{my_natural} the gradient of the estimator is replaced by the natural gradient. Implements
+\code{my_return_best}, and returns the learning rate used in \code{achieved} if it is a \code{firstorder_hyperparameters}.}
+\end{lareference}
+
+\subsection{Trust-region methods}\label{sec:optimize:tr}
+
+The trust-region methods work with the quadratic model $f+g\cdot p+\frac12 p\cdot Bp$ within $|p|\le\Delta$
+\cite{optimize:nocedal2006,optimize:conn2000}. The matrix $B$ is the exact Hessian (\code{OptHessian}) or an approximation
+updated by a secant formula.
+
+\begin{lareference}
+\lafunc{enum TR_hessian {TR_AUTO, TR_EXACT, TR_BFGS, TR_SR1, TR_PSB, TR_BOFILL}}{Choice of $B$.
+\code{TR_EXACT}: exact Hessian (\code{laerror} if the problem does not provide it). \code{TR_AUTO}: exact if available,
+otherwise BFGS for minima and Bofill for saddle points. \code{TR_BFGS}, \code{TR_SR1}, \code{TR_PSB}, \code{TR_BOFILL}: updated
+by the BFGS, SR1, Powell-symmetric-Broyden or Bofill \cite{optimize:bofill1994} formula starting from the identity, scaled after
+the first step by $y\cdot y/s\cdot y$. Between exact Hessians (\code{my_hessian_recompute>1}) the updates are SR1 for minima (the
+exact Hessian may be indefinite) and Bofill for saddle points. BFGS is refused for saddle points.}
+\lafunc{template<typename T> bool hessian_update(NRSMat<T> &B, const NRVec<T> &s, const NRVec<T> &y, const TR_hessian type, const T thr)}{Update
+of a Hessian approximation $B$ (not of its inverse) by the step $s$ and gradient change $y$, $\xi=y-Bs$:
+BFGS $B+yy\Tr/(y\cdot s)-Bs(Bs)\Tr/(s\cdot Bs)$ (skipped if $s\cdot y\le\mathrm{thr}\,|s||y|$ or $s\cdot Bs\le0$);
+SR1 $B+\xi\xi\Tr/(\xi\cdot s)$ (skipped if $|\xi\cdot s|\le\mathrm{thr}\,|\xi||s|$);
+PSB $B+(\xi s\Tr+s\xi\Tr)/(s\cdot s)-(\xi\cdot s)ss\Tr/(s\cdot s)^2$;
+Bofill $\varphi\,$SR1$+(1-\varphi)\,$PSB with $\varphi=(\xi\cdot s)^2/(|\xi|^2|s|^2)$ (skipped if $\xi=0$).
+Returns \code{false} if skipped. Only \code{TR_BFGS}, \code{TR_SR1}, \code{TR_PSB}, \code{TR_BOFILL} are valid.}
+
+\lafunc{T my_delta0; T my_deltamax}{(\code{trustregion_hyperparameters}) Initial (1) and maximal (\code{1e3}) trust-region
+radius.}
+\lafunc{T my_eta}{A minimization step is accepted if (actual reduction)/(predicted reduction) $>\eta$ (\code{1e-4}).}
+\lafunc{TR_hessian my_hessian}{See above (\code{TR_AUTO}).}
+\lafunc{int my_hessian_recompute}{With an exact Hessian: recompute it every $k$-th accepted step and update in between; 1 =
+always exact (default).}
+\lafunc{T my_update_thr}{Threshold for skipping the updates (\code{thr} of \code{hessian_update()}, \code{1e-8}).}
+
+\lafunc{template<typename T> class trustregion_step}{Step of a trust-region method, abstract.}
+\lafunc{virtual NRVec<T> step(const NRVec<T> &g, const NRSMat<T> &B, const T delta) =0}{Step within the trust region.}
+\lafunc{virtual bool saddle() const}{Searching for a saddle point: steps are always taken and the radius is controlled by the
+quality of the model only. Default \code{false}.}
+\lafunc{template<typename T> optresult<T> trustregion_minimize(const char *name, trustregion_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const trustregion_hyperparameters<T> &hp, hyperparameters<T> *achieved)}{Common
+driver. For minimization: radius control by \cite{optimize:nocedal2006} alg.~4.1 (ratio $<0.25$: $\Delta=|p|/4$; ratio $>0.75$
+and step on the boundary: $\Delta=\min(2\Delta,\Delta_{\max})$); if the predicted change is below the rounding errors of $f$,
+the step is judged by the decrease of $|g|$. For saddle points: every step is taken; ratio outside $[0.25,1.75]$ gives
+$\Delta=|p|/4$, ratio in $(0.75,1.25)$ with a boundary step doubles $\Delta$. One evaluation (with gradient) per iteration;
+rejected steps count as iterations. At the end the Hessian (exact if available, otherwise $B$) is diagonalized and the number of
+its negative eigenvalues is printed and returned in \code{achieved->my_saddle_order}.}
+\end{lareference}
+
+\subsection{Writing a new method}
+
+A new line-search method needs a \code{linesearch_direction} and an \code{Optimizer} whose \code{minimize()} sets up the
+hyperparameters and calls the driver; the same pattern applies to \code{firstorder_step} with the driver
+\code{firstorder_minimize()} and to \code{trustregion_step} with the driver \code{trustregion_minimize()}. A complete (compile-tested) example, steepest descent with the
+strong Wolfe line search:
+\begin{lstlisting}
+template<typename T>
+class SD_direction : public linesearch_direction<T> {
+public:
+NRVec<T> direction(const NRVec<T> &g) {NRVec<T> p(g); p*= (T)-1; return p;}
+bool update(const NRVec<T> &s, const NRVec<T> &y, const NRVec<T> &p, const NRVec<T> &g) {return true;}
+void reset() {}
+bool steepest() const {return true;}
+};
+
+template<typename T>
+class SD_Optimizer : public Optimizer<T> {
+public:
+optresult<T> minimize(const OptProblem<T> *o, NRVec<T> &x, const hyperparameters<T> *par=NULL, hyperparameters<T> *achieved=NULL)
+	{
+	linesearch_hyperparameters<T> hp; //a derived class would set the method's defaults
+	if(par) hp.setfrom(*par);
+	if(hp.my_saddle_order) laerror("SD cannot search for saddle points");
+	SD_direction<T> dir;
+	return linesearch_minimize("SD",dir,o,x,hp,achieved);
+	}
+};
+\end{lstlisting}
+Methods with their own iteration loop use \code{optevaluator} for all evaluations and \code{optstate}: \code{stop()} at the
+beginning of each iteration, \code{step()} after each step, \code{finish(achieved)} at the end.
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Methods}\label{sec:optimize:methods}
+
+Table~\ref{tab:optimize:methods} summarizes the methods. ``Gradient'' means that \code{funcgrad()} is called with a gradient
+request; such methods can be applied to an $f$-only problem through \code{FiniteDifference} or \code{ParameterShift}.
+``Optional'' capabilities are used if present.
+
+\begin{table}[htbp]
+\centering\footnotesize
+\caption{Methods, their requirements and properties.}\label{tab:optimize:methods}
+\begin{tabular}{@{}>{\raggedright}p{0.25\textwidth}>{\raggedright}p{0.11\textwidth}>{\raggedright}p{0.24\textwidth}>{\raggedright}p{0.14\textwidth}>{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
+\toprule
+Class & Deriva\-tives & Capabilities & Constraints, saddles & Noisy $f$ \\
+\midrule
+\texttt{BFGS\_Optimizer} (BFGS, DFP, SR1) & gradient & -- & no & no \\
+\texttt{LBFGS\_Optimizer} & gradient & -- & no & no \\
+\texttt{CG\_Optimizer} & gradient & -- & no & no \\
+\texttt{GDIIS\_Optimizer} & gradient & -- & no & no \\
+\texttt{TrustRegion\_\-Optimizer} & gradient & \texttt{OptHessian} optional (required for \texttt{TR\_EXACT}) & no & no \\
+\texttt{PRFO\_Optimizer} & gradient & \texttt{OptHessian} optional & saddles of any order & no \\
+\texttt{LM\_Optimizer} & Jacobian optional & \texttt{OptResiduals} required & no & no \\
+\texttt{NelderMead\_\-Optimizer} & none & -- & no & partly \\
+\texttt{Powell\_Optimizer} & none & -- & no & no \\
+\texttt{Rotosolve\_\-Optimizer} & none & \texttt{OptTrigono\-metric} optional & no & with \texttt{my\_re\-evaluate} \\
+\texttt{Cobyla\_Optimizer} & none & \texttt{OptConstraints} optional & inequality constraints & no \\
+\texttt{SGD\_Optimizer} & gradient & \texttt{OptMetric} if \texttt{my\_natural} & no & yes \\
+\texttt{Adam\_Optimizer} & gradient & \texttt{OptMetric} if \texttt{my\_natural} & no & yes \\
+\texttt{QNG\_Optimizer} & gradient & \texttt{OptMetric} required & no & yes \\
+\texttt{SPSA\_Optimizer} & none & \texttt{OptMetric} if \texttt{my\_natural} & no & yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every \code{XXX_Optimizer} class below has only the member \code{minimize()} with the signature of
+\code{Optimizer<T>::minimize()} and a virtual destructor; only the hyperparameters are listed. All methods except P-RFO call \code{laerror} if
+\code{my_saddle_order!=0}.
+
+\subsection{Quasi-Newton methods: BFGS, DFP, SR1}
+
+\code{BFGS_Optimizer} keeps an explicit approximation $H$ of the inverse Hessian, starting from the identity scaled after the
+first step by $s\cdot y/y\cdot y$ (\cite{optimize:nocedal2006} eq.~6.20), and uses the strong Wolfe line search with the initial
+trial step 1 (the quasi-Newton step). Memory and work are $O(n^2)$ per iteration; for large $n$ use L-BFGS.
+
+\begin{lareference}
+\lafunc{template<typename T> class quasinewton_hyperparameters : public linesearch_hyperparameters<T>}{}
+\lafunc{T my_sy_thr}{Skip the update if $s\cdot y\le\mathrm{sy\_thr}\,|s||y|$ (curvature condition violated numerically;
+\code{1e-12}). Also used by L-BFGS.}
+\lafunc{enum QN_update {QN_BFGS, QN_DFP, QN_SR1}}{Update formula of $H$ (\cite{optimize:nocedal2006} eqs.~6.17, 6.15, 6.25).}
+\lafunc{template<typename T> class BFGS_hyperparameters : public quasinewton_hyperparameters<T>}{}
+\lafunc{QN_update my_update}{\code{QN_BFGS} (default), \code{QN_DFP} (needs an accurate line search, \code{my_c2}$\approx0.1$,
+otherwise it can stall), \code{QN_SR1} ($H$ may become indefinite; a non-descent direction then leads to a steepest descent step
+without reset). The verbose name is BFGS, DFP or SR1.}
+\lafunc{T my_sr1_thr}{SR1: skip the update if $|(s-Hy)\cdot y|\le\mathrm{sr1\_thr}\,|s-Hy||y|$ (\cite{optimize:nocedal2006}
+eq.~6.26; \code{1e-8}).}
+\lafunc{template<typename T> class BFGS_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{L-BFGS}
+
+Limited-memory BFGS (\cite{optimize:nocedal2006} sec.~7.2): the last \code{my_memory} pairs $(s,y)$ in a ring buffer, the
+direction by the two-loop recursion (alg.~7.4) with $H_0=\gamma I$, $\gamma=s\cdot y/y\cdot y$ of the newest pair. Memory
+$O(mn)$. Pairs violating the curvature condition (\code{my_sy_thr}) are skipped.
+\begin{lareference}
+\lafunc{template<typename T> class LBFGS_hyperparameters : public quasinewton_hyperparameters<T>}{}
+\lafunc{int my_memory}{Number of stored pairs (10; \code{laerror} if $<1$).}
+\lafunc{template<typename T> class LBFGS_Optimizer : public Optimizer<T>}{Verbose name L-BFGS.}
+\end{lareference}
+
+\subsection{Nonlinear conjugate gradients}
+
+$p_{k+1}=-g_{k+1}+\beta p_k$ (\cite{optimize:nocedal2006} sec.~5.2, \cite{optimize:hager2005}), with the initial trial step of
+the line search from the previous step. Restarts with steepest descent every \code{my_restart} iterations, by Powell's test,
+after a failed line search, and if the curvature $p\cdot y\le0$ for the formulas dividing by it.
+\begin{lareference}
+\lafunc{enum CG_beta {CG_FR, CG_PR, CG_HS, CG_DY, CG_HZ}}{Formula for $\beta$ ($y=g_{k+1}-g_k$):
+Fletcher-Reeves $|g_{k+1}|^2/|g_k|^2$; Polak-Ribi\`ere+ $\max(0,g_{k+1}\cdot y/|g_k|^2)$;
+Hestenes-Stiefel+ $\max(0,g_{k+1}\cdot y/p_k\cdot y)$; Dai-Yuan $|g_{k+1}|^2/p_k\cdot y$; Hager-Zhang
+$\max\bigl(\beta^{\rm HZ},-1/(|p_k|\min(0.01,|g_k|))\bigr)$, $\beta^{\rm HZ}=(g_{k+1}\cdot y-2(p_k\cdot g_{k+1})|y|^2/p_k\cdot y)/p_k\cdot y$.
+Verbose names CG-FR, CG-PR+, CG-HS+, CG-DY, CG-HZ.}
+\lafunc{template<typename T> class CG_hyperparameters : public linesearch_hyperparameters<T>}{Default \code{my_c2=0.1}
+(CG needs a more accurate line search).}
+\lafunc{CG_beta my_beta}{\code{CG_PR} (default), see above.}
+\lafunc{int my_restart}{Restart every \code{my_restart} iterations, $\le0$ = the dimension $n$ (default 0).}
+\lafunc{T my_powell_thr}{Restart if $|g_{k+1}\cdot g_k|\ge\mathrm{powell\_thr}\,|g_{k+1}|^2$ (\cite{optimize:nocedal2006}
+eq.~5.52), $\le0$ disables (0.2).}
+\lafunc{template<typename T> class CG_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{GDIIS}
+
+Geometry DIIS \cite{optimize:csaszar1984} with a quasi-Newton Hessian \cite{optimize:farkas2002}. The error vectors are the
+quasi-Newton steps $e_i=-Hg_i$; the new point is $\sum_ic_i(x_i+e_i)$ with $c$ minimizing $|\sum_ic_ie_i|$ subject to
+$\sum_ic_i=1$ (the \code{DIIS} class of diis.h, chapter~\ref{ch:iterative}). One evaluation per iteration. If the DIIS step goes
+uphill ($s\cdot g\ge0$), is longer than \code{my_maxsteplength}, or does not decrease $f$, the DIIS history is reset and a
+strong Wolfe line search along the quasi-Newton step is done; the first step after a (re)start is always a line search. $H$ is
+updated as in \code{BFGS_Optimizer} (all its parameters apply, including \code{my_update}).
+\begin{lareference}
+\lafunc{template<typename T> class GDIIS_hyperparameters : public BFGS_hyperparameters<T>}{}
+\lafunc{int my_diis_dim}{Number of stored points (5; \code{laerror} if $<1$).}
+\lafunc{T my_diis_eps}{Regularization added to the diagonal of the DIIS matrix (0).}
+\lafunc{template<typename T> class GDIIS_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{Trust-region Newton and quasi-Newton}
+
+Minimization by \code{trustregion_minimize()} (section~\ref{sec:optimize:tr}) with the subproblem
+$\min g\cdot p+\frac12p\cdot Bp$, $|p|\le\Delta$, solved either exactly in the eigenbasis of $B$ \cite{optimize:more1983}
+(Newton step if $B$ is positive definite and the step lies inside, otherwise $p(\mu)=-(B+\mu I)^{-1}g$ with $|p(\mu)|=\Delta$
+found by a safeguarded Newton iteration on $1/|p(\mu)|$, including the hard case; $O(n^3)$ per iteration, handles indefinite
+$B$), or approximately by truncated conjugate gradients \cite{optimize:steihaug1983} (\cite{optimize:nocedal2006} alg.~7.2),
+which avoids the diagonalization for large $n$. With the exact Hessian (default if \code{OptHessian} is provided) this is a
+globally convergent Newton method.
+\begin{lareference}
+\lafunc{enum TR_subproblem {TR_EIGEN, TR_STEIHAUG}}{Subproblem solver.}
+\lafunc{template<typename T> class TrustRegion_hyperparameters : public trustregion_hyperparameters<T>}{All parameters of
+\code{trustregion_hyperparameters} (section~\ref{sec:optimize:tr}) and:}
+\lafunc{TR_subproblem my_subproblem}{\code{TR_EIGEN} (default) or \code{TR_STEIHAUG}. Verbose names TR-Newton, TR-Steihaug.}
+\lafunc{int my_maxcg}{Maximum number of CG iterations of Steihaug's method, $\le0$ = the dimension (0).}
+\lafunc{template<typename T> class TrustRegion_Optimizer : public Optimizer<T>}{Minimization only (\code{laerror} for
+\code{my_saddle_order!=0}, use P-RFO). \code{achieved->my_saddle_order} returns the Hessian index at the result, which is 0
+for a true minimum.}
+\end{lareference}
+Note that the Steihaug variant works with the stored matrix $B$ (exact or updated), so it saves the $O(n^3)$ diagonalization but
+not the $O(n^2)$ storage.
+
+\subsection{P-RFO: minima and saddle points}
+
+Partitioned rational function optimization \cite{optimize:banerjee1985,optimize:baker1986}: search for a stationary point with
+\code{my_saddle_order}$=k$ negative Hessian eigenvalues. In the eigenbasis of $B$ ($\lambda_i$ ascending, $\tilde g_i$ the
+components of $g$), the step is $\tilde p_i=-\tilde g_i/(\lambda_i-\mu)$ with $\mu=\mu_{\max}$, the largest eigenvalue of the
+bordered $(k+1)\times(k+1)$ matrix $\bigl[\begin{smallmatrix}\Lambda_k&\tilde g_k\\ \tilde g_k\Tr&0\end{smallmatrix}\bigr]$ of
+the $k$ lowest modes (maximized), and $\mu=\mu_{\min}$, the lowest eigenvalue of the corresponding matrix of the other modes
+(minimized); the step is scaled down to $\Delta$ if longer. $k=0$ gives RFO minimization. For $k>0$ the trust-region driver works
+in its saddle mode (steps always taken). The modes to be maximized are always the $k$ lowest ones (no mode following).
+The Hessian choice follows \code{my_hessian}: with \code{TR_AUTO} the exact Hessian if available, otherwise Bofill updates for
+$k>0$ (\code{TR_BFGS} is refused for $k>0$). Convergence is normally by \code{my_g_thr}; the number of negative eigenvalues at
+the result is only reported (in the verbose output and in \code{achieved->my_saddle_order}), not checked, so the caller should
+compare it with $k$.
+\begin{lareference}
+\lafunc{template<typename T> class PRFO_hyperparameters : public trustregion_hyperparameters<T>}{All parameters of
+\code{trustregion_hyperparameters}, with the default \code{my_delta0=0.3}; \code{my_saddle_order} in $[0,n]$.}
+\lafunc{template<typename T> class PRFO_Optimizer : public Optimizer<T>}{Verbose name P-RFO; \code{laerror} for an invalid
+saddle order.}
+\end{lareference}
+
+\subsection{Levenberg-Marquardt}
+
+For least-squares problems providing \code{OptResiduals} (typically derived from \code{OptLeastSquares}): the step $h$ solves
+$(J\Tr J+\mu D)h=-J\Tr r$ (\code{linear_solve}), $D=I$ or $D=\mathrm{diag}(J\Tr J)$ (Marquardt scaling); the damping starts at
+$\mu=\tau\max_i(J\Tr J)_{ii}$ and is updated by the gain ratio $\varrho$ \cite{optimize:madsen2004} (alg.~3.16): for $\varrho>0$
+the step is accepted and $\mu\leftarrow\mu\max(1/3,1-(2\varrho-1)^3)$, $\nu=2$, otherwise $\mu\leftarrow\mu\nu$, $\nu\leftarrow2\nu$.
+The Jacobian comes from \code{jacobian()} of the problem or from forward differences (relative step \code{my_fd_step}, $n$
+residual evaluations counted in \code{my_maxfunc}). Convergence: $|J\Tr r|<$ \code{my_g_thr}, the general $f$/$x$ criterion, or
+when a rejected step becomes negligible at machine precision ($|h|\le10\epsilon(|x|+\epsilon)$). The function value returned is
+$f=\frac12|r|^2$. The problem's \code{funcgrad()} is not used.
+\begin{lareference}
+\lafunc{template<typename T> class LM_hyperparameters : public gradient_hyperparameters<T>}{}
+\lafunc{T my_tau}{Initial damping factor $\tau$ (\code{1e-3}).}
+\lafunc{bool my_scaling}{Marquardt scaling $D=\mathrm{diag}(J\Tr J)$ (default \code{false}, $D=I$).}
+\lafunc{T my_fd_step}{Relative step of the forward-difference Jacobian (\code{1e-7}).}
+\lafunc{template<typename T> class LM_Optimizer : public Optimizer<T>}{\code{laerror} if the problem does not provide
+\code{OptResiduals}. Verbose name Levenberg-Marquardt.}
+\end{lareference}
+\subsection{Nelder-Mead downhill simplex}
+
+Derivative-free simplex method \cite{optimize:lagarias1998} with reflection, expansion, outside and inside contraction and
+shrink, starting from the simplex $x_0$, $x_0+\mathrm{initstep}\,e_i$ ($n+1$ evaluations). Convergence: \code{my_f_thr} is
+compared with the spread $f_{\rm worst}-f_{\rm best}$ of the function values in the simplex and \code{my_x_thr} with its
+diameter (largest distance from the best vertex); both have to be satisfied. The best vertex is returned.
+\begin{lareference}
+\lafunc{template<typename T> class NelderMead_hyperparameters : public hyperparameters<T>}{Defaults \code{my_maxstep=5000},
+\code{my_f_thr=1e-8}, \code{my_x_thr=1e-6}.}
+\lafunc{T my_initstep}{Edge length of the initial simplex (0.1).}
+\lafunc{bool my_adaptive}{Dimension-dependent coefficients $\alpha=1$, $\gamma=1+2/n$, $\rho=3/4-1/(2n)$, $\sigma=1-1/n$
+\cite{optimize:gao2012} (default \code{true}, recommended above about 10 dimensions); otherwise the following ones.}
+\lafunc{T my_alpha; T my_gamma; T my_rho; T my_sigma}{Reflection (1), expansion (2), contraction (0.5), shrink (0.5)
+coefficients.}
+\lafunc{template<typename T> class NelderMead_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{Powell's conjugate direction method}
+
+Derivative-free \cite{optimize:powell1964}: in each iteration (sweep) line minimizations by \code{linemin_brent()} along $n$
+directions, initially the coordinate axes; the overall displacement of the sweep replaces the direction of the largest decrease if
+Powell's test indicates it is worthwhile, followed by a line minimization along it. Convergence: \code{my_f_thr} and
+\code{my_x_thr} are compared with the change of $f$ and $x$ in one sweep, both have to be satisfied. The trial step of each
+direction is adapted to its last line minimum.
+\begin{lareference}
+\lafunc{template<typename T> class Powell_hyperparameters : public hyperparameters<T>}{Defaults \code{my_maxstep=1000},
+\code{my_f_thr=1e-10}, \code{my_x_thr=1e-6}.}
+\lafunc{T my_initstep}{Initial trial step of the line minimizations (0.1).}
+\lafunc{T my_linmin_tol}{Relative tolerance of the line minimizations (\code{1e-4}); the absolute one is $0.01\,$\code{my_x_thr}.}
+\lafunc{int my_maxlinemin}{Maximum number of evaluations in one line minimization (50).}
+\lafunc{template<typename T> class Powell_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{COBYLA}
+
+Constrained optimization by linear approximations \cite{optimize:powell1994,optimize:powell1998}, derivative-free, minimizing $f$
+subject to the inequality constraints of \code{OptConstraints} (without them unconstrained). Linear models of $f$ and of the
+constraints are interpolated on a simplex of $n+1$ points (initially $x$, $x+\mathrm{rhobeg}\,e_j$). The trust-region step
+minimizes the linear model of $f$ subject to the linearized constraints within $|d|\le\Delta$ (an active-set method on the small
+linear program; if the linearized constraints cannot be satisfied within the trust region, the largest violation is minimized
+first); the merit function is $f+\mu\cdot$(largest constraint violation) with an automatically increased penalty $\mu$. Geometry
+steps keep the simplex acceptable. The resolution $\rho$ decreases from \code{my_rhobeg} to \code{my_rhoend}; the iterations
+finish when $\rho$ has reached \code{my_rhoend} and the trust-region step does not improve the point (\code{converged=true}), or
+by the general criterion, in which \code{my_f_thr} is compared with the change of $f$ at the best vertex in an iteration and
+\code{my_x_thr} with $\rho$ (both 0 by default, i.e.\ off). The best vertex with respect to the merit function is returned;
+with verbose output the largest remaining constraint violation is printed. COBYLA does not need a constraint to be satisfied at
+the starting point.
+
+\begin{lareference}
+\lafunc{template<typename T> class Cobyla_hyperparameters : public hyperparameters<T>}{Default \code{my_maxstep=100000}.}
+\lafunc{T my_rhobeg}{Initial trust-region radius, about one tenth of the expected change of $x$ (0.5).}
+\lafunc{T my_rhoend}{Final trust-region radius, the accuracy of $x$ (\code{1e-6}).}
+\lafunc{bool my_flexible_radius}{\code{true} (default): the trust-region radius $\Delta\ge\rho$ is revised by the reduction
+ratio and $\rho$ is reduced by the rules of NEWUOA \cite{optimize:powell2004} (eqs.~7.1, 7.6, 6.16), so that $\Delta$ can also
+increase again; geometry steps have the length $\max(\min(0.1\,\mathrm{dist},0.5\Delta),\rho)$. \code{false}: Powell's original
+COBYLA with $\Delta=\rho$, $\rho$ halved when reduced.}
+\lafunc{template<typename T> class Cobyla_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{Rotosolve}
+
+Sweeps of exact minimizations along single parameters in which $f$ is trigonometric (\code{OptTrigonometric})
+\cite{optimize:ostaszewski2021,optimize:nakanishi2020}, for degree $>1$ \cite{optimize:wierichs2022}. For $x_i$ of degree $R$,
+$f$ along $x_i$ is reconstructed by a discrete Fourier transform from $2R+1$ equidistant samples over its period (the current
+value and $2R$ new evaluations) and minimized without further evaluations (in closed form for $R=1$, otherwise by a dense grid
+refined by Brent's method on the reconstruction); the step taken is the shortest one modulo the period. Parameters of degree 0,
+or all parameters if the problem does not provide \code{OptTrigonometric}, are minimized by \code{linemin_brent()} as in Powell's
+method, whose parameters apply. Convergence as for Powell (change of $f$ and $x$ in one sweep). If the evaluation budget does
+not suffice for the next minimization, the sweep is interrupted and the method stops without convergence.
+\begin{lareference}
+\lafunc{template<typename T> class Rotosolve_hyperparameters : public Powell_hyperparameters<T>}{}
+\lafunc{bool my_reevaluate}{Evaluate $f$ at the new point instead of taking the value of the reconstruction (for noisy $f$ or
+doubtful degrees; one more evaluation per parameter; default \code{false}).}
+\lafunc{template<typename T> class Rotosolve_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{SGD with momentum}
+
+By \code{firstorder_minimize()}: velocity $v\leftarrow\mathrm{momentum}\cdot v+g$ ($v=g$ in the first iteration), step direction
+$d=v$, or $d=g+\mathrm{momentum}\cdot v$ (Nesterov) \cite{optimize:sutskever2013}, as in the PyTorch update formula.
+\begin{lareference}
+\lafunc{template<typename T> class SGD_hyperparameters : public firstorder_hyperparameters<T>}{Default \code{my_lr=1e-2}.}
+\lafunc{T my_momentum; bool my_nesterov}{Momentum (0.9; 0 gives plain gradient descent); Nesterov variant (\code{false}).
+Verbose names SGD, SGD-Nesterov.}
+\lafunc{template<typename T> class SGD_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{Quantum natural gradient}
+
+$x\leftarrow x-\mathrm{lr}\,(G+\mathrm{metric\_reg}\,I)^{-1}g$ \cite{optimize:stokes2020}: SGD without momentum with the natural
+gradient; the problem has to provide the metric (\code{OptMetric}), the gradient may come e.g.\ from \code{ParameterShift}.
+Momentum, Adam or SPSA can be combined with the natural gradient by setting \code{my_natural=true} in their hyperparameters.
+Natural steps are longer than gradient steps with the same learning rate (the metric eigenvalues are typically $\le1/4$): use
+lr up to about 0.1 or a larger \code{my_metric_reg}.
+\begin{lareference}
+\lafunc{template<typename T> class QNG_hyperparameters : public SGD_hyperparameters<T>}{Defaults \code{my_momentum=0},
+\code{my_natural=true}, \code{my_lr=0.05}.}
+\lafunc{template<typename T> class QNG_Optimizer : public Optimizer<T>}{Forces \code{my_natural=true} also if other
+hyperparameters were passed; \code{laerror} if the problem does not provide \code{OptMetric}.}
+\end{lareference}
+
+\subsection{Adam, AdamW, AMSGrad}
+
+Adam \cite{optimize:kingma2015} with bias-corrected moment estimates, $d=\hat m/(\sqrt{\hat v}+\epsilon)$; with
+\code{my_weight_decay>0} the decoupled weight decay of AdamW \cite{optimize:loshchilov2019}; optionally AMSGrad
+\cite{optimize:reddi2018} (the elementwise maximum of the past second moments). \code{my_beta1=0} gives RMSprop.
+\begin{lareference}
+\lafunc{template<typename T> class Adam_hyperparameters : public firstorder_hyperparameters<T>}{Default learning rate
+\code{1e-3} of the base class.}
+\lafunc{T my_beta1; T my_beta2}{Decay rates of the first (0.9) and second (0.999) moment estimates.}
+\lafunc{T my_eps}{Regularization of the division by the second moment (\code{1e-8}).}
+\lafunc{bool my_amsgrad}{AMSGrad (\code{false}). Verbose names Adam, AdamW, AMSGrad.}
+\lafunc{template<typename T> class Adam_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+\subsection{SPSA}
+
+Simultaneous perturbation stochastic approximation \cite{optimize:spall1992,optimize:spall1998}: derivative-free gradient estimate
+$\hat g_i=(f(x+c_k\Delta)-f(x-c_k\Delta))/(2c_k\Delta_i)$ with random $\Delta_i=\pm1$ (from \code{randdouble()} of \header{la_random.h}),
+two evaluations per estimate independently of the dimension, robust to noise (e.g.\ shot noise in VQE). The function value
+reported is the average of the two evaluations. Gain sequences: $a_k=\mathrm{lr}/(1+\mathrm{lr\_decay}\cdot k)^{\mathrm{lr\_power}}$,
+i.e.\ Spall's $a/(k+1+A)^\alpha$ with $\mathrm{lr}=a/(1+A)^\alpha$, $\mathrm{lr\_decay}=1/(1+A)$, $\mathrm{lr\_power}=\alpha$;
+$c_k=c/(k+1)^\gamma$. Since $f$ and $g$ are estimates, no convergence test is done: the iterations run until \code{my_maxstep}
+or \code{my_maxfunc}, and \code{converged} is \code{false}. The first estimate at the starting point is always done, even if
+\code{my_maxfunc} is smaller than its $2\cdot$\code{my_resamplings} evaluations. Before it, the learning rate can be calibrated
+(evaluations counted; the value used is returned in \code{achieved->my_lr} if \code{achieved} is a
+\code{firstorder_hyperparameters}).
+\begin{lareference}
+\lafunc{template<typename T> class SPSA_hyperparameters : public firstorder_hyperparameters<T>}{Defaults
+\code{my_lr_decay=0.01}, \code{my_lr_power=0.602}, \code{my_g_thr=0}.}
+\lafunc{T my_c; T my_gamma}{Perturbation size $c$, of the order of the noise of $f$ (0.1), and its decay exponent $\gamma$ (0.101).}
+\lafunc{int my_resamplings}{Number of gradient estimates averaged in one iteration (1; \code{laerror} if $<1$).}
+\lafunc{int my_calibrate}{Number of gradient estimates at the starting point for the calibration of lr, 0 = no calibration (20).}
+\lafunc{T my_target_step}{Calibration: lr is set so that the first step has on average this length (0.1).}
+\lafunc{template<typename T> class SPSA_Optimizer : public Optimizer<T>}{}
+\end{lareference}
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Examples}\label{sec:optimize:examples}
+
+All examples were compiled and run; they assume \texttt{\#include "la.h"} and \code{using namespace LA;}.
+
+\subsection{A user-defined problem and BFGS}
+
+The extended Rosenbrock function with its analytic gradient. Note the \code{copyonwrite()} on the gradient vector before its
+elements are written.
+\begin{lstlisting}
+class Rosenbrock : public OptProblem<double> {
+public:
+double funcgrad(const NRVec<double> &x, NRVec<double> *g) const
+	{
+	const int n=x.size();
+	double f=0;
+	if(g) {g->copyonwrite(); *g=0.;} //g may share data with another vector
+	for(int i=0; i<n-1; ++i)
+		{
+		double a=1-x[i], b=x[i+1]-x[i]*x[i];
+		f+=a*a+100*b*b;
+		if(g) {(*g)[i]+= -2*a-400*x[i]*b; (*g)[i+1]+=200*b;}
+		}
+	return f;
+	}
+};
+
+Rosenbrock problem;
+NRVec<double> x(-1.2,4); //starting point (-1.2,...,-1.2)
+BFGS_hyperparameters<double> param;
+param.my_g_thr=1e-8;
+param.my_maxstep=1000;
+param.my_verbose=0;
+gradient_hyperparameters<double> achieved;
+BFGS_Optimizer<double> o;
+optresult<double> res=o.minimize(&problem,x,&param,&achieved);
+std::cout <<"converged "<<res.converged<<" f= "<<res.f<<" x= "<<x
+	<<" iterations "<<achieved.my_maxstep<<" evaluations "<<achieved.my_maxfunc
+	<<" |g| "<<achieved.my_g_thr<<std::endl;
+\end{lstlisting}
+(Here \code{x} is read in \code{funcgrad()} through a const reference, so no DEBUG count check is triggered.) The same problem
+can be given to any gradient method by changing the optimizer and hyperparameter classes, and to derivative-free methods
+directly. With \code{FiniteDifference<double> fd(&problem);} an $f$-only problem can be minimized by BFGS as
+\code{BFGS_Optimizer<double>().minimize(&fd,x);}.
+
+\subsection{Freezing parameters}\label{sec:optimize:ex:frozen}
+
+\begin{lstlisting}
+Rosenbrock problem;
+NRVec<double> x(0.5,6);
+bitvector frozen(6);
+frozen.clear();
+frozen.set(0); frozen.set(3); //x_0 and x_3 keep their values
+FrozenOptProblem<double> fp(&problem,x,frozen);
+NRVec<double> xr=fp.reduce(x); //the 4 free parameters
+LBFGS_Optimizer<double> o;
+double f=o.minimize(&fp,xr); //default parameters; optresult converts to f
+NRVec<double> xopt=fp.expand(xr); //full vector, x_0 = x_3 = 0.5
+\end{lstlisting}
+\code{fp.xfull} shares its data with \code{x}; reading elements of \code{x} afterwards in a DEBUG build has to go through a const
+reference, writing them needs \code{x.copyonwrite()} first (which then also detaches \code{x} from \code{fp.xfull}).
+
+\subsection{COBYLA with constraints}
+
+\begin{lstlisting}
+//min (x0-1)^2+(x1-2)^2 subject to x0+x1 <= 1, solution (0,1)
+class ConstrainedQuadratic : public OptProblem<double>, public OptConstraints<double> {
+public:
+double funcgrad(const NRVec<double> &x, NRVec<double> *g) const
+	{return (x[0]-1)*(x[0]-1)+(x[1]-2)*(x[1]-2);} //COBYLA never asks for g
+int nconstraints() const {return 1;}
+void constraints(const NRVec<double> &x, NRVec<double> &c) const
+	{c.copyonwrite(); c[0]=1-x[0]-x[1];} //c_i >= 0
+};
+
+ConstrainedQuadratic problem;
+NRVec<double> x(0.,2);
+Cobyla_hyperparameters<double> param;
+param.my_rhobeg=0.5;
+param.my_rhoend=1e-8;
+param.my_verbose=0;
+Cobyla_Optimizer<double> o;
+optresult<double> res=o.minimize(&problem,x,&param);
+NRVec<double> c(1);
+problem.constraints(x,c); //check the feasibility
+\end{lstlisting}
+
+\subsection{Least-squares fit by Levenberg-Marquardt}
+
+\begin{lstlisting}
+//fit of y = b0 exp(-b1 t) to data; residuals r_i = model - y_i
+class ExpFit : public OptLeastSquares<double> {
+public:
+NRVec<double> t,y; //data
+ExpFit(const NRVec<double> &tt, const NRVec<double> &yy) : t(tt), y(yy) {};
+int nresiduals() const {return t.size();}
+void residuals(const NRVec<double> &b, NRVec<double> &r) const
+	{
+	r.copyonwrite();
+	for(int i=0; i<t.size(); ++i) r[i]=b[0]*std::exp(-b[1]*t[i])-y[i];
+	}
+bool jacobian(const NRVec<double> &b, NRMat<double> &J) const
+	{
+	J.copyonwrite();
+	for(int i=0; i<t.size(); ++i)
+		{
+		const double e=std::exp(-b[1]*t[i]);
+		J(i,0)=e; J(i,1)= -b[0]*t[i]*e;
+		}
+	return true; //false would mean: use finite differences
+	}
+};
+
+const int m=10;
+NRVec<double> t(m), y(m);
+for(int i=0; i<m; ++i) {t[i]=0.5*i; y[i]=3*std::exp(-0.7*t[i])+0.01*((i%3)-1);}
+ExpFit problem(t,y);
+NRVec<double> b(2);
+b[0]=1; b[1]=0.1;
+LM_hyperparameters<double> param;
+param.my_g_thr=1e-10;
+param.my_verbose=0;
+hyperparameters<double> achieved;
+LM_Optimizer<double> o;
+optresult<double> res=o.minimize(&problem,b,&param,&achieved);
+//res.f = 1/2 |r|^2, i.e. half the residual sum of squares
+\end{lstlisting}
+Since \code{ExpFit} is an \code{OptLeastSquares}, the same object can also be passed to e.g.\ \code{BFGS_Optimizer}.
+
+\subsection{Further examples in the distribution}
+
+t.cc contains testbeds (blocks starting with \code{//testbed of the opt...}) for the methods on \code{testproblem},
+\code{testproblem_vqe(_constrained)} (with \code{ParameterShift}), \code{FrozenOptProblem}, P-RFO on the M\"uller-Brown potential
+and LM on a NIST problem. The header testoptimize.h (in the source distribution, not installed) defines these test problems, which can serve as
+templates for user problems:
+\begin{itemize}
+\item \code{testproblem<T>}: a smooth function with analytic gradient;
+\item \code{testproblem_vqe<T>}: a VQE-like Ising chain in a product state providing \code{OptHessian}, \code{OptMetric} and
+\code{OptTrigonometric}; \code{testproblem_vqe_constrained<T>}: the same with one constraint (\code{OptConstraints});
+\item \code{testproblem_mullerbrown<T>}: the M\"uller-Brown potential \cite{optimize:mueller1979} with analytic Hessian, three
+minima and two saddle points;
+\item NIST StRD nonlinear regression problems (\code{OptLeastSquares}) with starting values, certified parameters and
+residual sums of squares: \code{testproblem_misra1a<T>}, \code{testproblem_mgh09<T>} (analytic Jacobians) and
+\code{testproblem_thurber<T>} (finite-difference Jacobian).
+\end{itemize} The regression program testoptimize.cc, run by
+\code{make check}, tests all methods, adapters, capabilities, the \code{maxfunc} limits, the hyperparameter inheritance and the
+copy-on-write behaviour of the functions used; it prints PASS/FAIL lines and its exit code is the number of failures.
+
+%-----------------------------------------------------------------------------------------------------------------------------
+\section{Pitfalls}\label{sec:optimize:pitfalls}
+
+\lawarning{\textbf{Gradient and other output arguments.} The vector \code{*grad} passed to \code{funcgrad()}, and the arguments
+\code{h}, \code{g}, \code{c}, \code{r}, \code{J} of the capability functions, are allocated by the caller but may share their
+data with other objects. Call \code{copyonwrite()} before writing elements through \code{operator[]}/\code{operator()}
+(assignments of whole objects or scalars, e.g.\ \code{*grad=0.;}, are safe and detach by themselves). Forgetting it can silently
+corrupt vectors of the optimizer (e.g.\ the previous gradient).}
+
+\lawarning{\textbf{Shared reference to the best point.} \code{optevaluator} keeps \code{xbest=x}, a shallow copy sharing the data
+of the vector evaluated. Code calling an \code{optevaluator} (a new method, or a gradient estimator) and then modifying that vector
+element-wise must call \code{copyonwrite()} before each such modification, otherwise the recorded best point changes as well
+(see \code{forward_difference_jacobian} and \code{trig_minimize} in optimize.cc). Whole-vector operations (\code{axpy},
+\code{+=}, assignment) are safe.}
+
+\lawarning{\textbf{Reading possibly shared vectors.} After \code{minimize()} the vector \code{x}, and the vectors given to
+\code{FrozenOptProblem} (\code{xfull}), may share data with other objects. In DEBUG builds the non-const \code{operator[]} raises
+\code{laerror} when the reference count is $>1$ (section~\ref{sec:concepts:errors}); read elements of a possibly shared non-const
+vector through a const reference, e.g.\ \code{const NRVec<double> &xc=x; ... xc[i]}. Inside \code{funcgrad()} the argument
+\code{x} is already const.}
+
+\lawarning{\textbf{Convergence thresholds.} The general criterion needs \emph{both} \code{my_f_thr} and \code{my_x_thr} (strict
+inequalities); with the default 0 it is off, and gradient methods then converge only by \code{my_g_thr}. When passing a
+hyperparameter object of a more general class, its defaults replace those of the method (section~\ref{sec:optimize:setfrom}).
+Methods print by default (\code{my_verbose=1}); set it to 0 for silent operation.}
+
+\lawarning{\textbf{Saddle points.} \code{converged} of P-RFO does not imply the requested saddle order; check
+\code{achieved->my_saddle_order}. Likewise a converged \code{TrustRegion_Optimizer} run may end at a saddle point if started at
+one with zero gradient components along the negative modes; the reported index tells.}
+
+\lawarning{\textbf{Noisy functions.} SPSA (and first-order methods with an inexact \code{gradient_estimator}) never report
+convergence; set \code{my_maxstep} or \code{my_maxfunc}. \code{my_return_best} should not be used with noisy $f$. SPSA uses the
+global random generator of \header{la_random.h}; seed it for reproducible runs.}

@@ -1,0 +1,120 @@
+\chapter{3D vectors and matrices: Vec3, Mat3}\label{ch:vecmat3}
+\laheader{vecmat3.h, vecmat3.cc}
+
+Fixed-size 3D vectors and matrices; plain data, no reference counting (unlike the classes of chapter~\ref{ch:vec} and \ref{ch:mat}).
+
+\section{Purpose}
+\code{Vec3<T>} and \code{Mat3<T>} are small fixed-size classes for real 3-dimensional
+vectors and $3\times3$ matrices, intended for geometry, rotations and Euler angles. They are
+compatible with the quaternion functions of chapter~\ref{ch:quaternion}
+(rotation matrices, SO(3) parametrization). They contain only a C array and all operations
+are hand-unrolled; no BLAS/LAPACK is used.
+
+The files are written so that they can be compiled separately from the rest of \LA{}
+(e.g.\ for microcontrollers). The following macros control this:
+\begin{itemize}
+\item \code{AVOID_STDSTREAM} -- do not include \code{<iostream>}, no stream operators;
+\item \code{NO_NUMERIC_LIMITS} -- do not use \code{std::numeric_limits}; \code{DBL_EPSILON}
+  is then defined as the single-precision epsilon;
+\item \code{QUAT_NO_RANDOM} -- omit \code{randomize()} (which needs \header{la_random.h});
+\item \code{QUAT_NO_DOUBLE} -- instantiate only \code{float} (otherwise \code{float} and \code{double}).
+\end{itemize}
+The templates are explicitly instantiated in \header{vecmat3.cc} for \code{float} and \code{double} only.
+
+The classes live in namespace \code{LA_Vecmat3}; the header ends with a global
+\code{using namespace LA_Vecmat3;}, so the names are visible without qualification
+after including \header{vecmat3.h} (or \header{la.h}, which includes it).
+\code{LA_traits} specializations declare both classes plain data with a no-op
+\code{copyonwrite}, so they can be used as elements of \code{NRVec}, \code{NRMat} etc.
+
+\section{Storage}
+\code{Vec3<T>} holds the public array \code{T q[3]}, \code{Mat3<T>} the public array
+\code{T q[3][3]} in row-major (C) order, i.e.\ \code{q[i][j]} is row $i$, column $j$.
+There is no reference counting; the compiler-generated copy constructor and assignment
+copy the data. \code{elements()} returns a reference to the C array, conversion to \code{T*}
+gives a pointer to the first element.
+
+\section{Vec3 reference}
+\begin{lareference}
+\lafunc{Vec3(); Vec3(const T x, const T u=0, const T v=0)}{Uninitialized vector; vector $(x,u,v)$.}
+\lafunc{Vec3(const T *x); Vec3(const T (&a)[3])}{Copy three elements from memory or from a C array (also allows brace initialization \code{Vec3<double> x({1,2,3})}).}
+\lafunc{T (&elements())[3]; const T (&elements() const)[3]}{Reference to the underlying array.}
+\lafunc{operator T*(); operator const T*() const}{Pointer to the data.}
+\lafunc{T &operator[](const int i)}{Element access (no range check), const version available.}
+\lafunc{void clear()}{Set to zero (memset, \code{T} must be plain data).}
+\lafunc{Vec3 &operator*=(const T); Vec3 &operator/=(const T); Vec3 operator*(const T) const; Vec3 operator/(const T) const}{Scaling by a scalar.}
+\lafunc{T sum() const; T asum() const; T sumsqr() const; T prod() const}{$\sum_i q_i$, $\sum_i |q_i|$, $\sum_i q_i^2$, $\prod_i q_i$.}
+\lafunc{Vec3 operator-() const; Vec3 &operator+=(const Vec3 &); Vec3 &operator-=(const Vec3 &); Vec3 operator+(const Vec3 &) const; Vec3 operator-(const Vec3 &) const}{Vector algebra.}
+\lafunc{Vec3 operator*(const Vec3 &rhs) const}{\emph{Vector (cross) product} $\mathbf{q}\times\mathbf{rhs}$.}
+\lafunc{T dot(const Vec3 &rhs) const}{Scalar product.}
+\lafunc{Vec3 elementwise_product(const Vec3 &rhs) const}{Componentwise product.}
+\lafunc{T normsqr() const; T norm() const}{Squared and Euclidean norm.}
+\lafunc{Vec3 &normalize()}{Divide by the norm (no check for zero).}
+\lafunc{Vec3 &fast_normalize()}{For \code{float} uses the ``fast inverse square root'' bit trick \code{fast_sqrtinv(float)} (approximate); for other types identical to \code{normalize()}.}
+\lafunc{Vec3 operator*(const Mat3<T> &rhs) const}{Row vector times matrix, $\mathbf{q}^{\mathsf T} M$.}
+\lafunc{Vec3 timesT(const Mat3<T> &rhs) const}{$\mathbf{q}^{\mathsf T} M^{\mathsf T}$, i.e.\ $M\mathbf{q}$.}
+\lafunc{Mat3<T> outer(const Vec3 &rhs) const}{Outer (tensor) product $\mathbf{q}\,\mathbf{rhs}^{\mathsf T}$.}
+\lafunc{void addouter(Mat3<T> &m, const Vec3 &rhs, const T weight) const}{$m \mathrel{+}= w\,\mathbf{q}\,\mathbf{rhs}^{\mathsf T}$.}
+\lafunc{void inertia(Mat3<T> &itensor, const T weight) const}{Adds the contribution of a point mass \code{weight} at position $\mathbf{q}$ to the inertia tensor: $I \mathrel{+}= w\,(r^2 \mathbf{1} - \mathbf{q}\mathbf{q}^{\mathsf T})$.}
+\lafunc{void randomize(const T x)}{Elements uniformly random in $[-x,x)$ via \code{RANDDOUBLESIGNED} (chapter~\ref{ch:utilities}); for \code{float} and \code{double}.}
+\lafunc{int fprintf(FILE *f, const char *format) const; int sprintf(char *f, const char *format) const}{C-style output, \code{format} must contain three conversions.}
+\lafunc{int fscanf(FILE *f, const char *format); int sscanf(const char *f, const char *format)}{C-style input, \code{format} contains three conversions (e.g.\ \code{"\%lf \%lf \%lf"}); returns the number of items read.}
+\end{lareference}
+
+Free function: \code{T hypot3(const Vec3<T> &c, const Vec3<T> &d)} -- Euclidean distance $|\mathbf c-\mathbf d|$.
+
+\section{Mat3 reference}
+\begin{lareference}
+\lafunc{Mat3(); Mat3(const T (&a)[3][3]); Mat3(const T *x)}{Uninitialized; from a C array (also brace initialization \code{Mat3<double> y({{1,2,3},{4,5,6},{7,8,9}})}); from 9 elements in row-major order.}
+\lafunc{Mat3(const T x00, const T x01, const T x02, const T x10, const T x11, const T x12, const T x20, const T x21, const T x22)}{From nine elements, row by row.}
+\lafunc{Mat3(const T x); Mat3 &operator=(const T &x)}{Scalar matrix $x\mathbf{1}$. A single \emph{integer} constructor argument is forbidden
+(deleted), since through the conversion \code{NRMat(const Mat3&)} it would silently turn e.g.\ \code{NRMat<double> a(5)} into a $3\times3$ matrix;
+write \code{Mat3<double>(5.)}.}
+\lafunc{void indentity()}{Set to the unit matrix (sic, the name is misspelled in the code).}
+\lafunc{T (&elements())[3][3]; operator T*()}{Reference to the array, pointer to the data (const versions exist).}
+\lafunc{T *operator[](const int i); T &operator()(const int i, const int j)}{Row pointer (so \code{m[i][j]} works) and element access, const versions exist.}
+\lafunc{void clear()}{Zero matrix.}
+\lafunc{Mat3 &operator+=(const T); Mat3 &operator-=(const T); Mat3 operator+(const T) const; Mat3 operator-(const T) const}{Add/subtract a multiple of the unit matrix (diagonal only).}
+\lafunc{Mat3 &operator*=(const T); Mat3 &operator/=(const T); Mat3 operator*(const T) const; Mat3 operator/(const T) const}{Scaling.}
+\lafunc{void randomize(const T x, const bool symmetric=false)}{Random elements in $[-x,x)$, optionally symmetric; for \code{float} and \code{double}.}
+\lafunc{Mat3 operator-() const; Mat3 &operator+=(const Mat3 &); Mat3 &operator-=(const Mat3 &); Mat3 operator+(const Mat3 &) const; Mat3 operator-(const Mat3 &) const}{Matrix algebra.}
+\lafunc{Mat3 operator*(const Mat3 &rhs) const; Mat3 timesT(const Mat3 &rhs) const; Mat3 Ttimes(const Mat3 &rhs) const; Mat3 TtimesT(const Mat3 &rhs) const}{$AB$, $AB^{\mathsf T}$, $A^{\mathsf T}B$, $A^{\mathsf T}B^{\mathsf T}$.}
+\lafunc{Vec3<T> operator*(const Vec3<T> &rhs) const; Vec3<T> Ttimes(const Vec3<T> &rhs) const}{$A\mathbf v$ and $A^{\mathsf T}\mathbf v$.}
+\lafunc{T trace() const; T determinant() const}{Trace and determinant.}
+\lafunc{void transposeme(); Mat3 transpose() const}{Transpose in place / return the transpose.}
+\lafunc{Mat3 inverse(T *det = NULL) const}{Inverse by the adjugate formula; optionally returns the determinant. No check for singularity (division by zero determinant).}
+\lafunc{Vec3<T> linear_solve(const Vec3<T> &rhs, T *det = NULL) const}{Solves $A\mathbf x=\mathbf{rhs}$ by Cramer's rule (alternative to \code{simple_gaussj}, section~\ref{sec:utilities:simple}); no singularity check.}
+\lafunc{int fprintf(FILE *f, const char *format) const; int fscanf(FILE *f, const char *format)}{C-style I/O row by row, \code{format} contains three conversions.}
+\lafunc{void symmetrize()}{Replace off-diagonal pairs by their average.}
+\lafunc{bool eivec_sym(Vec3<T> &w, Mat3 &v, const bool sortdown=false) const}{Eigenvalues \code{w} and eigenvectors (\emph{columns} of \code{v}) of a real symmetric matrix by the cyclic Jacobi method (at most 50 sweeps); symmetry is not checked. Eigenvalues sorted ascending, or descending if \code{sortdown}. Returns \code{false} on success, \code{true} if not converged. (An analytic Cardano-based solver is present in the source in a disabled \texttt{\#if 0} block, abandoned for numerical instability.)}
+\lafunc{T norm(const T scalar = 0) const}{Frobenius norm of $A - \mathrm{scalar}\cdot\mathbf 1$.}
+\lafunc{void qrd(Mat3 &q, Mat3 &r)}{QR decomposition $A=QR$ by three Givens rotations; \emph{destroys} \code{*this} (non-const).}
+\lafunc{void svd(Mat3 &u, Vec3<T> &w, Mat3 &v, bool proper_rotations=false) const}{Singular value decomposition $A = U\,\mathrm{diag}(w)\,V^{\mathsf T}$ following \cite{vecmat3:mcadams2011} (eigenvectors of $A^{\mathsf T}A$ by \code{eivec_sym}, then QR of $AV$). Singular values in descending order. If \code{proper_rotations} is false, a negative $w_2$ is made positive by changing the sign of the last column of $U$; if true, $U$ and $V$ are proper rotations ($\det U=\det V=+1$, the sign is moved into $w_2$, which may then be negative), as needed e.g.\ for the Kabsch alignment without mirroring.}
+\lafunc{void diagmultl(const Vec3<T> &rhs); void diagmultr(const Vec3<T> &rhs)}{$A\leftarrow\mathrm{diag}(\mathbf{rhs})A$ and $A\leftarrow A\,\mathrm{diag}(\mathbf{rhs})$.}
+\lafunc{Mat3 svdinverse(const T thr=1000*DBL_EPSILON) const}{Pseudoinverse via SVD; singular values below the \emph{absolute} threshold \code{thr} are treated as zero.}
+\end{lareference}
+
+\section{Free functions: I/O, Euler angles, projection}
+\begin{lareference}
+\lafunc{std::ostream &operator<<(std::ostream &s, const Vec3<T> &x); std::istream &operator>>(std::istream &s, Vec3<T> &x)}{Three numbers separated by spaces (no dimensions, no newline).}
+\lafunc{std::ostream &operator<<(std::ostream &s, const Mat3<T> &x); std::istream &operator>>(std::istream &s, Mat3<T> &x)}{Nine numbers, one row per line on output.}
+\lafunc{void euler2rotmat(const T *eul, Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0)}{Rotation matrix from three Euler angles \code{eul[0..2]}; see below.}
+\lafunc{void rotmat2euler(T *eul, const Mat3<T> &a, const char *type, bool transpose=0, bool direction=0, bool reverse=0)}{Inverse of \code{euler2rotmat} with the same options.}
+\lafunc{void perspective(T *proj_xy, const Vec3<T> &point, const Mat3<T> &rot_angle, const Vec3<T> &camera, const Vec3<T> &plane_to_camera)}{Perspective projection of a 3D point onto a 2D plane: $\mathbf d = R\,\mathbf{point}-\mathbf{camera}$, $\mathrm{proj}_i = (e_z/d_z)\, d_i + e_i$, $i=x,y$, where $\mathbf e$=\code{plane_to_camera}.}
+\end{lareference}
+
+\paragraph{Euler angle conventions.}
+\code{type} is a three-character string naming the rotation axes: one of the six proper
+Euler sequences \code{"xzx" "xyx" "yxy" "yzy" "zyz" "zxz"} or the six Tait--Bryan sequences
+\code{"xzy" "xyz" "yxz" "yzx" "zyx" "zxy"}. With default options the result is the product of
+active elementary rotations
+\[
+  a = R_{\mathrm{type[0]}}(\mathrm{eul}_0)\,R_{\mathrm{type[1]}}(\mathrm{eul}_1)\,R_{\mathrm{type[2]}}(\mathrm{eul}_2),
+\]
+following the table in the Wikipedia article ``Euler angles''. The options modify this:
+\code{transpose} returns $a\Tr$; \code{direction} changes the sign of all angles;
+\code{reverse} swaps the roles of \code{eul[0]} and \code{eul[2]}. In \code{rotmat2euler},
+the middle angle is returned in $[0,\pi]$ for proper Euler sequences and in $[-\pi/2,\pi/2]$ for
+Tait--Bryan ones; the degenerate (gimbal lock) case is not treated specially. An unknown
+\code{type} leaves the output untouched without an error. The macro \code{Euler_case(a,b,c)}
+maps the three axis characters to an integer used in the internal switch.

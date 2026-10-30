@@ -1,0 +1,346 @@
+\chapter{Utilities}\label{ch:utilities}
+
+This chapter documents the auxiliary parts of \LA{} which are not linear algebra classes: a scratch-file storage of
+fixed-size records used by the out-of-core variants of the iterative solvers, the random number generators used by all
+\code{randomize()} functions, a few special functions and combinatorial numbers, small self-contained algorithms for
+embedded use, the reference of the error handling functions, the single include file \header{la.h} and the version
+string, elementary number theory and graph algorithms. The small classes Vec3/Mat3, Quaternion and bitvector are described in
+chapters~\ref{ch:vecmat3}, \ref{ch:quaternion} and \ref{ch:bitvector}.
+
+%=====================================================================
+\section{Scratch-file storage: AuxStorage}\label{sec:utilities:auxstorage}
+\laheader{auxstorage.h}
+
+\subsection{Purpose and storage}
+\code{AuxStorage<T>} stores numbered records of equal length in a binary file, using unformatted \code{read}/\code{write}
+of the raw element array. It is used by \code{davidson}, \code{lanczos}, \code{gmres} and \code{DIIS}
+(chapter~\ref{ch:iterative}) to keep the subspace vectors on disk when the in-core option is not selected, and to write
+eigenvectors to a named file. The record length (in bytes) is fixed by the first \code{put()}; all later records must have
+the same size. Record \code{pos} starts at byte offset \code{pos*recl}, so records may be written in any order; reading
+a never written record lying before the end of the file gives zeros (a hole of the file), reading past the end of the file
+calls \code{laerror}.
+
+The class itself holds only a file descriptor and the file name; it is \emph{not} reference counted. The objects stored are
+ordinary \LA{} objects: \code{get()} calls \code{x.copyonwrite()} before reading into \code{x}, \code{put()} only reads
+its argument.
+
+The comment in the header gives the limits of the design:
+\begin{itemize}
+\item \code{T} must be plain data (\code{double}, \code{std::complex<double>}, \dots); it will not work if \code{T} is a
+class with dynamically allocated components (e.g.\ \code{NRVec<NRVec<double> >} or \code{NRVec<NRMat<double> >}),
+since only the bytes of the top-level array are written;
+\item it cannot be implemented for \code{SparseMat}, which lacks a fixed record length;
+\item for more complex I/O the \code{put()} and \code{get()} methods of the individual classes are to be used
+(section~\ref{sec:concepts:io}).
+\end{itemize}
+
+\subsection{Reference}
+\begin{lareference}
+\lafunc{template<typename T> class AuxStorage}{Scratch file of records whose elements are of type \code{T}.}
+\lafunc{AuxStorage(void)}{Creates and opens a new unique temporary file \header{AUX_XXXXXX} in \code{\$TMPDIR} if it is set,
+otherwise in the current working directory, by \code{mkostemp()} (atomic creation, with \code{O_LARGEFILE}), and unlinks it at
+once: the open descriptor keeps it usable, and its disk space is released when it is closed, also after a crash.
+\code{laerror} if the file cannot be created.}
+\lafunc{AuxStorage(const char *name)}{Opens the file \code{name} for reading and writing; an existing file of this name is
+first deleted (\code{unlink}), so the file always starts empty. The file is \emph{not} deleted by the destructor (used to keep
+eigenvectors). \code{laerror} if it cannot be opened or if the name has 32 or more characters.}
+\lafunc{~AuxStorage(void)}{Closes the file; deletes it if it was created by the default constructor.}
+\lafunc{AuxStorage(const AuxStorage &) = delete; AuxStorage &operator=(const AuxStorage &) = delete}{Not copyable (a copy would close
+the file twice); use pointers, as the iterative solvers do.}
+\lafunc{void put(const NRVec<T> &x, const int pos)}{Writes the elements of \code{x} as record \code{pos} (counted from 0).
+The first \code{put} defines the record length; \code{laerror} if a later object has a different size in bytes.}
+\lafunc{void get(NRVec<T> &x, const int pos) const}{Reads record \code{pos} into \code{x}, which must be already allocated
+with the right size. Calls \code{x.copyonwrite()}. \code{laerror} if nothing has been written yet, if the size of \code{x} in
+bytes differs from the record length, or if the record cannot be read in full.}
+\lafunc{void put(const NRMat<T> &x, const int pos); void get(NRMat<T> &x, const int pos) const}{The same for a dense
+matrix (record of \code{nrows()*ncols()} elements in the storage order of \code{NRMat}).}
+\lafunc{void put(const NRSMat<T> &x, const int pos); void get(NRSMat<T> &x, const int pos) const}{The same for a packed
+symmetric matrix (record of $n(n+1)/2$ elements).}
+\end{lareference}
+Only the byte size is compared, so a record written as a vector can be read into a matrix of the same number of elements.
+
+\subsection{Example}
+\begin{lstlisting}
+AuxStorage<double> st;                 //temporary file AUX_xxxxxx in $TMPDIR or the working directory
+NRVec<double> v(1.,100), w(100);
+st.put(v,3);                           //record 3, record length 100 doubles
+st.get(w,3);                           //w must be allocated with 100 elements
+\end{lstlisting}
+
+\subsection{Pitfalls}
+\begin{itemize}
+\item The target of \code{get()} must be preallocated with exactly the record size (otherwise \code{laerror}).
+\item The temporary file is placed in \code{\$TMPDIR}, or in the current working directory if \code{TMPDIR} is not set; it is
+not visible in the directory listing (unlinked), but occupies disk space there while the object exists.
+\item The file position is shared: \code{get()} and \code{put()} use \code{lseek64} followed by \code{read}/\code{write}, so
+one object must not be used concurrently from several threads.
+\item \code{lseek64}, \code{off64_t}, \code{O_LARGEFILE} and \code{mkostemp} are Linux (glibc) specific.
+\item A short write is not detected (only a negative return value of \code{write} is checked).
+\end{itemize}
+
+%=====================================================================
+\section{Random numbers}\label{sec:utilities:random}
+\laheader{la_random.h, la_random.cc}
+
+All random-number consumers of the library (\code{randomize()} of \code{NRVec}, \code{NRMat}, \code{NRSMat}, \code{Vec3},
+\code{Mat3}, \code{Quaternion}, \code{bitvector}, random permutations, \dots) obtain random numbers through four macros,
+so that the generator can be replaced without changing the library. \header{la_random.h} is included by
+\header{la_traits.h}, i.e.\ by every \LA{} header.
+
+\begin{lareference}
+\lafunc{double randdouble()}{Uniform in $[0,1)$: \code{random()/(1.+RAND_MAX)}.}
+\lafunc{double randdoublesigned()}{Uniform in $[-1,1)$: \code{2.*random()/(1.+RAND_MAX)-1.}.}
+\lafunc{unsigned int randint32()}{32 random bits from two calls of \code{random()} (which gives 31 bits with glibc).}
+\lafunc{uint64_t randint64()}{64 random bits from three calls of \code{random()} ($31+31+2$ bits).}
+\lafunc{RANDDOUBLE, RANDDOUBLESIGNED, RANDINT32, RANDINT64}{Macros used at all call sites; unless defined before the
+inclusion of \header{la_random.h} they expand to \code{LA::randdouble}, \code{LA::randdoublesigned}, \code{LA::randint32},
+\code{LA::randint64}.}
+\lafunc{WEAK_SYMBOL}{Expands to \code{__attribute__((weak))} with GNU compilers, empty otherwise.}
+\end{lareference}
+
+\subsection{Replacing the generator}
+The four functions are defined in \header{la_random.cc} as \emph{weak symbols}. A program can replace any of them by its own
+(strong) definition with the same signature in namespace \code{LA}; the linker then uses the user's function also in the
+calls made from inside the precompiled library, and the remaining default functions stay available:
+\begin{lstlisting}
+#include "la.h"
+namespace LA {
+double randdoublesigned() {return my_generator.uniform(-1.,1.);}   //replaces the library's weak definition
+}
+\end{lstlisting}
+Defining one of the macros (e.g.\ \code{-DRANDDOUBLE=myrand}) affects only code compiled by the user (inline and
+template code in the headers), not the calls in the compiled library; the weak-symbol replacement is therefore the
+mechanism to use for a consistent change.
+
+\subsection{Seeding}
+The default functions use the C library generator \code{random()}, so they are seeded by \code{srandom(seed)}; with glibc
+\code{srand()} seeds the same generator (as used in \header{testoptimize.cc} and \header{t.cc}). Without seeding the sequence
+is the same in every run. A seed from the system can be taken e.g.\ from \header{/dev/random}, as in \header{t.cc}:
+\begin{lstlisting}
+int seed;
+int f=open("/dev/random",O_RDONLY);
+if(sizeof(int)!=read(f,&seed,sizeof(int))) laerror("cannot read /dev/random");
+close(f);
+srand(seed);
+\end{lstlisting}
+The default generators are not thread safe in the sense of reproducibility (they share the global state of
+\code{random()}); a thread-safe or higher-quality generator is to be supplied by replacement.
+
+%=====================================================================
+\section{Special functions and combinatorial numbers}\label{sec:utilities:miscfunc}
+\laheader{miscfunc.h, miscfunc.cc}
+
+Plain functions in namespace \code{LA} for \code{double} and 64-bit unsigned integers. They keep internal static tables
+(filled on demand), so they are not thread safe on the first calls.
+
+\begin{lareference}
+\lafunc{const double c_euler}{Euler--Mascheroni constant $\gamma=0.5772156649\dots$}
+\lafunc{unsigned long long factorial(const int n)}{$n!$ from a table, $0\le n\le 20$; \code{laerror} for $n<0$ and for
+$n>20$ (overflow of 64 bits). Exact; used where integer arithmetic is needed (permutation ranks and counts, \code{binom}).}
+\lafunc{double double_factorial(const int n)}{$n!$ (not the double factorial $n!!$) in \code{double} precision,
+$0\le n\le 170$: \code{factorial(n)} for $n\le20$, beyond from a table extended on demand. \code{laerror} for $n<0$ and
+$n>170$. Used by \code{bernoulli_number}, \code{zeta} and \code{gamma}.}
+\lafunc{double factorialln(const int n)}{$\ln n!$ for any $n\ge0$: tabulated up to $n=30$, accumulated (and cached) up to
+$n=180$, Stirling series with Bernoulli-number corrections beyond. \code{laerror} for $n<0$.}
+\lafunc{unsigned long long binom(int n, int k)}{Binomial coefficient $\binom nk$; 0 for $k<0$ or $k>n$. With $k$
+replaced by $\min(k,n-k)$, computed exactly by the recurrence $\binom{n-k+i}{i}=\binom{n-k+i-1}{i-1}(n-k+i)/i$, dividing
+by the common factor before each multiplication, so that no intermediate exceeds the result; cached for $n\le100$.
+\code{laerror} if the result does not fit into 64 bits (all $\binom nk$ fit for $n\le67$).}
+\lafunc{unsigned long long longpow(unsigned long long x, int i)}{$x^i$ by binary powering (modulo $2^{64}$, overflow not
+detected); returns 0 for $i<0$.}
+\lafunc{double zeta(double x)}{Riemann zeta function for real $x\ne1$. Integer arguments: exact values from Bernoulli
+numbers for $x\le0$ and $x=2,4,6,8$; otherwise (also for other integers): the defining sum for $x\ge9.1$, the
+Euler--Maclaurin summation formula with $N=10$ and ten Bernoulli terms for $-1.02\le x<9.1$ (including the neighbourhood of
+the pole, whose term $1/(x-1)$ is exact), and the reflection formula $\zeta(x)=2(2\pi)^{x-1}\sin(\pi x/2)\Gamma(1-x)\zeta(1-x)$
+for $x<-1.02$. Relative accuracy about $10^{-13}$ or better (except close to the trivial zeros). \code{laerror} for $x=1$.}
+\lafunc{double gamma(double x)}{$\Gamma(x)$ for $x\le171$: $(x-1)!$ by \code{double_factorial} for integers, otherwise
+upward recursion to $x\ge8$ and the Stirling series. \code{laerror} for $x>171$ and for non-positive integers.}
+\lafunc{double gammln(double x)}{$\ln|\Gamma(x)|$, for integers via \code{factorialln}; \code{laerror} for non-positive
+integers.}
+\lafunc{double bernoulli_number(int n)}{Bernoulli number $B_n$ with $B_1=-\frac12$, $B_{2k+1}=0$ for $k\ge1$; $B_{2k}$ from
+a table up to $B_{10}$, otherwise from $\zeta(2k)$ by $B_{2k}=(-1)^{k+1}\,2\,(2k)!\,\zeta(2k)/(2\pi)^{2k}$ (cached).
+\code{laerror} for $n<0$.}
+\lafunc{unsigned long long simplicial(int d, int n)}{$d$-dimensional simplicial (figurate) number
+$s(d,n)=\binom{n+d-1}{d}$, i.e.\ the number of non-decreasing $d$-tuples of indices from $n$ values (used for the indexing of
+symmetric tensors, chapter~\ref{ch:tensor}). $s(d,n)=0$ for $n\le0$, $1$ for $d=0$ or $n=1$, $n$ for $d=1$. Computed by the
+recurrence $s(d,n)=s(d,n-1)+s(d-1,n)$ into a table growing on demand; \code{laerror} for $d\ge16$ or $n\ge1024$.}
+\lafunc{int inverse_simplicial(int d, unsigned long long s)}{Largest $n$ with \code{simplicial(d,n)}${}\le s$ (Newton
+iteration on the polynomial $s(d,n)$ followed by an integer correction); 0 for $s=0$. \code{laerror} for $d\ge16$.}
+\end{lareference}
+
+%=====================================================================
+\section{Simple algorithms for embedded use}\label{sec:utilities:simple}
+\laheader{simple.h, simple.cc}
+
+\header{simple.h} contains small algorithms on C arrays of compile-time size, independent of BLAS, LAPACK and of the
+rest of \LA{}. It is intended for embedded computers and can be compiled separately; it is installed with the library but
+\emph{not} included by \header{la.h}. Everything is in namespace \code{LA_Simple}. With \code{AVOID_STDSTREAM} defined,
+\header{iostream} is not included and the stream operator is omitted. \header{simple.cc} is currently empty. The element
+type \code{T} is a real floating-point type (\code{abs} and comparisons are used for pivoting).
+
+\begin{lareference}
+\lafunc{template<typename T, int n, int m> T simple_gaussj(T (&a)[n][n], T (&b)[m][n])}{Gauss--Jordan elimination with
+full pivoting. On input \code{a} is the $n\times n$ matrix $A$ and \code{b} contains $m$ right-hand sides as its
+\emph{rows} \code{b[l][0..n-1]}. On return \code{a} contains $A^{-1}$, the rows of \code{b} the solutions, and the
+function returns $\det A$. For a singular matrix it returns 0 and \code{a}, \code{b} are left partially transformed.
+\code{T (&a)[n][n]} binds e.g.\ to \code{Mat3<double>::elements()}.}
+\lafunc{template<typename T, int n> class simple_linfit}{Linear least-squares fit $y\approx\sum_{i=0}^{n-1}c_if_i(x)$
+by accumulating the normal equations; the data points are not stored. Public members: \code{T fitmat[n][n]},
+\code{T rhsmat[1][n]} (accumulated $\sum f_if_j$, $\sum f_iy$), \code{T fitcoef[n]} (result $c_i$), \code{int npoints}.}
+\lafunc{simple_linfit()}{Empty fit, coefficients zero.}
+\lafunc{void clear(bool keepresults=false)}{Discard the accumulated data (and the coefficients unless \code{keepresults}).}
+\lafunc{void input(const T (&funcs)[n], const T y)}{Add a data point given by the values $f_i(x)$ and $y$.}
+\lafunc{T solve(const T preserve=0)}{Solves the normal equations by \code{simple_gaussj}, stores the coefficients in
+\code{fitcoef} and returns the determinant of the normal matrix (0 if singular). If fewer than $n$ points have been input it
+returns 0 and leaves \code{fitcoef} unchanged. With \code{preserve==0} the accumulated data are cleared afterwards (the next
+fit starts from scratch); with \code{preserve!=0} they are kept and, if \code{preserve!=1}, multiplied by \code{preserve},
+which gives an exponentially decaying weight of old points in a running fit (\code{npoints} is not reset then).}
+\lafunc{const T &operator[](int i) const}{Coefficient $c_i$.}
+\lafunc{std::ostream& operator<<(std::ostream &o, const simple_linfit<T,n> &f)}{Prints the coefficients separated by spaces.}
+\end{lareference}
+
+Example (from \header{t.cc}), fit of a parabola:
+\begin{lstlisting}
+simple_linfit<double,3> fit;
+double funcs[3];
+for(int i=0; i<100; ++i)
+	{
+	double x = 10*RANDDOUBLESIGNED();
+	funcs[0]=1; funcs[1]=x; funcs[2]=x*x;
+	fit.input(funcs, 2*x*x-3*x+1);
+	}
+double det = fit.solve();
+cout <<"det= "<<det<<" fit "<<fit<<endl;    //1 -3 2
+\end{lstlisting}
+\lawarning{\header{simple.h} defines and afterwards undefines a macro \texttt{SWAP}; a user macro of this name defined before
+the inclusion is lost.}
+
+%=====================================================================
+\section{Error handling reference}\label{sec:utilities:errors}
+\laheader{laerror.h, laerror.cc}
+
+The concept (errors are reported by \code{laerror}, which throws an exception after printing diagnostics; checks enabled by
+\code{DEBUG}) is described in section~\ref{sec:concepts:errors}. All entities are in namespace \code{LA}.
+
+\begin{lareference}
+\lafunc{laerror(const char *message)}{Macro expanding to \code{LA::laerror2(message, __PRETTY_FUNCTION__)} with GNU
+compilers and \code{LA::laerror2(message, __func__)} otherwise. Usable in user code, also outside namespace \code{LA}.}
+\lafunc{void laerror2(const char *message, const char *function)}{Flushes and prints a newline on \code{std::cout} and
+\code{std::cerr}, then on both streams \code{LA:ERROR - message} and \code{Called from function} (``unspecified'' if
+\code{message} is \code{NULL}); the system error message by \code{perror} if \code{errno} is nonzero; the command line (from
+\header{/proc/self/cmdline}); user, host name and working directory (via \code{system()}); a listing of the working
+directory if \code{LA_error_list_files} is true. Finally it throws \code{LAerror(message)}.}
+\lafunc{class LAerror : public std::exception}{Exception thrown by \code{laerror2}. Public member \code{std::string msg}, a copy
+of the message (so it stays valid also for messages built in local buffers, e.g.\ by the BLAS error handlers); constructor
+\code{LAerror(const char *s)} (\code{NULL} gives ``unspecified''); \code{what()} returns the message, so an uncaught error or a
+handler catching \code{std::exception} shows it.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const LAerror &x)}{Prints \code{x.msg}.}
+\lafunc{bool LA_error_list_files}{Default \code{false}; if set, \code{laerror2} also runs \code{ls -l -t .}.}
+\lafunc{bool _LA_count_check}{Default \code{true}. In \code{DEBUG} builds the non-const \code{operator[]} and
+\code{operator()} of \code{NRVec}, \code{NRMat} and \code{NRSMat} call \code{laerror} if the reference count is larger
+than 1 (section~\ref{sec:concepts:refcount}) only while this variable is true; setting it to false switches this check off
+(the check is in inline header code, so it affects code compiled with \code{DEBUG}).}
+\lafunc{const bool _LA_warn_empty_copyonwrite}{Compile-time \code{false} in the library; if it were true,
+\code{copyonwrite()} of an empty object would print a warning. Not user-adjustable.}
+\lafunc{int traceback(int flags)}{Prints a stack trace of the running process by forking \header{/usr/bin/gdb} in batch
+mode attached to the process (allowed by \code{prctl(PR_SET_PTRACER)}); output goes to \code{stderr}. \code{flags} is
+currently unused. Linux specific; requires gdb. C linkage.}
+\lafunc{void sigtraceback(int sig, int flags)}{Installs a one-shot handler for signal \code{sig} which flushes
+\code{stdout}, calls \code{traceback(flags)} and re-raises the signal (default action, e.g.\ core dump); if the handler is
+entered again it calls \code{_exit(1)}. C linkage.}
+\lafunc{int endianity()}{Index of the byte holding the least significant byte of an \code{int}: 0 on little-endian machines,
+nonzero (\code{sizeof(int)-1}) on big-endian ones. Used e.g.\ by \code{bitvector} to refuse big-endian platforms.}
+\end{lareference}
+
+Errors detected by BLAS and LAPACK (\code{xerbla_}), ATLAS (\code{ATL_xerbla}) and CBLAS (\code{cblas_xerbla},
+\code{cblas_errprn}) are redirected to \code{laerror} by replacement handlers defined in \header{laerror.cc}. The CBLAS ones
+are omitted when the library is configured without CBLAS (\code{NONCBLAS}), \code{cblas_xerbla} also when
+\code{AVOID_DUPLICATE_CBLAS_XERBLA} is defined (for CBLAS implementations providing their own).
+
+Typical use at the start of \code{main()} (\header{t.cc}):
+\begin{lstlisting}
+sigtraceback(SIGSEGV,1);
+sigtraceback(SIGABRT,1);
+sigtraceback(SIGBUS,1);
+sigtraceback(SIGFPE,1);
+\end{lstlisting}
+
+
+%=====================================================================
+\section{The single include file la.h}\label{sec:utilities:la}
+\laheader{la.h}
+
+\header{la.h} is meant as the single include file for the end user. It includes the headers of all classes and modules
+(traits, error handling, \code{AuxStorage}, vectors, dense, symmetric and sparse matrices, the non-class functions,
+iterative solvers, \code{DIIS}, matrix exponential, four-index transformation, permutations, polynomials, continued
+fractions, tensors, optimization, numbers, bitvector, Vec3/Mat3, quaternions, \header{miscfunc.h} and the version
+declaration), and \header{la_random.h} indirectly. It does \emph{not} include \header{simple.h}, \header{graph.h},
+\header{reg.h} and \header{regsurf.h}, which have to be included explicitly when needed.
+
+\header{la.h} puts \code{using namespace LA;} into the global namespace and defines the abbreviations
+\begin{lstlisting}
+typedef NRMat<int> NRIMat;      typedef NRVec<int> NRIVec;
+typedef NRMat<double> NRDMat;   typedef NRVec<double> NRDVec;
+typedef NRMat<std::complex<double> > NRCMat;
+typedef NRVec<std::complex<double> > NRCVec;
+\end{lstlisting}
+Code which wants to avoid the global \code{using} directive can include the individual headers instead.
+
+%=====================================================================
+\section{Version information}\label{sec:utilities:version}
+
+The library contains the string \code{extern const char LA::version[]} (declared in \header{LA_version.h}, included by
+\header{la.h}). Its definition \header{version.cc} is regenerated at every \code{make} by the script
+\header{get_git_version} and contains the output of \code{git describe}, the HEAD commit hash and date, the compilation date,
+host and user name. A program can print it to record which library build produced its results:
+\begin{lstlisting}
+cout <<"LA version = "<<LA::version<<endl;
+\end{lstlisting}
+
+%=====================================================================
+\section{Number-theoretic utilities}\label{sec:utilities:numbers}
+\laheader{numbers.h, numbers.cc}
+
+Elementary number theory with naive algorithms, suitable for small numbers (trial division).
+All functions are templates in the integer type \code{N} but are instantiated only for
+\code{uint64_t} (the inline ones \code{isprime}, \code{isoddprime}, \code{eulerphi(const N&)}
+therefore also link only for \code{uint64_t}).
+\begin{lareference}
+\lafunc{N primefactor(const N &x, const N &last=0)}{Smallest prime factor of $x$ which is $\ge$\code{last} (assuming $x$ has no smaller odd factors); returns $x$ for $x\le2$ and for primes.}
+\lafunc{bool isprime(const N &x); bool isoddprime(const N &x)}{$x$ prime; $x$ odd prime.}
+\lafunc{class FACTORIZATION<N> : public std::list<std::pair<N,N>>}{List of (prime, exponent) pairs in increasing order.}
+\lafunc{FACTORIZATION<N> factorization(const N &x)}{Prime factorization (empty for $x\le1$).}
+\lafunc{N nextprime(N x)}{Smallest prime $>x$ (2 for $x<2$).}
+\lafunc{std::ostream &operator<<(std::ostream &s, const FACTORIZATION<N> &x)}{Prints \code{(p,e) (p,e) ...}.}
+\lafunc{N eulerphi(const FACTORIZATION<N> &f); N eulerphi(const N &x)}{Euler's totient function.}
+\lafunc{N pow(const N &x, N i)}{$x^i$ by repeated squaring (overflow not checked).}
+\lafunc{N multmod(N x, N y, const N &m); N powmod(const N &x, N i, const N &m)}{$xy \bmod m$ by shift-and-add (avoids overflow of $xy$ up to about $m<2^{63}$), $x^i\bmod m$.}
+\end{lareference}
+Example: \code{uint64_t n=360; cout << factorization(n) << eulerphi(n);} prints
+\code{(2,3) (3,2) (5,1) 96}.
+
+%=====================================================================
+\section{Graph algorithms}\label{sec:utilities:graph}
+\laheader{graph.h, graph.cc}
+
+A small collection of graph algorithms. There is no graph class: the functions are templates in
+the adjacency matrix type \code{G}, which must provide \code{nrows()}, an element access
+\code{operator()(i,j)} convertible to \code{bool}, a copy constructor/assignment and
+\code{submatrix(const NRVec<int>&)} returning a \code{G}. They are instantiated only for
+\code{G = NRSMat<char>} (undirected graphs, chapter~\ref{ch:smat}). Vertices are numbered from 0;
+diagonal elements are ignored.
+\begin{lareference}
+\lafunc{NRVec<int> neighbors(const G &adjacency, const int v); NRVec<int> nonneighbors(const G &adjacency, const int v)}{Sorted lists of vertices adjacent / not adjacent to $v$ (excluding $v$).}
+\lafunc{NRVec<int> findclique(const G &adjacency, const int v=0)}{A large clique found by the recursive Ramsey heuristic of Boppana and Halld\'orsson \cite{utilities:boppana1992} started at vertex $v$; returns the sorted vertex list (empty for an empty graph). Exponential worst case in recursion; intended for small graphs.}
+\lafunc{NRVec<int> complement(const G &adjacency, const NRVec<int> &vertexlist)}{Vertices not contained in \code{vertexlist}.}
+\lafunc{NRVec<int> cliquecover(const G &adjacency, int *ncliques=NULL)}{Greedy clique cover by repeated \code{findclique} on the remaining subgraph; returns for each vertex the number of its clique (counted from 1) and optionally the number of cliques.}
+\end{lareference}
+\begin{lstlisting}
+NRSMat<char> adj;
+cin >> adj;
+NRVec<int> clique = findclique(adj);
+NRVec<int> cover = cliquecover(adj);
+NRPerm<int> p(cover.size());
+cover.sort(0,p,true);                   //permutation grouping the cliques
+NRSMat<char> adjperm = adj.permuted(p); //block structure
+\end{lstlisting}

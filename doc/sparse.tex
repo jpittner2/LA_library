@@ -1,0 +1,367 @@
+\chapter{Sparse matrices}\label{ch:sparse}
+\laheader{sparsemat.h, sparsemat.cc, sparsesmat.h, sparsesmat.cc}
+
+\section{Overview}\label{sec:sparse:overview}
+\LA{} offers two independent sparse matrix classes with different storage schemes, plus a small helper class:
+\begin{itemize}
+\item \code{SparseMat<T>} (section~\ref{sec:sparse:sparsemat}): an \emph{unordered linked list} of
+  (row, column, value) triplets. Appending elements is cheap, duplicates are allowed and summed,
+  sorting is done on demand. A flag marks symmetric matrices of which only one triangle is stored.
+  Products with dense vectors and matrices are its main purpose (e.g.\ CI-type Hamiltonians in
+  Davidson/Lanczos solvers, \ref{ch:iterative}, and the matrix exponential).
+\item \code{SparseSMat<T>} (section~\ref{sec:sparse:sparsesmat}): an array of rows, each row a
+  \code{std::map} from column index to value. It allows efficient random access and accumulation and
+  sparse$\times$sparse products, and offers a pivoted sparse Cholesky decomposition. It was written for
+  exponentiating symmetric matrices (e.g.\ the unitary complex symmetric $\exp(\mathrm{i}H)$ with real symmetric $H$),
+  but despite its name it is a general (also nonsymmetric and rectangular) sparse matrix; symmetry
+  (hermiticity for complex types) is only a convention of some of its operations.
+\item \code{SemiSparseMat<T>} (section~\ref{sec:sparse:semisparse}): a dense diagonal plus a
+  \code{SparseMat} off-diagonal part, just enough to be used in iterative eigensolvers.
+\end{itemize}
+\code{CSRMat<T>} (section~\ref{sec:sparse:csr}) is unfinished.
+
+Common definitions in \code{sparsemat.h}:
+\begin{lareference}
+\lafunc{typedef unsigned int SPMatindex; typedef int SPMatindexdiff}{Index type and index difference type. All row and column indices count from 0.}
+\lafunc{const double SPARSEEPSILON=1e-15}{Threshold: elements with absolute value below (or equal to) it are dropped by \code{simplify()} and by most constructors and accumulating operations.}
+\lafunc{template<typename T> struct matel {T elem; SPMatindex row; SPMatindex col; matel *next;}}{List element of \code{SparseMat}; also the value type returned by the iterators of both classes.}
+\end{lareference}
+Both classes are explicitly instantiated for \code{double} and \code{std::complex<double>}.
+Several operations are implemented for \code{double} only. \code{SparseMat} nowhere conjugates when
+it mirrors elements of a symmetric matrix (source comments: ``not OK for complex hermitean''), so
+its complex symmetric matrices are complex symmetric, not hermitian. \code{SparseSMat} stores both triangles
+and its mirroring operations follow the hermitian convention of \code{NRSMat} (section~\ref{sec:smat:hermitian}).
+Neither class has GPU support.
+
+The header \code{sparsemat_traits.h} is an obsolete leftover: it specializes a template \code{NRMat_traits}
+which no longer exists, is not included by any file and is not installed; it is kept in the source tree.
+
+\section{SparseMat}\label{sec:sparse:sparsemat}
+\laheader{sparsemat.h, sparsemat.cc}
+
+\subsection{Storage}\label{sec:sparse:storage}
+The nonzero elements form a singly linked list of \code{matel<T>} (pointer \code{list}); new elements are
+prepended. The list is in no particular order and may contain several entries with the same
+$(i,j)$, which represent their sum; \code{simplify()} merges such duplicates, removes elements with
+$|a_{ij}|\le$ \code{SPARSEEPSILON} and leaves the list sorted by rows. Operations needing an ordering
+(\code{simplify}, sparse products, \code{dot}) build private arrays of pointers sorted by rows or by columns
+(member \code{sort()}); these arrays and the cached element count \code{nonzero} are kept until the next
+operation which calls the private \code{unsort()}: \code{add()} (and everything built on it), \code{simplify},
+\code{resize}, \code{transposeme}, the permutation members, \code{get}, assignment, and \code{copyonwrite()} of a
+shared matrix. Writing \emph{indices} through the iterator or \code{getlist()} after a sort is not detected.
+
+\textbf{Symmetric flag.} If \code{issymmetric()} is true, the matrix is square and each stored off-diagonal
+element $a_{ij}$ represents both $a_{ij}$ and $a_{ji}$ (no conjugation); diagonal elements are stored once.
+Which triangle is used is arbitrary: the constructor from \code{NRSMat} stores $i\ge j$, \code{simplify()}
+moves all elements to $i\le j$, and user code may mix them, but it must not store both $a_{ij}$ and $a_{ji}$
+unless their sum is meant. \code{setsymmetric()} only sets the flag, \code{defineunsymmetric()} only clears it
+(the data are then interpreted as a triangular matrix), and \code{setunsymmetric()} unfolds the matrix by
+adding the mirror images of the off-diagonal elements. Operations not supporting symmetric storage
+(sparse$\times$sparse products, \code{sort()}) unfold it themselves or raise an error.
+
+\subsection{Reference counting}\label{sec:sparse:refcount}
+The list is reference counted: the copy constructor, \code{operator=} and \code{transpose()} of a symmetric
+matrix share it (sorted arrays are never shared). There is \emph{no} \code{operator|=}; a deep copy is
+obtained by \code{SparseMat<T> b(a); b.copyonwrite();}. \code{copyonwrite()} copies the list (in reversed
+order) when it is shared.
+
+Most modifying members call \code{copyonwrite()}: \code{simplify}, \code{operator+=}/\code{-=} with a matrix,
+\code{addtriangle}, \code{join}, \code{axpy}, \code{operator*=}, \code{transposeme}, \code{setunsymmetric},
+\code{incsize}, \code{addsafe}, the permutation members, \code{gemm}, \code{get}; \code{operator=(const T&)},
+\code{resize} and \code{gemm} with \code{beta=0} detach by reallocation. Exceptions:
+\begin{itemize}
+\item \code{add()} is a minimal inline function: no \code{copyonwrite()}, no range check (it only invalidates
+  the sorted arrays and the cached \code{nonzero} if they exist). By design, user code must call
+  \code{copyonwrite()} before \code{add()} on a possibly shared matrix (as done in the examples in \code{t.cc}).
+  Adding to a shared list does not corrupt the other copies (elements are prepended), but the added
+  elements are leaked or, after a later \code{copyonwrite()}, silently included only in this copy.
+\item \code{operator+=(const T&)} and \code{operator-=(const T&)} call \code{add()} before the \code{copyonwrite()}
+  inside \code{simplify()} (result correct, memory leaked when shared).
+\item The iterator and \code{getlist()} give writable access to the list elements without \code{copyonwrite()}.
+\item \code{norm()} is const but calls \code{simplify()} (which detaches a shared list).
+\end{itemize}
+
+\subsection{Construction, assignment, conversion}
+\begin{lareference}
+\lafunc{SparseMat()}{Undefined empty matrix ($0\times0$, no reference count).}
+\lafunc{SparseMat(const SPMatindex n, const SPMatindex m)}{Defined empty (all zero) $n\times m$ matrix, not symmetric.}
+\lafunc{SparseMat(const SparseMat &rhs)}{Shallow copy; an empty matrix gets its own reference count.}
+\lafunc{explicit SparseMat(const NRMat<T> &rhs)}{From a dense matrix, elements with $|a_{ij}|>$ \code{SPARSEEPSILON}.}
+\lafunc{explicit SparseMat(const NRSMat<T> &rhs)}{From a packed symmetric matrix; symmetric flag set, lower triangle stored.}
+\lafunc{~SparseMat()}{Destructor.}
+\lafunc{SparseMat & operator=(const SparseMat &rhs)}{Shallow copy (also copies the symmetric flag).}
+\lafunc{SparseMat & operator=(const T &a)}{Scalar matrix $a\cdot1$; the matrix must be square and dimensioned, old contents are discarded.}
+\lafunc{void identity()}{\code{*this = (T)1}.}
+\lafunc{void resize(const SPMatindex n, const SPMatindex m)}{New empty $n\times m$ matrix; data are discarded (detaches if shared), the symmetric flag is cleared.}
+\lafunc{void dealloc()}{\code{resize(0,0)}.}
+\lafunc{void incsize(const SPMatindex n, const SPMatindex m)}{Enlarge the dimensions by $n$ and $m$ keeping the elements (used for direct sums).}
+\lafunc{void copyonwrite(bool detachonly=false, bool deep=true)}{Make the list private, see section~\ref{sec:concepts:refcount}.}
+\lafunc{void clear()}{Zero matrix of the same dimensions: as \code{resize(nrows(),ncols())}, but the symmetric flag is kept (detaches if shared).}
+\lafunc{void swap(SparseMat &rhs)}{Exchange contents without copying.}
+\lafunc{int getcount() const}{Reference count (0 if undefined).}
+\end{lareference}
+Dense from sparse: \code{explicit NRMat<T>(const SparseMat<T>&)} (symmetric matrices are unfolded,
+duplicates summed), \code{explicit NRSMat<T>(const SparseMat<T>&)} (requires the symmetric flag, duplicates summed),
+\code{explicit NRVec<T>(const SparseMat<T>&)} (for a $1\times m$ or $n\times 1$ matrix).
+
+\subsection{Element insertion and access}
+\begin{lareference}
+\lafunc{inline void add(const SPMatindex n, const SPMatindex m, const T elem)}{Prepend element $(n,m)$; it is summed with existing entries at the same position. No checks, no \code{copyonwrite()}, see section~\ref{sec:sparse:refcount}. The matrix must have been dimensioned (constructor with dimensions or \code{resize}).}
+\lafunc{void addsafe(const SPMatindex n, const SPMatindex m, const T elem)}{As \code{add}, but ignores $|$\code{elem}$|\le$ \code{SPARSEEPSILON}, calls \code{copyonwrite()} and creates the reference count of an undefined matrix (range check only with the lowercase \code{debug} macro).}
+\lafunc{void simplify(const double sparseepsilon=SPARSEEPSILON)}{Sum duplicates, remove elements with $|a_{ij}|\le$ \code{sparseepsilon}, sort by rows; symmetric matrices are first moved to the upper triangle ($i\le j$).}
+\lafunc{unsigned int length() const}{Number of list elements (cached until the next modification, see section~\ref{sec:sparse:storage}).}
+\lafunc{unsigned int sort(int type) const}{Build the internal array sorted by rows (\code{type=0}) or columns (\code{type=1}) and return the number of elements. Logically const, but unfolds a symmetric matrix (\code{setunsymmetric}). Normally called internally only.}
+\lafunc{inline matel<T> *getlist() const; void setlist(matel<T> *l)}{Raw access to the list head (no reference count handling; \code{setlist} does not free the old list).}
+\lafunc{iterator begin() const; iterator end() const}{Forward iterator over the raw list (unsorted, duplicates possible, one triangle for symmetric matrices). \code{*it} is \code{matel<T>&}, \code{it->row}, \code{it->col}, \code{it->elem} are writable; \code{++} (pre- and postfix), \code{==}, \code{!=}.}
+\lafunc{inline SPMatindex nrows() const; inline SPMatindex ncols() const}{Dimensions.}
+\lafunc{inline bool issymmetric() const}{Symmetric flag.}
+\lafunc{inline void setsymmetric(); inline void defineunsymmetric(); void setunsymmetric()}{Set the flag (square only) / clear the flag / unfold the stored triangle, see section~\ref{sec:sparse:storage}.}
+\end{lareference}
+
+\subsection{Arithmetic}
+Binary operators with a matrix operand must not combine a symmetric left operand with a general right one.
+\begin{lareference}
+\lafunc{SparseMat & operator*=(const T &a)}{Scale all elements (\code{a=0} calls \code{clear()}).}
+\lafunc{SparseMat & operator+=(const T &a); SparseMat & operator-=(const T &a)}{Add/subtract $a\cdot 1$ (square matrices), then \code{simplify()}.}
+\lafunc{SparseMat & operator+=(const SparseMat &rhs); SparseMat & operator-=(const SparseMat &rhs)}{Append \code{rhs} (unfolded if \code{rhs} is symmetric and \code{*this} is not; error for symmetric \code{*this} and general \code{rhs}), then \code{simplify()}.}
+\lafunc{const SparseMat operator+(const T &rhs) const; const SparseMat operator-(const T &rhs) const; const SparseMat operator*(const T &rhs) const}{Out-of-place versions.}
+\lafunc{const SparseMat operator+(const SparseMat &rhs) const; const SparseMat operator-(const SparseMat &rhs) const}{Out-of-place versions.}
+\lafunc{SparseMat & addtriangle(const SparseMat &rhs, const bool lower, const char sign)}{Append the elements of \code{rhs} with $i\le j$ (\code{lower=true}) or $i\ge j$ (\code{lower=false}), all of them if \code{rhs} is symmetric; \code{sign} is \code{'+'} or \code{'-'}. No \code{simplify()}.}
+\lafunc{SparseMat & join(SparseMat &rhs)}{Fast \code{+=}: moves the list of \code{rhs} (must be unshared, same dimensions and symmetry) to the end of this list; \code{rhs} is left empty. No \code{simplify()}.}
+\lafunc{void axpy(const T alpha, const SparseMat &x, const bool transp=0)}{$A \leftarrow A + \alpha x$ or $A + \alpha x\Tr$; no \code{simplify()} (except for $\alpha=\pm1$, which uses \code{+=}/\code{-=}).}
+\lafunc{const T trace() const}{Trace.}
+\lafunc{const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const}{Frobenius norm of $A-\mathtt{scalar}\cdot1$ of the full matrix (symmetric off-diagonal elements counted twice). Calls \code{simplify()}.}
+\lafunc{const T dot(const SparseMat &rhs) const}{$\sum_{ij} a_{ij} b_{ij}$ without conjugation (also for complex types), general (not symmetric) matrices only; merge of the two lists sorted by rows.}
+\lafunc{const T dot(const NRMat<T> &rhs) const}{$\sum_{ij} a_{ij} b_{ij}$ with a dense matrix; \code{double} only.}
+\lafunc{const T* diagonalof(NRVec<T> &r, const bool divide=0, bool cache=false) const}{Square matrix: diagonal into \code{r} (\code{divide=false}, returns \code{&r[0]}) or divide \code{r} by the nonzero diagonal elements (\code{divide=true}, returns \code{NULL}). Rectangular matrix: the diagonal of $A\Tr A$ (assuming a simplified matrix), for preconditioning. \code{cache} is unused.}
+\end{lareference}
+
+\subsection{Products}
+\begin{lareference}
+\lafunc{inline const NRVec<T> operator*(const NRVec<T> &rhs) const}{$A x$.}
+\lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x, bool treat_as_symmetric=false) const}{$r \leftarrow \beta r + \alpha\,\mathrm{op}(A)x$; forwards to \code{NRVec<T>::gemv}. Any \code{trans} other than \code{'n'} means transposition (no conjugation). With \code{treat_as_symmetric} a general matrix is used as if it had the symmetric flag. The sizes of \code{x} and (in DEBUG) of the result are checked.}
+\lafunc{inline const NRMat<T> operator*(const NRMat<T> &rhs) const}{$A B$ via \code{NRMat<T>::gemm} with a sparse first operand; \code{double} only (\code{complex<double>} raises ``not implemented yet'').}
+\lafunc{const SparseMat operator*(const SparseMat &rhs) const}{Sparse product of two general matrices (error if one is symmetric); the result is simplified.}
+\lafunc{void gemm(const T beta, const SparseMat &a, const char transa, const SparseMat &b, const char transb, const T alpha)}{$C \leftarrow \beta C + \alpha\,\mathrm{op}(A)\,\mathrm{op}(B)$ for general \code{a}, \code{b}; if \code{*this} is symmetric (possible only with $\beta\neq0$) only elements with $i\le j$ are added. Result simplified. \code{a} and \code{b} must not be \code{*this} (checked in DEBUG).}
+\end{lareference}
+Related functions in other classes:
+\code{NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x, const bool treat_as_symmetric=false)},
+\code{NRVec<T>::operator*(const SparseMat<T>&)} ($x\Tr A$),
+\code{NRMat<T>::gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha)}
+(\code{double} only) and \code{NRMat<T>::operator+=}, \code{operator-=(const SparseMat<T>&)}.
+
+\subsection{Transposition, permutations, direct sums}
+\begin{lareference}
+\lafunc{void transposeme(); const SparseMat transpose() const}{Transpose in place / out of place (no conjugation); trivial for symmetric matrices.}
+\lafunc{void permuteindices(const NRVec<SPMatindex> &p)}{Square matrix: $(i,j)\to(p_i,p_j)$, indices from 0.}
+\lafunc{void permuterows(const NRVec<SPMatindex> &p); void permutecolumns(const NRVec<SPMatindex> &p)}{$i\to p_i$ resp.\ $j\to p_j$ (for symmetric matrices both indices are permuted), indices from 0.}
+\lafunc{void permuteme_rows(const NRPerm<int> &p, const bool inverse=false); void permuteme_cols(const NRPerm<int> &p, const bool inverse=false)}{The same with a permutation object (\ref{ch:permutation}), optionally inverted. The matrix indices count from 0, the permutation (as always for \code{NRPerm}) from 1: element $(i,j)$ moves to row $p_{i+1}-1$ resp.\ column $p_{j+1}-1$ (for symmetric matrices both indices are permuted), the same direction as \code{NRMat::permuted_rows}/\code{permuted_cols}.}
+\lafunc{void permuteme_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false)}{Rows by \code{p}, columns by \code{q} (same index convention).}
+\lafunc{const SparseMat permuted_rows(const NRPerm<int> &p, const bool inverse=false) const; const SparseMat permuted_cols(const NRPerm<int> &p, const bool inverse=false) const; const SparseMat permuted_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse=false) const}{Out-of-place versions.}
+\lafunc{SparseMat & oplusequal(const SparseMat &rhs); const SparseMat oplus(const SparseMat &rhs) const}{Direct sum $A\oplus B$ (block diagonal); both must have the same symmetry.}
+\lafunc{SparseMat & oplusequal(const NRMat<T> &rhs); const SparseMat oplus(const NRMat<T> &rhs) const}{Direct sum with a dense matrix (general \code{*this} only).}
+\lafunc{SparseMat & oplusequal(const NRSMat<T> &rhs); const SparseMat oplus(const NRSMat<T> &rhs) const}{Direct sum with a packed symmetric matrix (symmetric \code{*this} only; the lower triangle of \code{rhs} is added).}
+\lafunc{const SparseMat otimes(const SparseMat &rhs) const; const SparseMat otimes(const NRMat<T> &rhs) const; const SparseMat otimes(const NRSMat<T> &rhs) const}{Direct (Kronecker) product: declared, but not implemented anywhere (link error).}
+\end{lareference}
+
+\subsection{Input/output}
+\begin{lareference}
+\lafunc{void put(int fd, bool dimensions=1, bool transposed=false, bool orcaformat=false) const}{Binary output: if \code{dimensions}, $n$, $m$ (\code{SPMatindex}), the symmetric flag and the cached element count (\code{int}); then for each list element row, column and the value (written by \code{LA_traits<T>::put}, so nested types work); terminated by the pair $(-1,-1)$. \code{transposed} swaps rows and columns.}
+\lafunc{void get(int fd, bool dimensions=1, bool transposed=false, bool orcaformat=false)}{Binary input matching \code{put}. With \code{dimensions=false} the read list replaces the current one (which is freed, or detached if shared); the dimensions are kept.}
+\end{lareference}
+The argument \code{orcaformat} exists for the uniform \code{LA_traits} interface (section~\ref{sec:concepts:io}), so that
+e.g.\ \code{NRVec<SparseMat<T>>} can be written and read; the ORCA format is defined for dense data only and
+\code{orcaformat=true} raises \code{laerror}. The same holds for \code{SparseSMat}.
+
+\subsection{Related free functions}
+\begin{lareference}
+\lafunc{std::ostream& operator<<(std::ostream &s, const SparseMat<T> &x)}{Text output: \code{n m}, then lines \code{row col value} in list order, terminated by \code{-1 -1}. The symmetric flag is not written.}
+\lafunc{std::istream& operator>>(std::istream &s, SparseMat<T> &x)}{Text input of the same format; the result is a general (not symmetric) matrix.}
+\lafunc{inline const SparseMat<T> commutator(const SparseMat<T> &x, const SparseMat<T> &y, const bool trx=0, const bool tryy=0)}{$[\mathrm{op}(x),\mathrm{op}(y)] = xy-yx$, via two \code{gemm} calls (general matrices only).}
+\lafunc{inline const SparseMat<T> anticommutator(const SparseMat<T> &x, const SparseMat<T> &y, const bool trx=0, const bool tryy=0)}{$xy+yx$.}
+\end{lareference}
+In \ref{ch:nonclass}: \code{realpart()} and \code{imagpart()} of a \code{SparseMat<complex<double>>}. The generic
+matrix functions in \code{matexp.h} (e.g.\ \code{exp()}) work with \code{SparseMat}, and the iterative solvers
+of \ref{ch:iterative} use its \code{gemv}, \code{diagonalof}, \code{issymmetric}, \code{nrows} interface.
+
+\section{SemiSparseMat}\label{sec:sparse:semisparse}
+\laheader{sparsemat.h}
+A rudimentary class (``implemented just enough to call davidson etc.\ on it'') holding a dense diagonal and
+a sparse off-diagonal part, both public members. If \code{diagonal} is nonempty, the diagonal elements
+are assumed to be stored \emph{only} there. It is not reference counted by itself; its members are.
+\begin{lareference}
+\lafunc{NRVec<T> diagonal; SparseMat<T> offdiagonal}{The two parts (public data members).}
+\lafunc{SemiSparseMat(); SemiSparseMat(const SPMatindex n, const SPMatindex m)}{Empty object / $n\times m$; for $n=m$ the diagonal vector is allocated and zeroed (zero matrix).}
+\lafunc{SPMatindex nrows() const; SPMatindex ncols() const; SPMatindex issymmetric() const; void setsymmetric()}{Forwarded to \code{offdiagonal}.}
+\lafunc{void add(const SPMatindex n, const SPMatindex m, const T elem)}{Diagonal elements go to \code{diagonal} (if allocated), others to \code{offdiagonal.add()}; no \code{copyonwrite()}.}
+\lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x, bool treat_as_symmetric=false) const; NRVec<T> operator*(const NRVec<T> &rhs) const}{Matrix-vector product.}
+\lafunc{const T* diagonalof(NRVec<T> &x, const bool divide=0, bool cache=false) const}{As for \code{SparseMat}, using \code{diagonal} if allocated.}
+\lafunc{void clear(); void copyonwrite(); void resize(const SPMatindex n, const SPMatindex m)}{Applied to both parts (\code{resize} gives a zero matrix and allocates the diagonal only for $n=m$).}
+\lafunc{std::ostream& operator<<(std::ostream &s, const SemiSparseMat<T> &x)}{Prints both parts.}
+\lafunc{explicit NRMat<T>(const SemiSparseMat<T> &rhs)}{Dense conversion.}
+\end{lareference}
+
+\section{SparseSMat}\label{sec:sparse:sparsesmat}
+\laheader{sparsesmat.h, sparsesmat.cc}
+
+\subsection{Storage and concepts}
+The data member \code{v} is an array of \code{nrows()} pointers to \code{std::map<SPMatindex,T>}; row $i$ maps
+column indices to values and is \code{NULL} if empty. Each position occurs at most once, rows are
+sorted by column automatically.
+
+Despite its name, \code{SparseSMat} is a \emph{general} sparse matrix: it need not be square ($n\times m$),
+and the elements $(i,j)$ and $(j,i)$ are stored independently, so nonsymmetric matrices are represented
+exactly. \code{operator*} (the general product $AB$), \code{gemv}, \code{axpy}, the iterator, \code{transpose()},
+\code{submatrix}/\code{storesubmatrix}, \code{put}/\code{get}, the text I/O and the conversions to and from \code{NRMat}
+work for general matrices. The symmetry (hermiticity for complex types) survives only as a convention of some operations:
+\begin{itemize}
+\item \code{add(i,j,x)} with the default \code{both=true} inserts $x$ at $(i,j)$ and $x^*$ at $(j,i)$; use
+  \code{add(i,j,x,false)} for a single element;
+\item the constructor from \code{NRSMat} and \code{otimes_sparse} produce hermitian (real: symmetric) matrices;
+\item \code{gemm} computes $A\Tr B$ (or $A\Hc B$), i.e.\ $AB$ only for $A=A\Tr$ ($A=A\Hc$), and is restricted to square matrices;
+\item \code{NRSMat(const SparseSMat&)} takes the lower triangle and assumes a hermitian matrix;
+\item \code{issymmetric()} always returns \code{true} (needed by the Davidson interface, chapter~\ref{ch:iterative}).
+\end{itemize}
+In particular complex symmetric matrices such as $\exp(\mathrm{i}H)$ with real symmetric $H$ (the original purpose of
+the class, built e.g.\ by \code{imagmatrix} and \code{exp}), hermitian and general matrices are all handled correctly
+by \code{operator*} and \code{exp}.
+
+\textbf{Planned extension.} In the future \code{SparseSMat} may be handled as a general matrix class with a member
+\code{symmetry_type} (0 for no symmetry, 1 symmetric, 2 hermitian); the conversion from \code{NRSMat}, \code{otimes_sparse},
+\code{gemm} (and \code{issymmetric()}) would then be implemented according to it, in a backward compatible way.
+
+\textbf{Reference counting.} The row array is shared by the copy constructor and \code{operator=}; there is no
+\code{operator|=}. \code{copyonwrite()} (no arguments) copies all maps (element type copied by its copy
+constructor, i.e.\ no nested deep copy). It is called by \code{operator*=}, \code{axpy} (hence \code{+=}, \code{-=}),
+\code{operator+=(const T&)}, \code{operator-=(const T&)}, \code{gemm} and \code{storesubmatrix};
+\code{resize}, \code{clear}, \code{get(...,false,...)} and \code{operator=(const T&)} detach by reallocation. Not calling it:
+\code{add()} (by design: element-level access, like \code{operator[]} of the dense classes and \code{SparseMat::add()};
+call \code{copyonwrite()} before adding to a possibly shared matrix), \code{operator[]} (raw row access, no reference count check
+even in DEBUG) and \code{simplify()} (removes only near-zero elements, which then disappear from all sharing
+copies).
+
+\subsection{Construction, assignment, conversion}
+\begin{lareference}
+\lafunc{SparseSMat()}{Undefined empty matrix.}
+\lafunc{explicit SparseSMat(const SPMatindex n); explicit SparseSMat(const SPMatindex n, const SPMatindex m)}{Empty (zero) $n\times n$ or $n\times m$ matrix.}
+\lafunc{SparseSMat(const SparseSMat &rhs)}{Shallow copy.}
+\lafunc{explicit SparseSMat(const NRSMat<T> &rhs)}{From a packed symmetric (complex: hermitian) matrix (both triangles inserted, the upper one conjugated, $|a_{ij}|>$ \code{SPARSEEPSILON}).}
+\lafunc{explicit SparseSMat(const NRMat<T> &rhs)}{From a dense $n\times m$ matrix, nonzero elements copied as they are (no symmetrization).}
+\lafunc{explicit SparseSMat(const SparseMat<T> &rhs)}{From a \code{SparseMat} (same dimensions); duplicates are summed, a symmetric \code{SparseMat} is unfolded without conjugation (complex symmetric, as \code{SparseMat} defines it).}
+\lafunc{explicit SparseSMat(const CSRMat<T> &rhs)}{Declared but not implemented (\code{CSRMat} is not supported).}
+\lafunc{~SparseSMat()}{Destructor.}
+\lafunc{SparseSMat & operator=(const SparseSMat &rhs)}{Shallow copy.}
+\lafunc{SparseSMat & operator=(const T &a)}{Scalar matrix $a\cdot1$ (diagonal elements are created even for $a=0$).}
+\lafunc{void copyonwrite()}{Make the data private.}
+\lafunc{void resize(const SPMatindex nn, const SPMatindex mm)}{Empty matrix of the new size (detaches if shared); \code{resize(0,0)} frees everything and leaves an undefined (empty) matrix.}
+\lafunc{void dealloc(); void clear()}{\code{resize(0,0)}; \code{resize(nrows(),ncols())}.}
+\lafunc{inline void setcoldim(int i)}{Set the number of columns without touching the data.}
+\lafunc{inline int getcount() const}{Reference count.}
+\end{lareference}
+Dense from sparse: \code{explicit NRMat<T>(const SparseSMat<T>&)} copies all stored elements;
+\code{explicit NRSMat<T>(const SparseSMat<T>&)} (square only) takes the lower triangle $i\ge j$ (as stored in \code{NRSMat}; the matrix is assumed hermitian).
+
+\subsection{Element insertion and access}
+\begin{lareference}
+\lafunc{inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true)}{Add \code{elem} to element $(n,m)$ and, if \code{both} and $n\ne m$, its complex conjugate to $(m,n)$. Creates the row map if needed; no \code{copyonwrite()}; range check in DEBUG only. Resulting zeros remain until \code{simplify()}.}
+\lafunc{inline const std::map<SPMatindex,T> *line(const SPMatindex n) const}{Read-only access to row $n$ (\code{NULL} if empty).}
+\lafunc{inline ROWTYPE & operator[](const SPMatindex i)}{Row $i$ as a reference to the pointer \code{std::map<SPMatindex,T>*} (\code{typedef ROWTYPE}), possibly \code{NULL}. Non-const only.}
+\lafunc{unsigned long long simplify()}{Remove elements with $|a_{ij}|<$ \code{SPARSEEPSILON} and empty rows; returns the number of remaining elements.}
+\lafunc{inline unsigned long long length()}{\code{simplify()} (non-const).}
+\lafunc{int nrows() const; int ncols() const; inline bool issymmetric() const}{Dimensions; \code{issymmetric()} is always true.}
+\lafunc{iterator begin() const; iterator end() const}{Iterator over all stored elements, row by row in increasing column order. \code{*it} is a \code{matel<T>} \emph{copy} held in the iterator (writing to it does not change the matrix). It is meant for comparison with \code{end()} or via \code{it.notend()}; \code{iterator(const SparseSMat&)} starts at the first element.}
+\end{lareference}
+
+\subsection{Arithmetic and products}
+\begin{lareference}
+\lafunc{SparseSMat & operator*=(const T &a)}{Scale (\code{a=0} clears the matrix).}
+\lafunc{SparseSMat & operator+=(const T &a); SparseSMat & operator-=(const T &a)}{Add/subtract $a\cdot1$.}
+\lafunc{void axpy(const T alpha, const SparseSMat &x, const bool transp=0)}{$A\leftarrow A+\alpha x$, then \code{simplify()}; \code{transp} is ignored.}
+\lafunc{inline SparseSMat & operator+=(const SparseSMat &rhs); inline SparseSMat & operator-=(const SparseSMat &rhs)}{\code{axpy(}$\pm1$\code{,rhs)}.}
+\lafunc{inline const SparseSMat operator*(const T &rhs) const; inline const SparseSMat operator+(const T &rhs) const; inline const SparseSMat operator-(const T &rhs) const}{Out-of-place scalar operations.}
+\lafunc{inline const SparseSMat operator+(const SparseSMat &rhs) const; inline const SparseSMat operator-(const SparseSMat &rhs) const}{Sum, difference.}
+\lafunc{void gemm(const T beta, const SparseSMat &a, const char transa, const SparseSMat &b, const char transb, const T alpha)}{$C\leftarrow\beta C+\alpha\,\tilde A\Tr\tilde B$ where $\tilde A=\bar A$ if \code{transa=='c'} and $\tilde B=\bar B$ if \code{transb=='c'} (other values: no conjugation); all matrices square of equal order. For symmetric $A$ this is $\mathrm{op}(A)\,\mathrm{op}(B)$; it is \emph{not} a general product. Rows $k$ of $A$ and $B$ are multiplied as an outer product by BLAS and scattered into the maps; the result is simplified.}
+\lafunc{const SparseSMat operator*(const SparseSMat &rhs) const}{General product $AB$ of the stored matrices (hermitian, complex symmetric, nonsymmetric or rectangular): row $i$ of the result is accumulated as $\sum_k A_{ik}\,(\text{row }k\text{ of }B)$; simplified.}
+\lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const}{$r\leftarrow\beta r+\alpha Ax$ (general $A$); only \code{trans='n'} is implemented.}
+\lafunc{inline const NRVec<T> operator*(const NRVec<T> &rhs) const}{$Ax$.}
+\lafunc{typename LA_traits<T>::normtype norm(const T scalar=(T)0) const}{Frobenius norm of $A-\mathtt{scalar}\cdot1$ over all stored elements.}
+\lafunc{const T* diagonalof(NRVec<T> &r, const bool divide=0, bool cache=false) const}{As for \code{SparseMat} (square matrices only).}
+\lafunc{SparseSMat transpose(bool conj=false) const}{Transposed (optionally conjugated) copy.}
+\lafunc{void transposeme() const}{Raises an error (not implemented).}
+\lafunc{SparseSMat<T> cholesky(void) const}{Pivoted Cholesky decomposition of a positive semidefinite symmetric/hermitian matrix (not checked): returns $R$ with $R\Hc R = A$ (\code{result.transpose(true)*result} reproduces the input). The pivoting is done a priori by sorting the diagonal; pivots with real part below \code{CHOLESKYEPSILON}$=10^{-16}$ are skipped (rank-deficient case), elements below \code{SPARSEEPSILON} are dropped. $R$ is upper triangular only in the permuted basis.}
+\lafunc{SparseSMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const}{Block (inclusive bounds).}
+\lafunc{void storesubmatrix(const int fromrow, const int fromcol, const SparseSMat &rhs)}{Store \code{rhs} into the block starting at $(\mathtt{fromrow},\mathtt{fromcol})$: the old elements of the block are removed first (as \code{NRMat::storesubmatrix}); calls \code{copyonwrite()}.}
+\end{lareference}
+
+\subsection{Input/output and free functions}
+\begin{lareference}
+\lafunc{void put(int fd, bool dimen=1, bool transp=0, bool orcaformat=false) const}{Binary output: optionally $n$, $m$; then row, column, value of each element; terminated by $(-1,-1)$. With \code{transp} the transposed matrix is written (dimensions and indices swapped), as for \code{SparseMat}.}
+\lafunc{void get(int fd, bool dimen=1, bool transp=0, bool orcaformat=false)}{Binary input matching \code{put}; with \code{transp} the transposed matrix is stored. Elements are accumulated by \code{add(...,false)}; with \code{dimen=false} the read matrix replaces the old contents (\code{clear()}), the dimensions are kept.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const SparseSMat<T> &x)}{Text output: \code{n m}, lines \code{row col value} (all stored elements), terminator \code{-1 -1}.}
+\lafunc{std::istream& operator>>(std::istream &s, SparseSMat<T> &x)}{Text input of the same format (square only); every element is inserted only at its own position (\code{add(i,j,x,false)}), so both triangles must be present in the input.}
+\lafunc{SparseSMat<T> otimes_sparse(const NRVec<T> &lhs, const NRVec<T> &rhs, const bool conjugate=false, const T &scale=1)}{\emph{Symmetrized} outer product, symmetric (complex: hermitian) regardless of the input vectors (unlike \code{SparseMat}):
+with $M=\mathtt{scale}\cdot l\,r\Tr$ (or $l\,r\Hc$ if \code{conjugate}) the result is $S=M+M\Hc$ ($=l\,r\Tr+r\,l\Tr$ for real types),
+including the doubled diagonal $S_{ii}=M_{ii}+M_{ii}^*$. Note that \code{otimes_sparse(x,x,true)} is $2\,x x\Hc$; use \code{scale=0.5} for $x x\Hc$.
+Elements with $|S_{ij}|\le$ \code{SPARSEEPSILON} are omitted. Both vectors must have the same length (\code{laerror} otherwise).}
+\lafunc{SparseSMat<T> NRMat<T>::operator*(const SparseSMat<T> &rhs) const}{Declared in mat.h: dense times sparse, general product $AS$ with a sparse result (row $i$ accumulated as $\sum_k A_{ik}\,(\text{row }k\text{ of }S)$, zero $A_{ik}$ skipped; simplified). Instantiated for \code{double} and \code{std::complex<double>}.}
+\end{lareference}
+In \ref{ch:nonclass}: \code{complexmatrix()}, \code{realmatrix()} and \code{imagmatrix()} build a
+\code{SparseSMat<complex<double>>} from real ones. The generic \code{exp()} of \code{matexp.h} works with
+\code{SparseSMat}.
+
+\section{CSRMat}\label{sec:sparse:csr}
+\laheader{csrmat.h}
+\code{CSRMat<T>} is meant to hold a matrix in compressed sparse row format (row pointers, column indices,
+values, optionally on the GPU via cuSPARSE) for fast products. The class is unfinished: only the declarations
+exist, \code{csrmat.cc} contains no implementation and no instantiation. It is \emph{not supported} and must not be used;
+the declarations (also \code{NRMat(const CSRMat&)} and \code{SparseSMat(const CSRMat&)}) are kept for possible future work.
+
+\section{Examples}\label{sec:sparse:examples}
+\begin{lstlisting}
+#include "la.h"
+using namespace LA;
+
+int main()
+{
+//general sparse matrix as a list of triplets
+SparseMat<double> a(4,4);
+a.add(0,0,2.); a.add(1,2,1.); a.add(3,0,-1.);
+a.add(1,2,0.5);                          //duplicate position: values are summed
+a.simplify();                            //merge duplicates, drop zeros
+NRVec<double> x(1.,4);
+NRVec<double> y = a*x;                   //sparse * dense vector
+NRMat<double> d(a);                      //dense copy
+for(SparseMat<double>::iterator p=a.begin(); p!=a.end(); ++p)
+        std::cout << p->row <<" "<< p->col <<" "<< p->elem <<"\n";
+
+//symmetric storage: only one triangle is stored
+SparseMat<double> s(4,4);
+s.setsymmetric();
+s.add(2,0,1.5); s.add(3,3,1.);
+NRVec<double> z = s*x;                   //uses s(2,0) and s(0,2)
+NRSMat<double> sd(s);                    //dense packed copy
+
+//shared matrices: detach before add()
+SparseMat<double> b(a);                  //shares the list with a
+b.copyonwrite();
+b.add(2,2,3.);
+
+//map-based sparse matrix
+SparseSMat<double> h(4);
+h.add(0,1,0.5);                          //adds (0,1) and (1,0)
+h.add(2,2,1.);
+SparseSMat<double> h2 = h*h;             //result stays symmetric
+NRVec<double> w = h*x;
+std::cout << y << z << w << NRMat<double>(h2) << sd;
+}
+\end{lstlisting}
+
+\section{Pitfalls}\label{sec:sparse:pitfalls}
+\begin{itemize}
+\item \code{add()} of both classes does not call \code{copyonwrite()}; call it yourself on a matrix that may be shared.
+\item \code{SparseMat} may contain duplicates; call \code{simplify()} before relying on the list contents
+  (iteration, \code{NRSMat} conversion, \code{diagonalof} for rectangular matrices).
+\item In a symmetric \code{SparseMat} never store both $a_{ij}$ and $a_{ji}$; \code{setsymmetric()} does not check this.
+\item \code{SparseSMat::gemm} computes $A\Tr B$ (or $A\Hc B$); use \code{operator*} for the general product.
+\item Complex \code{SparseMat} matrices are complex symmetric, never hermitian, in all mirroring operations, whereas \code{SparseSMat} (\code{add} with \code{both=true}, conversion from \code{NRSMat}, \code{otimes_sparse}) is hermitian.
+\end{itemize}

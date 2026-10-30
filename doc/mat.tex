@@ -1,0 +1,327 @@
+\chapter{Dense matrices: NRMat}\label{ch:mat}
+\laheader{mat.h, mat.cc, strassen.cc (sparse-related members: sparsemat.h, sparsemat.cc, sparsesmat.h, sparsesmat.cc)}
+
+\section{Purpose}\label{sec:mat:purpose}
+\code{NRMat<T>} is the general dense rectangular matrix of the \LA{} library, the
+workhorse for everything that is passed to BLAS level~3 and LAPACK. It is a reference counted
+handle to a contiguous row-major array of $n\times m$ elements of type \code{T}.
+For symmetric/Hermitian matrices stored in packed form see \code{NRSMat} (chapter~\ref{ch:smat}),
+for sparse matrices chapter~\ref{ch:sparse}, for vectors \code{NRVec} (chapter~\ref{ch:vec}).
+Decompositions, eigenvalue problems, linear solvers and matrix functions (exponential etc.) are
+free functions described in chapter~\ref{ch:nonclass}.
+\code{NRMat_from1<T>} (section~\ref{sec:mat:from1}) is a thin derived class with 1-based
+\code{operator()}.
+
+\section{Storage and class-specific concepts}\label{sec:mat:storage}
+
+\paragraph{Layout.} Element $A_{ij}$ ($0\le i<n$, $0\le j<m$) is stored at offset $i\,m+j$ of one
+contiguous block, i.e.\ C row-major order (sec.~\ref{sec:concepts:storage}). BLAS calls use
+\code{CblasRowMajor}; where Fortran routines are called, the transposition implied by the
+column-major convention is handled internally. Dimensions are \code{int}; offsets are mostly
+computed in \code{size_t}.
+
+\paragraph{Reference counting.} \code{NRMat} follows the general copy-on-demand scheme of
+section~\ref{sec:concepts:refcount}: the copy constructor and \code{operator=} share data,
+\code{|=} makes a deep copy (sec.~\ref{sec:concepts:assign}), all modifying member functions
+call \code{copyonwrite()} themselves, and an explicit \code{copyonwrite()} is needed only before writing
+through \code{operator[]}, \code{operator()} or the raw pointer \code{operator T*()}.
+In DEBUG builds the non-const \code{operator[]} and \code{operator()} raise \code{laerror} when the
+reference count is larger than one (controlled by \code{_LA_count_check}); read elements of a
+possibly shared matrix through a const reference.
+
+\paragraph{Element types.} \code{mat.cc} explicitly instantiates \code{NRMat<T>} for
+\code{double}, \code{std::complex<double>}, and the integer types \code{char}, \code{short}, \code{int},
+\code{long}, \code{long long} and their unsigned variants. Many numerical members are only
+specialized (BLAS-backed) for \code{double} and \code{complex<double>} and have no generic
+definition, so using them with an integer type results in a link error. Table~\ref{tab:mat:types}
+summarizes this. Nested element types (e.g.\ \code{NRMat<NRVec<double> >}) are supported by the
+reference counting (type-nested \code{copyonwrite}, sec.~\ref{sec:concepts:traits}), but several
+members are restricted to plain data (\code{submatrix(int,int,int,int)},
+\code{storesubmatrix(int,int,const NRMat&)}, \code{operator&}).
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.55\linewidth}>{\raggedright\arraybackslash}p{0.35\linewidth}}
+\toprule
+Members & Available for \\
+\midrule
+\texttt{gemm}, \texttt{norm}, \texttt{axpy(T,const NRMat\&)}, \texttt{dot}, \texttt{transpose}, \texttt{diagmultl}, \texttt{diagmultr},
+\texttt{operator*(const NRSMat\&)}, \texttt{diagonalset}, \texttt{inverse}, \texttt{svdinverse}, \texttt{absadjoint},
+\texttt{randomize}, \texttt{amax}, \texttt{amin} & \texttt{double}, \texttt{complex<double>} \\
+\texttt{operator*(const NRMat\&)} & \texttt{double}, \texttt{complex<double>}, \texttt{int} \\
+\texttt{diagonalof}, \texttt{orthonormalize}, \texttt{strassen}, \texttt{gemm} with \texttt{SparseMat} & \texttt{double} only \\
+\texttt{nonhermiticity} & \texttt{complex<double>} only \\
+everything else & all instantiated types \\
+\bottomrule
+\end{tabular}
+\caption{Availability of \texttt{NRMat<T>} members for the instantiated element types.}\label{tab:mat:types}
+\end{table}
+
+\paragraph{The MATPTR representation.}\label{sec:mat:matptr}
+\code{configure --enable-matptr} adds \code{-DMATPTR}, which switches the internal pointer from
+\code{T *v} to \code{T **v}: an array of row pointers into the same single contiguous block
+(\code{v[0]} points to the beginning). For the user the interface is the same: \code{operator[](i)}
+returns a \code{T*} to the beginning of row $i$ in both cases, \code{operator()(i,j)} and
+\code{operator T*()} (pointer to the whole contiguous row-major block) behave identically,
+so code passing the matrix to BLAS is unaffected. Differences:
+\begin{itemize}
+\item \code{NRMat(const NRVec<T>&, n, m, offset)} and \code{NRVec(const NRMat<T>&)} make deep
+copies with MATPTR, whereas without it they share the data with the source.
+\item It is incompatible with CUDA (MATPTR is undefined when \code{CUDALA} is set).
+\end{itemize}
+MATPTR is rarely used and less tested than the default representation; the library compiles with it and passes the optimization
+regression test (\code{testoptimize}).
+
+\paragraph{Strassen multiplication.}\label{sec:mat:strassen}
+Unless \code{NO_STRASSEN} is defined, \code{NRMat} declares \code{strassen()} and \code{s_cutoff()}
+(specialized for \code{double} only, in \code{strassen.cc}). They call the external Fortran-compatible
+routines \code{fmm} and \code{strassen_cutoff}, which are \emph{not} part of \LA{}
+(the test code in \code{t.cc} mentions linking \code{-lstrassen}). Strassen multiplication is never
+used implicitly: \code{operator*} and \code{gemm} always call BLAS \code{gemm}. Note that
+\code{Makefile.am} unconditionally adds \code{-DNO_STRASSEN}, so in the standard build these members do not exist.
+\lawarning{The Strassen interface is \emph{experimental}: it has not been used or tested for a long time. It is kept for possible future work,
+in particular if fast (sub-$O(n^3)$) matrix multiplication algorithms become practically useful.}
+
+\section{Construction, assignment, conversion}\label{sec:mat:constr}
+\begin{lareference}
+\lafunc{NRMat()}{Empty matrix ($0\times 0$, no data, no reference counter).}
+\lafunc{NRMat(const int n, const int m, const GPUID loc = undefined)}{$n\times m$ matrix, elements \emph{not} initialized.}
+\lafunc{NRMat(const T &a, const int n, const int m); NRMat(const T &a, const int n, const int m, const GPUID loc)}{$n\times m$ matrix with \emph{all} elements equal to \code{a} (contrast with \code{operator=(const T&)}).}
+\lafunc{NRMat(const T *a, const int n, const int m)}{Deep copy of $nm$ elements from a row-major C array.}
+\lafunc{template<int R, int C> NRMat(const T (&a)[R][C])}{From a two-dimensional C array; also allows brace initialization \code{NRMat<int> x({{1,2,3},{4,5,6}});}.}
+\lafunc{NRMat(const Mat3<T> &rhs)}{$3\times3$ matrix from the small fixed-size class \code{Mat3} (chapter~\ref{ch:vecmat3}).}
+\lafunc{explicit NRMat(const int n) = delete}{A single integer argument is forbidden (it would otherwise silently create a $3\times3$ matrix
+through \code{Mat3}); use \code{NRMat(n,m)}.}
+\lafunc{NRMat(const NRMat &rhs)}{Shallow copy (shares data).}
+\lafunc{NRMat(const typename LA_traits_complex<T>::NRMat_Noncomplex_type &rhs, bool imagpart = false)}{Complexifying (non-explicit) constructor, defined for \code{T = complex<double>}: \code{rhs} (\code{NRMat<double>}) becomes the real part (or the imaginary part if \code{imagpart}), the other part is zero.}
+\lafunc{explicit NRMat(const NRMat<std::complex<T> > &rhs, bool imagpart = false)}{Decomplexifying constructor, defined for \code{T = double}: real part (or imaginary part if \code{imagpart}) of \code{rhs}.}
+\lafunc{explicit NRMat(const NRSMat<T> &rhs)}{Full square matrix from a packed symmetric one ($A_{ij}=A_{ji}$; for complex types hermitian, $A_{ij}=A_{ji}^*$).}
+\lafunc{explicit NRMat(const NRVec<T> &rhs, const int n, const int m, const int offset = 0)}{View of the vector data from position \code{offset} as an $n\times m$ matrix. Without MATPTR the data are \emph{shared} (reference count of the vector is incremented); with MATPTR they are copied. A nonzero offset gives a view into the middle of the vector without copying (a deliberate feature);
+its condition of use is that the vector outlives the matrix, see Pitfalls. The constructor prints a reminder to \code{std::cout}.}
+\lafunc{explicit NRMat(const NRPerm<int> &p, const bool direction, const bool parity = false)}{Permutation matrix: $A_{i,p(i)}=1$ if \code{direction}, else $A_{p(i),i}=1$ (permutation 1-based, matrix 0-based); if \code{parity}, the nonzero elements are the parity of $p$ instead of 1.}
+\lafunc{explicit NRMat(const WeightPermutation<int,T> &p, const bool direction)}{Weight times permutation matrix.}
+\lafunc{explicit NRMat(const PermutationAlgebra<int,T> &p, const bool direction, const int nforce = 0)}{Sum of weighted permutation matrices of the elements of a permutation algebra; size taken from the first element unless \code{nforce>0}. (The header remarks that the permutation-matrix representation of $S_n$ is reducible to only the irreps $[n]$ and $[n-1,1]$, so e.g.\ Young projectors cannot be represented this way.) See chapter~\ref{ch:permutation}.}
+\lafunc{explicit NRMat(const SparseMat<T> &rhs); explicit NRMat(const SparseSMat<T> &rhs); explicit NRMat(const SemiSparseMat<T> &rhs)}{Dense matrix from sparse ones (chapter~\ref{ch:sparse}).}
+\lafunc{explicit NRMat(const CSRMat<T> &rhs)}{Not supported: \code{CSRMat} is unfinished, the declaration is kept for possible future work (no definition, a link error if used).}
+\lafunc{~NRMat()}{Decrements the reference count, frees the data when it reaches zero.}
+\lafunc{NRMat & operator=(const NRMat &rhs)}{Shallow assignment (sec.~\ref{sec:concepts:assign}).}
+\lafunc{NRMat & operator|=(const NRMat &rhs)}{Deep copy.}
+\lafunc{NRMat & operator=(const T &a)}{Sets the matrix to $a\,\mathbf 1$ (diagonal $a$, off-diagonal 0); the matrix must already be square (checked in DEBUG only), it is not resized.}
+\lafunc{void identity()}{\code{*this = (T)1}.}
+\lafunc{void resize(int n, int m)}{Change dimensions; if either is 0 the matrix is deallocated. If the data are shared, the matrix is detached and new (uninitialized) storage allocated; if the size changes, the contents are lost (not preserved); if the size is unchanged and unshared, nothing happens.}
+\lafunc{void dealloc(void)}{\code{resize(0,0)}.}
+\lafunc{void copyonwrite(bool detachonly = false, bool deep = true)}{Make the data unshared (sec.~\ref{sec:concepts:refcount}). With \code{detachonly} new storage is allocated but the data are not copied (contents undefined); \code{deep} controls the recursive \code{copyonwrite} of nested element types.}
+\lafunc{int getcount() const}{Current reference count (0 for an empty matrix).}
+\lafunc{void swap(NRMat &rhs)}{Exchange contents of two matrices in $O(1)$ (pointers, sizes, counters).}
+\lafunc{GPUID getlocation() const; void moveto(const GPUID dest)}{GPU support, experimental, see sec.~\ref{sec:concepts:gpu}; without \code{CUDALA} they return \code{cpu} resp.\ do nothing.}
+\end{lareference}
+
+\section{Element access}\label{sec:mat:access}
+\begin{lareference}
+\lafunc{T* operator[](const int i); const T* operator[](const int i) const}{Pointer to the beginning of row $i$ (0-based), so that \code{a[i][j]} is $A_{ij}$. DEBUG: row range check, and the shared-data check for the non-const version (the column index is not checked).}
+\lafunc{T& operator()(const int i, const int j); const T& operator()(const int i, const int j) const}{Element $A_{ij}$, 0-based; DEBUG: range checks for both indices, and shared-data check for the non-const version. CPU only (\code{NOT_GPU}).}
+\lafunc{const T get_ij(const int i, const int j) const}{Element by value (works also for data in GPU memory).}
+\lafunc{operator T*(); operator const T*() const}{Pointer to the contiguous row-major data block (no reference count check even in DEBUG).}
+\lafunc{int nrows() const; int ncols() const; size_t size() const}{Number of rows, columns, elements.}
+\end{lareference}
+
+\section{Arithmetic and BLAS/LAPACK-backed operations}\label{sec:mat:arith}
+Unless stated otherwise, dimension mismatches are detected only in DEBUG builds.
+Note that scalar addition and subtraction act on the \emph{diagonal} only, i.e.\ they add $a\,\mathbf 1$.
+
+\begin{lareference}
+\lafunc{NRMat & operator+=(const T &a); NRMat & operator-=(const T &a)}{$A\leftarrow A\pm a\,\mathbf 1$ (square matrices only).}
+\lafunc{inline const NRMat operator+(const T &a) const; inline const NRMat operator-(const T &a) const}{$A\pm a\,\mathbf 1$ by value (the scalar is added to the diagonal).}
+\lafunc{NRMat & operator*=(const T &a); inline const NRMat operator*(const T &a) const}{Scaling by a scalar (BLAS \code{scal} for double/complex).}
+\lafunc{const NRMat operator-() const}{Unary minus.}
+\lafunc{NRMat & operator+=(const NRMat &rhs); NRMat & operator-=(const NRMat &rhs)}{$A\leftarrow A\pm B$ (BLAS \code{axpy} for double/complex).}
+\lafunc{inline const NRMat operator+(const NRMat &rhs) const; inline const NRMat operator-(const NRMat &rhs) const}{$A\pm B$ by value.}
+\lafunc{NRMat & operator+=(const NRSMat<T> &rhs); NRMat & operator-=(const NRSMat<T> &rhs); inline const NRMat operator+(const NRSMat<T> &rhs) const; inline const NRMat operator-(const NRSMat<T> &rhs) const}{Addition/subtraction of a packed symmetric matrix (square $A$).}
+\lafunc{NRMat & operator^=(const NRMat<T> &rhs)}{Hadamard (element-wise) product $A_{ij}\leftarrow A_{ij}B_{ij}$.}
+\lafunc{void axpy(const T alpha, const NRMat &x)}{$A\leftarrow A+\alpha X$ (BLAS \code{axpy}).}
+\lafunc{const NRMat operator*(const NRMat &rhs) const}{Matrix product $AB$ (BLAS \code{gemm}; simple loops for \code{int}).}
+\lafunc{void gemm(const T &beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T &alpha)}{$C\leftarrow\alpha\,\mathrm{op}(A)\,\mathrm{op}(B)+\beta C$ with $C$ = \code{*this}, which must already have the correct dimensions (it is not resized; if $\beta=0$ its contents may be uninitialized). \code{trans}: \code{'n'} no transposition; for \code{double} any other character means transposition; for \code{complex<double>} \code{'t'} transposition and \code{'c'} conjugate transposition (case insensitive). Returns immediately when $\alpha=0$ and $\beta=1$. \code{*this} must not share storage with \code{a} or \code{b}.}
+\lafunc{void gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha)}{The same with a sparse first factor; \code{double} only (the complex version calls \code{laerror("not implemented yet")}), see chapter~\ref{ch:sparse}.}
+\lafunc{const NRMat operator*(const NRSMat<T> &rhs) const}{$AS$ with packed symmetric (real) or hermitian (complex) $S$ (BLAS \code{dspmv}/\code{zhpmv} per row).}
+\lafunc{SparseSMat<T> operator*(const SparseSMat<T> &rhs) const}{Dense times sparse, the result is sparse (chapter~\ref{ch:sparse}).}
+\lafunc{const NRVec<T> operator*(const NRVec<T> &rhs) const; const NRVec<std::complex<T> > operator*(const NRVec<std::complex<T> > &rhs) const}{Matrix--vector product via \code{NRVec::gemv} (the second form: real matrix times complex vector).}
+\lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const; void gemv(const T beta, NRVec<std::complex<T> > &r, const char trans, const T alpha, const NRVec<std::complex<T> > &x) const}{$r\leftarrow\alpha\,\mathrm{op}(A)x+\beta r$; forwards to \code{r.gemv(beta,*this,trans,alpha,x)}, see chapter~\ref{ch:vec}.}
+\lafunc{const T dot(const NRMat &rhs) const}{$\sum_{ij}A_{ij}^*B_{ij}$ (Frobenius inner product, conjugating \code{*this}).}
+\lafunc{const NRSMat<T> transposedtimes() const}{$A\Tr A$ ($A\Hc A$ for complex) as packed matrix.}
+\lafunc{const NRSMat<T> timestransposed() const}{$AA\Tr$ ($AA\Hc$ for complex) as packed matrix. For complex matrices both results are hermitian (lower triangle stored).}
+\lafunc{void diagmultl(const NRVec<T> &rhs); void diagmultr(const NRVec<T> &rhs)}{$A\leftarrow DA$ (scale rows) resp.\ $A\leftarrow AD$ (scale columns), $D=\mathrm{diag}(\mathtt{rhs})$.}
+\lafunc{const NRMat operator&(const NRMat &rhs) const; const NRMat oplus(const NRMat &rhs) const}{Direct sum $A\oplus B$ (block-diagonal matrix). \code{oplus} returns the other operand when one is empty; \code{operator&} is plain-data only.}
+\lafunc{const NRMat operator|(const NRMat<T> &rhs) const}{Direct (Kronecker) product $A\otimes B$, $(A\otimes B)_{i n_B+k,\,j m_B+l}=A_{ij}B_{kl}$.}
+\lafunc{const NRMat otimes(const NRMat &rhs, bool reversecolumns = false) const}{Kronecker product as \code{operator|}; with \code{reversecolumns} the column index is ordered the other way, $R_{i n_B+k,\,l m_A+j}=A_{ij}B_{kl}$. Returns the empty operand when one is empty.}
+\lafunc{void strassen(const T beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T alpha); void s_cutoff(const int, const int, const int, const int) const}{Only without \code{NO_STRASSEN}, \code{double} only: Strassen multiplication with \code{gemm} semantics (dimensions always checked) and setting of the cutoffs of the external Strassen library (section~\ref{sec:mat:strassen}).}
+\end{lareference}
+
+\section{Other member functions}\label{sec:mat:other}
+
+\subsection{Rows, columns, submatrices}
+\begin{lareference}
+\lafunc{const NRVec<T> row(const int i, int len = -1, int offset = 0) const}{Copy of \code{len} elements of row $i$ starting at column \code{offset} (\code{len<0}: \code{ncols()}).}
+\lafunc{void rowset(const NRVec<T> &r, const int i, int len = -1, int offset = 0)}{Inverse of \code{row}: stores \code{len} elements of \code{r} into row $i$ from column \code{offset}.}
+\lafunc{const NRVec<T> column(const int j, int l = -1) const; void columnset(const NRVec<T> &r, const int j, int l = -1)}{Copy of the first \code{l} (default all) elements of column $j$, resp.\ store them.}
+\lafunc{const NRMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const}{Copy of the block of rows \code{fromrow..torow} and columns \code{fromcol..tocol} (inclusive). Plain data only.}
+\lafunc{const NRMat submatrix(const NRVec<int> &rows, const NRVec<int> &cols) const}{Copy of the elements $A_{r_i c_j}$ for given (arbitrary) lists of row and column indices; indices are always range-checked.}
+\lafunc{void storesubmatrix(const int fromrow, const int fromcol, const NRMat &rhs)}{Store \code{rhs} as a block with the upper left corner at (\code{fromrow},\code{fromcol}). Plain data only.}
+\lafunc{void storesubmatrix(const NRVec<int> &rows, const NRVec<int> &cols, const NRMat &rhs)}{Scatter: $A_{r_i c_j}\leftarrow R_{ij}$.}
+\lafunc{const T* diagonalof(NRVec<T> &r, const bool divide = 0, bool cache = false) const}{\code{double} only. For a square matrix copy the diagonal into \code{r}, or with \code{divide} divide \code{r} element-wise by the (nonzero) diagonal elements. For a non-square matrix the diagonal of $A\Tr A$ (squared column norms) is used instead; \code{r} must have \code{ncols()} elements. Returns pointer to \code{r}'s data, or NULL if \code{divide}. \code{cache} is unused. Same interface as in other matrix classes, so that it can be used by iterative solvers as a preconditioner (chapter~\ref{ch:iterative}).}
+\lafunc{void diagonalset(const NRVec<T> &r)}{Set the diagonal; \code{r} has $\min(n,m)$ elements.}
+\end{lareference}
+
+\subsection{Transposition and conjugation}
+\begin{lareference}
+\lafunc{const NRMat transpose(bool conj = false) const}{$A\Tr$, or $A\Hc$ if \code{conj} (complex). \code{double} and \code{complex<double>} only.}
+\lafunc{NRMat& transposeme(const int n = 0)}{In-place transposition of a square matrix (no conjugation); with \code{n>0} only the leading $n\times n$ block is transposed (this also works for a non-square matrix with $n\le\min(\text{rows},\text{cols})$). Dimensions are not changed, so a non-square matrix cannot be transposed in place.}
+\lafunc{NRMat& conjugateme(); const NRMat conjugate() const}{Complex conjugation in place resp.\ by value; no-op for real types.}
+\end{lareference}
+
+\subsection{Reordering, permutations, rotations, scaling}
+\begin{lareference}
+\lafunc{NRMat & swap_rows(); NRMat & swap_cols()}{Reverse the order of rows (columns).}
+\lafunc{NRMat & swap_rows_cols()}{$A_{ij}\leftarrow A_{n-1-i,\,m-1-j}$ (reverse both, i.e.\ the whole element array).}
+\lafunc{NRMat & swap_rows(const int i, const int j); NRMat & swap_cols(const int i, const int j)}{Exchange two rows (columns).}
+\lafunc{NRMat & rotate_rows(const int i, const int j, const T phi); NRMat & rotate_cols(const int i, const int j, const T phi)}{Plane rotation of rows (columns) $i,j$: $x_i\leftarrow c\,x_i+s\,x_j$, $x_j\leftarrow c\,x_j-s\,x_i$ with $c=\cos\phi$, $s=\sin\phi$ (evaluated in type \code{T}).}
+\lafunc{void scale_row(const int i, const T f); void scale_col(const int i, const T f)}{Multiply row (column) $i$ by $f$.}
+\lafunc{const NRMat permuted_rows(const NRPerm<int> &p, const bool inverse = false) const}{Row $i$ of $A$ becomes row $p(i)$ of the result (indices of $p$ are 1-based); with \code{inverse} row $i$ of the result is row $p(i)$ of $A$.}
+\lafunc{const NRMat permuted_cols(const NRPerm<int> &p, const bool inverse = false) const; const NRMat permuted_both(const NRPerm<int> &p, const NRPerm<int> &q, const bool inverse = false) const}{The same for columns, resp.\ rows by $p$ and columns by $q$ simultaneously.}
+\lafunc{void permuteme_rows(const CyclePerm<int> &p); void permuteme_cols(const CyclePerm<int> &p)}{In-place permutation given in cycle notation: in each cycle $(c_1\,c_2\ldots c_L)$ row (column) $c_k$ moves to $c_{k+1}$ and $c_L$ to $c_1$.}
+\lafunc{void axpy(const T alpha, const NRPerm<int> &p, const bool direction)}{Add $\alpha$ times the permutation matrix (same convention as the constructor from \code{NRPerm}).}
+\end{lareference}
+
+\subsection{Reductions, norms, properties}
+\begin{lareference}
+\lafunc{const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const}{Frobenius norm $\|A-s\,\mathbf 1\|_F$ (BLAS \code{nrm2} when $s=0$).}
+\lafunc{const T trace() const}{$\sum_i A_{ii}$ (square matrices).}
+\lafunc{const T sum() const; const NRVec<T> rsum() const; const NRVec<T> csum() const}{Sum of all elements; vector of row sums (length \code{nrows()}, sum over the column index); vector of column sums (length \code{ncols()}).}
+\lafunc{inline const T amax() const; inline const T amin() const}{The element (not its index) with the largest resp.\ smallest absolute value; for complex the measure is $|\mathrm{Re}|+|\mathrm{Im}|$ (BLAS \code{i?amax} convention).}
+\lafunc{const typename LA_traits<T>::normtype nonsymmetry() const}{$\sum_{i>j}|A_{ij}-A_{ji}|^2$ (square of the norm, no square root).}
+\lafunc{const typename LA_traits<T>::normtype nonhermiticity() const}{\code{complex<double>} only: $\sum_{i\ge j}|A_{ij}-A_{ji}^*|^2$.}
+\lafunc{NRMat<typename LA_traits<T>::normtype> abs() const}{Matrix of element-wise absolute values.}
+\lafunc{NRMat<typename LA_traits<T>::normtype> diffabs(const NRMat &rhs) const}{Element-wise $|A_{ij}|-|B_{ij}|$.}
+\lafunc{const bool operator==(const NRMat &rhs) const; const bool operator!=(const NRMat &rhs) const}{Equality of dimensions and contents; for plain types a bitwise (\code{memcmp}) comparison, element-wise for nested types.}
+\lafunc{bool issymmetric() const; inline void simplify()}{Always \code{false} resp.\ no-op; they exist for interface compatibility with the sparse matrix classes, so that generic code can use \code{NRMat} in their place.}
+\end{lareference}
+
+\subsection{Orthonormalization, inverse, random fill}
+\begin{lareference}
+\lafunc{void orthonormalize(const bool rowcol, const NRSMat<T> *metric = NULL)}{\code{double} only. Modified Gram--Schmidt orthonormalization of the rows (\code{rowcol==true}) or columns (\code{false}) of the matrix in place, optionally with respect to the inner product $x\Tr S y$ given by \code{metric}. A zero vector (or non-positive metric) raises \code{laerror}.}
+\lafunc{NRMat inverse() const}{$A^{-1}$ via \code{calcinverse} (LAPACK linear solve, chapter~\ref{ch:nonclass}).}
+\lafunc{NRMat svdinverse(const typename LA_traits<T>::normtype thr = 0) const}{Pseudo-inverse via SVD, singular values below \code{thr} are dropped.}
+\lafunc{NRMat absadjoint(const typename LA_traits<T>::normtype thr = 0) const}{Adjugate (transposed cofactor) matrix computed via SVD up to the factor $\det U\det V$ (a sign, or a phase in the complex case), cf.\ \code{calcsvdinverse} in chapter~\ref{ch:nonclass}. \code{thr} is not used in this mode.}
+\lafunc{void randomize(const typename LA_traits<T>::normtype &x)}{Fill with uniform pseudorandom numbers from $[-x,x)$ (\code{RANDDOUBLESIGNED}); for complex, real and imaginary parts independently. (The source comment saying $[0,x]$ is incorrect.)}
+\lafunc{void clear()}{Set all elements to zero (detaches shared data without copying).}
+\end{lareference}
+
+\subsection{Input/output}
+See section~\ref{sec:concepts:io} for the general conventions.
+\begin{lareference}
+\lafunc{void put(int fd, bool dimensions = 1, bool transposed = false, bool orcaformat = false) const}{Binary output to a file descriptor: optionally the two dimensions (as \code{int}), then the elements row by row. With \code{transposed} the matrix is written as its transpose (dimensions swapped, element by element). With \code{orcaformat} \code{sizeof(T)} is written as a third \code{int} after the dimensions (format of the ORCA program).}
+\lafunc{void get(int fd, bool dimensions = 1, bool transposed = false, bool orcaformat = false)}{Binary input, counterpart of \code{put}; with \code{dimensions} the matrix is resized, otherwise it must already have the right size. With \code{orcaformat} the stored element size is checked.}
+\lafunc{void fprintf(FILE *f, const char *format, const int modulo) const}{Formatted output via \code{lawritemat} with a printf-like \code{format}.}
+\lafunc{void fscanf(FILE *f, const char *format)}{Formatted input: reads the two dimensions, resizes, then the elements with the scanf-like \code{format}.}
+\lafunc{void printsorted(std::ostream &s, int direction = 1, bool absvalue = false, bool stable = false, typename LA_traits<T>::normtype thr = 0, int topmax = 0) const}{Print the elements sorted by value (or absolute value), each line containing row index, column index and value; delegates to \code{NRVec::printsorted} (chapter~\ref{ch:vec}), where \code{direction}, \code{stable}, threshold \code{thr} and maximum count \code{topmax} are described.}
+\end{lareference}
+
+\subsection{Sparse matrix interoperability}
+Besides the constructors, \code{operator*(const SparseSMat<T>&)} and \code{gemm} with a \code{SparseMat}
+factor listed above, \code{NRMat} declares
+\begin{lareference}
+\lafunc{NRMat & operator+=(const SparseMat<T> &rhs); NRMat & operator-=(const SparseMat<T> &rhs)}{Add/subtract the sparse matrix (defined in \code{sparsemat.h}; a symmetric \code{SparseMat} is unfolded, without conjugation).}
+\end{lareference}
+
+\section{Related free functions}\label{sec:mat:free}
+\begin{lareference}
+\lafunc{template<class T> const NRMat<T> operator+(const T &a, const NRMat<T> &rhs); template<class T> const NRMat<T> operator*(const T &a, const NRMat<T> &rhs)}{$a\,\mathbf 1+A$ and $aA$.}
+\lafunc{template<class T> const NRMat<T> operator-(const T &a, const NRMat<T> &rhs) = delete}{Deliberately not available (compile error); write \code{-A+a} for $a\,\mathbf 1-A$.}
+\lafunc{template<typename T> NRMat<std::complex<T> > complexify(const NRMat<T> &rhs)}{Complex matrix with real part \code{rhs}.}
+\lafunc{template<typename T> NRMat<std::complex<T> > complexify(const NRMat<T> &rhsr, const NRMat<T> &rhsi)}{Complex matrix from real and imaginary parts.}
+\lafunc{template <typename T, typename S> void NRMat_convert(NRMat<T> &a, const NRMat<S> &b)}{Element type conversion: resizes \code{a} and assigns \code{(T)b(i,j)}.}
+\lafunc{template <typename T> std::ostream& operator<<(std::ostream &s, const NRMat<T> &x)}{Text output: a line with the dimensions, then one line per row.}
+\lafunc{template <typename T> std::istream& operator>>(std::istream &s, NRMat<T> &x)}{Text input in the same format (resizes \code{x}).}
+\end{lareference}
+
+\section{NRMat\_from1: indexing from 1}\label{sec:mat:from1}
+\code{NRMat_from1<T>} is derived publicly from \code{NRMat<T>} and differs only in
+\code{operator()} and \code{get_ij}, which take 1-based indices ($1\le i\le n$, $1\le j\le m$);
+it is meant for transcribing algorithms written with Fortran-like indexing. Everything else is
+inherited unchanged, in particular \code{operator[]} remains 0-based (\code{a[i][j]} is element
+$(i{+}1,j{+}1)$) and member functions taking indices (\code{row}, \code{submatrix}, \ldots) use 0-based
+indices. Inherited members return \code{NRMat<T>}, which converts back implicitly.
+\begin{lareference}
+\lafunc{NRMat_from1(); NRMat_from1(const int n, const int m); NRMat_from1(const T &a, const int n, const int m); NRMat_from1(const T *a, const int n, const int m)}{As the corresponding \code{NRMat} constructors.}
+\lafunc{template<int R, int C> explicit NRMat_from1(const T (&a)[R][C])}{From a two-dimensional C array / brace initializer.}
+\lafunc{NRMat_from1(const NRMat<T> &rhs)}{Implicit conversion from the base class (shallow, shares data).}
+\lafunc{explicit NRMat_from1(const NRSMat_from1<T> &rhs)}{Full matrix from a packed symmetric one.}
+\lafunc{explicit NRMat_from1(const int n) = delete}{A single integer argument is forbidden (as for \code{NRMat} and \code{Mat3}); use \code{NRMat_from1(n,m)}.}
+\lafunc{inline T& operator()(const int i, const int j); inline const T& operator()(const int i, const int j) const; inline const T get_ij(const int i, const int j) const}{1-based element access, with the same DEBUG checks as in \code{NRMat}.}
+\end{lareference}
+
+\section{Examples}\label{sec:mat:examples}
+Products, reference counting, orthonormalization and submatrices:
+\begin{lstlisting}
+#include "la.h"
+using namespace LA;
+using namespace std;
+
+int main()
+{
+NRMat<double> a(4,3), b(3,5);
+a.randomize(1.); b.randomize(1.);
+
+NRMat<double> c = a*b;                 // dgemm
+NRMat<double> d(3,3);                  // result must have the right shape
+d.gemm(0., a, 't', a, 'n', 1.);        // d = a^T a
+NRSMat<double> s = a.transposedtimes();// the same, packed symmetric
+cout << (d - NRMat<double>(s)).norm() << endl;
+
+NRMat<double> e = c;                   // shares data with c
+e.copyonwrite();                       // needed: we write through operator()
+e(0,0) = 1.;
+const NRMat<double> &cc = c;           // read-only access via const reference
+cout << cc(0,0) << " " << e(0,0) << endl;
+
+NRMat<double> u(3,3); u.randomize(1.);
+u.orthonormalize(false);               // orthonormal columns
+cout << (u.transpose()*u - 1.).norm() << endl;   // "- 1." subtracts the unit matrix
+
+NRMat<double> blk = c.submatrix(1,2,0,4);        // rows 1..2, all columns
+NRVec<double> r = c.row(3);
+NRMat<double> big(0., 6, 6);
+big.storesubmatrix(2, 1, blk);
+cout << blk << r << big.trace() << endl;
+return 0;
+}
+\end{lstlisting}
+
+Complex matrices, 1-based indexing, Kronecker product and direct sum:
+\begin{lstlisting}
+NRMat_from1<int> m({{1,2,3},{4,5,6}}); // 2x3, indices from 1
+const NRMat_from1<int> &mc = m;
+cout << mc(2,3) << " " << mc[1][2] << endl;  // both print 6: operator[] stays 0-based
+
+NRMat<double> re(2,2), im(2,2);
+re.randomize(1.); im.randomize(1.);
+NRMat<complex<double> > z = complexify(re, im);
+NRMat<complex<double> > h(2,2);
+h.gemm(0., z, 'c', z, 'n', 1.);           // h = z^dagger z
+cout << h.nonhermiticity() << endl;       // 0
+NRMat<double> rp(z);                      // real part (explicit constructor)
+NRMat<double> ip(z, true);                // imaginary part
+
+NRMat<double> k = re.otimes(im);          // Kronecker product, 4x4
+NRMat<double> ds = re.oplus(im);          // direct sum, 4x4 block diagonal
+\end{lstlisting}
+
+\section{Pitfalls}\label{sec:mat:pitfalls}
+\lawarning{Scalars mean multiples of the unit matrix: \code{A = 1.} makes a unit matrix (of the current, square size), \code{A + a} and \code{A -= a} change only the diagonal. In contrast \code{NRMat<double> A(a, n, m)} fills \emph{all} elements with \code{a}. \code{a - A} does not compile; write \code{-A + a}.}
+\lawarning{\code{NRMat<T>(n,m)} does not initialize the elements; call \code{clear()} or use the fill constructor. Likewise \code{resize()} does not preserve the contents when the size changes.}
+\lawarning{\code{gemm} does not resize the target; allocate it with the correct dimensions first. The target must not share storage with an operand (e.g.\ \code{c.gemm(0.,c,'n',b,'n',1.)} is wrong); after \code{c = a} the call \code{c.gemm(...,a,...)} is fine because \code{gemm} first detaches \code{c}.}
+\lawarning{Writing through \code{operator[]}, \code{operator()} or \code{operator T*()} into a matrix obtained by copy construction or \code{=} modifies all sharing matrices unless \code{copyonwrite()} is called first. In DEBUG builds even \emph{reading} through the non-const operators of a shared matrix raises an error; use a const reference.}
+\lawarning{\code{NRMat(const NRVec<T>&, n, m, offset)} shares the vector data (without MATPTR). With a nonzero offset, if the matrix happens to be the last owner of the data, it will \code{delete[]} a pointer that is not the beginning of the allocated block; the constructor therefore prints a warning. This is by design (a view without copying, avoiding the cost of a copy); the condition of use is: keep the vector alive longer than the
+matrix, or make an independent copy (\code{|=}) if the matrix has to outlive it.}
+\lawarning{Many numerical members (\code{gemm}, \code{transpose}, \code{norm}, \ldots) exist only for \code{double} and \code{complex<double>} (Table~\ref{tab:mat:types}); with other element types the program fails to link.}
+\lawarning{\code{transposeme()} does not conjugate and works only on square matrices (or square leading blocks); use \code{transpose(true)} for $A\Hc$ or for a non-square matrix.}
+\lawarning{In the non-DEBUG build no dimension checks are done in most operations (\code{operator+=}, \code{gemm}, \code{operator=(const T&)}, \ldots); mismatches lead to silent memory corruption.}

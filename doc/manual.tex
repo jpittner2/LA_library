@@ -1,0 +1,39 @@
+%LA library manual - master file
+%compile: pdflatex manual; pdflatex manual  (twice, for contents and references)
+%the visible \latodo notes are listed after the contents; to hide them, load todonotes with the option disable in lamacros.tex
+
+\documentclass[11pt,a4paper]{report}
+\input{lamacros}
+
+\title{\LA: a C++ linear algebra library\\[1ex]\large User manual}
+\author{Ji\v{r}\'{\i} Pittner}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\listoftodos[List of open questions for the author]
+
+\include{introduction}
+\include{building}
+\include{concepts}
+\include{vec}
+\include{mat}
+\include{smat}
+\include{sparse}
+\include{nonclass}
+\include{iterative}
+\include{optimize}
+\include{tensor}
+\include{fourindex}
+\include{permutation}
+\include{polynomial}
+\include{vecmat3}
+\include{quaternion}
+\include{bitvector}
+\include{regression}
+\include{utilities}
+
+\include{biblio}
+
+\end{document}

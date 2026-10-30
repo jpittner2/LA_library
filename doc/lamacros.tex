@@ -1,0 +1,65 @@
+%common macros and package setup for the LA library manual
+%all chapters use only these macros for code and reference entries, so that the layout can be changed in one place
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage[colorinlistoftodos,textsize=small]{todonotes}
+\usepackage[hidelinks]{hyperref}
+
+%code listings
+\lstdefinestyle{lacode}{
+	language=C++,
+	basicstyle=\ttfamily\small,
+	keywordstyle=\bfseries,
+	commentstyle=\itshape\color{black!60},
+	columns=fullflexible,
+	keepspaces=true,
+	tabsize=8,
+	breaklines=true,
+	frame=leftline,
+	xleftmargin=1.5em,
+	framexleftmargin=0.5em,
+	showstringspaces=false,
+	escapechar=@
+}
+\lstset{style=lacode}
+
+%inline code: \code{NRVec<double>}; underscores, &, <, > need no escaping (no % and no unbalanced braces)
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+
+%name of a header file
+\newcommand{\header}[1]{\texttt{\detokenize{#1}}}
+
+%header(s) where the described entities are declared, placed at the beginning of a chapter or section
+\newcommand{\laheader}[1]{\par\noindent\textbf{Header:} \texttt{\detokenize{#1}}\par\medskip}
+
+%reference list of functions; usage:
+%\begin{lareference}
+%\lafunc{void axpy(const T alpha, const NRVec &x)}{this $\leftarrow$ this + alpha x}
+%\end{lareference}
+\newenvironment{lareference}
+	{\begin{list}{}{\setlength{\leftmargin}{2em}\setlength{\itemindent}{-2em}\setlength{\itemsep}{3pt plus 1pt}\setlength{\parsep}{0pt}\setlength{\topsep}{4pt}}\raggedright}
+	{\end{list}}
+\newcommand{\lafunc}[2]{\item{\ttfamily\small\detokenize{#1}}\par\nopagebreak\hspace*{2em}\begin{minipage}[t]{\dimexpr\linewidth-2em\relax}#2\end{minipage}}
+
+%a remark visible in the text for the author to decide (unclear intended usage, possibly obsolete code, possible bug ...)
+%(the list of todos shows only the section number, since the text may contain \code, which cannot be moved)
+\newcommand{\latodo}[1]{\todo[inline,color=yellow!40,caption={Question in section \thesection}]{#1}}
+
+%a warning paragraph (pitfalls)
+\newcommand{\lawarning}[1]{\par\smallskip\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{\textbf{Caution:} #1}}\par\smallskip}
+
+%notation
+\newcommand{\LA}{\textsf{LA}}
+\newcommand{\Tr}{^{\mathsf T}}
+\newcommand{\Hc}{^{\dagger}}
+
+%long unbreakable code names: allow looser lines rather than overfull ones
+\setlength{\emergencystretch}{3em}

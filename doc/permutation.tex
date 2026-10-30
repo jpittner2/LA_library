@@ -1,0 +1,425 @@
+\chapter{Permutations and the symmetric group}\label{ch:permutation}
+
+\laheader{permutation.h, permutation.cc, qsort.h}
+
+This chapter describes the classes for permutations (in the one-line and in the cycle notation),
+for linear combinations of permutations (elements of the group algebra of $S_n$), for partitions and
+Young tableaux, the character table of $S_n$, and the sorting templates which return the parity of the
+sorting permutation. All class templates are explicitly instantiated in \header{permutation.cc} for
+\code{T = int} and \code{T = unsigned int}; \code{WeightPermutation<T,R>} and \code{PermutationAlgebra<T,R>}
+for \code{T = int} with \code{R = int}, \code{double}, \code{std::complex<double>}.
+Ranks, counts of generated objects and class sizes have the type
+\begin{lstlisting}
+typedef unsigned long long PERM_RANK_TYPE;
+\end{lstlisting}
+(declared outside of namespace \code{LA}); $n!$ overflows it for $n>20$.
+
+\section{Conventions}\label{sec:permutation:conventions}
+
+\begin{itemize}
+\item \textbf{Permutations are numbered from 1.} \code{NRPerm<T>}, \code{CyclePerm<T>}, \code{Partition<T>},
+	\code{CompressedPartition<T>} and \code{YoungTableaux<T>} are derived from \code{NRVec_from1}
+	(chapter~\ref{ch:vec}), i.e.\ \code{p[1]} \ldots\ \code{p[n]}. When a permutation is applied to a vector
+	or matrix indexed from 0, the offset 1 is subtracted internally (section~\ref{sec:permutation:apply}).
+\item The one-line notation stores the images: \code{p[i]} $=p(i)$. A cycle $(c_1\,c_2\ldots c_l)$ maps
+	$c_1\mapsto c_2\mapsto\cdots\mapsto c_l\mapsto c_1$.
+\item Product: $(pq)(i)=p(q(i))$, i.e.\ in \code{p*q} the right operand \code{q} is applied first.
+\item Parity is returned as $+1$ (even) or $-1$ (odd) by the \code{parity()} members; the sorting
+	templates of section~\ref{sec:permutation:sort} return the parity bit 0 (even) or 1 (odd).
+\item The generators (\code{generate_all}, \ldots) call a user callback for each generated object and
+	return their number. They keep their state in file-static variables, so they are neither reentrant nor
+	thread safe; do not start another generator of the same kind from inside the callback.
+\end{itemize}
+
+\paragraph{Copy on demand.} All classes of this chapter except \code{WeightPermutation}, \code{Sn_characters},
+\code{CycleIndex} (which are plain aggregates of such objects) are derived from \code{NRVec}/\code{NRVec_from1}
+and are reference counted as described in section~\ref{sec:concepts:refcount}: copy construction and
+\code{=} share the data, \code{|=} copies; before writing through \code{operator[]} the user has to call
+\code{copyonwrite()}. Nested types (\code{CyclePerm}, \code{YoungTableaux}, \code{PermutationAlgebra})
+are vectors of vectors; their \code{copyonwrite()} is deep (it also detaches the inner vectors).
+Most modifying members call \code{copyonwrite()}; the exceptions found are listed in the pitfalls
+(section~\ref{sec:permutation:pitfalls}).
+
+\section{NRPerm: permutations in one-line notation}\label{sec:permutation:nrperm}
+
+\code{template <typename T> class NRPerm : public NRVec_from1<T>} stores a permutation of $\{1,\ldots,n\}$ as the
+vector of images. Relational operators \code{== != < >} (lexicographic) and the I/O operators \code{<<}, \code{>>}
+(the size followed by the elements) are inherited from \code{NRVec} (section~\ref{sec:concepts:io}).
+Many members check \code{is_valid()} of their operands only in DEBUG builds.
+
+\subsection{Construction and conversion}
+\begin{lareference}
+\lafunc{NRPerm(); NRPerm(const int n)}{empty; size $n$, elements uninitialized (call \code{identity()}).}
+\lafunc{template<int SIZE> explicit NRPerm(const T (&a)[SIZE])}{from an array or brace list, e.g.\ \code{NRPerm<int> p({1,4,2,3})}.}
+\lafunc{NRPerm(const NRVec_from1<T> &rhs); NRPerm(const T *a, const int n)}{from a vector (shares data) or from $n$ elements at \code{a} (copy).}
+\lafunc{explicit NRPerm(const CyclePerm<T> &rhs, const int n=0)}{from the cycle notation; size \code{n}, or \code{rhs.max()} if \code{n==0}
+	(fixed points beyond the largest moved element are then lost).}
+\lafunc{explicit NRPerm(const int type, const NRVec_from1<T> &inversions)}{reconstruct from an inversion table of the given \code{type}
+	(see \code{inversions()}).}
+\lafunc{explicit NRPerm(const int n, const PERM_RANK_TYPE rank)}{unranking: the permutation of size $n$ with the lexicographic rank
+	\code{rank} $\in[0,n!-1]$ (checked in DEBUG).}
+\end{lareference}
+
+\subsection{Basic operations}
+\begin{lareference}
+\lafunc{void resize(int n); int size() const}{as for \code{NRVec}.}
+\lafunc{void identity(); void identity(int n)}{set to the identity (of size $n$); calls copyonwrite.}
+\lafunc{bool is_valid() const}{true if the elements are a permutation of $1\ldots n$.}
+\lafunc{bool is_identity() const}{true for the identity (also for size 0).}
+\lafunc{int parity() const}{$+1$/$-1$; returns 0 for an invalid permutation. Counts inversions for $n<10$, sorts a copy otherwise.}
+\lafunc{NRPerm inverse() const}{$p^{-1}$.}
+\lafunc{void inverseme()}{in-place inversion, $O(n^2)$ cycle-leader algorithm (cf.\ arXiv:1901.01926); detaches shared data first.}
+\lafunc{void reverse_cycle(int i); int cycle_leader(int i) const}{auxiliary for \code{inverseme()}: reverse in place the cycle containing $i$
+	(no \code{copyonwrite()}, the caller detaches first); return the smallest element of that cycle.}
+\lafunc{NRPerm reverse() const}{the sequence in backward order: $r(i)=p(n-i+1)$.}
+\lafunc{NRPerm operator*(const NRPerm &q) const}{product $pq$, $(pq)(i)=p(q(i))$; sizes must agree.}
+\lafunc{NRPerm multiply(const NRPerm<T> &q, bool inverse) const}{$pq$, or $pq^{-1}$ if \code{inverse} (without forming $q^{-1}$).}
+\lafunc{NRPerm operator*(const CyclePerm<T> &r) const}{product with a permutation in cycle notation, converted to size \code{size()}.}
+\lafunc{template<typename R> PermutationAlgebra<T,R> operator*(const PermutationAlgebra<T,R> &pa) const}{left multiplication of each term of \code{pa} by $p$.}
+\lafunc{NRPerm conjugated_by(const NRPerm &q, bool reverse=false) const}{$q^{-1}pq$, or $qpq^{-1}$ if \code{reverse}.}
+\lafunc{NRPerm commutator(const NRPerm &q, bool inverse=false) const}{$p^{-1}q^{-1}pq$, or $q^{-1}p^{-1}qp$ if \code{inverse}.}
+\lafunc{NRPerm pow(const int n) const}{$p^n$, also for $n\le 0$ (by repeated squaring, \code{power()} of \header{nonclass.h}).}
+\lafunc{CompressedPartition<T> cycles() const}{cycle type: number of cycles of length $1,2,\ldots,n$ (fixed points included).}
+\lafunc{NRPerm operator&(const NRPerm &rhs) const}{direct sum: $r=(p(1),\ldots,p(n),\,n+q(1),\ldots,n+q(m))$ with \code{q=rhs}, $m$ = \code{rhs.size()}.}
+\lafunc{NRPerm operator|(const NRPerm &rhs) const}{$r=(n+q(1),\ldots,n+q(m),\,p(1),\ldots,p(n))$, i.e.\ the renumbered \code{rhs} comes first.}
+\lafunc{NRPerm cutleft(int n) const}{inverse of \code{&} with an identity on the left: requires $p(i)=i$ for $i\le n$ (laerror otherwise), returns the remaining part renumbered to $1\ldots$\code{size()}$-n$.}
+\lafunc{NRPerm cutright(int n) const}{requires the last $n$ elements to be fixed points and removes them.}
+\lafunc{void randomize(void)}{uniformly random permutation (Fisher--Yates shuffle with \code{RANDINT32()}); the size must be set.}
+\end{lareference}
+
+\subsection{Ranking and inversion tables}
+\begin{lareference}
+\lafunc{PERM_RANK_TYPE rank() const}{lexicographic rank, $0$ for the identity and $n!-1$ for $(n,\ldots,1)$.}
+\lafunc{NRVec_from1<T> inversions(const int type, PERM_RANK_TYPE *prank=NULL) const}{inversion table $I$ of size $n$:
+	\code{type} 0: $I_j$ = number of elements greater than $j$ standing left of the value $j$ (Knuth's inversion table);
+	1: number of elements smaller than $j$ standing right of the value $j$;
+	2: $I_j=|\{k<j: p(k)>p(j)\}|$;
+	3: $I_j=|\{k>j: p(k)<p(j)\}|$ (Lehmer code; $\mathrm{rank}=\sum_j I_j\,(n-j)!$).
+	Inverse: \code{NRPerm(type,I)}. If \code{prank} is given (only for type 3, otherwise \code{laerror}), \code{*prank} is set to the rank computed
+	from the Lehmer code, the same value as \code{rank()}.}
+\end{lareference}
+
+\subsection{Generating all permutations}
+The generators overwrite \code{*this}, which is passed to the callback \code{void callback(const NRPerm<T>&)}; a \code{NULL} callback only counts.
+\begin{lareference}
+\lafunc{bool next()}{replace by the lexicographically next permutation (works also for repeated elements); returns false (and leaves \code{*this} unchanged) for the last one. Calls copyonwrite.}
+\lafunc{PERM_RANK_TYPE generate_all_lex(void (*callback)(const NRPerm<T>&))}{all $n!$ permutations in lexicographic order, starting from the identity, using \code{next()}.}
+\lafunc{PERM_RANK_TYPE generate_all(void (*callback)(const NRPerm<T>&), int parity_select=0)}{all permutations by adjacent transpositions
+	(plain changes, Steinhaus--Johnson--Trotter order \cite{permutation:knuth4a}), so the parity alternates; fastest but not lexicographic.
+	This is Knuth's Algorithm~P. \code{parity_select}: 0 all, $+1$ (positive) only even, $-1$ (negative) only odd permutations; then $n!/2$ is returned.}
+\lafunc{PERM_RANK_TYPE generate_all2(void (*callback)(const NRPerm<T>&))}{recursive generation, not lexicographic.}
+\lafunc{PERM_RANK_TYPE generate_all_multi(void (*callback)(const NRPerm<T>&))}{all distinct permutations of a multiset: \code{*this} must be filled
+	beforehand with the (possibly repeated) elements in any order; they are sorted and permuted in lexicographic order (Knuth's
+	algorithm for multisets). The result is not a permutation in the strict sense.}
+\lafunc{PERM_RANK_TYPE generate_restricted(void (*callback)(const NRPerm<T>&), const NRVec_from1<T> &classes, int restriction_type=0)}{permutations
+	restricted with respect to a partitioning of $1\ldots n$ into classes (\code{classes[i]} is the class label of $i$, size $n$):
+	\code{restriction_type} 0: all; 1: only $p$ with \code{classes[p(i)]==classes[i]} (permutations within classes);
+	$-1$: only $p$ with \code{classes[p(i)]!=classes[i]} for all $i$; $-2$: only permutations keeping the elements of each class in increasing order
+	(``shuffles'', the $n!/\prod_c n_c!$ coset representatives used in antisymmetrizers like $P(ij/kl)$).}
+\lafunc{PermutationAlgebra<T,T> list_all(int parity_select=0)}{all permutations (order of \code{generate_all}) as a \code{PermutationAlgebra} with weights $\pm1$ = parity,
+	i.e.\ the unnormalized antisymmetrizer; with \code{parity_select} $\pm1$ only the even/odd permutations, all with weight \code{parity_select}.}
+\lafunc{PermutationAlgebra<T,T> list_all_lex()}{all permutations in lexicographic order (term $k$ has rank $k$), all with weight 1, i.e.\ the unnormalized symmetrizer.}
+\lafunc{PermutationAlgebra<T,T> list_restricted(const NRVec_from1<T> &classes, int restriction_type=0, bool inverted=false)}{the permutations of
+	\code{generate_restricted}, weight = parity; with \code{inverted} the inverse permutations are stored.}
+\end{lareference}
+
+\section{CyclePerm: cycle notation}\label{sec:permutation:cycleperm}
+
+\code{template <typename T> class CyclePerm}, derived from \code{NRVec_from1< NRVec_from1<T> >}, is a list of cycles. The representation is not
+unique (order of cycles, starting element, presence of cycles of length 1); \code{CyclePerm(const NRPerm&)} omits fixed points.
+The size of the permuted set is not stored: wherever it matters it is \code{max()} unless given explicitly.
+\begin{lareference}
+\lafunc{CyclePerm(); template<int SIZE> explicit CyclePerm(const NRVec_from1<T> (&a)[SIZE])}{empty (the identity); from an array of cycles, e.g.\ \code{CyclePerm<int> c({NRVec_from1<int>({1,2}),NRVec_from1<int>({3,4,5})})}.}
+\lafunc{explicit CyclePerm(const NRPerm<T> &rhs)}{cycle decomposition, nontrivial cycles only.}
+\lafunc{bool is_valid() const}{no empty cycle, positive elements, no element repeated.}
+\lafunc{bool is_identity() const; void identity()}{test for no cycle longer than 1; set to the identity (no cycles).}
+\lafunc{CyclePerm inverse() const}{reverse all cycles.}
+\lafunc{int parity() const}{$-1$ for an odd number of even-length cycles.}
+\lafunc{T max() const}{largest element occurring.}
+\lafunc{CompressedPartition<T> cycles(T n = 0) const}{cycle type for size $n$ (default \code{max()}), fixed points counted as 1-cycles.}
+\lafunc{PERM_RANK_TYPE order() const}{order in the group, the lcm of the cycle lengths.}
+\lafunc{CyclePerm operator*(const CyclePerm &q) const}{product (\code{q} applied first), computed through \code{NRPerm} of the size of the larger maximum of the two operands.}
+\lafunc{NRPerm<T> operator*(const NRPerm<T> &r) const}{mixed product, result of size \code{r.size()}.}
+\lafunc{CyclePerm conjugated_by(const CyclePerm &q) const}{$q^{-1}pq$.}
+\lafunc{bool operator==(const CyclePerm &rhs) const}{compares via conversion to \code{NRPerm} (so independent of the cycle representation).}
+\lafunc{void simplify(bool keep1=false)}{remove cycles of length 0 and 1 (with \code{keep1} only empty ones); detaches shared data first.}
+\lafunc{CyclePerm pow(const int n, const bool keep1=false) const}{$p^n$ (also $n<0$) computed cycle by cycle (a cycle of length $l$ splits into $\gcd(n,l)$ cycles);
+	with \code{keep1} the resulting fixed points are kept as 1-cycles.}
+\lafunc{CyclePerm pow_simple(const int n) const}{$p^n$ through \code{NRPerm::pow}.}
+\lafunc{void readfrom(const std::string &line)}{parse cycles like \code{(1 2 3)(4,5)}; elements separated by blanks or commas, empty cycles skipped.}
+\lafunc{std::istream & operator>>(std::istream &s, CyclePerm<T> &x)}{reads one line and calls \code{readfrom}.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const CyclePerm<T> &x)}{writes \code{(1 2 3)(4 5)} (no newline).}
+\end{lareference}
+
+\section{Weighted permutations and the group algebra}\label{sec:permutation:algebra}
+
+\subsection{WeightPermutation}
+\code{template <typename T, typename R> class WeightPermutation} is a pair of public members \code{R weight; NRPerm<T> perm;}, i.e.\ the term
+$w\,p$ of the group algebra $\mathbb{R}S_n$ (or with coefficients of type \code{R}). The \code{LA_traits} specialization
+(section~\ref{sec:concepts:traits}) declares it non-plain with \code{coefficienttype} and \code{elementtype} \code{R}, so that \code{NRVec}
+sorting and \code{NRVec_simplify} work on vectors of it.
+\begin{lareference}
+\lafunc{WeightPermutation(); explicit WeightPermutation(const NRPerm<T> &p, const R w=1)}{weight 0 and empty permutation; $w\,p$.}
+\lafunc{int size() const}{size of the permutation.}
+\lafunc{bool is_zero() const; bool is_scaledidentity() const; bool is_identity() const}{$w=0$; $p$ = identity; $w=1$ and $p$ = identity.}
+\lafunc{bool is_plaindata() const; void copyonwrite()}{returns false; \code{perm.copyonwrite()}.}
+\lafunc{void identity(); void identity(int n)}{$w=1$, $p$ = identity (of size $n$).}
+\lafunc{WeightPermutation operator&(const WeightPermutation &rhs) const; ... operator|(...) const}{direct sums of the permutations (as for \code{NRPerm}), weights multiplied.}
+\lafunc{WeightPermutation operator*(const WeightPermutation &rhs) const; WeightPermutation operator*(const R &x) const}{product of terms; scaling of the weight.}
+\lafunc{bool operator==(const WeightPermutation &rhs) const; != < > <= >=}{compare \emph{only the permutations}, ignoring the weights (needed for sorting and simplification).}
+\lafunc{WeightPermutation & operator=(const WeightPermutation &rhs)}{memberwise (the permutation is shared).}
+\lafunc{std::ostream & operator<<(std::ostream &s, const WeightPermutation<T,R> &x); std::istream & operator>>(...)}{weight followed by the permutation.}
+\end{lareference}
+
+\subsection{PermutationAlgebra}
+\code{template <typename T, typename R> class PermutationAlgebra : public NRVec<WeightPermutation<T,R> >} represents
+$\sum_k w_k p_k$ as a vector of terms indexed \emph{from 0}. Products and sums simplify the result; a canonical form (sorted by permutation,
+equal permutations merged, zero terms removed) is obtained by \code{simplify()}. Such objects are used e.g.\ by
+\code{Tensor::apply_permutation_algebra} (chapter~\ref{ch:tensor}) and by the \code{NRMat} constructor of section~\ref{sec:permutation:apply}.
+\begin{lareference}
+\lafunc{PermutationAlgebra(); PermutationAlgebra(int n); PermutationAlgebra(const NRVec<WeightPermutation<T,R> > &x)}{empty; $n$ uninitialized terms; from a vector of terms.}
+\lafunc{template <typename U> PermutationAlgebra(const PermutationAlgebra<T,U> &rhs)}{conversion of the weight type (cast \code{(R)}).}
+\lafunc{int size() const; void resize(int n); void copyonwrite()}{as for \code{NRVec}.}
+\lafunc{int sort(int direction = 0, int from = 0, int to = -1, int *permut = NULL, bool stable=false)}{\code{NRVec::sort} of the terms by their permutations.}
+\lafunc{void simplify(const typename LA_traits<R>::normtype thr=0)}{sort, add weights of equal permutations, drop zero terms (\code{NRVec_simplify}; terms
+	are dropped if $w=0$ or if \code{abs2(w)<thr}, i.e.\ \code{thr} is compared with $|w|^2$).}
+\lafunc{PermutationAlgebra operator*(const PermutationAlgebra &rhs) const}{algebra product (all pairs of terms), simplified; permutation sizes must agree.}
+\lafunc{PermutationAlgebra operator+(const PermutationAlgebra &rhs) const}{sum (concatenation), simplified.}
+\lafunc{PermutationAlgebra operator&(const PermutationAlgebra &rhs) const; ... operator|(...) const}{all pairs of terms combined by \code{&} or \code{|}
+	(tensor product of algebras acting on disjoint sets); not simplified.}
+\lafunc{PermutationAlgebra operator*(const NRPerm<T> &rhs) const; operator&(const NRPerm<T> &rhs) const; operator|(const NRPerm<T> &rhs) const}{applied to all terms: $\sum_k w_k\,p_k q$, $p_k\,\&\,q$, $p_k\,|\,q$.}
+\lafunc{PermutationAlgebra cutleft(int n) const; PermutationAlgebra cutright(int n) const}{\code{NRPerm::cutleft/cutright} of all terms.}
+\lafunc{PermutationAlgebra conjugated_by(const NRPerm<T> &q, bool reverse=false) const; PermutationAlgebra commutator(const NRPerm<T> &q, bool inverse=false) const}{applied to all terms.}
+\lafunc{PermutationAlgebra &operator*=(const R &x); PermutationAlgebra operator*(const R &x) const}{scale all weights.}
+\lafunc{bool operator==(PermutationAlgebra &rhs)}{simplifies \emph{both} operands (hence non-const) and compares terms including weights.}
+\lafunc{bool is_zero() const; bool is_scaled_identity() const; bool is_identity() const}{tests valid for simplified objects only: no term; single term with identity permutation (and weight 1).}
+\lafunc{void identity(int n)}{the single term $1\cdot\mathrm{id}_n$.}
+\end{lareference}
+Inherited \code{NRVec} I/O prints the number of terms followed by the terms.
+
+\paragraph{Related free functions.}
+\begin{lareference}
+\lafunc{template <typename T> PermutationAlgebra<T,T> symmetrizer(int n); ... antisymmetrizer(int n)}{$\sum_{p\in S_n} p$ and $\sum_{p\in S_n}\mathrm{sgn}(p)\,p$
+	(unnormalized), built as Young operators of a single row/column.}
+\lafunc{template<typename T> PermutationAlgebra<T,T> general_antisymmetrizer(const NRVec<NRVec_from1<T> > &classgroups, int restriction_type=0, bool inverted=false)}{direct
+	product (by \code{&}) of \code{list_restricted(classgroups[i], restriction_type, inverted)} for all groups; group $i$ acts on the next
+	\code{classgroups[i].size()} elements. Used for antisymmetrizers in coupled-cluster-like expressions (see the tensor chapter).}
+\lafunc{template <typename T, typename R, typename U> void cast_permutation_algebra(PermutationAlgebra<T,R> &lhs, const PermutationAlgebra<T,U> &rhs)}{conversion of the weight type into an existing object.}
+\lafunc{template<typename T> NRMat<PERM_RANK_TYPE> Multable(T n)}{multiplication table of $S_n$ ($n!\times n!$) in the basis of permutations ordered by lexicographic rank:
+	\code{r(i,j)} = rank of $p_ip_j$. Consistency (Latin square) is checked in DEBUG.}
+\lafunc{template<typename T, typename R> NRMat<R> RegularRepresentation(const PermutationAlgebra<T,R> &a, const NRMat<PERM_RANK_TYPE> &mtable)}{matrix of left multiplication by
+	\code{a} in the regular representation: $R_{\mathrm{rank}(p_kp_j),\,j} \mathrel{+}= w_k$; \code{mtable} from \code{Multable(n)}.}
+\end{lareference}
+
+\section{Partitions}\label{sec:permutation:partitions}
+
+Two representations of a partition $\lambda\vdash n$ are used, both as vectors of size $n$ (indexed from 1):
+\code{Partition<T>} stores the parts in non-increasing order, padded with zeros ($[3,1]$ of 4 is \code{3 1 0 0});
+\code{CompressedPartition<T>} stores the multiplicities $m_i$ of parts of size $i$ ($[3,1]$ is \code{1 0 1 0}), printed as \code{3,1};
+$[2,1^2]$ is printed \code{2,1^2}. Partitions label the conjugacy classes of $S_n$ (cycle types) and its irreducible representations.
+
+\subsection{CompressedPartition}
+\begin{lareference}
+\lafunc{CompressedPartition(); CompressedPartition(const int n); template<int SIZE> explicit CompressedPartition(const T (&a)[SIZE])}{empty; size $n$ uninitialized; from an array.}
+\lafunc{explicit CompressedPartition(const Partition<T> &rhs)}{conversion.}
+\lafunc{T sum() const; T nparts() const; T nclasses() const}{$\sum_i i\,m_i$; number of parts $\sum_i m_i$; number of distinct part sizes.}
+\lafunc{bool is_valid() const}{\code{size()==sum()}.}
+\lafunc{PERM_RANK_TYPE Sn_class_size() const}{size of the conjugacy class of $S_n$ with this cycle type, $n!/\prod_i i^{m_i}m_i!$.}
+\lafunc{int parity() const}{parity of permutations with this cycle type.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const CompressedPartition<T> &x)}{e.g.\ \code{3,2^2,1}.}
+\end{lareference}
+
+\subsection{Partition}
+\begin{lareference}
+\lafunc{Partition(); Partition(const int n); template<int SIZE> explicit Partition(const T (&a)[SIZE])}{empty; size $n$ uninitialized; from an array (zero-padded to $n$ by the user).}
+\lafunc{explicit Partition(const CompressedPartition<T> &rhs); explicit Partition(const YoungTableaux<T> &x)}{conversion; the shape of a Young tableau.}
+\lafunc{T nparts() const; bool is_valid() const}{number of nonzero parts; \code{size()==sum()} and non-increasing.}
+\lafunc{Partition adjoint() const}{conjugate (transposed) partition $\lambda'$.}
+\lafunc{PERM_RANK_TYPE Sn_irrep_dim() const}{dimension of the irrep $[\lambda]$ of $S_n$ (hook length formula).}
+\lafunc{PERM_RANK_TYPE Un_irrep_dim(const int n) const}{dimension of the irrep of $U(n)$ with the highest weight $\lambda$ \cite[eq.~10-25]{permutation:hamermesh}; 0 if $\lambda$ has more than $n$ parts.}
+\lafunc{int parity() const}{parity of permutations with the cycle type $\lambda$.}
+\lafunc{PERM_RANK_TYPE generate_all(void (*callback)(const Partition<T>&), int nparts=0)}{all partitions of \code{size()} in reverse lexicographic order
+	($[n]$ first, $[1^n]$ last); \code{nparts}$>0$: exactly \code{nparts} parts, $<0$: at most $-$\code{nparts} parts, 0: all. Overwrites \code{*this}; returns the count.}
+\end{lareference}
+
+\begin{lareference}
+\lafunc{PERM_RANK_TYPE partitions(int n, int k= -1)}{number of partitions of $n$ into exactly $k$ parts, or the total number $p(n)$ for $k=-1$ \cite{permutation:aigner};
+	tabulated recursively up to $n=260$ (larger $n$ only for $k\ge n/2$).}
+\end{lareference}
+
+\section{Young tableaux}\label{sec:permutation:young}
+
+\code{template <typename T> class YoungTableaux}, derived from \code{NRVec_from1< NRVec_from1<T> >}, stores the rows of a Young diagram (row $i$ has
+length $\lambda_i$), each box holding a number (0 = empty).
+\begin{lareference}
+\lafunc{YoungTableaux(); explicit YoungTableaux(const Partition<T> &frame)}{empty; empty (zero-filled) diagram of the shape \code{frame}.}
+\lafunc{template<int SIZE> explicit YoungTableaux(const NRVec_from1<T> (&a)[SIZE])}{from an array of rows.}
+\lafunc{bool is_valid() const}{nonempty rows of non-increasing length.}
+\lafunc{int nrows() const; int ncols() const}{number of rows; length of the first row.}
+\lafunc{bool is_standard() const}{numbers non-decreasing along rows and columns (repeated numbers allowed).}
+\lafunc{T sum() const; T max() const}{number of boxes $n$; largest number filled in.}
+\lafunc{NRVec_from1<T> yamanouchi() const}{Yamanouchi symbol of a standard tableau: element $n-k+1$ is the row containing the number $k$.}
+\lafunc{PERM_RANK_TYPE generate_all_standard(void (*callback)(const YoungTableaux<T>&))}{fill \code{*this} in all standard ways with $1\ldots n$, call the callback for each; returns their number
+	($=$ \code{Sn_irrep_dim()} of the shape).}
+\lafunc{PermutationAlgebra<T,T> young_operator() const}{Young operator of a standard tableau, $Y=\sum_{a\in C}\sum_{s\in R}\mathrm{sgn}(a)\,a\,s$ ($R$, $C$: row and column groups), unnormalized,
+	$\prod_i\lambda_i!\,\prod_j\lambda'_j!$ terms.}
+\lafunc{T character_contribution(int ncyc=0) const}{auxiliary for \code{Sn_character}: sign contribution of a tableau filled by a regular application of \code{ncyc} cycles (default \code{max()}).}
+\lafunc{std::ostream & operator<<(std::ostream &s, const YoungTableaux<T> &x)}{one row per line.}
+\end{lareference}
+
+\section{Characters of the symmetric group}\label{sec:permutation:characters}
+
+\begin{lareference}
+\lafunc{template <typename T> T Sn_character(const Partition<T> &irrep, const Partition<T> &cclass)}{character $\chi^{[\lambda]}(\mu)$ of the irrep
+	\code{irrep} on the class of cycle type \code{cclass}, computed by enumerating the regular applications of the cycles to the Young diagram
+	(Murnaghan--Nakayama type rule, \cite{permutation:hamermesh}).}
+\lafunc{T Sn_character(const CompressedPartition<T> &irrep, const CompressedPartition<T> &cclass)}{the same for compressed partitions.}
+\end{lareference}
+
+\code{template <typename T> class Sn_characters} is the whole character table of $S_n$ with public members
+\begin{lstlisting}
+T n;
+NRVec_from1<CompressedPartition<T> > classes;  //cycle types
+NRVec_from1<CompressedPartition<T> > irreps;   //irrep labels
+NRVec_from1<PERM_RANK_TYPE> classsizes;
+NRMat_from1<T> chi;                            //chi(irrep,class)
+\end{lstlisting}
+The irreps are ordered as in \code{Partition::generate_all} ($[n]$ first, $[1^n]$ last) and \code{classes[i]} is the conjugate of \code{irreps[i]},
+so class 1 is the identity and \code{chi(i,1)} the dimension.
+\begin{lareference}
+\lafunc{Sn_characters(const int n0)}{compute the table (cost grows quickly with $n$).}
+\lafunc{bool is_valid() const}{consistency checks: dimensions vs.\ hook formula, $\sum d^2=n!$, class sizes, trivial and sign irreps, orthogonality.}
+\lafunc{T irrepdim(T i) const; T sumirrepdims() const}{dimension of irrep $i$; $\sum_i d_i$ (number of standard tableaux of size $n$).}
+\lafunc{std::ostream & operator<<(std::ostream &s, const Sn_characters<T> &c)}{prints class sizes, class labels \code{(..)}, and rows \code{[irrep] chi}.}
+\end{lareference}
+
+\code{template <typename T> class CycleIndex} (public \code{classes}, \code{classsizes}) is the cycle index of $S_n$ for P\'olya counting:
+\begin{lareference}
+\lafunc{CycleIndex(const Sn_characters<T> &rhs); bool is_valid() const}{take the classes from a character table; check that all classes are partitions of the same $n$.}
+\lafunc{Polynomial<T> substitute(const Polynomial<T> &p, PERM_RANK_TYPE *denom) const}{$\sum_{\mu}|C_\mu|\prod_j p(x^j)^{m_j(\mu)}$ and \code{*denom} $=\sum_\mu|C_\mu|=n!$;
+	the generating function of inequivalent colorings is the result divided by \code{*denom}. See chapter~\ref{ch:polynomial} for \code{Polynomial}.}
+\end{lareference}
+
+\section{Applying permutations to vectors and matrices}\label{sec:permutation:apply}
+
+The following members are declared in the vector and matrix headers (chapters~\ref{ch:vec}, \ref{ch:mat}, \ref{ch:smat}, \ref{ch:sparse}) and take
+\code{NRPerm<int>} or \code{CyclePerm<int>}; the permutation is numbered from 1 while \code{NRVec} and \code{NRMat} are indexed from 0.
+With $p$ = \code{p}, $v$ the source and $r$ the result (indices from 1):
+\begin{center}\small
+\begin{tabular}{@{}>{\raggedright}p{0.47\linewidth}>{\raggedright\arraybackslash}p{0.47\linewidth}@{}}
+\toprule
+call & result \\
+\midrule
+\code{r=v.permuted(p)} & $r_{p(i)}=v_i$ \\
+\code{r=v.permuted(p,true)} & $r_i=v_{p(i)}$ \\
+\code{v.permuteme(p,inverse)} & in place, as \code{permuted} \\
+\code{v.permuteme(c)} (\code{CyclePerm}) & in place, $v_{c(i)}\leftarrow v_i$ \\
+\code{applypermutation(p,v)} (\code{NRVec_from1}) & $r_{p(i)}=v_i$, as \code{permuted} \\
+\code{applypermutation(p,v,true)} & $r_i=v_{p(i)}$ \\
+\code{A.permuted_rows(p)}, \code{permuted_cols}, \code{permuted_both(p,q)} & $r_{p(i),j}=A_{ij}$ etc.; with \code{true}: $r_{ij}=A_{p(i),j}$ \\
+\code{A.permuteme_rows(c)}, \code{permuteme_cols(c)} (\code{CyclePerm}) & in place, as \code{permuted_rows(NRPerm(c))} \\
+\code{S.permuted(p)} (\code{NRSMat}) & $r_{p(i)p(j)}=S_{ij}$; with \code{true}: $r_{ij}=S_{p(i)p(j)}$ \\
+\code{NRMat<T>(p, direction, parity=false)} & permutation matrix: $A_{i,p(i)}=1$ if \code{direction}, else $A_{p(i),i}=1$ (times \code{p.parity()} if \code{parity}) \\
+\code{NRMat<T>(wp,direction)}, \code{NRMat<T>(pa,direction,nforce=0)} & $\sum_k w_kP_k$ for a \code{WeightPermutation} / \code{PermutationAlgebra} \\
+\code{A.axpy(alpha,p,direction)} & $A\mathrel{+}=\alpha P$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{lareference}
+\lafunc{template <typename T, typename X> NRVec_from1<X> applypermutation(const NRPerm<T> &p, const NRVec_from1<X> &set, bool inverse=false)}{a free function
+	(element type independent of \code{T}), same convention as \code{NRVec::permuted}.}
+\lafunc{int NRVec<T>::sort(int direction, NRPerm<int> &perm, bool stable=false)}{sort the vector (0 ascending, 1 descending), return the parity bit;
+	afterwards \code{sorted == original.permuted(perm,true)}.}
+\end{lareference}
+For the matrix representation of $S_n$ by permutation matrices note that it is reducible ($[n]\oplus[n-1,1]$), so e.g.\ Young projectors are not
+faithfully represented; use \code{RegularRepresentation} instead.
+
+\section{Small number-theoretic helpers}
+\begin{lareference}
+\lafunc{template <typename T> T gcd(T big, T small)}{greatest common divisor by Euclid's algorithm; laerror if both are 0. For negative arguments the sign of the result is not normalized.}
+\lafunc{template <typename T> inline T lcm(T a, T b)}{$(a/\gcd(a,b))\,b$.}
+\end{lareference}
+
+\section{Sorting}\label{sec:permutation:sort}
+\laheader{qsort.h}
+
+The sorting templates are used by \code{NRVec::sort} and by other classes and return the parity bit (0 even, 1 odd) of the permutation
+performed, which is needed e.g.\ for signs of determinants or of fermionic operator strings. The quicksorts use median-of-3 pivoting and recurse
+first into the shorter part; they are not stable (except \code{memqsortstable}).
+\begin{lareference}
+\lafunc{template<typename INDEX, typename COMPAR> int genqsort(INDEX l, INDEX r, COMPAR (*cmp)(const INDEX, const INDEX), void (*swap)(const INDEX,const INDEX))}{sort
+	the abstract range $[l,r]$ (inclusive) in ascending order; \code{cmp(i,j)} returns negative/zero/positive like \code{strcmp}, \code{swap(i,j)} exchanges the items.}
+\lafunc{template<int type, typename SORTABLE, typename INDEX, typename PERMINDEX> int memqsort(SORTABLE &object, PERMINDEX *perm, INDEX l, INDEX r)}{sort
+	elements $l\ldots r$ of \code{object}, ascending for \code{type=0}, descending for \code{type=1}; the comparisons go through \code{LA_sort_traits<SORTABLE,INDEX,type>},
+	which call \code{object.bigger(i,j)} / \code{object.smaller(i,j)}; \code{object.swap(i,j)} exchanges. If \code{perm!=NULL}, \code{perm[l..r]} is permuted in the same way.}
+\lafunc{template<int type, typename SORTABLE, typename INDEX, typename PERMINDEX> int memqsortstable(SORTABLE &object, PERMINDEX *perm, INDEX l, INDEX r)}{stable
+	variant (original position as secondary key; requires also \code{object[i]==object[j]}), uses \code{memqsortaux}.}
+\lafunc{template<int type, typename SORTABLE, typename INDEX, typename PERMINDEX> int memqsortaux(SORTABLE &object, PERMINDEX *perm, INDEX l, INDEX r, INDEX *aux)}{worker of \code{memqsortstable} with the auxiliary key array \code{aux[l..r]}.}
+\lafunc{template<typename S, typename PERMINDEX> int ptrqsortup(S *l, S *r, PERMINDEX *perm=NULL); ... ptrqsortdown(...)}{sort the array $[l,r]$ (pointers, inclusive) ascending/descending
+	by \code{operator<}, \code{operator>}; \code{perm[0..r-l]} is permuted along.}
+\lafunc{template<typename INDEX, typename DATA> void myheapsort(INDEX n, DATA *ra, int typ=1)}{heapsort of \code{ra[0..n-1]}, ascending for \code{typ>0}, descending otherwise; no parity.}
+\lafunc{template<typename T> int netsort(const int n, T *data)}{ascending sort of a short array by optimal sorting networks for $n\le 8$ (\code{netsort_0} \ldots\ \code{netsort_8}),
+	\code{ptrqsortup} for longer; returns the parity bit.}
+\end{lareference}
+To make a class sortable by \code{memqsort} it has to provide \code{bool bigger(int i, int j) const}, \code{bool smaller(int i, int j) const},
+\code{void swap(int i, int j)} (and \code{operator[]} for the stable variant), as \code{NRVec} does.
+
+\section{Examples}\label{sec:permutation:examples}
+
+Basic operations, ranking and conversion to cycles:
+\begin{lstlisting}
+NRPerm<int> p({2,3,1});
+NRPerm<int> q=p*p;                        // (3 1 2)
+std::cout << p.rank() << ' ' << p.parity() << std::endl;   // 3 1
+NRPerm<int> r(3,p.rank());                // unranking, r==p
+CyclePerm<int> c(p);                      // (1 2 3)
+std::cout << c << ' ' << c.cycles() << std::endl;
+NRVec_from1<double> v({10.,20.,30.});
+std::cout << v.permuted(p) << applypermutation(p,v);  // 30 10 20 / 30 10 20
+\end{lstlisting}
+Generating permutations with a callback (store copies with \code{|=}, cf.\ the pitfalls):
+\begin{lstlisting}
+static void printme(const NRPerm<int> &p) {std::cout << p.parity() << ' ' << p;}
+...
+NRPerm<int> p(4);
+PERM_RANK_TYPE n=p.generate_all_lex(printme);    // 24
+NRVec_from1<int> classes({1,1,2,2});
+PermutationAlgebra<int,int> a=p.list_restricted(classes,-2);  // 6 shuffles with signs
+\end{lstlisting}
+Character table, Young operators and their regular representation (cf.\ \header{t.cc}):
+\begin{lstlisting}
+static NRMat<PERM_RANK_TYPE> mtable;
+
+static void ycallback(const YoungTableaux<int> &y)
+{
+PermutationAlgebra<int,int> Y = y.young_operator();
+NRMat<int> R = RegularRepresentation(Y,mtable);
+std::cout << y << "Y = " << Y << "trace of R = " << R.trace() << std::endl;
+}
+
+int main()
+{
+Sn_characters<int> Sn(4);
+std::cout << Sn;
+if(!Sn.is_valid()) laerror("internal error");
+mtable = Multable(4);
+Partition<int> lambda({2,1,1,0});
+YoungTableaux<int> y(lambda);
+PERM_RANK_TYPE dim = y.generate_all_standard(ycallback);  // 3 == lambda.Sn_irrep_dim()
+}
+\end{lstlisting}
+
+\section{Pitfalls}\label{sec:permutation:pitfalls}
+
+\begin{itemize}
+\item Permutations are numbered from 1, \code{PermutationAlgebra} terms from 0; vectors and matrices from 0 (the library subtracts the offset).
+\item The two conventions of applying a permutation to a vector (table in section~\ref{sec:permutation:apply}) differ; check with a small example.
+\item \code{CyclePerm} does not know the size of the permuted set; pass \code{n} to \code{NRPerm(const CyclePerm&,n)} and \code{cycles(n)}.
+\item The \code{operator==} of \code{WeightPermutation} ignores the weights; that of \code{PermutationAlgebra} simplifies its operands.
+\item In the callbacks of the generators the argument refers to the working object of the generator. All generators
+	detach it after the callback, so a shallow copy stored by the callback stays intact.
+\item Copy on demand: the auxiliary \code{NRPerm::reverse_cycle()} writes through \code{operator[]} without
+	\code{copyonwrite()}; call \code{copyonwrite()} before using it directly (\code{inverseme()} does so).
+\item Generators and \code{Sn_character} use static variables: not reentrant, not thread safe.
+\item $n!$ and class sizes are \code{unsigned long long}: overflow for $n>20$.
+\end{itemize}

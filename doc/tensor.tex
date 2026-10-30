@@ -1,0 +1,404 @@
+\chapter{Tensors}\label{ch:tensor}
+
+\laheader{tensor.h, tensor.cc}
+
+\section{Purpose and main idea}\label{sec:tensor:purpose}
+
+\code{Tensor<T>} is a dense tensor of arbitrary rank whose indices are organized in \emph{index groups}.
+Each group has its own index range, offset and permutational symmetry (none, symmetric, antisymmetric,
+hermitean, antihermitean), and only the permutationally non-equivalent elements of a group are stored.
+Indices can optionally carry names (\code{INDEXNAME}) and most operations can address indices by name.
+The class provides element access with automatic sign/conjugation handling, contractions implemented via
+unwinding to matrices and BLAS \code{gemm}, reordering of indices and groups, (anti)symmetrization by a
+general permutation algebra, the HOSVD/Tucker decomposition, conversions to and from \code{NRVec},
+\code{NRMat}, \code{NRSMat} and the dense four-index classes of chapter~\ref{ch:fourindex}, and binary,
+text and NumPy I/O.
+
+Typical uses are many-body quantities (amplitudes, integrals, density matrices) where antisymmetry
+in groups of indices should be exploited for storage.
+Limitations stated in the source:
+\begin{itemize}
+\item the implementation is ``rudimentary''; only \code{Tensor<double>} and \code{Tensor<std::complex<double> >}
+	are instantiated (tensor.cc);
+\item index types \code{LA_index} and \code{LA_largeindex} are \code{int}, so the total size is limited
+	to $2^{31}$ elements (\code{NRVec} limitation);
+\item symmetry \emph{between} index groups (e.g.\ $(ij|kl)=(kl|ij)$) is not supported; one would have to
+	nest \code{Tensor<Tensor<T> >} or use the four-index classes;
+\item covariant and contravariant indices are not distinguished: the header \code{#undef}s
+	\code{LA_TENSOR_INDEXPOSITION}, the code guarded by this macro is not active.
+\end{itemize}
+
+\section{Storage and concepts}\label{sec:tensor:storage}
+
+\subsection{Index groups}
+
+\begin{lstlisting}
+typedef class INDEXGROUP {
+public:
+  int number;        // number of indices in the group (>0)
+  int symmetry;      // -2,-1,0,1,2, see below
+  LA_index offset;   // indices run offset ... offset+range-1
+  LA_index range;
+  bool operator==(const INDEXGROUP &rhs) const; bool operator!=(const INDEXGROUP &rhs) const;
+} INDEXGROUP;
+\end{lstlisting}
+\code{INDEXGROUP} is a plain aggregate without constructor; all members must be set by the user.
+If the macro \code{LA_TENSOR_ZERO_OFFSET} is defined before including the header, \code{offset} becomes a
+\code{static const} zero (which saves some arithmetic); otherwise any offset, also negative, is allowed.
+Index groups are compared memberwise.
+
+\begin{center}
+\begin{tabular}{@{}rp{0.3\linewidth}p{0.17\linewidth}p{0.3\linewidth}@{}}
+\toprule
+\code{symmetry} & meaning & stored elements & odd permutation gives\\
+\midrule
+0 & no symmetry & $r^m$ & ---\\
+1 & symmetric & $\binom{r+m-1}{m}$ & $+x$\\
+$-1$ & antisymmetric & $\binom{r}{m}$ & $-x$; zero for a repeated index\\
+2 & hermitean (complex \code{T} only) & $\binom{r+m-1}{m}$ & $x^*$\\
+$-2$ & antihermitean (complex \code{T} only) & $\binom{r+m-1}{m}$ & $-x^*$\\
+\bottomrule
+\end{tabular}
+\end{center}
+Here $m$ is \code{number} and $r$ is \code{range}. For real \code{T} the symmetries $\pm 2$ are illegal
+(\code{canonicalize_shape()} raises an error); a group with a single index always gets symmetry 0.
+For (anti)hermitean groups the diagonal elements (repeated indices) are stored including their
+real/imaginary part which should vanish; this is \emph{not} checked automatically, see
+\code{enforce_hermiticity()} and \code{fulfills_hermiticity()}.
+The symmetry factors of different groups combine multiplicatively (for complex \code{T} via a small group
+multiplication table, so that e.g.\ two conjugations cancel).
+
+\subsection{Storage order}
+
+The element data are kept in the public member \code{NRVec<T> data}. The \emph{leftmost} index is the least
+significant, i.e.\ it changes fastest: group 0 is the innermost loop, and inside a non-symmetric group
+the first index is the fastest. For a group with $m$ indices $I_0,\dots,I_{m-1}$ and offset subtracted, the
+position inside the group is
+\begin{align*}
+&\textstyle\sum_{k} I_k\, r^k && \text{(no symmetry)},\\
+&\textstyle\sum_{k} \binom{I_k+k}{k+1}, \quad I_0\le I_1\le\dots\le I_{m-1} && \text{(symmetric, (anti)hermitean)},\\
+&\textstyle\sum_{k} \binom{I_k}{k+1}, \quad I_0< I_1<\dots< I_{m-1} && \text{(antisymmetric)},
+\end{align*}
+i.e.\ the canonical (stored) element has nondecreasing (increasing) indices; for $m=2$ this is the
+usual lower-triangle packing \code{i1*(i1+1)/2+i0} of \code{NRSMat}. The total position is
+$\sum_g p_g\,\mathtt{cumsizes}[g]$, where \code{groupsizes[g]} is the number of stored elements of group $g$
+and \code{cumsizes[g]} the product of the sizes of groups $0\dots g-1$.
+The binomial coefficients are taken from the precomputed table of \code{simplicial()} (miscfunc.h),
+which limits symmetric groups to fewer than 16 indices and ranges below 1024.
+
+\subsection{Public data members}
+
+All data members are public:
+\begin{lareference}
+\lafunc{NRVec<INDEXGROUP> shape}{the index groups; \code{shape.size()==0} for a scalar (rank 0).}
+\lafunc{NRVec<T> data}{the stored elements.}
+\lafunc{int myrank}{total number of indices (sum of \code{number} over groups), $-1$ for a default-constructed tensor.}
+\lafunc{NRVec<LA_largeindex> groupsizes; NRVec<LA_largeindex> cumsizes}{redundant, precomputed from \code{shape} by \code{calcsize()}.}
+\lafunc{NRVec<INDEXNAME> names}{index names in flat order (all indices of group 0, then group 1, \dots);
+	either empty (unnamed tensor) or of length \code{rank()}.}
+\end{lareference}
+If \code{shape} is modified directly, \code{calcsize()}, \code{calcrank()} and possibly \code{data.resize()}
+must be called by the user to restore consistency.
+
+\subsection{Index types}
+
+\begin{lareference}
+\lafunc{typedef int LA_index; typedef int LA_largeindex}{an index value; a position in \code{data}.}
+\lafunc{typedef NRVec<LA_index> FLATINDEX}{all indices of an element in flat order.}
+\lafunc{typedef NRVec<FLATINDEX> SUPERINDEX}{indices structured by groups: \code{I[g][i]}.}
+\lafunc{typedef NRVec<LA_largeindex> GROUPINDEX}{one position (inside the compressed group storage) per group.}
+\lafunc{typedef NRMat<LA_index> INDEXMATRIX}{rows are the \code{FLATINDEX}es of all stored elements, in the order of \code{data}.}
+\lafunc{struct INDEX {int group; int index;}}{position of one index: group number and index number inside the group (both from 0); constructors \code{INDEX()} and \code{INDEX(int g, int i)}, \code{operator==}.}
+\lafunc{typedef NRVec<INDEX> INDEXLIST}{a list of indices.}
+\lafunc{struct INDEXNAME {char name[N_INDEXNAME];}}{index name, \code{N_INDEXNAME}=8; constructible from \code{const char *} (copied by \code{strncpy}), so a string literal can be passed wherever an \code{INDEXNAME} is expected; \code{operator=}, \code{==}, \code{!=} compare by \code{strncmp}. Use at most 7 characters so that the name stays NUL-terminated.}
+\end{lareference}
+\code{LA_traits} are specialized for \code{INDEXNAME}, \code{INDEXGROUP} and \code{INDEX} as plain data,
+so that vectors of them can be compared and written/read in binary form (section~\ref{sec:concepts:traits},
+\ref{sec:concepts:io}).
+
+\subsection{Reference counting and copy on demand}
+
+\code{Tensor} itself has no reference counter, but all its large members are \code{NRVec}s, so the
+scheme of section~\ref{sec:concepts:refcount} applies member by member: the copy constructor and
+\code{operator=} share \code{data}, \code{shape}, \code{names} etc.\ (shallow copy), and
+\code{copyonwrite()} detaches all of them. There is \emph{no} \code{operator|=}; a deep copy is made by
+\code{Tensor<T> b(a); b.copyonwrite();}.
+Arithmetic members delegate to \code{NRVec} methods which call \code{copyonwrite()}; contractions call
+\code{data.copyonwrite()}; results of restructuring operations are freshly allocated.
+An explicit \code{copyonwrite()} is needed before writing through \code{lhs()}, which, like a non-const
+\code{operator[]}, raises an error in DEBUG builds when the data are shared. The element reading \code{operator()} is
+\code{const} only, so reading a shared tensor is safe. \code{loopover()} and \code{grouploopover()} pass writable pointers
+to the callback and therefore detach the data first (one copy if shared, otherwise only a check); use
+\code{constloopover()}/\code{constgrouploopover()} for reading only, they never copy. \code{renameindex()},
+\code{permute_inside_group()}, \code{enforce_hermiticity()} and \code{flatten()} also detach what they modify.
+
+\section{Construction, assignment, conversion}\label{sec:tensor:construction}
+
+\begin{lareference}
+\lafunc{Tensor()}{empty tensor, \code{rank()==-1}.}
+\lafunc{explicit Tensor(const T &x)}{scalar (rank 0) with value \code{x}.}
+\lafunc{Tensor(const NRVec<INDEXGROUP> &s); Tensor(const INDEXGROUP &g)}{allocate a tensor of the given shape (data not initialized); a single group can be given directly. The shape is canonicalized (\code{canonicalize_shape()}).}
+\lafunc{Tensor(const NRVec<INDEXGROUP> &s, const NRVec<INDEXNAME> &newnames); Tensor(const INDEXGROUP &g, const NRVec<INDEXNAME> &newnames)}{the same with index names; \code{newnames} must be empty or of length \code{rank()}.}
+\lafunc{Tensor(const NRVec<INDEXGROUP> &s, const NRVec<T> &mydata); Tensor(const NRVec<INDEXGROUP> &s, const NRVec<T> &mydata, const NRVec<INDEXNAME> &newnames)}{use \code{mydata} as the data (shared, not copied); its size must match the shape.}
+\lafunc{Tensor(int xrank, const NRVec<INDEXGROUP> &xshape, const NRVec<LA_largeindex> &xgroupsizes, const NRVec<LA_largeindex> xcumsizes, const NRVec<T> &xdata); Tensor(..., const NRVec<INDEXNAME> &xnames)}{low-level constructor setting all members directly without any check.}
+\lafunc{Tensor(const Tensor &rhs); Tensor& operator=(const Tensor &rhs)}{shallow copy, see above.}
+\lafunc{void resize(const NRVec<INDEXGROUP> &s)}{set a new shape, reallocate data (not initialized) and delete the names.}
+\lafunc{void deallocate()}{release data, shape, names and auxiliary arrays.}
+\lafunc{void copyonwrite()}{detach all members (deep copy if shared).}
+\end{lareference}
+
+\subsection{Conversions}
+
+\begin{lareference}
+\lafunc{explicit Tensor(const NRVec<T> &x)}{rank-1 tensor, offset 0, data shared with \code{x}.}
+\lafunc{explicit Tensor(const NRMat<T> &x, bool flat=false)}{rank-2 tensor with a copy of the data and offset 0. A square matrix gives one non-symmetric group of 2 indices unless \code{flat} is true; otherwise two groups of one index. Because of the storage order, \code{t(i,j)==x(j,i)}: tensor index 0 is the column index.}
+\lafunc{explicit Tensor(const NRSMat<T> &x)}{one group of two indices, data shared with \code{x}; symmetric (symmetry 1) for real, hermitian (symmetry 2) for complex types, as \code{NRSMat} itself (chapter~\ref{ch:smat}); equal to \code{Tensor(NRMat<T>(x))}. If \code{NRSMat} gets the planned \code{hermitian} flag (section~\ref{sec:smat:hermitian}), this constructor has to respect it.}
+\lafunc{NRMat<T> matrix(int n=1) const}{reinterpret the data as a matrix whose column index runs over the $n$ leftmost index groups (e.g.\ an index made leftmost by \code{unwind_index()}) and whose row index runs over the remaining groups. The matrix \emph{shares} the data with the tensor. \code{Tensor<T>(x).matrix()} reproduces \code{x}.}
+\lafunc{template<fourindexsymtype S, typename T, typename I> Tensor<T> fourindex2tensor(const fourindex_dense<S,T,I> &f)}{conversion from a dense four-index object (chapter~\ref{ch:fourindex}), see the table below; indices get offset 1.}
+\lafunc{template<fourindexsymtype S, typename T, typename I> void tensor2fourindex(const Tensor<T> &t, fourindex_dense<S,T,I> &f)}{inverse conversion; shape, ranges, offsets and symmetries are checked.}
+\end{lareference}
+
+\code{fourindex2tensor}/\code{tensor2fourindex} are implemented (overloaded) for the following symmetry types.
+Since the leftmost tensor index is the least significant, \code{f(i,j,k,l)} corresponds to \code{t(k,l,i,j)}
+(for the types marked * this is equal to \code{t(i,j,k,l)} or \code{t(l,k,j,i)} by symmetry):
+\begin{center}
+\begin{tabular}{@{}p{0.5\linewidth}p{0.46\linewidth}@{}}
+\toprule
+\code{fourindexsymtype} & tensor shape\\
+\midrule
+\code{nosymmetry} & 4 groups of 1 index, range $n$\\
+\code{twoelectronrealmullikanAB}* & 2 symmetric groups of 2 indices\\
+\code{twoelectronrealmullikan}* & 2 symmetric groups of 2 indices (the pair symmetry is lost, data expanded)\\
+\code{T2IjAb_aces} & 4 groups of 1 index, ranges \code{nvra, nvrb, noca, nocb}\\
+\code{T2ijab_aces} & 2 antisymmetric groups of 2 indices, ranges \code{nvrt}, \code{nocc}\\
+\code{antisymtwoelectronrealdiracAB}* & 4 groups of 1 index (data expanded)\\
+\code{antisymtwoelectronrealdirac}* & 2 antisymmetric groups of 2 indices (data expanded)\\
+\bottomrule
+\end{tabular}
+\end{center}
+In the reverse direction the symmetric matrix of pairs is obtained by symmetrizing the tensor data.
+
+\subsection{NumPy files}
+
+\begin{lareference}
+\lafunc{void numpy_write(const char *name, const char *descr="<f8") const}{write a flat tensor (\code{is_flat()}) as a NumPy \code{.npy} file (format version 1.0, C order, the shape is written in reverse so that the NumPy array index order equals the tensor index order). \code{descr} must match \code{T} (\code{"<f8"} for \code{double}, \code{"<c16"} for complex); this is not checked.}
+\lafunc{void numpy_read(const char *name)}{read a \code{.npy} file (version 1.0, C or Fortran order) into a flat tensor with offsets 0; the type is not checked.}
+\end{lareference}
+
+\section{Element access}\label{sec:tensor:access}
+
+\begin{lareference}
+\lafunc{T operator()(LA_index i1...) const}{element by a variable list of \code{rank()} indices (of type \code{int}); returns the value including the symmetry sign/conjugation, 0 for a repeated index in an antisymmetric group.}
+\lafunc{T operator()(const FLATINDEX &I) const; T operator()(const SUPERINDEX &I) const}{the same with the indices in a vector.}
+\lafunc{Signedpointer<T> lhs(LA_index i1...); Signedpointer<T> lhs(const FLATINDEX &I); Signedpointer<T> lhs(const SUPERINDEX &I)}{element as an l-value: the returned proxy supports \code{=}, \code{+=}, \code{-=} (the value is transformed by the sign/conjugation of the permutation before being stored), \code{*=} and \code{/=} (for an element stored as a conjugate the stored value is multiplied by the conjugated factor, so that the element itself is multiplied by the factor). Writes to elements with a repeated index of an antisymmetric group are ignored (a DEBUG build prints a warning once). Call \code{copyonwrite()} first if the tensor may be shared.}
+\lafunc{LA_largeindex index(int *sign, const SUPERINDEX &I) const; LA_largeindex index(int *sign, const FLATINDEX &I) const}{position in \code{data} of the canonical element and the sign: 1, $-1$, 2 (conjugate), $-2$ (negative conjugate), or 0 and position $-1$ for an element which vanishes by antisymmetry. Index ranges are checked in DEBUG builds.}
+\lafunc{LA_largeindex vindex(int *sign, LA_index i1, va_list args) const}{the same for a \code{va_list}; ends \code{args}.}
+\lafunc{SUPERINDEX inverse_index(LA_largeindex s) const}{canonical indices of the element stored at position \code{s} (not efficient).}
+\end{lareference}
+
+\subsection{Looping over all elements}
+
+\begin{lareference}
+\lafunc{void loopover(void (*callback)(const SUPERINDEX &, T *), bool skipzeros=false)}{call \code{callback} for every stored element with its canonical indices and a pointer into \code{data}. With \code{skipzeros} the index value 0 is skipped in all indices (useful e.g.\ for indices running $\dots,-2,-1,1,2,\dots$ with a negative offset); the pointer passed to the callback always points to the element of the passed indices (with \code{skipzeros} it is computed from the indices).}
+\lafunc{void constloopover(void (*callback)(const SUPERINDEX &, const T *), bool skipzeros=false) const}{the same for reading.}
+\lafunc{void grouploopover(void (*callback)(const GROUPINDEX &, T *)); void constgrouploopover(void (*callback)(const GROUPINDEX &, const T *)) const}{loop over all stored elements with the position inside each group's compressed storage instead of the individual indices.}
+\lafunc{INDEXMATRIX indexmatrix() const}{matrix whose row $s$ is the flat index of \code{data[s]}; allows a simple \code{for} loop over all elements instead of a callback.}
+\end{lareference}
+
+\subsection{Index bookkeeping}
+
+\begin{lareference}
+\lafunc{int myflatposition(int group, int index) const; int myflatposition(const INDEX &i) const}{position of an index in the flat index list.}
+\lafunc{INDEX myindexposition(int flatindex) const}{inverse of \code{myflatposition}.}
+\lafunc{int flatposition(int group, int index, const NRVec<INDEXGROUP> &shape); int flatposition(const INDEX &i, const NRVec<INDEXGROUP> &shape); INDEX indexposition(int flatindex, const NRVec<INDEXGROUP> &shape)}{free versions for a given shape.}
+\lafunc{LA_largeindex subindex(int *sign, const INDEXGROUP &g, const NRVec<LA_index> &I)}{position of the index tuple \code{I} inside the storage of one group, with sign as for \code{index()}.}
+\lafunc{NRVec<LA_index> inverse_subindex(const INDEXGROUP &g, LA_largeindex s)}{canonical index tuple of position \code{s} in a group.}
+\lafunc{FLATINDEX superindex2flat(const SUPERINDEX &I)}{concatenate the groups of a superindex.}
+\lafunc{bool zero_in_index(const FLATINDEX &); bool zero_in_index(const SUPERINDEX &); bool zero_in_index(const INDEXMATRIX &, const LA_largeindex row)}{does any index equal 0 (for index ranges with a negative offset where 0 is excluded)?}
+\lafunc{bool shares_index(const FLATINDEX &I, const FLATINDEX &J)}{do \code{I} and \code{J} have a common index value?}
+\end{lareference}
+
+\section{Arithmetic}\label{sec:tensor:arithmetic}
+
+Binary operations require identical shapes (\code{laerror} otherwise) and, if both tensors are named,
+identical names.
+\begin{lareference}
+\lafunc{Tensor& operator*=(const T &a); Tensor operator*(const T &a) const; Tensor& operator/=(const T &a); Tensor operator/(const T &a) const}{scaling.}
+\lafunc{Tensor& operator+=(const Tensor &rhs); Tensor& operator-=(const Tensor &rhs); Tensor operator+(const Tensor &rhs) const; Tensor operator-(const Tensor &rhs) const}{elementwise sum and difference of the stored data.}
+\lafunc{Tensor& axpy(const T alpha, const Tensor &rhs)}{\code{*this += alpha*rhs}.}
+\lafunc{Tensor operator-() const}{negation; the result has no index names.}
+\lafunc{Tensor operator*(const Tensor &rhs) const}{outer product; the indices of \code{rhs} become the less significant (leftmost) ones: \code{(a*b)(J,I)=a(I)*b(J)}. Names are concatenated, so either both or none of the factors must be named.}
+\lafunc{T dot(const Tensor &rhs) const}{full contraction $\sum_I \overline{a_I} b_I$ (complex conjugation of \code{*this}); antisymmetric groups are accounted for by the factor $m!$, symmetric and (anti)hermitean groups are not supported (\code{laerror}).}
+\lafunc{typename LA_traits<T>::normtype norm() const}{Frobenius norm of the \emph{stored} data (redundant elements are not counted).}
+\lafunc{Tensor& conjugateme(); Tensor conjugate() const}{complex conjugation.}
+\lafunc{void clear()}{set all elements to zero.}
+\lafunc{void randomize(const typename LA_traits<T>::normtype &x)}{random elements, followed by \code{enforce_hermiticity()}.}
+\lafunc{void enforce_hermiticity()}{zero the imaginary (hermitean) or real (antihermitean) part of elements with repeated indices in (anti)hermitean groups.}
+\lafunc{bool fulfills_hermiticity() const}{check the above condition.}
+\end{lareference}
+
+\section{Contractions}\label{sec:tensor:contractions}
+
+Contractions are performed by unwinding the contracted indices of both tensors to the leftmost positions
+(expanding them to their full range, \code{unwind_index()}), followed by one matrix multiplication
+(\code{cblas_dgemm}/\code{cblas_zgemm}).
+The index order of the result is: the remaining indices of the second tensor (\code{rhs}, \code{rhs2}) as
+the less significant ones, followed by the remaining indices of the first one (\code{*this} or \code{rhs1});
+each remaining group keeps its symmetry (a group from which an index was contracted keeps its symmetry
+with one index less). If both tensors are named, the names of the contracted indices must agree and the
+result is named accordingly.
+
+In the \code{add...} versions the result is accumulated into \code{*this}:
+$\mathtt{*this} \leftarrow \beta\,\mathtt{*this} + \alpha\,\mathrm{contraction}$; with \code{doresize=true}
+\code{*this} is first resized to the result shape (this requires \code{beta==0}), otherwise its shape (and
+names, if named) must match. \code{conjugate1} conjugates the first tensor, \code{conjugate}/\code{conjugate2}
+the second one.
+
+\begin{lareference}
+\lafunc{void addcontraction(const Tensor &rhs1, int group, int index, const Tensor &rhs2, int rhsgroup, int rhsindex, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false)}{contract one index of \code{rhs1} with one index of \code{rhs2}.}
+\lafunc{void addcontraction(const Tensor &rhs1, const INDEX &I1, const Tensor &rhs2, const INDEX &I2, ...); void addcontraction(const Tensor &rhs1, const Tensor &rhs2, const INDEXNAME &iname, ...)}{the same with \code{INDEX} positions or with the common index name (same trailing arguments).}
+\lafunc{Tensor contraction(int group, int index, const Tensor &rhs, int rhsgroup, int rhsindex, T alpha=1, bool conjugate1=false, bool conjugate=false) const; Tensor contraction(const INDEX &I, const Tensor &rhs, const INDEX &RHSI, ...) const; Tensor contraction(const Tensor &rhs, const INDEXNAME &iname, ...) const}{return $\alpha\,$\code{*this}$\cdot$\code{rhs} contracted over one index.}
+\lafunc{void addcontractions(const Tensor &rhs1, const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate2=false); void addcontractions(const Tensor &rhs1, const Tensor &rhs2, const NRVec<INDEXNAME> &names, ...)}{contract the indices \code{il1[i]} with \code{il2[i]} simultaneously in a single matrix multiplication. Finding an optimal contraction order is the responsibility of the user (contracting one index at a time may be cheaper). For empty lists the outer product is added.}
+\lafunc{Tensor contractions(const INDEXLIST &il1, const Tensor &rhs2, const INDEXLIST &il2, T alpha=1, bool conjugate1=false, bool conjugate2=false) const; Tensor contractions(const Tensor &rhs2, const NRVec<INDEXNAME> &names, ...) const}{returning versions.}
+\lafunc{void addgroupcontraction(const Tensor &rhs1, int group, const Tensor &rhs2, int rhsgroup, T alpha=1, T beta=1, bool doresize=false, bool conjugate1=false, bool conjugate=false); Tensor groupcontraction(int group, const Tensor &rhs, int rhsgroup, T alpha=1, bool conjugate1=false, bool conjugate=false) const}{contract over all indices of a whole group without unwinding them; the groups must have equal shape and be non-symmetric or antisymmetric (for antisymmetric groups the factor $m!$ is included, so the result equals the contraction of the flattened tensors).}
+\lafunc{Tensor innercontraction(const INDEXLIST &il1, const INDEXLIST &il2) const; Tensor innercontraction(const INDEX &i1, const INDEX &i2) const; Tensor innercontraction(const NRVec<INDEXNAME> &nl1, const NRVec<INDEXNAME> &nl2) const; Tensor innercontraction(const INDEXNAME &n1, const INDEXNAME &n2) const}{trace(s) inside one tensor: indices \code{il1[i]} and \code{il2[i]} are set equal and summed over; the result is a scalar tensor if no index remains.}
+\lafunc{void add_permuted_contractions(const char *antisymmetrizer, const Tensor &rhs1, const Tensor &rhs2, T alpha=1, T beta=1, bool conjugate1=false, bool conjugate2=false)}{for uniquely named tensors: contract all indices whose names occur in both \code{rhs1} and \code{rhs2}, apply the antisymmetrizer given as a string, permute the result to the index order of \code{*this} and accumulate. The string uses the notation of Kucharski and Bartlett: space-separated factors, each a list of index names where \code{/} separates classes and \code{,} separates names within a class; e.g.\ \code{"k/l,m"} is $P(k/lm)=1-P_{kl}-P_{km}$. Indices not mentioned are not permuted; \code{""} means just contraction and reordering. See \code{general_antisymmetrizer} in chapter~\ref{ch:permutation}.}
+\end{lareference}
+
+\section{Restructuring}\label{sec:tensor:restructuring}
+
+Permutations are \code{NRPerm<int>} (chapter~\ref{ch:permutation}) and act on group numbers $1\dots n$.
+Names are permuted together with the indices unless stated otherwise.
+
+\begin{lareference}
+\lafunc{Tensor permute_index_groups(const NRPerm<int> &p) const}{reorder the data permuting whole index groups: group $i$ of the result is group $p_i$ of the source (both counted from 1).}
+\lafunc{Tensor permute_index_groups(const NRVec<INDEXNAME> &names) const}{the same with the permutation given by the requested order of the groups' first index names (for a flat tensor: of all names).}
+\lafunc{Tensor unwind_index_group(int group) const}{move a group to the leftmost (least significant) position, the others keep their order.}
+\lafunc{Tensor unwind_index(int group, int index) const; Tensor unwind_index(const INDEX &I) const; Tensor unwind_index(const INDEXNAME &N) const}{take one index out of its group and make it a separate leftmost non-symmetric group, expanded to its full range; the rest of the group keeps its symmetry. Without data reorganization if the index is already first in a non-symmetric group 0.}
+\lafunc{Tensor unwind_indices(const INDEXLIST &il) const; Tensor unwind_indices(const NRVec<INDEXNAME> &names) const}{the same for several indices, which become groups $0,1,\dots$ in the listed order.}
+\lafunc{Tensor flatten(int group= -1) const}{expand the given group (all groups for $-1$) into single non-symmetric indices, keeping the flat index order and names.}
+\lafunc{Tensor merge_indices(const INDEXLIST &il, int symmetry=0) const; Tensor merge_indices(const NRVec<INDEXNAME> &nl, int symmetry=0) const}{opposite of \code{flatten}: the listed indices (equal range and offset) form a new leftmost group of the given symmetry; for a nonzero symmetry the data are (anti)symmetrized, i.e.\ averaged over the permutations with the appropriate signs.}
+\lafunc{Tensor merge_index_groups(const NRVec<int> &groups) const}{permute the listed non-symmetric groups to the front (in the given order, the remaining groups follow in their original order) and merge them into one group; group numbers from 0, repeated numbers raise an error.}
+\lafunc{void split_index_group(int group)}{in place, formal (no data movement): split a non-symmetric group into single-index groups.}
+\lafunc{void split_index_group1(int group)}{in place, formal: split off the first index of a non-symmetric group.}
+\lafunc{void merge_adjacent_index_groups(int groupfrom, int groupto)}{in place, formal: merge consecutive non-symmetric groups of equal range and offset into one.}
+\lafunc{void permute_inside_group(int group, const NRPerm<int> &p, bool inverse=false)}{for a group with nonzero symmetry: apply the sign/conjugation of the permutation parity to the data and permute the corresponding names.}
+\lafunc{Tensor subtensor1(int i) const}{the slice for the value \code{i} of the last (most significant) index, which must form a group of its own.}
+\end{lareference}
+
+\section{Permutation algebra, decompositions and transformations}\label{sec:tensor:other}
+
+\begin{lareference}
+\lafunc{void apply_permutation_algebra(const Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0, bool conjugate_by_parity=false)}{$\mathtt{*this} \leftarrow \beta\,\mathtt{*this}$, then for all stored elements $I$ of \code{*this}: $\mathtt{this}(I) \mathrel{+}= \alpha \sum_P c_P\, \mathtt{rhs}(P(I))$, with $P$ acting on the flat index list (inverse permutations if \code{inverse}); with \code{conjugate_by_parity} odd permutations take the complex conjugate. Can represent general (anti)symmetrizers, e.g.\ \code{general_antisymmetrizer} (chapter~\ref{ch:permutation}). \code{*this} may have a symmetry which \code{rhs} lacks. The names of \code{*this} are taken from (or checked against) the names of \code{rhs} permuted by the first permutation. Element-by-element, not optimally efficient.}
+\lafunc{void apply_permutation_algebra(const NRVec<Tensor> &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0)}{the same with \code{rhs} being the outer product of the tensors in \code{rhsvec}, which is not formed explicitly (e.g.\ Grassmann products building a density matrix from cumulants); rather inefficient.}
+\lafunc{NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=false)}{HOSVD/Tucker decomposition: \code{*this} is replaced by the flat core tensor and the factor matrices (one per index, columns orthonormal) are returned; singular values below \code{thr} are dropped, which reduces the corresponding range of the core.}
+\lafunc{Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=false) const}{rebuild the tensor from the core (\code{*this}) and the matrices returned by \code{Tucker} with the same \code{inverseorder}.}
+\lafunc{Tensor linear_transform(const NRVec<NRMat<T> > &x) const}{transform every index of group $g$ by the matrix \code{x[g]} (\code{x[g].ncols()} must equal the range; the new range is \code{x[g].nrows()}), preserving the group symmetries: $t'_{\dots a \dots} = \sum_i x_{ai}\, t_{\dots i\dots}$.}
+\lafunc{Tensor linear_transform(const int g, const Tensor<T> &x) const; Tensor linear_transform(const int g, const NRMat<T> &x) const}{transform only group \code{g}, keeping its position and symmetry; \code{x} must be a flat rank-2 tensor (useful for raising/lowering indices) or a matrix.}
+\end{lareference}
+For the \code{Tensor} argument the contraction runs over its index 0, i.e.\ $t'_{\dots a\dots}=\sum_i x(i,a)\,t_{\dots i\dots}$ in tensor
+indexing, which is the same as the matrix convention above for \code{x} built by \code{Tensor<T>(matrix,true)}.
+
+\section{Names and shape queries}\label{sec:tensor:names}
+
+\begin{lareference}
+\lafunc{bool is_named() const}{are names set? (\code{laerror} if their number differs from the rank).}
+\lafunc{bool is_uniquely_named() const}{named without repetitions.}
+\lafunc{void defaultnames(const char *basename="i")}{set names \code{i000}, \code{i001}, \dots}
+\lafunc{int findflatindex(const INDEXNAME nam) const}{flat position of the named index, $-1$ if not found (\code{laerror} if unnamed).}
+\lafunc{INDEX findindex(const INDEXNAME nam) const; NRVec<INDEX> findindexlist(const NRVec<INDEXNAME> &names) const}{position(s) of named indices; \code{laerror} if not found.}
+\lafunc{void renameindex(const INDEXNAME namfrom, const INDEXNAME nameto)}{rename an index (see the copy-on-write remark above).}
+\lafunc{int rank() const; LA_largeindex size() const}{number of indices; number of stored elements.}
+\lafunc{int calcrank(); LA_largeindex calcsize()}{recompute \code{myrank}, resp.\ \code{groupsizes}, \code{cumsizes} from \code{shape} and return the rank, resp.\ size.}
+\lafunc{void canonicalize_shape()}{set symmetry 0 for single-index groups; check the symmetry codes.}
+\lafunc{bool is_flat() const; bool is_compressed() const; bool has_symmetry() const; bool has_hermiticity() const}{all groups have one index; some multi-index group has nonzero symmetry; some group has nonzero symmetry; complex \code{T} and some group is (anti)hermitean.}
+\end{lareference}
+
+\section{Input and output}\label{sec:tensor:io}
+
+\begin{lareference}
+\lafunc{void put(int fd, bool with_names=false) const; void get(int fd, bool with_names=false)}{binary I/O of shape, auxiliary arrays, data and optionally names (section~\ref{sec:concepts:io}); with \code{with_names} the names are always written (an empty list if the tensor has none), so \code{put} and \code{get} must use the same \code{with_names}.}
+\lafunc{template<typename T> std::ostream & operator<<(std::ostream &s, const Tensor<T> &x)}{text output: the shape, the names, then one line per stored element with its flat indices and value.}
+\lafunc{template<typename T> std::istream & operator>>(std::istream &s, Tensor<T> &x)}{reads the format written by \code{<<}.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const INDEXGROUP &x); std::istream & operator>>(std::istream &s, INDEXGROUP &x)}{\code{number symmetry offset range}.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const INDEXNAME &x); std::istream & operator>>(std::istream &s, INDEXNAME &x)}{the name as a word.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const INDEX &x); std::istream & operator>>(std::istream &s, INDEX &x)}{\code{group index}.}
+\end{lareference}
+
+\section{Helpers in the header}
+
+\begin{lareference}
+\lafunc{template<typename T> T signeddata(const int sgn, const T &data)}{apply a sign code ($\pm1$, $\pm2$ = with conjugation, 0 gives 0) to a value.}
+\lafunc{template<typename T> class Signedpointer}{proxy returned by \code{lhs()}, see section~\ref{sec:tensor:access}.}
+\end{lareference}
+
+\section{Examples}\label{sec:tensor:examples}
+
+An antisymmetric rank-3 tensor:
+\begin{lstlisting}
+int n=4;
+INDEXGROUP g;
+g.number=3; g.symmetry= -1; g.offset=0; g.range=n;
+Tensor<double> t(g);       // stores n(n-1)(n-2)/6 elements
+t.clear();
+t.lhs(0,1,2) = 1.;         // implies t(1,0,2)=-1 etc.
+t.lhs(2,1,3) = 5.;         // stored as t(1,2,3) = -5
+const Tensor<double> &tc=t;
+cout << tc(1,2,3) << " " << tc(3,2,1) << " " << tc(1,1,2) << endl; // -5 5 0
+Tensor<double> tf = t.flatten();   // the same tensor stored in full, n^3 elements
+\end{lstlisting}
+
+Contractions of named tensors:
+\begin{lstlisting}
+INDEXGROUP s; s.number=1; s.symmetry=0; s.offset=0; s.range=n;
+NRVec<INDEXGROUP> shape(4); for(int i=0; i<4; ++i) shape[i]=s;
+Tensor<double> x(shape), y(shape);
+x.randomize(1.); y.randomize(1.);
+INDEXNAME xn[4]={"i","j","k","l"}; x.names=xn;
+INDEXNAME yn[4]={"m","n","j","i"}; y.names=yn;
+INDEXNAME cn[2]={"i","j"};
+// z(m,n,k,l) = sum_ij x(i,j,k,l) y(m,n,j,i); remaining indices of y come first
+Tensor<double> z = x.contractions(y,NRVec<INDEXNAME>(cn));
+// result in a prescribed index order, antisymmetrized in k,l:
+// w(k,l,m,n) = z(m,n,k,l) - z(m,n,l,k)
+Tensor<double> w(shape);
+INDEXNAME wn[4]={"k","l","m","n"}; w.names=wn;
+w.add_permuted_contractions("k/l",x,y,1.,0.);
+\end{lstlisting}
+
+Tucker decomposition:
+\begin{lstlisting}
+NRVec<INDEXGROUP> sh(3);
+for(int i=0; i<3; ++i) {sh[i].number=1; sh[i].symmetry=0; sh[i].offset=0; sh[i].range=n+i;}
+Tensor<double> a(sh); a.randomize(1.);
+Tensor<double> a0(a); a0.copyonwrite();       // keep the original
+NRVec<NRMat<double> > u = a.Tucker(1e-12);    // a now holds the core tensor
+Tensor<double> b = a.inverseTucker(u);        // b == a0
+Tensor<double> c = a.linear_transform(u);     // the same
+\end{lstlisting}
+
+Conversion from a dense four-index object (chapter~\ref{ch:fourindex}):
+\begin{lstlisting}
+fourindex_dense<nosymmetry,double,int> f(n);
+f.randomize(1.);
+Tensor<double> t4 = fourindex2tensor(f);     // f(i,j,k,l) == t4(k,l,i,j), indices from 1
+fourindex_dense<nosymmetry,double,int> ff;
+tensor2fourindex(t4,ff);
+\end{lstlisting}
+
+\section{Pitfalls}\label{sec:tensor:pitfalls}
+
+\begin{itemize}
+\item The leftmost index is the fastest; a tensor built from a matrix is its transpose in index notation:
+	\code{Tensor<T>(x)(i,j)==x(j,i)}.
+\item \code{norm()}, \code{operator+=} etc.\ act on the stored data only; the norm of a compressed tensor
+	differs from the norm of its flattened form.
+\item Results of contractions have the remaining indices of the \emph{second} tensor first.
+\item \code{lhs()} writes require an unshared tensor: call \code{copyonwrite()} after copying.
+	There is no \code{operator|=}.
+\item Default-constructed \code{INDEXGROUP}s are uninitialized; set all members.
+\item Operations based on \code{loopover()} use static global variables to pass data to the callbacks;
+	they are neither reentrant nor thread safe.
+\item Index names longer than 7 characters are not NUL-terminated.
+\item An outer product of a named and an unnamed tensor raises an error (inconsistent number of names).
+\end{itemize}

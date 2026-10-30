@@ -1,0 +1,124 @@
+\chapter{Introduction}\label{ch:introduction}
+
+\section{Purpose}
+
+\LA{} is a C++ class library for numerical linear algebra and related tasks.
+Its core are the class templates
+\code{NRVec<T>} (vector), \code{NRMat<T>} (dense matrix) and \code{NRSMat<T>} (symmetric or hermitian
+matrix in packed storage), which provide a convenient and efficient interface to the BLAS and LAPACK
+libraries. Around them a number of further classes and algorithms has grown, mostly motivated by the
+needs of quantum chemistry: sparse matrices, tensors with arbitrary index symmetry, four-index quantities
+(two-electron integrals), iterative eigensolvers and linear solvers working with matrices that are never
+stored explicitly, convergence acceleration, numerical optimization, permutations and the symmetric group,
+polynomials, quaternions and others.
+
+The design follows a few principles, which are explained in detail in chapter~\ref{ch:concepts}:
+\begin{itemize}
+\item \emph{Reference counting with copy on demand.} Copying and assigning objects is cheap, data are shared
+until they are modified. Objects can therefore be passed and returned by value. The price is that writing to
+individual elements requires an explicit \code{copyonwrite()} call (section~\ref{sec:concepts:refcount}).
+\item \emph{No expression templates.} The library does not optimize matrix expressions. Operators like
+\code{A*x+y} are available for convenience, but performance critical code should call the BLAS-like member
+functions (\code{gemv}, \code{gemm}, \code{axpy}, \dots) directly, which avoid temporaries.
+\item \emph{Generic algorithms.} Iterative methods (Davidson, Lanczos, conjugate gradients, GMRES, the matrix
+exponential, \dots) are templates which only need a few operations of the matrix class (typically
+\code{nrows()}, \code{ncols()}, \code{diagonalof()} and \code{gemv()}), so that they work with user classes
+which compute the matrix--vector product on the fly (``direct'' methods).
+\item \emph{Nesting.} The element type of the containers can itself be a container, e.g.\
+\code{NRVec<NRMat<double> >}; copy on demand and I/O work recursively (section~\ref{sec:concepts:traits}).
+\end{itemize}
+
+The manual is written for users who know both C++ and linear algebra. It explains the concepts and
+gives a compact but complete reference of the public interface. Many further usage examples are in the
+test programs \header{t.cc}, \header{t2.cc} and \header{test.cc} of the distribution; the regression test of the
+optimization module is \header{testoptimize.cc}.
+
+The class names \code{NRVec}, \code{NRMat} etc.\ are historical: the classes were first used together with
+the Numerical Recipes library. They can be used with it, but are completely independent of it.
+
+\section{Overview}
+
+\begin{longtable}{@{}p{0.33\linewidth}p{0.62\linewidth}@{}}
+\toprule
+\textbf{Header} & \textbf{Content} \\
+\midrule
+\endhead
+\header{la.h} & the single include file for the user \\
+\header{vec.h} & \code{NRVec<T>}, \code{NRVec_from1<T>} (chapter~\ref{ch:vec}) \\
+\header{mat.h} & \code{NRMat<T>}, \code{NRMat_from1<T>} (chapter~\ref{ch:mat}) \\
+\header{smat.h} & \code{NRSMat<T>}, \code{NRSMat_from1<T>} (chapter~\ref{ch:smat}) \\
+\header{sparsemat.h}, \header{sparsesmat.h} & sparse matrices \code{SparseMat<T>}, \code{SparseSMat<T>} (chapter~\ref{ch:sparse}) \\
+\header{csrmat.h} & compressed row storage sparse matrix (unfinished) \\
+\header{nonclass.h}, \header{matexp.h} & linear systems, eigenvalue problems, SVD, matrix functions (chapter~\ref{ch:nonclass}) \\
+\header{davidson.h}, \header{lanczos.h}, \header{conjgrad.h}, \header{gmres.h}, \header{diis.h}, \header{bisection.h} & iterative methods, DIIS convergence acceleration (chapter~\ref{ch:iterative}) \\
+\header{optimize.h} & numerical optimization (chapter~\ref{ch:optimize}) \\
+\header{tensor.h} & tensors with index symmetries (chapter~\ref{ch:tensor}) \\
+\header{fourindex.h} & four-index quantities, two-electron integrals (chapter~\ref{ch:fourindex}) \\
+\header{permutation.h}, \header{qsort.h} & permutations, partitions, Young tableaux, sorting (chapter~\ref{ch:permutation}) \\
+\header{polynomial.h}, \header{contfrac.h} & polynomials, rationals and continued fractions (chapter~\ref{ch:polynomial}) \\
+\header{vecmat3.h} & 3D vectors and matrices (chapter~\ref{ch:vecmat3}) \\
+\header{quaternion.h} & quaternions (chapter~\ref{ch:quaternion}) \\
+\header{bitvector.h} & bit vectors, polynomials over GF(2) (chapter~\ref{ch:bitvector}) \\
+\header{numbers.h}, \header{graph.h} & number theory, graph algorithms (chapter~\ref{ch:utilities}) \\
+\header{reg.h}, \header{regsurf.h} & regression (chapter~\ref{ch:regression}) \\
+\header{auxstorage.h}, \header{la_random.h}, \header{miscfunc.h}, \header{simple.h}, \header{laerror.h} & utilities (chapter~\ref{ch:utilities}) \\
+\header{la_traits.h} & traits classes, the basis of the generic programming (section~\ref{sec:concepts:traits}) \\
+\bottomrule
+\end{longtable}
+
+Everything is declared in the namespace \code{LA}, with the exception of a few headers designed to be usable
+also without the rest of the library (\header{vecmat3.h}: namespace \code{LA_Vecmat3}, \header{quaternion.h}:
+namespace \code{LA_Quaternion}, \header{simple.h}). \header{la.h} includes all headers and contains
+\code{using namespace LA;} together with a few typedefs (\code{NRDVec}, \code{NRCVec}, \code{NRIVec},
+\code{NRDMat}, \code{NRCMat}, \code{NRIMat} for \code{double}, \code{std::complex<double>} and \code{int} elements).
+
+\section{A minimal example}
+
+\begin{lstlisting}
+#include "la.h"
+using namespace LA;
+using namespace std;
+
+int main()
+{
+const int n=4;
+NRSMat<double> h(n);
+h.randomize(1.);         //symmetric matrix with random elements
+NRSMat<double> hsave;
+hsave |= h;              //deep copy, diagonalize() destroys its argument
+NRVec<double> e(n);
+NRMat<double> v(n,n);
+diagonalize(h,e,&v);     //eigenvalues e (ascending), eigenvectors in columns of v
+NRMat<double> r = hsave*v;  //residual H V - V diag(e)
+r.copyonwrite();         //always before writing via operator() or []
+for(int i=0; i<n; ++i) for(int j=0; j<n; ++j) r(i,j) -= v(i,j)*e[j];
+cout << e << "residual norm = " << r.norm() << endl;
+}
+\end{lstlisting}
+It is compiled e.g.\ by
+\begin{lstlisting}[language=bash]
+g++ -O3 -I$PREFIX/include example.cc -L$PREFIX/lib -lla -llapack -lcblas -lblas
+\end{lstlisting}
+with the same preprocessor options and libraries the library was configured with
+(chapter~\ref{ch:building}).
+
+\section{Conventions used in this manual}
+
+\begin{itemize}
+\item \code{T} denotes the element type of a class template. Unless said otherwise, BLAS and LAPACK backed
+operations are available for \code{double} and \code{std::complex<double>}; other element types (integer
+types, nested classes) support the generic operations.
+\item Indices run from 0, unless a \code{_from1} variant of a class is used.
+\item In the reference lists, ``this'' denotes the object the member function is called for.
+Functions that modify the object call \code{copyonwrite()} themselves unless stated otherwise.
+\item Boxes marked \textbf{Caution} point to common pitfalls; yellow boxes are open questions for the
+author, collected in the list at the beginning.
+\end{itemize}
+
+\section{Authors and licence}
+
+\LA{} is copyright \copyright{} 2008-- Ji\v{r}\'{\i} Pittner. The complex versions of the basic classes were
+written by Roman Curik, the CUDA interface was contributed by Miroslav Sulc; the regression module
+has its own author (chapter~\ref{ch:regression}). The library is free software, distributed under the
+GNU General Public License, version~3 or later.
+Since 2026, the author started to employ an AI assistant for code review, documentation, and some new implementations.

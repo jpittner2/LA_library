@@ -1,0 +1,207 @@
+\chapter{Polynomials and continued fractions}\label{ch:polynomial}
+
+This chapter describes the polynomial class \code{Polynomial<T>} and the exact rational and continued-fraction arithmetics
+(\code{Rational<T>}, \code{ContFrac<T>} with Gosper's algorithms).
+
+\section{Polynomial}\label{sec:polynomial:polynomial}
+\laheader{polynomial.h, polynomial.cc}
+
+\subsection{Purpose and storage}
+\code{template <typename T> class Polynomial : public NRVec<T>} represents $p(x)=\sum_{i=0}^{d}c_ix^i$; the coefficient $c_i$ is the vector element
+\code{p[i]} (indexed from 0, i.e.\ by the power) and the vector has $d+1$ elements. The member \code{size()} is made private to prevent confusion; use
+\code{degree()}. The leading coefficient may be zero (e.g.\ after a subtraction); \code{simplify()} removes such terms. The class is explicitly
+instantiated for \code{int}, \code{unsigned int}, \code{double}, \code{std::complex<double>}; root finding and SVD-based gcd require a floating point type.
+
+All inherited \code{NRVec} functionality (norms, \code{randomize}, \code{clear}, I/O operators printing the number of coefficients followed by the
+coefficients, \ldots) is available. \code{Polynomial} follows the copy-on-demand scheme of section~\ref{sec:concepts:refcount}: its modifying members call
+\code{copyonwrite()} or \code{resize()}; writing coefficients through \code{operator[]} requires an explicit \code{copyonwrite()} as for \code{NRVec}.
+The operations are CPU only (\code{NOT_GPU}, section~\ref{sec:concepts:gpu}).
+
+\subsection{Construction}
+\begin{lareference}
+\lafunc{Polynomial()}{empty (no coefficients).}
+\lafunc{Polynomial(const int n)}{degree $n$, coefficients uninitialized. Note that \code{Polynomial<int>(3)} is \emph{not} the constant 3.}
+\lafunc{Polynomial(const T &a, const int n)}{degree $n$ with $c_0=a$ and all other coefficients zero.}
+\lafunc{template<int SIZE> Polynomial(const T (&a)[SIZE])}{from coefficients $c_0,c_1,\ldots$, e.g.\ \code{Polynomial<double> p({1,2,3})} is $1+2x+3x^2$.}
+\lafunc{Polynomial(const NRVec<T> &v)}{implicit conversion from a vector of coefficients (shares data).}
+\lafunc{void binomial(const int n)}{set to $(1+x)^n$.}
+\end{lareference}
+
+\subsection{Arithmetic}
+\begin{lareference}
+\lafunc{int degree() const}{the degree $d$ (number of coefficients minus 1).}
+\lafunc{void resize(const int n, const bool preserve=true)}{set the degree to $n$; added coefficients are zero when preserving.}
+\lafunc{Polynomial& operator+=(const T &a); Polynomial& operator-=(const T &a); Polynomial operator+(const T &a) const; Polynomial operator-(const T &a) const}{add/subtract a constant.}
+\lafunc{Polynomial operator-() const}{negation.}
+\lafunc{Polynomial operator*(const T &a) const; Polynomial operator/(const T &a) const; Polynomial& operator*=(const T &a); Polynomial& operator/=(const T &a)}{scaling.}
+\lafunc{Polynomial& operator+=(const Polynomial &rhs); Polynomial& operator-=(const Polynomial &rhs); Polynomial operator+(const Polynomial &rhs) const; Polynomial operator-(const Polynomial &rhs) const}{sum
+	and difference; the degree is the maximum of both (no simplification).}
+\lafunc{Polynomial operator*(const Polynomial &rhs) const; Polynomial& operator*=(const Polynomial &rhs)}{product, naive $O(d_1d_2)$ algorithm (no FFT).
+	It hides the inherited \code{NRVec} scalar product.}
+\lafunc{void polydiv(const Polynomial &rhs, Polynomial &q, Polynomial &r) const}{division with remainder, $p=q\cdot\mathrm{rhs}+r$, $\deg r<\deg\mathrm{rhs}$ (the remainder
+	has the degree $\deg\mathrm{rhs}-1$ formally); laerror if the leading coefficient of \code{rhs} is zero.}
+\lafunc{Polynomial operator/(const Polynomial &rhs) const}{quotient of \code{polydiv}; \texttt{operator\%} with the same signature returns the remainder.}
+\lafunc{Polynomial pow(const int i) const}{$p^i$, $i\ge0$ (repeated squaring).}
+\lafunc{Polynomial shifted(const int shift) const}{multiplication by $x^{\mathrm{shift}}$; for negative \code{shift} division by $x^{-\mathrm{shift}}$, dropping the low-order terms.}
+\lafunc{void simplify(const typename LA_traits<T>::normtype thr=0)}{remove leading coefficients with $|c_i|\le$ \code{thr} (the degree stays $\ge0$).}
+\lafunc{void normalize()}{divide by the leading coefficient (monic polynomial); laerror if it is zero.}
+\end{lareference}
+
+\paragraph{Free operators.}
+\begin{lareference}
+\lafunc{template <typename T> Polynomial<T> operator+(const T &a, const Polynomial<T> &rhs)}{$a+p$.}
+\lafunc{template <typename T> Polynomial<T> operator-(const T &a, const Polynomial<T> &rhs) = delete}{Deliberately not available (compile error); write \code{-p+a}.}
+\end{lareference}
+
+\subsection{Calculus and transformations}
+\begin{lareference}
+\lafunc{Polynomial derivative(const int d=1) const}{$d$-th derivative ($d<0$: integral); the zero polynomial of degree 0 if $d>\deg p$.}
+\lafunc{Polynomial integral(const int d=1) const}{$d$-fold integral with zero integration constants ($d<0$: derivative).}
+\lafunc{Polynomial composition(const Polynomial &rhs) const}{$p(\mathrm{rhs}(x))$, the same as \code{value(p,rhs)}.}
+\lafunc{Polynomial powx(const int i) const}{$p(x^i)$; for $i=0$ the constant $p(1)$.}
+\lafunc{Polynomial even_powers() const; Polynomial odd_powers() const}{$E$ and $O$ such that $p(x)=E(x^2)+x\,O(x^2)$.}
+\end{lareference}
+
+\subsection{Evaluation}
+\begin{lareference}
+\lafunc{template <typename T, typename C> C value(const Polynomial<T> &p, const C &x)}{Horner scheme; \code{C} may be a scalar, a square matrix
+	(\code{NRMat}, \code{NRSMat}, \ldots; constants are added to the diagonal), or another polynomial (composition). \code{C} needs a copy constructor,
+	\code{=0}, \code{+=} with \code{T} and \code{operator*}.}
+\lafunc{template <typename T, typename C> C even_value(const Polynomial<T> &p, const C &x); C odd_value(const Polynomial<T> &p, const C &x)}{sums of the even resp.\ odd
+	terms only, $E(x^2)$ and $x\,O(x^2)$; \code{C} may also be a square matrix.}
+\lafunc{template <typename T, typename C> NRVec<C> values(const Polynomial<T> &p, const NRVec<C> &x)}{\code{value} at each element of \code{x}.}
+\end{lareference}
+For polynomials of matrices with fewer matrix multiplications see \code{polynom()} in \header{matexp.h}, which accepts the coefficient
+vector, hence also a \code{Polynomial} (section~\ref{sec:nonclass:matexp}).
+
+\subsection{Roots, interpolation, gcd}
+\begin{lareference}
+\lafunc{NRMat<T> companion() const}{companion matrix ($d\times d$, ones on the superdiagonal, last row $-c_i/c_d$) whose characteristic polynomial is $p/c_d$.}
+\lafunc{NRVec<typename LA_traits<T>::complextype> roots() const}{all roots as eigenvalues of the companion matrix (\code{gdiagonalize}, chapter~\ref{ch:nonclass}); for \code{double}
+	and \code{std::complex<double>} only (laerror for integer types).}
+\lafunc{NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const}{roots with $|\mathrm{Im}|<$ \code{thr}, real parts sorted ascending (\code{T = double}).}
+\lafunc{T newton(const T x0, const typename LA_traits<T>::normtype thr=1e-14, const int maxit=1000) const}{Newton iteration from \code{x0} until $|p(x)|<$ \code{thr}; no convergence report.}
+\lafunc{template <typename T> Polynomial<T> polyfromroots(const NRVec<T> &roots, const int skip= -1)}{monic $\prod_{i\ne\mathrm{skip}}(x-r_i)$.}
+\lafunc{template <typename T> Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y)}{interpolating polynomial of degree $n-1$ through the $n$ points; laerror for repeated $x$.}
+\lafunc{template <typename T> NRMat<T> Sylvester(const Polynomial<T> &p, const Polynomial<T> &q)}{Sylvester matrix of dimension $\deg p+\deg q$ (its determinant is the resultant).}
+\lafunc{template <typename T> Polynomial<T> poly_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr=0, const int d= -1)}{Euclid's
+	algorithm with \code{simplify(thr)} of the remainders, result not normalized. It stops at a zero remainder (degree 0 with $|c_0|\le$\code{thr}); with \code{d>=0} also when the remainder degree drops below \code{d}.
+	For coprime polynomials the result is a nonzero constant; $\gcd(p,0)=p$.}
+\lafunc{template <typename T> Polynomial<T> svd_gcd(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr=0)}{numerically more robust gcd:
+	the degree $\deg p+\deg q-\mathrm{rank}\,S$ is determined from the singular values of the Sylvester matrix $S$ (threshold \code{thr} scaled by $\sqrt{\deg p\deg q}$),
+	then \code{poly_gcd} with this degree. Floating point types only.}
+\lafunc{template <typename T> Polynomial<T> poly_lcm(const Polynomial<T> &p, const Polynomial<T> &q, const typename LA_traits<T>::normtype thr=0)}{$pq/\gcd(p,q)$.}
+\end{lareference}
+
+\subsection{Orthogonal polynomials}
+\begin{lareference}
+\lafunc{template <typename T> Polynomial<T> hermite_polynomial(int n)}{Hermite polynomial $H_n$ in the physicists' normalization (leading coefficient $2^n$).}
+\end{lareference}
+No other families are implemented.
+
+\subsection{Example}
+\begin{lstlisting}
+Polynomial<double> p=polyfromroots(NRVec<double>({1.,2.,3.}));  // (x-1)(x-2)(x-3)
+Polynomial<double> q({1.,1.});                                  // 1+x
+Polynomial<double> a,b;
+p.polydiv(q,a,b);                       // p = a*q + b
+std::cout << (a*q+b-p).norm() << std::endl;
+NRVec<double> r = p.realroots(1e-10);   // 1 2 3
+Polynomial<double> pp = p.integral(2).derivative(2);  // == p
+NRMat<double> m(3,3); m.randomize(1.);
+NRMat<double> pm = value(p,m);          // p(m)
+Polynomial<double> h = hermite_polynomial<double>(4);
+std::cout << value(h,0.5) << ' ' << even_value(h,0.5) << std::endl;
+\end{lstlisting}
+
+\section{Rational numbers and continued fractions}\label{sec:polynomial:contfrac}
+\laheader{contfrac.h, contfrac.cc}
+
+The classes are instantiated for \code{T = int}, \code{long}, \code{long long}. Integer overflow is not detected.
+
+\subsection{Rational}
+\code{template <typename T> class Rational} is a small value class with the public members \code{T num, den}; it is not reference counted.
+Results of \code{+} and \code{-} of two rationals are reduced and have a positive denominator; other operations cancel common factors only partially.
+\begin{lareference}
+\lafunc{Rational(); Rational(const T p, const T q); explicit Rational(const T (&a)[2])}{uninitialized; $p/q$ (not reduced); from \code{{p,q}}.}
+\lafunc{explicit Rational(const ContFrac<T> &cf)}{value of the (full) continued fraction.}
+\lafunc{void simplify()}{make the denominator positive and divide by the gcd. All operations keep the denominator positive.}
+\lafunc{Rational operator-() const}{negation.}
+\lafunc{Rational & operator+=(const T &rhs); -=, *=, /= (const T&); Rational operator+(const T &rhs) const; -, *, /}{arithmetic with an integer.}
+\lafunc{Rational & operator*=(const Rational &rhs); /=; Rational operator+(const Rational &rhs) const; -, *, /; +=, -=}{rational arithmetic (\code{+}/\code{-} via the lcm of the denominators).}
+\lafunc{bool operator==(const Rational &rhs) const; != >= <= > <}{via the sign of the numerator of the difference.}
+\lafunc{ContFrac<T> operator+(const ContFrac<T> &rhs) const; -, *, /}{mixed arithmetic, the result is a continued fraction.}
+\lafunc{std::ostream & operator<<(std::ostream &s, const Rational<T> &x); std::istream & operator>>(...)}{format \code{p/q} (input: any single separator character).}
+\end{lareference}
+
+\subsection{ContFrac}
+\code{template <typename T> class ContFrac : public NRVec<T>} stores a finite simple continued fraction
+\[
+[a_0;a_1,\ldots,a_n]=a_0+\cfrac{1}{a_1+\cfrac{1}{\ddots+\cfrac{1}{a_n}}}
+\]
+in vector elements $0\ldots n$; \code{length()} returns $n$ (\code{size()} is private). A zero term $a_i=0$ at a position $i>0$ means $\infty$, i.e.\ the fraction
+terminates before it. The canonical form has $a_i\ge1$ for $i>0$ and $a_n>1$ for $n>0$; comparisons are guaranteed only for canonical forms. Arithmetic with
+continued fractions uses Gosper's algorithms \cite{polynomial:hakmem} (cf.\ also \url{https://perl.plover.com/classes/cftalk/TALK}), which produce the terms of the
+result while consuming the terms of the operands, without forming the rational value. \code{ContFrac} is reference counted (section~\ref{sec:concepts:refcount});
+its modifying members call \code{copyonwrite()} or \code{resize()}.
+\begin{lareference}
+\lafunc{ContFrac(); ContFrac(const int n)}{empty; length $n$ uninitialized (not the value $n$!).}
+\lafunc{template<int SIZE> ContFrac(const T (&a)[SIZE]); ContFrac(const NRVec<T> &v); explicit ContFrac(const std::list<T> &x)}{from the terms $a_0,a_1,\ldots$}
+\lafunc{ContFrac(T p, T q); explicit ContFrac(const Rational<T> &r)}{exact expansion of $p/q$ in canonical form (also for negative values: $a_0=\lfloor p/q\rfloor$).}
+\lafunc{explicit ContFrac(double x, const int n, const T thres=0)}{expansion of a real number to at most $n$ terms; stops earlier when the remainder is zero or
+	(if \code{thres!=0}) when the next term would exceed \code{thres} in absolute value. The result may be non-canonical.}
+\lafunc{int length() const; void resize(const int n, const bool preserve=true)}{$n$; set the length, new terms are 0 (= termination) when preserving.}
+\lafunc{void canonicalize()}{bring to the canonical form (absorbs a trailing 1, truncates at the first zero term, handles negative terms).
+	It works directly on the terms without forming $p/q$ (no overflow for fixed-size integer \code{T}), and therefore requires that the terms
+	$a_1,\ldots,a_n$ all have the same sign; with mixed signs the result is wrong (use \code{ContFrac(p,q)} from \code{convergent()} if the values fit into \code{T}).}
+\lafunc{void convergent(T *p, T *q, const int trunc= -1) const}{numerator and denominator of the convergent $[a_0;a_1,\ldots,a_{\mathrm{trunc}}]$ (all terms for $-1$;
+	\code{trunc} must not exceed \code{length()}).}
+\lafunc{Rational<T> rational(const int trunc= -1) const; double value(const int trunc= -1) const}{the convergent as a \code{Rational}; as \code{double}.}
+\lafunc{ContFrac reciprocal() const}{$1/x$ (removes or prepends $a_0=0$).}
+\lafunc{ContFrac operator-() const}{$-x$ in canonical form, $[-a_0-1;1,a_1-1,a_2,\ldots]$.}
+\lafunc{ContFrac & operator+=(const T &rhs); -=; ContFrac operator+(const T &rhs) const; -}{shift of $a_0$.}
+\lafunc{ContFrac operator*(const T &rhs) const; /; ContFrac operator+(const Rational<T> &rhs) const; -, *, /}{via a homographic function (\code{Homographic::value}).}
+\lafunc{ContFrac operator+(const ContFrac &rhs) const; -, *, /}{via a bihomographic function (\code{BiHomographic::value}).}
+\lafunc{T compare(const ContFrac &rhs) const}{negative, zero or positive as $x<,=,>$ \code{rhs} (canonical forms).}
+\lafunc{bool operator==(const ContFrac &rhs) const; != > < >= <=}{via \code{compare}.}
+\lafunc{iterator begin() const; iterator end() const; iterator beyondend() const}{forward iterator over the terms; \code{end()} points past $a_n$ and
+	\code{beyondend()} one further (used by Gosper's algorithm to feed the final $\infty$).}
+\end{lareference}
+Output by the inherited \code{NRVec} operator \code{<<} prints the number of terms and the terms.
+
+\subsection{Gosper's arithmetics}
+\code{template <typename T> class Homographic} holds \code{T v[2][2]} $=\{\{a,b\},\{c,d\}\}$ representing $z=(a+bx)/(c+dx)$
+(first index: numerator/denominator, second: power of $x$). \code{template <typename T> class BiHomographic} holds \code{T v[2][2][2]}
+$=\{\{\{a,b\},\{c,d\}\},\{\{e,f\},\{g,h\}\}\}$ representing
+\[
+z=\frac{a+bx+cy+dxy}{e+fx+gy+hxy}
+\]
+(indices: numerator/denominator, power of $y$, power of $x$); e.g.\ $x+y$ is \code{{{{0,1},{1,0}},{{1,0},{0,0}}}}.
+\begin{lareference}
+\lafunc{Homographic(); explicit Homographic(const T (&a)[2][2])}{uninitialized; from the coefficients.}
+\lafunc{ContFrac<T> value(const ContFrac<T> &z) const}{the continued fraction of $h(z)$.}
+\lafunc{BiHomographic(); explicit BiHomographic(const T (&a)[2][2][2])}{uninitialized; from the coefficients.}
+\lafunc{ContFrac<T> value(const ContFrac<T> &x, const ContFrac<T> &y) const}{the continued fraction of $z(x,y)$.}
+\lafunc{input(const T &x, const bool inf) const; inputx, inputy; output(const T &z) const; bool outputready(T &x, bool first) const; int inputselect() const; bool terminate() const}{the
+	elementary steps of Gosper's algorithm (consume a term or $\infty$, emit a term, test whether the next term is determined, choose the operand to read next,
+	test for the end); used by \code{value}.}
+\end{lareference}
+
+\subsection{Example}
+\begin{lstlisting}
+ContFrac<int> x(11,101), v(3,7);
+std::cout << Rational<int>(x+v) << ' ' << Rational<int>(x*v) << std::endl;   // 380/707 33/707
+BiHomographic<int> h({{{12,4},{3,1}},{{0,1},{-1,0}}});   // (x+3)(y+4)/(x-y)
+std::cout << Rational<int>(h.value(x,v)) << std::endl;      // -4867/113
+ContFrac<long long> pi(3.14159265358979,10,1000000);
+Rational<long long> r = pi.rational(3);   // 355/113
+\end{lstlisting}
+
+\subsection{Pitfalls}
+\begin{itemize}
+\item \code{Polynomial<T>(n)} and \code{ContFrac<T>(n)} with an integer argument allocate a polynomial of degree $n$ / a fraction of length $n$; they do not
+	represent the number $n$.
+\item The leading coefficient of a \code{Polynomial} can be zero after arithmetic; call \code{simplify()} before \code{polydiv}, \code{companion}, \code{normalize}.
+\item \code{Rational} and \code{ContFrac} arithmetics silently overflow for large terms; use \code{long long}.
+\item Relational operators of \code{ContFrac} are reliable only for canonical forms (e.g.\ after \code{canonicalize()} or from \code{ContFrac(p,q)}).
+\end{itemize}

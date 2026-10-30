@@ -1,0 +1,102 @@
+\chapter{Quaternions}\label{ch:quaternion}
+\laheader{quaternion.h, quaternion.cc}
+
+Quaternions; plain data, no reference counting.
+
+\section{Purpose}
+\code{Quaternion<T>} implements the quaternion algebra $\mathbb H$, $q=q_0+q_1\mathrm i+q_2\mathrm j+q_3\mathrm k$,
+and in particular unit quaternions as a parametrization of SO(3) (and SU(2)): conversions to and
+from rotation matrices, Euler angles and axis--angle, rotation of vectors, derivatives of the
+rotation matrix with respect to the quaternion components, and the functions $\exp$, $\log$, power.
+Like \header{vecmat3.h} it can be compiled without the rest of \LA{}: define \code{AVOID_LA}
+(do not include \header{la.h}, no \code{LA_traits}), and optionally \code{AVOID_STDSTREAM},
+\code{QUAT_NO_RANDOM}, \code{QUAT_NO_DOUBLE}. The class and functions are in namespace
+\code{LA_Quaternion} (\emph{not} imported globally, use \code{using namespace LA_Quaternion;}).
+The member functions and \code{exp}, \code{log}, \code{pow} are instantiated for \code{float}
+and \code{double} only; the conversion functions taking a generic matrix type \code{M} are
+templates defined in the header.
+
+\section{Storage}
+Plain data \code{T q[4]}, $q_0$ being the real (scalar) part; no reference counting.
+\code{LA_traits<Quaternion<T>>} declares it plain data. The stream operators are templates in the
+header, so that e.g.\ \code{Quaternion<NRMat<double>>} (a quadruple of matrices, used for
+rotation matrix derivatives) can be printed.
+
+\section{Reference}
+\begin{lareference}
+\lafunc{Quaternion(); Quaternion(const T (&a)[4])}{Uninitialized; from a C array (brace initialization \code{Quaternion<double> q({1,2,3,4})}).}
+\lafunc{Quaternion(const T x, const T u=0, const T v=0, const T w=0)}{$x+u\mathrm i+v\mathrm j+w\mathrm k$; with one argument a real quaternion.}
+\lafunc{Quaternion(const std::complex<T> &rhs)}{$\mathrm{Re} + \mathrm{Im}\,\mathrm i$.}
+\lafunc{explicit Quaternion(const T *x, const int shift=1)}{Sets $q_0=0$ and copies $4-\mathrm{shift}$ values to \code{q+shift}; with the default, a pure quaternion from a 3D vector (also works with a \code{Vec3} through its pointer conversion).}
+\lafunc{void identity(); void clear()}{Set to $1$ / to $0$.}
+\lafunc{T operator[](const int i) const; T &operator[](const int i); operator T*()}{Element access and pointer to data.}
+\lafunc{Quaternion &operator=(const T x)}{Real quaternion $x$.}
+\lafunc{Quaternion &operator+=(const T); Quaternion &operator-=(const T)}{Add/subtract to the real part only (non-mutating \code{+}, \code{-} versions exist).}
+\lafunc{Quaternion &operator*=(const T); Quaternion &operator/=(const T)}{Scaling (non-mutating \code{*}, \code{/} versions exist).}
+\lafunc{Quaternion operator-() const; operator+=, operator-=, operator+, operator-}{Algebra with quaternions.}
+\lafunc{Quaternion operator*(const Quaternion &rhs) const}{Hamilton product.}
+\lafunc{Quaternion times_vec3(const T *rhs) const; Quaternion vec3_times(const T *rhs) const}{Product $q\,(0,\mathbf r)$ resp.\ $(0,\mathbf r)\,q$ with a pure quaternion given as a 3-vector (saves flops).}
+\lafunc{Quaternion &conjugateme(); Quaternion conjugate() const}{$\bar q = q_0 - q_1\mathrm i - q_2\mathrm j - q_3\mathrm k$.}
+\lafunc{T dot(const Quaternion &rhs) const; T normsqr() const; T norm() const}{Euclidean scalar product in $\mathbb R^4$, $|q|^2$, $|q|$.}
+\lafunc{Quaternion &normalize(T *getnorm=NULL, bool unique_sign=false)}{Normalize to unit norm; optionally return the original norm; with \code{unique_sign} the sign is chosen so that $q_0\ge0$ (fixes the double cover).}
+\lafunc{Quaternion &fast_normalize(bool unique_sign=false)}{As \code{normalize}, using \code{fast_sqrtinv} for \code{float}.}
+\lafunc{Quaternion inverse() const; Quaternion operator/(const Quaternion &rhs) const}{$q^{-1}=\bar q/|q|^2$; $q\,\mathrm{rhs}^{-1}$.}
+\lafunc{void rotate(T *to, const T *from, Quaternion<T> *grad=NULL) const}{Rotates the 3-vector \code{from} by the \emph{normalized} \code{*this}: $(0,\mathbf{to}) = \bar q\,(0,\mathbf{from})\,q$, i.e.\ $\mathbf{to}=A\,\mathbf{from}$ with $A$ from \code{normquat2rotmat(q,A)}. If \code{grad} is given (array of 3 quaternions), \code{grad[i][k]} receives $\partial\,\mathrm{to}_i/\partial q_k$.}
+\lafunc{Quaternion rotateby(const Quaternion &rhs)}{Returns $\bar r\,q\,r$ for normalized $r$=\code{rhs}; \emph{the real part of} \code{*this} \emph{is ignored} (taken as 0), so this is meant for pure quaternions representing vectors.}
+\lafunc{Quaternion rotate_match(T *to, const T *from, const T *match) const}{Computes \code{to} as in \code{rotate} and returns the gradient of $\frac12|\mathbf{to}-\mathbf{match}|^2$ with respect to $q$ (for gradient-descent fitting of a rotation).}
+\lafunc{Quaternion commutator(const Quaternion &rhs) const; Quaternion anticommutator(const Quaternion &rhs) const}{$qr-rq$, $qr+rq$.}
+\lafunc{T geodesic_distance(const Quaternion &rhs) const}{$\arccos(2(q\cdot r)^2-1)$, the rotation angle between the two (normalized) rotations.}
+\lafunc{void normquat2euler(T *eul, const char *type) const}{Euler angles of the rotation, implemented as \code{rotmat2euler(eul, normquat2rotmat(q), type)}.}
+\lafunc{void euler2normquat(const T *eul, const char *type)}{Unit quaternion from Euler angles by explicit formulas, consistent with \code{euler2rotmat} (see the conventions below).}
+\lafunc{void normquat2eulerzyx(T *eul) const; void eulerzyx2normquat(const T *eul)}{Special pair for yaw--pitch--roll; equivalent to \code{euler2rotmat(...,"xyz",true,true,true)}; \code{eulerzyx2normquat} calls \code{euler2normquat(eul,"zyx")}.}
+\lafunc{void axis2normquat(const T *axis, const T &angle); void normquat2axis(T *axis, T &angle) const}{$q=(\cos\frac\phi2, \mathbf n\sin\frac\phi2)$ for a unit axis $\mathbf n$, and back (angle in $[0,2\pi]$; undefined for the identity).}
+\lafunc{void random_rotation()}{Uniformly distributed random unit quaternion (Marsaglia's method \cite{quaternion:marsaglia1972}).}
+\lafunc{int fprintf(FILE *f, const char *format) const; int sprintf(char *f, const char *format) const; int fscanf(FILE *f, const char *format); int sscanf(const char *f, const char *format)}{C-style I/O with four conversions.}
+\end{lareference}
+
+Free functions (namespace \code{LA_Quaternion}; \code{M} is any type with \code{a[i][j]}
+indexing: C array, \code{Mat3}, \code{NRMat}):
+\begin{lareference}
+\lafunc{std::ostream &operator<<(std::ostream &, const Quaternion<T> &); std::istream &operator>>(std::istream &, Quaternion<T> &)}{Four components separated by spaces.}
+\lafunc{void normquat2su2mat(const Quaternion<T> &q, M &a)}{SU(2) matrix $\begin{pmatrix} q_0+\mathrm i q_1 & q_2+\mathrm i q_3\\ -q_2+\mathrm i q_3 & q_0-\mathrm i q_1\end{pmatrix}$ (elements \code{std::complex<T>}); $\pm q$ give different elements.}
+\lafunc{void normquat2rotmat(const Quaternion<T> &q, M &a, bool transpose=false)}{Rotation matrix of a unit quaternion, $a_{00}=q_0^2+q_1^2-q_2^2-q_3^2$, $a_{01}=2(q_1q_2+q_0q_3)$, $a_{10}=2(q_1q_2-q_0q_3)$, \dots{} ($\pm q$ give the same matrix). \code{transpose} should give $a\Tr$ (``to match the NASA paper'').}
+\lafunc{void quat2rotmat(Quaternion<T> q, M &a, bool transpose=false, const bool already_normalized=false)}{Normalizes a copy of $q$ first unless \code{already_normalized}.}
+\lafunc{void normquat2rotmatder(const Quaternion<T> &q, Quaternion<M> &a, bool transpose=false)}{\code{a[k]} $=\partial A/\partial q_k$, $k=0..3$, for $A$ from \code{normquat2rotmat} (the 3$\times$3 matrices must be preallocated if \code{M} is \code{NRMat}; \code{M} must have \code{transposeme()} if \code{transpose} is used).}
+\lafunc{void rotmat2normquat(const M &a, Quaternion<T> &q, bool transpose=false)}{Unit quaternion from a rotation matrix (method of Sarabandi and Thomas, branch on the sign of the trace); inverse of \code{normquat2rotmat}, convention compatible with Madgwick's MEMS paper.}
+\lafunc{Quaternion<T> exp(const Quaternion<T> &x)}{$e^{x_0}(\cos|\mathbf v|, \hat{\mathbf v}\sin|\mathbf v|)$, $\mathbf v=(x_1,x_2,x_3)$.}
+\lafunc{Quaternion<T> log(const Quaternion<T> &x)}{$(\ln|x|, \hat{\mathbf v}\arccos(x_0/|x|))$ -- principal branch; $\log(\exp(x))\neq x$ in general and $\log(xy)\neq\log x+\log y$.}
+\lafunc{Quaternion<T> pow(const Quaternion<T> &x, const T &y)}{$x^y = |x|^y(\cos y\varphi, \hat{\mathbf v}\sin y\varphi)$, $\varphi=\arccos(x_0/|x|)$.
+	For real quaternions ($\mathbf v=0$) the limits are used; for a negative real $x_0$ (where $\hat{\mathbf v}$ is undefined) \code{log} and \code{pow}
+	choose the $i$ axis as for complex numbers: $\log x=(\ln|x_0|,\pi,0,0)$, $x^y=|x_0|^y(\cos\pi y,\sin\pi y,0,0)$.}
+\end{lareference}
+
+\paragraph{Conventions.} Note the passive convention: $A$=\code{normquat2rotmat(q)} satisfies
+$(0,A\mathbf v)=\bar q\,(0,\mathbf v)\,q$; it is the transpose of the ``textbook'' active matrix
+$q\,\mathbf v\,\bar q$. For all 12 Euler sequences \code{euler2normquat(e,type)} is consistent with
+\code{euler2rotmat}: \code{normquat2rotmat(q)} $=$ \code{euler2rotmat(e,type)}, and \code{normquat2euler} (defined via
+\code{rotmat2euler(normquat2rotmat(q))}) is its inverse, i.e.\ \code{euler2normquat(normquat2euler(q,type),type)} $=\pm q$
+(the same rotation). \code{normquat2eulerzyx}/\code{eulerzyx2normquat} are the yaw--pitch--roll pair for \code{"zyx"}.
+
+\section{Example}
+\begin{lstlisting}
+#include "la.h"
+using namespace LA;
+using namespace LA_Quaternion;
+
+Quaternion<double> q(1.,2.,3.,4.);
+q.normalize(NULL,true);                 //unit quaternion with q[0]>=0
+Mat3<double> a;
+normquat2rotmat(q,a);
+Vec3<double> v(1.,-2.,.5), w;
+q.rotate(w,v);                          //w == a*v
+Quaternion<double> back;
+rotmat2normquat(a,back);                //back == q
+Vec3<double> axis={0,1/sqrt(2),1/sqrt(2)};
+Quaternion<double> r;
+r.axis2normquat(axis,0.5);
+Quaternion<double> rv = Quaternion<double>(v).rotateby(r);
+\end{lstlisting}
+
+\section{Pitfalls}
+\lawarning{Most functions assume a \emph{normalized} quaternion (names \code{normquat...}) and do not check it. Use \code{quat2rotmat} or call \code{normalize()} first.}
+\lawarning{\code{Vec3::operator*(const Vec3&)} is the cross product, not the dot product; \code{Vec3*Mat3} is a row vector times a matrix.}
