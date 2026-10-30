@@ -6,7 +6,7 @@ const char LA::version[] =
 echo -n '"'
 echo -n `git describe`
 echo -n ' HEAD commit = '
-set head=`git rev-parse HEAD`
+head=`git rev-parse HEAD`
 echo -n $head
 echo -n ' dated '
 echo -n `git show -s --format=%ci $head`
