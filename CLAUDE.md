@@ -25,7 +25,7 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   `make clean; make -j 8 CBLASOPT=-DNONCBLAS CBLASLIB=`.
 - laerror() runs a shell (whoami, hostname) each time: loops raising thousands of laerrors are very slow.
 - The shell is tcsh (`^!` in double quotes is history expansion; use bash -c or python for scripts).
-- Manual: doc/manual.tex (LaTeX, 17 chapters, macros in doc/lamacros.tex: \code, \header, \lafunc in
+- Manual: doc/manual.tex (LaTeX, 19 chapters, macros in doc/lamacros.tex: \code, \header, \lafunc in
   lareference, \latodo = yellow question box, \lawarning). Build with pdflatex three times (into a scratch
   directory with -output-directory), require 0 log lines starting with "!", copy manual.pdf into doc/.
 
@@ -68,6 +68,17 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   SparseSMat::gemm computes A^T B (A^\dagger B with 'c'); otimes_sparse = M + M^\dagger incl. doubled diagonal.
 - SparseMat with the symmetric flag is complex symmetric (no conjugation); its permuteme_* members use
   0-based matrix indices, NRPerm/CyclePerm are always 1-based.
+- Permutations: applypermutation(p,v,inverse) uses the same convention as NRVec::permuted (r_{p(i)}=v_i
+  without inverse); generate_all parity_select +1 = even, -1 = odd permutations; list_all weights = parity,
+  list_all_lex weights = 1. NRPerm::testik is kept inside #if 0 as the author's reminder.
+- ContFrac::canonicalize works on the terms (no p/q, fixed-size integer T) and requires a_1..a_n of the
+  same sign (documented limitation, author's choice). Rational keeps the denominator positive.
+- bitvector: set/reset/flip/assign/setblock/block &=,|=,^= are element-level (no copyonwrite, DEBUG count
+  check); < and > compare numerically (bit i weight 2^i); <<= enlarges the vector.
+- Vec3/Mat3/Quaternion: euler2normquat is consistent with euler2rotmat for all 12 Euler types and
+  normquat2euler is its inverse; "zyx", normquat2eulerzyx, eulerzyx2normquat must stay unchanged (used by the
+  author's avionics code in arm_stm32f37). Mat3::svd(...,true) gives det U = det V = +1. randomize exists for
+  float and double. Embedded builds are float only (QUAT_NO_DOUBLE).
 - Tensor(const NRSMat&) uses symmetry 2 (hermitian) for complex, 1 for real.
 - a-X and a/X (scalar minus/divided by object) are deleted on purpose; a single integer constructor is
   forbidden for NRMat, NRMat_from1, Mat3 (Mat3(double) works).
@@ -75,6 +86,8 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
 - The NRMat offset view constructor is a feature. MATPTR is kept (rarely used). CSRMat is unfinished and
   documented as unsupported, but kept. Strassen is experimental. CUDA (CUDALA) is deferred/experimental
   until the author has NVIDIA RTX hardware (known CUDA issues collected in suspected_bugs.md F10).
+- The regression module (reg.*, regsurf.*) is experimental, not much tested in practice (remarked in the manual);
+  its NEA oscillator strength f=dE_min/dE is a placeholder for the true one.
 
 ## Planned (only when the author asks)
 - float version: float and complex<float> must ALWAYS use BLAS/LAPACK (s*/c* routines, noncblas wrappers)
@@ -94,9 +107,23 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   has a test in bugtests/<core|misc|tensor|reg|util|iterative>/<id>.cc (build.sh per directory).
 - doc_questions.md: documentation questions with the author's answers.
 - instructions, answers, answers2, answers3, optimize_discussion*.md: optimizer design discussion history.
-- Bug fixing goes file by file. Done (2026-10-27): nonclass, vec, mat, smat, sparsemat, sparsesmat,
-  tensor. Next: fourindex.h (C10, C12, F8), then permutation, polynomial/contfrac, small classes
-  (vecmat3, quaternion, bitvector), regression (D1-D16), iterative (A26-A30), misc, remaining doc questions.
+- Bug fixing goes file by file. Done (2026-10-27/28): nonclass, vec, mat, smat, sparsemat, sparsesmat,
+  tensor, fourindex, permutation, polynomial/contfrac, small classes (vecmat3, quaternion, bitvector),
+  regression D1-D16, iterative A26-A30 + A38 (2026-10-29), misc C31, C38-C42, B4 (2026-10-30): all bugs closed;
+  all doc questions answered (2026-10-30), the manual has no open question boxes.
+- configure.ac and Makefile.am were changed 2026-10-30 (--enable-fortran64int, TESTS = testoptimize, targets manual/doc,
+  doxygen, all-local builds both if pdflatex/doxygen found; MANUAL_TEX lists the .tex files - add new chapters there): run autoreconf.
+- matexp.h: exp()/sincos() default horner=false (polynom, faster for dense); use horner=true for sparse matrices.
+- AuxStorage temporaries go to $TMPDIR (else cwd) and are unlinked at once; AuxStorage and DIIS are not copyable.
+- reg.cc/regsurf.cc cache raw pointers into their NRVec/NRMat members (set in Init): never reallocate those
+  members (no |=, resize, assignment of a new object); copy in place with storesubvector(0,...).
 
 ## User's application files (do not modify, only check that library changes do not break them)
 - quantcomp.h (uses SparseSMat via gemv_n and the obsolete QCholesky), fcidumpcheck.cc.
+- arm_stm32f37/ (read-only): the author's STM32 embedded project; math/ links to vecmat3.*, quaternion.*,
+  simple.* of this library, built with arm-none-eabi-g++ and -DQUAT_NO_DOUBLE -DNO_NUMERIC_LIMITS
+  -DQUAT_NO_RANDOM -DAVOID_STDSTREAM -DAVOID_LA: changes to these files must keep compiling there.
+- gelfand/ (read-only): the author's quantum chemistry programs using the library heavily (fourindex_dense
+  T2ijab_aces etc., Tensor, SparseSMat); check there how library features are used before changing semantics.
+  Observations about gelfand (possible bugs there, effects of library fixes, how to check) are kept in
+  readme.gelfand in the repository root; add new ones there.
