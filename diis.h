@@ -55,6 +55,8 @@ public:
 	void setup(const int n, const bool core=1); //can be called repeatedly, previous storage is released
 	void reset(); //forget the stored vectors, keep the storage
 	~DIIS();
+	DIIS(const DIIS &) = delete; //owns raw storage, not copyable
+	DIIS & operator=(const DIIS &) = delete;
 	typename LA_traits<U>::normtype extrapolate(T &vec, U &errvec, bool verbose=false, const Un diiseps=0, bool errvecout=false); //vec is input/output, errvec optionally too; returns square residual norm
 	};
 
