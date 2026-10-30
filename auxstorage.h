@@ -48,6 +48,8 @@ public:
 	AuxStorage(void);
 	AuxStorage(const char *name);
 	~AuxStorage(void) {close(fd); if(deleteme) unlink(filename);};
+	AuxStorage(const AuxStorage &) = delete; //a copy would close the file twice
+	AuxStorage & operator=(const AuxStorage &) = delete;
 	void get(NRVec<T> &x, const int pos) const;
 	void put(const NRVec<T> &x, const int pos);
         void get(NRMat<T> &x, const int pos) const;
@@ -70,6 +72,7 @@ deleteme=1;
 template<typename T>
 AuxStorage<T>::AuxStorage(const char *name)
 {
+if(strlen(name)>=sizeof(filename)) laerror("file name too long in AuxStorage");
 strcpy(filename,name);
 unlink(filename);
 fd=open(filename,O_CREAT|O_LARGEFILE|O_RDWR,0777);
@@ -84,6 +87,7 @@ template<typename T>
 void AuxStorage<T>::get(NRVec<T> &x, const int pos) const
 {
 if(recl==0) laerror("get from an empty file in AuxStorage");
+if(recl!=x.size()*sizeof(T)) laerror("size mismatch in AuxStorage::get");
 if((off64_t)-1 == lseek64(fd,pos*((off64_t)recl),SEEK_SET)) {perror(""); laerror("seek failed in AuxStorage");}
 x.copyonwrite();
 if((ssize_t)recl!=read(fd,&x[0],recl)) {perror(""); laerror("read failed in AuxStorage");}
@@ -103,6 +107,7 @@ template<typename T>
 void AuxStorage<T>::get(NRMat<T> &x, const int pos) const
 {
 if(recl==0) laerror("get from an empty file in AuxStorage");
+if(recl!=(size_t)x.nrows()*x.ncols()*sizeof(T)) laerror("size mismatch in AuxStorage::get");
 if((off64_t)-1 == lseek64(fd,pos*((off64_t)recl),SEEK_SET)) {perror(""); laerror("seek failed in AuxStorage");}
 x.copyonwrite();
 if((ssize_t)recl!=read(fd,&x(0,0),recl)) {perror(""); laerror("read failed in AuxStorage");}
@@ -122,6 +127,7 @@ template<typename T>
 void AuxStorage<T>::get(NRSMat<T> &x, const int pos) const
 {
 if(recl==0) laerror("get from an empty file in AuxStorage");
+if(recl!=(size_t)x.nrows()*(x.nrows()+1)/2*sizeof(T)) laerror("size mismatch in AuxStorage::get");
 if((off64_t)-1 == lseek64(fd,pos*((off64_t)recl),SEEK_SET)) {perror(""); laerror("seek failed in AuxStorage");}
 x.copyonwrite();
 if((ssize_t)recl!=read(fd,&x(0,0),recl)) {perror(""); laerror("read failed in AuxStorage");}
