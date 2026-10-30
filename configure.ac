@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([libla],[1.4],[jiri@pittnerovi.com])
+AC_INIT([libla],[1.5],[jiri@pittnerovi.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_PROG_AR
@@ -12,6 +12,7 @@ LT_INIT
 
 # Checks for programs.
 AC_PROG_CXX
+AX_CXX_COMPILE_STDCXX([14],[ext],[mandatory])
 LT_INIT
 AC_PROG_CC
 #AC_PROG_RANLIB obsoleted by libtool
@@ -107,17 +108,20 @@ AC_SUBST([MATPTROPT])
 
 #process options
 FORINTOPT=""
-AC_ARG_ENABLE([fotran64int],[  --enable-fotran64int to link with 64-bit-integer-BLAS+LAPACK ],
-    [case "${enableval}" in
+forint64=""
+AC_ARG_ENABLE([fortran64int],[  --enable-fortran64int to link with 64-bit-integer-BLAS+LAPACK ],[forint64=${enableval}],)
+AC_ARG_ENABLE([fotran64int],[  --enable-fotran64int old misspelled alias of --enable-fortran64int ],[forint64=${enableval}],)
+if test -n "${forint64}"; then
+    case "${forint64}" in
      yes) FORINTOPT="-DLONG_FORTRAN_INT" 
 	CBLASLIB=""
 	CBLASOPT=-DNONCBLAS
 	CLAPACKOPT=-DNONCLAPACK
 	;;
      no) FORINTOPT="" ;;
-     *) FORINTOPT=${enableval}
-     esac],
- ,)
+     *) FORINTOPT=${forint64}
+     esac
+fi
 AC_SUBST([FORINTOPT])
 
 
@@ -169,6 +173,10 @@ AC_CHECK_FUNCS([getpagesize memset sqrt])
 #Doxygen support
 DX_INIT_DOXYGEN($PACKAGE_NAME, doxygen.cfg)
 
+#LaTeX manual (doc/manual.tex), built by make if pdflatex is available
+AC_CHECK_PROG([PDFLATEX],[pdflatex],[pdflatex])
+AM_CONDITIONAL([HAVE_PDFLATEX],[test -n "$PDFLATEX"])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 echo
@@ -180,8 +188,8 @@ echo "set to '-I/path' and '-L/path' for your preferred BLAS/LAPACK library vers
 echo "Either use export or specify these options on the command line ./configure .....  "
 echo "In addition, similarly you might set include and link paths for Nvidia CUBLAS.    "
 echo "Use  ./configure --disable-optimize CXXFLAGS='' LDFLAGS='' for a fast compile.    "
-echo "Use --enable-fotran64int to link with BLAS and LAPACK using 64-bit integers.      "
-echo "For documentation, 'make doxygen-doc' and see doxygen-doc/html/index.html         "
+echo "Use --enable-fortran64int to link with BLAS and LAPACK using 64-bit integers.     "
+echo "For documentation see doc/manual.pdf; 'doxygen doxygen.cfg' makes the doxygen pages"
 echo "For usage examples see file t.cc. Do not forget using copyonwrite() before        "
 echo "changing individual matrix/vector elements via l.h.s. operator()                  "
 echo "**********************************************************************************"

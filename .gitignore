@@ -67,4 +67,14 @@ npytest
 *.prompt
 testoptimize
 readme.gelfand
+doc/.build
+doxygen-doc
+test-driver
+*.pdf
+answers*
+bugtests
+doc_questions.md 
+instructions
+suspected_bugs.md
+optimize_discussion*.md
 # CVS default ignores end
