@@ -127,7 +127,7 @@ std::cout << "CUBLAS status = " << s << std::endl;
   if(errno) perror("system error");
 
 int f=open("/proc/self/cmdline",O_RDONLY);
-if(f)
+if(f>=0)
 	{
 	std::string line;
 	char z;
