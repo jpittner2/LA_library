@@ -23,6 +23,7 @@
 #include "smat.h"
 
 #include <stdlib.h>
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -62,11 +63,15 @@ template<typename T>
 AuxStorage<T>::AuxStorage(void)
 {
 //mkostemp creates and opens the file atomically (unlike mktemp+open), additional flags like O_LARGEFILE can be given
-strcpy(filename,"AUX_XXXXXX");
-fd=mkostemp(filename,O_LARGEFILE);
+//in $TMPDIR if set, otherwise in the working directory; unlinked at once, so it disappears also after a crash
+const char *dir=getenv("TMPDIR");
+std::string name= dir&&*dir ? std::string(dir)+"/AUX_XXXXXX" : std::string("AUX_XXXXXX");
+fd=mkostemp(&name[0],O_LARGEFILE);
 if(fd<0) {perror(""); laerror("mkostemp failed in AuxStorage");}
+unlink(name.c_str());
+filename[0]=0;
 recl=0;
-deleteme=1;
+deleteme=0;
 }
 
 template<typename T>
