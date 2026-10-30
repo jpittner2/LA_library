@@ -124,14 +124,17 @@ return (r*r)/2;
 }
 
 
-//central difference (f(x+h e_i) - f(x-h e_i))/(2h); xs is a working copy of x, restored on return
+//central difference (f(x+h e_i) - f(x-h e_i))/(2h); xs is a working copy of x (unshared on entry), restored on return
+//the user's funcgrad may keep a shallow copy of xs, hence copyonwrite() after each call before writing again
 template<typename T>
 static T central_difference(const OptProblem<T> *p, NRVec<T> &xs, const NRVec<T> &x, const int i, const T h)
 {
 xs[i]=x[i]+h;
 T d=p->funcgrad(xs,NULL);
+xs.copyonwrite();
 xs[i]=x[i]-h;
 d-=p->funcgrad(xs,NULL);
+xs.copyonwrite();
 xs[i]=x[i];
 return d/(2*h);
 }
@@ -163,9 +166,11 @@ for(int i=0; i<x.size(); ++i)
 		{
 		const T s=(2*mu-1)*M_PI/(2*R);
 		const T sn=std::sin(s/2);
+		xs.copyonwrite(); //funcgrad may have kept a shallow copy of xs
 		xs[i]=x[i]+s/w;
 		d+= (mu%2 ? 1 : -1)*this->p->funcgrad(xs,NULL)/(4*R*sn*sn);
 		}
+	xs.copyonwrite();
 	xs[i]=x[i];
 	(*grad)[i]=w*d;
 	}
