@@ -7,7 +7,7 @@ namespace LA {
 
 extern double randdouble();
 extern double randdoublesigned();
-extern int randint32();
+extern unsigned int randint32();
 extern uint64_t randint64();
 
 //RANDOM numbers defaulting to standard library but switchable to user's functions
