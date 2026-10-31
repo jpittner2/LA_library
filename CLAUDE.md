@@ -112,7 +112,7 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   regression D1-D16, iterative A26-A30 + A38 (2026-10-29), misc C31, C38-C42, B4 (2026-10-30): all bugs closed;
   all doc questions answered (2026-10-30), the manual has no open question boxes.
 - configure.ac and Makefile.am were changed 2026-10-30 (--enable-fortran64int, TESTS = testoptimize, targets manual/doc,
-  doxygen, all-local builds both if pdflatex/doxygen found; MANUAL_TEX lists the .tex files - add new chapters there): run autoreconf.
+  doxygen; all-local builds only the manual (if pdflatex found), doxygen only on request; MANUAL_TEX lists the .tex files - add new chapters there): run autoreconf.
 - matexp.h: exp()/sincos() default horner=false (polynom, faster for dense); use horner=true for sparse matrices.
 - AuxStorage temporaries go to $TMPDIR (else cwd) and are unlinked at once; AuxStorage and DIIS are not copyable.
 - reg.cc/regsurf.cc cache raw pointers into their NRVec/NRMat members (set in Init): never reallocate those

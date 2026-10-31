@@ -52,7 +52,7 @@ version.cc: always
 #include $(top_srcdir)/aminclude.am
 
 #documentation: make manual (alias doc) builds doc/manual.pdf, make doxygen the doxygen pages in doxygen-doc,
-#make all builds both besides the library (each only if its tool was found by configure)
+#make all builds manual besides the library (each only if its tool was found by configure)
 MANUAL_TEX = doc/biblio.tex doc/bitvector.tex doc/building.tex doc/concepts.tex doc/fourindex.tex doc/introduction.tex doc/iterative.tex doc/lamacros.tex doc/manual.tex doc/mat.tex doc/nonclass.tex doc/optimize.tex doc/permutation.tex doc/polynomial.tex doc/quaternion.tex doc/regression.tex doc/smat.tex doc/sparse.tex doc/tensor.tex doc/utilities.tex doc/vec.tex doc/vecmat3.tex \
 	doc/bib/iterative.tex doc/bib/optimize.tex doc/bib/permutation.tex doc/bib/polynomial.tex doc/bib/quaternion.tex doc/bib/utilities.tex doc/bib/vecmat3.tex
 EXTRA_DIST += doc/manual.pdf $(MANUAL_TEX)
