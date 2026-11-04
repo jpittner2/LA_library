@@ -69,8 +69,8 @@ USING:
 NOTE: 
 We named the classes NRMat, NRVec etc. since we started to use them together with the Numerical Recipes library. They can be used with Numerical Recipes in C++, however, they are completely independent of this library.
 
-This is a beta release. The library has already been in use, but not every function/method has been tested.
-There is no documentation except the source itself, since I originaly did not intend to distribute it.
+The library has already been in use, but not every function/method has been tested.
+Recently, I used AI for code review, bugfixes, and generating documentation.
 I will appreciate your bugfixes, exhancements, suggestions etc.
 
 Jiri Pittner
