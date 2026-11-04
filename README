@@ -71,6 +71,7 @@ We named the classes NRMat, NRVec etc. since we started to use them together wit
 
 The library has already been in use, but not every function/method has been tested.
 Recently, I used AI for code review, bugfixes, and generating documentation.
+The repository is from now on being mirrored at github, while the primary server remains git.pittnerovi.com.
 I will appreciate your bugfixes, exhancements, suggestions etc.
 
 Jiri Pittner
