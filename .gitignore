@@ -77,4 +77,7 @@ doc_questions.md
 instructions
 suspected_bugs.md
 optimize_discussion*.md
+claude-resume
+*.log 
+*.trs
 # CVS default ignores end
