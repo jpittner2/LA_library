@@ -1829,7 +1829,7 @@ for(int i=0; i<r; ++i)
 		umnew=u.submatrix(0,umnr-1,0,preserve-1);
 		}
 	else umnew=u;
-	ret[r-i-1]=vt.transpose(true);
+	ret[r-i-1]=vt.transpose(false);
 	umnew.diagmultr(w);
 	//rebuild tensor of the preserved shape from matrix
 	ushape.copyonwrite();
@@ -1845,7 +1845,7 @@ if(!is_flat()) laerror("this should not happen");
 if(inverseorder)
 	{
 	NRPerm<int> p(rank()); p.identity();
-	names=names_saved.permuted(p.reverse());
+	if(names_saved.size()) names=names_saved.permuted(p.reverse());
 	}
 else 
 	names=names_saved;
@@ -1889,7 +1889,7 @@ for(int i=rank()-1; i>=0; --i)
 if(inverseorder)
         {
         NRPerm<int> p(rank()); p.identity();
-        r.names=names.permuted(p.reverse());
+        if(is_named()) r.names=names.permuted(p.reverse());
         }
 else
         r.names=names;

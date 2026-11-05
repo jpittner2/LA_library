@@ -97,7 +97,7 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   dependent defaults live in LA_precision<T> (la_traits.h, only double and float; double values unchanged). optimize done
   2026-11-05: own trait opt_precision<T> in optimize.h, INSTANTIZE(float), float tests in testoptimize.cc (test_float);
   float LM on badly scaled problems needs my_scaling=true. reg/regsurf, csrmat, strassen, CUDA stay double-only.
-  Open: Tensor Tucker bugs (complex roundtrip, inverseorder=true abort, also double; bugtests/tensor_tucker_bug.cc).
+  Tensor Tucker bugs fixed 2026-11-06 (complex: factor = vt.transpose(false); unnamed tensors with inverseorder; bugtests/tensor/tucker.cc).
   BLAS-based NRVec members are meant for floating types only, not integers.
 - NRSMat: possible bool member `hermitian` toggling hermitian vs complex symmetric behaviour
   (Tensor(const NRSMat&) must then respect it).
