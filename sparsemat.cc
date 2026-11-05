@@ -334,7 +334,7 @@ return nonzero; //number of (in principle) nonzero elements
 
 
 template <class T>
-void SparseMat<T>::simplify(const double sparseepsilon)
+void SparseMat<T>::simplify(const typename LA_traits<T>::normtype sparseepsilon)
 {
 unsigned int n;
 if(!list) return;
@@ -431,7 +431,7 @@ void SparseMat<T>::addsafe(const SPMatindex n, const SPMatindex m, const T elem)
 #ifdef debug
 if(n<0||n>=nn||m<0||m>=mm) laerror("SparseMat out of range");
 #endif
-if(std::abs(elem)<=SPARSEEPSILON) return;
+if(std::abs(elem)<=LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) return;
 if(!count) {count=new int;  *count=1; list=NULL;} //blank new matrix
 else copyonwrite(); //makes also unsort
 add(n,m,elem);
@@ -482,7 +482,7 @@ register matel<T> *l=rhs.list;
 while(l)
 	{
 	if(rhs.symmetric || lower && l->row <=l->col || !lower && l->row >=l->col)
-	    if(std::abs(l->elem)>SPARSEEPSILON) 
+	    if(std::abs(l->elem)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 		add( l->row,l->col,sign=='+'?l->elem:- l->elem);
 	l=l->next;
 	}
@@ -501,14 +501,14 @@ register matel<T> *l=rhs.list;
 if(symmetrize)
 while(l)
         {
-        if(std::abs(l->elem)>SPARSEEPSILON) 
+        if(std::abs(l->elem)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 		{add( l->row,l->col,l->elem); if( l->row!=l->col) add( l->col,l->row,l->elem);}
         l=l->next;
         }
 else
 while(l)
 	{
-	if(std::abs(l->elem)>SPARSEEPSILON) 
+	if(std::abs(l->elem)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 		add( l->row,l->col,l->elem);
 	l=l->next;
 	}
@@ -528,14 +528,14 @@ register matel<T> *l=rhs.list;
 if(symmetrize)
 while(l)
         {
-        if(std::abs(l->elem)>SPARSEEPSILON) 
+        if(std::abs(l->elem)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 		{add( l->row,l->col,- l->elem); if( l->row!=l->col) add( l->col,l->row,- l->elem);}
         l=l->next;
         }
 else
 while(l)
         {
-        if(std::abs(l->elem)>SPARSEEPSILON) 
+        if(std::abs(l->elem)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 		add( l->row,l->col,- l->elem);
         l=l->next;
         }
@@ -559,7 +559,7 @@ SPMatindex i,j;
 for(i=0;i<nn;++i)
 	for(j=0; j<mm;++j)
 		{register T t(rhs(i,j));
-		if( std::abs(t)>SPARSEEPSILON)
+		if( std::abs(t)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon())
 		 add(i,j,t);
 		}
 }
@@ -598,12 +598,12 @@ if(nn==mm) //square
 else //diagonal of A^TA, assuming it has been simplified (only one entry per position), will be used as preconditioner only anyway
 	while(l)
 		{
-		(*rr)[l->col] += l->elem*l->elem *(l->col!=l->row && symmetric?2.:1.);
+		(*rr)[l->col] += l->elem*l->elem *(T)(l->col!=l->row && symmetric?2:1);
 		l= l->next;
 		}
 if(divide)
 	{
-	for(unsigned int i=0; i<mm; ++i) if((*rr)[i]!=0.) r[i]/=(*rr)[i];
+	for(unsigned int i=0; i<mm; ++i) if((*rr)[i]!=(T)0) r[i]/=(*rr)[i];
 	delete rr;
 	}
 return divide?NULL:&r[0];
@@ -693,7 +693,7 @@ SparseMat<T> & SparseMat<T>::operator=(const T &a)
 if(!count ||nn<=0||mm<=0) laerror("assignment of scalar to undefined sparse matrix");
 if(nn!=mm) laerror("assignment of scalar to non-square sparse matrix");
 resize(nn,mm);//clear 
-if(std::abs(a)<=SPARSEEPSILON) return *this;
+if(std::abs(a)<=LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) return *this;
 SPMatindex i;
 for(i=0;i<nn;++i) add(i,i,a);
 return *this;
@@ -741,7 +741,7 @@ for(i=0;i<nn;++i)
         for(j=0; j<=i;++j)
 		{register T t;
                 if(
-			std::abs(t=rhs(i,j))>SPARSEEPSILON
+			std::abs(t=rhs(i,j))>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()
 			) add(i,j,t);
 		}
 }
@@ -774,7 +774,7 @@ matel<T> *l=list;
 while(l) //include the mirror picture of elements into the list
 	{
 	if(
-		std::abs(l->elem)>SPARSEEPSILON && 
+		std::abs(l->elem)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon() && 
 	   l->row!=l->col) add(l->col,l->row,l->elem); //not OK for complex-hermitean
 	l=l->next;
 	}
@@ -813,7 +813,27 @@ return r;
 }
 
 template<>
+const float SparseMat<float>::dot(const NRMat<float> &rhs) const
+{
+float r=0;
+matel<float> *l=list;
+while(l)
+	{
+	r+= l->elem*rhs[l->row][l->col];
+	if(symmetric&&l->row!=l->col) r+=l->elem*rhs[l->col][l->row];
+	l=l->next;
+	}
+return r;
+}
+
+template<>
 void NRMat<std::complex<double> >::gemm(const std::complex<double>  &beta, const SparseMat<std::complex<double> > &a, const char transa, const NRMat<std::complex<double> > &b, const char transb, const std::complex<double>  &alpha)
+{
+laerror("not implemented yet");
+}
+
+template<>
+void NRMat<std::complex<float> >::gemm(const std::complex<float>  &beta, const SparseMat<std::complex<float> > &a, const char transa, const NRMat<std::complex<float> > &b, const char transb, const std::complex<float>  &alpha)
 {
 laerror("not implemented yet");
 }
@@ -861,6 +881,54 @@ else
 	while(l)
 	        {
 		cblas_daxpy(len, alpha*l->elem , bp+l->col*bstep, ldb, p+l->row*mm, 1);
+	        l=l->next;
+	        }
+	}
+
+}
+
+template<>
+void NRMat<float>::gemm(const float &beta, const SparseMat<float> &a, const char transa, const NRMat<float> &b, const char transb, const float &alpha)
+{
+bool transpa = tolower(transa)!='n'; //not OK for complex
+bool transpb = tolower(transb)!='n'; //not OK for complex
+if(nn!=(int)(transpa?a.ncols():a.nrows()) | mm!= (transpb?b.nrows():b.ncols()) || (int)(transpa?a.nrows():a.ncols()) != (transpb?b.ncols():b.nrows())) laerror("incompatible sizes in gemm");
+copyonwrite();
+if(beta!=(float)0) (*this) *= beta; 
+else memset(v,0,nn*mm*sizeof(float));
+
+matel<float> *l=a.getlist();
+if(alpha==(float)0 || !l) return;
+
+//raw pointers to the full matrices
+const float *bp= b;
+float *p= *this;
+
+int ldb=(transpb?b.ncols():1);
+int bstep=(transpb?1:b.ncols());
+int len=(transpb?b.nrows():b.ncols());
+
+if(a.issymmetric())
+	{
+	while(l)
+	        {
+		cblas_saxpy(len, alpha*l->elem , bp+l->row*bstep, ldb, p+l->col*mm, 1);
+	        if(l->row!=l->col) cblas_saxpy(len, alpha*l->elem , bp+l->col*bstep, ldb, p+l->row*mm, 1);
+	        l=l->next;
+	        }
+	}
+else
+	{
+	if(transpa)
+	while(l)
+	        {
+		cblas_saxpy(len, alpha*l->elem , bp+l->row*bstep, ldb, p+l->col*mm, 1);
+	        l=l->next;
+	        }
+	else
+	while(l)
+	        {
+		cblas_saxpy(len, alpha*l->elem , bp+l->col*bstep, ldb, p+l->row*mm, 1);
 	        l=l->next;
 	        }
 	}
@@ -1036,7 +1104,7 @@ if(transp)
 while(l)
         {
 	register T t=alpha*l->elem;
-	if(std::abs(t)>SPARSEEPSILON) 
+	if(std::abs(t)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 				add( l->col,l->row,t);
         l=l->next;
         }
@@ -1044,7 +1112,7 @@ else
 while(l)
 	{
 	register T t=alpha*l->elem;
-	if(std::abs(t)>SPARSEEPSILON) 
+	if(std::abs(t)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 				add( l->row,l->col,t);
 	l=l->next;
 	}
@@ -1329,7 +1397,7 @@ incsize(rhs.nrows(), rhs.ncols());
 T tmp;
 for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
 	for(SPMatindex j=0; j<(SPMatindex)rhs.ncols(); ++j)
-		if(std::abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
+		if(std::abs(tmp=rhs(i,j))>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) add(n0+i,m0+j,tmp);
 return *this;
 }
 
@@ -1345,7 +1413,7 @@ T tmp;
 incsize(rhs.nrows(), rhs.ncols());
 for(SPMatindex i=0; i<(SPMatindex)rhs.nrows(); ++i)
         for(SPMatindex j=0; j<=i; ++j) //symmetric storage: one triangle only
-                if(std::abs(tmp=rhs(i,j))>SPARSEEPSILON) add(n0+i,m0+j,tmp);
+                if(std::abs(tmp=rhs(i,j))>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) add(n0+i,m0+j,tmp);
 return *this;
 }
 
@@ -1364,7 +1432,7 @@ incsize(rhs.nrows(), rhs.ncols());
 register matel<T> *l=rhs.list;
 while(l)
 	{
-	if(std::abs(l->elem)>SPARSEEPSILON) 
+	if(std::abs(l->elem)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 		add(n0+l->row,m0+l->col,l->elem);
 	l=l->next;
 	}
@@ -1429,8 +1497,12 @@ INSTANTIZE(std::complex<double>) //some functions are not OK for hermitean matri
 //// forced instantization in the corresponding object file
 template class SparseMat<double>;
 template class SparseMat<std::complex<double> >;
+template class SparseMat<float>;
+template class SparseMat<std::complex<float> >;
 template class SemiSparseMat<double>;
 template class SemiSparseMat<std::complex<double> >;
+template class SemiSparseMat<float>;
+template class SemiSparseMat<std::complex<float> >;
 
 
 #define INSTANTIZE(T) \
@@ -1443,10 +1515,8 @@ template void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char tra
 
 INSTANTIZE(double)
 INSTANTIZE(std::complex<double>)
-
-//needed by the instantiation of NRVec<float> and NRVec<std::complex<float> >
-template void NRVec<float>::gemv(const float beta, const SparseMat<float> &a, const char trans, const float alpha, const NRVec<float> &x, const bool treat_as_symmetric);
-template void NRVec<std::complex<float> >::gemv(const std::complex<float> beta, const SparseMat<std::complex<float> > &a, const char trans, const std::complex<float> alpha, const NRVec<std::complex<float> > &x, const bool treat_as_symmetric);
+INSTANTIZE(float)
+INSTANTIZE(std::complex<float>)
 
 
 }//namespace

@@ -2692,10 +2692,34 @@ return result;
 }
 
 template<>
+const SparseMat<float> realpart<SparseMat< std::complex<float> > >(const SparseMat< std::complex<float> > &a)
+{
+SparseMat<float> result(a.nrows(), a.ncols());
+for(SparseMat< std::complex<float> >::iterator p=a.begin(); p!=a.end(); ++p)
+	{
+	result.add(p->row,p->col,p->elem.real());
+	}
+if(a.issymmetric()) result.setsymmetric();
+return result;
+}
+
+template<>
 const SparseMat<double> imagpart<SparseMat< std::complex<double> > >(const SparseMat< std::complex<double> > &a)
 {
 SparseMat<double> result(a.nrows(), a.ncols());
 for(SparseMat< std::complex<double> >::iterator p=a.begin(); p!=a.end(); ++p)
+	{
+	result.add(p->row,p->col,p->elem.imag());
+	}
+if(a.issymmetric()) result.setsymmetric();
+return result;
+}
+
+template<>
+const SparseMat<float> imagpart<SparseMat< std::complex<float> > >(const SparseMat< std::complex<float> > &a)
+{
+SparseMat<float> result(a.nrows(), a.ncols());
+for(SparseMat< std::complex<float> >::iterator p=a.begin(); p!=a.end(); ++p)
 	{
 	result.add(p->row,p->col,p->elem.imag());
 	}
@@ -3045,11 +3069,46 @@ const SparseSMat< std::complex<double> > complexmatrix<SparseSMat<double> >(cons
 }
 
 template<>
+const SparseSMat< std::complex<float> > complexmatrix<SparseSMat<float> >(const SparseSMat<float> &re, const SparseSMat<float> &im) {
+  if(re.nrows()!=im.nrows() || re.ncols() != im.ncols()) laerror("incompatible sizes of real and imaginary parts");
+  SparseSMat< std::complex<float> > result(re.nrows(),re.ncols());
+  std::complex<float> tmp;
+
+  SparseSMat<float>::iterator pre(re);
+  for(; pre.notend(); ++pre) {
+    tmp = pre->elem;
+    result.add(pre->row,pre->col,tmp,false);
+  }
+
+  SparseSMat<float>::iterator pim(im);
+  for(; pim.notend(); ++pim) {
+    tmp = std::complex<float>(0,1)*(pim->elem);
+    result.add(pim->row,pim->col,tmp,false);
+  }
+
+  return result;
+}
+
+template<>
 const SparseSMat< std::complex<double> > realmatrix<SparseSMat<double> >(const SparseSMat<double> &re) {
   SparseSMat< std::complex<double> > result(re.nrows(),re.ncols());
   std::complex<double> tmp;
 
   SparseSMat<double>::iterator pre(re);
+  for(; pre.notend(); ++pre) {
+    tmp = pre->elem;
+    result.add(pre->row,pre->col,tmp,false);
+  }
+
+  return result;
+}
+
+template<>
+const SparseSMat< std::complex<float> > realmatrix<SparseSMat<float> >(const SparseSMat<float> &re) {
+  SparseSMat< std::complex<float> > result(re.nrows(),re.ncols());
+  std::complex<float> tmp;
+
+  SparseSMat<float>::iterator pre(re);
   for(; pre.notend(); ++pre) {
     tmp = pre->elem;
     result.add(pre->row,pre->col,tmp,false);
@@ -3067,6 +3126,21 @@ const SparseSMat< std::complex<double> > imagmatrix<SparseSMat<double> >(const S
   SparseSMat<double>::iterator pim(im);
   for(; pim.notend(); ++pim) {
     tmp = std::complex<double>(0,1)*(pim->elem);
+    result.add(pim->row,pim->col,tmp,false);
+  }
+
+  return result;
+}
+
+template<>
+const SparseSMat< std::complex<float> > imagmatrix<SparseSMat<float> >(const SparseSMat<float> &im) {
+  SparseSMat< std::complex<float> > result(im.nrows(),im.ncols());
+  std::complex<float> tmp;
+
+
+  SparseSMat<float>::iterator pim(im);
+  for(; pim.notend(); ++pim) {
+    tmp = std::complex<float>(0,1)*(pim->elem);
     result.add(pim->row,pim->col,tmp,false);
   }
 

@@ -468,6 +468,8 @@ template<> struct LA_precision<double>
 	static double eigensolver_eps() {return 1e-6;} //default convergence threshold of davidson and lanczos
 	static double newton_threshold() {return 1e-14;} //convergence of Polynomial::newton
 	static double det_tiny() {return 1e-300;} //determinant underflow guard in linear_solve
+	static double sparse_epsilon() {return 1e-15;} //elements treated as zero in the sparse matrices (SPARSEEPSILON)
+	static double cholesky_epsilon() {return 1e-16;} //pivot threshold of the sparse Cholesky (CHOLESKYEPSILON)
 	};
 template<> struct LA_precision<float>
 	{
@@ -478,6 +480,8 @@ template<> struct LA_precision<float>
 	static float eigensolver_eps() {return 1e-4f;}
 	static float newton_threshold() {return 1e-6f;}
 	static float det_tiny() {return 1e-37f;}
+	static float sparse_epsilon() {return 1e-7f;}
+	static float cholesky_epsilon() {return 1e-8f;}
 	};
 
 }//namespace

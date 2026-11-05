@@ -239,7 +239,7 @@ for(SPMatindex i=0; i<nn; ++i)
 		}
 if(divide)
 	{
-	for(unsigned int i=0; i<nn; ++i) if((*rr)[i]!=0.) r[i]/=(*rr)[i];
+	for(unsigned int i=0; i<nn; ++i) if((*rr)[i]!=(T)0) r[i]/=(*rr)[i];
 	delete rr;
 	}
 return divide?NULL:&r[0];
@@ -352,12 +352,18 @@ INSTANTIZE(complex<double>)
 //// forced instantization of functions in the header in the corresponding object file
 template class SparseSMat<double>;
 template class SparseSMat<std::complex<double> >;
+template class SparseSMat<float>;
+template class SparseSMat<std::complex<float> >;
 template SparseSMat<double> NRMat<double>::operator*(const SparseSMat<double> &rhs) const;
+template SparseSMat<float> NRMat<float>::operator*(const SparseSMat<float> &rhs) const;
 template SparseSMat<std::complex<double> > NRMat<std::complex<double> >::operator*(const SparseSMat<std::complex<double> > &rhs) const;
+template SparseSMat<std::complex<float> > NRMat<std::complex<float> >::operator*(const SparseSMat<std::complex<float> > &rhs) const;
 
 /*activate this if needed
 template void SparseSMat<NRMat<double> >::put(int fd, bool dimen, bool transp, bool orcaformat) const;
+template void SparseSMat<NRMat<float> >::put(int fd, bool dimen, bool transp, bool orcaformat) const;
 template void SparseSMat<NRMat<double> >::get(int fd, bool dimen, bool transp, bool orcaformat);
+template void SparseSMat<NRMat<float> >::get(int fd, bool dimen, bool transp, bool orcaformat);
 */
 
 

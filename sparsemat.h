@@ -141,7 +141,7 @@ public:
 	unsigned int length() const;
 	void copyonwrite(bool detachonly=false, bool deep=true);
 	void clear() {bool sym=symmetric; resize(nn,mm); symmetric=sym;} //zero matrix of the same dimensions and symmetry
-	void simplify(const double sparseepsilon=SPARSEEPSILON);
+	void simplify(const typename LA_traits<T>::normtype sparseepsilon=LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon());
 	const T trace() const;
 	const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const; //is const only mathematically, not in internal implementation - we have to simplify first
 	unsigned int sort(int type) const;

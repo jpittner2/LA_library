@@ -200,7 +200,7 @@ count(new int(1))
 v= new std::map<SPMatindex,T> * [nn];
 memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
 int i,j;
-for(i=0; i<nn; ++i) for(j=0; j<=i; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),true);
+for(i=0; i<nn; ++i) for(j=0; j<=i; ++j) if(std::abs(rhs(i,j))>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) (*this).add(i,j,rhs(i,j),true);
 }
 
 //from SparseMat: duplicates summed; a symmetric SparseMat (one triangle stored, complex symmetric) is unfolded without conjugation
@@ -227,7 +227,7 @@ count(new int(1))
 v= new std::map<SPMatindex,T> * [nn];
 memset(v,0,nn*sizeof(std::map<SPMatindex,T> *));
 int i,j;
-for(i=0; i<nn; ++i) for(j=0; j<mm; ++j) if(std::abs(rhs(i,j))>SPARSEEPSILON) (*this).add(i,j,rhs(i,j),false);
+for(i=0; i<nn; ++i) for(j=0; j<mm; ++j) if(std::abs(rhs(i,j))>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) (*this).add(i,j,rhs(i,j),false);
 }
 
 
@@ -437,7 +437,7 @@ for(SPMatindex i=0; i<nn; ++i) if(v[i])
 	std::list<SPMatindex> l;
 	typename std::map<SPMatindex,T>::iterator p;
 	for(p=v[i]->begin(); p!=v[i]->end(); ++p) 
-	if(std::abs(p->second) < SPARSEEPSILON) l.push_front(p->first); else ++count;
+	if(std::abs(p->second) < LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) l.push_front(p->first); else ++count;
 	typename std::list<SPMatindex>::iterator q;	
 	for(q=l.begin(); q!=l.end(); ++q) v[i]->erase(*q);	
 	if(v[i]->size() == 0) {delete v[i]; v[i]=NULL;}
@@ -548,7 +548,7 @@ for(SPMatindex i=0; i<nn; ++i)
 //std::cout <<"Permuted upper triangle matrix\n"<<r;
 //SparseSMat<T> r0(r);r.copyonwrite();
 
-//perform complex, positive semidefinite Cholesky with thresholding by SPARSEEPSILON
+//perform complex, positive semidefinite Cholesky with thresholding by LA_precision<>::sparse_epsilon()
 SPMatindex i,j,k;
 int rank=0;
 for(k=0; k<nn; ++k)
@@ -557,7 +557,7 @@ for(k=0; k<nn; ++k)
 	typename std::map<SPMatindex,T>::iterator p;
 	p= r.v[k]->find(k);
 	if(p==r.v[k]->end()) continue; //must not break due to the a priori  pivoting
-	if(LA_traits<T>::realpart(p->second) < CHOLESKYEPSILON) continue; //must not break due to the a priori  pivoting
+	if(LA_traits<T>::realpart(p->second) < LA_precision<typename LA_traits<T>::normtype>::cholesky_epsilon()) continue; //must not break due to the a priori  pivoting
 	++rank;
 	typename LA_traits<T>::normtype tmp = std::sqrt(LA_traits<T>::realpart(p->second));
 	p->second = tmp;
@@ -572,7 +572,7 @@ for(k=0; k<nn; ++k)
 		{
 		T akj = LA_traits<T>::conjugate(linek[j]);
 		NRVec<int> linek_used(0,nn);
-		if(std::abs(akj)>SPARSEEPSILON) 
+		if(std::abs(akj)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) 
 			{
 			for(p=r.v[j]->begin(); p!=r.v[j]->end(); ++p)
 				{
@@ -581,7 +581,7 @@ for(k=0; k<nn; ++k)
 				}	
 			//subtract also elements nonzero in line k but non-existent in line j
 			for(i=j; i<nn; ++i) 
-			    if(!linek_used[i] && std::abs(linek[i]) > SPARSEEPSILON)
+			    if(!linek_used[i] && std::abs(linek[i]) > LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon())
 				{
 				(*r.v[j])[i] = -akj * linek[i];
 				}
@@ -611,7 +611,7 @@ for(k=0; k<nn; ++k)
 	typename std::map<SPMatindex,T> *vnew = new typename std::map<SPMatindex,T>;
 	for(p=r.v[k]->begin(); p!=r.v[k]->end(); ++p)
 		{
-        	if(std::abs(p->second) > SPARSEEPSILON) (*vnew)[pivot[p->first]] = p->second;
+        	if(std::abs(p->second) > LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) (*vnew)[pivot[p->first]] = p->second;
 		}
 	delete r.v[k];
 	r.v[k]=vnew;
@@ -636,7 +636,7 @@ for(SPMatindex i=0; i<lhs.size(); ++i)
 		{
 		T x=lhs[i]*(conjugate?LA_traits<T>::conjugate(rhs[j]):rhs[j])*scale;
 		if(i==j) x+=LA_traits<T>::conjugate(x); //diagonal of M + M^\dagger, add() mirrors only off-diagonal elements
-		if(std::abs(x)>SPARSEEPSILON) r.add(i,j,x);
+		if(std::abs(x)>LA_precision<typename LA_traits<T>::normtype>::sparse_epsilon()) r.add(i,j,x);
 		}
 	}
 return r;
