@@ -80,6 +80,7 @@ public:
 	inline int getcount() const {return count?*count:0;}
 	explicit SparseMat(const NRMat<T> &rhs); //construct from a dense one
 	explicit SparseMat(const NRSMat<T> &rhs); //construct from a dense symmetric one
+	explicit SparseMat(const CSRMat<T> &rhs); //full storage, not symmetric
 	SparseMat & operator=(const SparseMat &rhs);
 	SparseMat & operator=(const T &a);          //assign a to diagonal
 	void identity() {*this = (T)1;};

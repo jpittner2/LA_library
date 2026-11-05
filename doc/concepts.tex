@@ -8,7 +8,7 @@ it and describe only what is specific to the class.
 \subsection{Shared data}
 
 An object of \code{NRVec}, \code{NRMat}, \code{NRSMat} and of all other classes holding large data
-(\code{SparseMat}, \code{SparseSMat}, \code{Tensor}, \code{fourindex}, \code{Polynomial}, the permutation
+(\code{SparseMat}, \code{SparseSMat}, \code{CSRMat}, \code{Tensor}, \code{fourindex}, \code{Polynomial}, the permutation
 classes, \code{bitvector}, \dots) consists of a small header (dimensions, a pointer to the data and a pointer
 to a reference counter) and the data block. The copy constructor and the assignment operator between objects
 of the same type copy only the header and increment the reference counter, so that both objects share the
@@ -181,7 +181,7 @@ member & double & float & used by \\
 The class templates are explicitly instantiated in the library for \code{double}, \code{std::complex<double>}
 and the integer types \code{char}, \code{short}, \code{int}, \code{long}, \code{long long} and their unsigned
 variants; \code{NRVec}, \code{NRMat}, \code{NRSMat}, \code{SparseMat}, \code{SparseSMat}, \code{Tensor}, \code{fourindex} (with \code{unsigned char} indices) and \code{Polynomial} also for \code{float} and
-\code{std::complex<float>} (single precision support, 2026, in progress for the other classes). The BLAS and LAPACK backed
+\code{std::complex<float>} (single precision support, 2026, in progress for the other classes); \code{CSRMat} only for the four floating point types. The BLAS and LAPACK backed
 functions are implemented for \code{double} and \code{std::complex<double>} (some also for mixed real--complex arguments)
 and for their single precision counterparts, which always use the single precision BLAS/LAPACK routines (\code{s}/\code{c}); calling them for other types results in a run-time
 \code{laerror} (``not implemented for this type'') or a link error. Functions implemented in the headers work

@@ -107,7 +107,7 @@ are CPU only (\code{NOT_GPU}).
 \lafunc{NRSMat(const typename LA_traits_complex<T>::NRSMat_Noncomplex_type &rhs, bool imagpart = false)}{Complex matrix from a real one: \code{rhs} becomes the real part (\code{imagpart=false}) or the imaginary part (\code{imagpart=true}), the other part is zero. Defined only for \code{T=std::complex<double>} and \code{std::complex<float>}.}
 \lafunc{explicit NRSMat(const NRMat<T> &rhs)}{Symmetric part $(A+A\Tr)/2$ of a square dense matrix (deep copy; nonsquare input is checked only in DEBUG).}
 \lafunc{explicit NRSMat(const NRVec<T> &rhs, const int n)}{Interprets a vector of length $n(n+1)/2$ as packed matrix of order $n$. \emph{Shares} the data with \code{rhs} (no copy); length checked only in DEBUG.}
-\lafunc{explicit NRSMat(const SparseMat<T> &rhs); explicit NRSMat(const SparseSMat<T> &rhs)}{Dense from sparse, see \ref{ch:sparse}.}
+\lafunc{explicit NRSMat(const SparseMat<T> &rhs); explicit NRSMat(const SparseSMat<T> &rhs); explicit NRSMat(const CSRMat<T> &rhs)}{Dense from sparse, see \ref{ch:sparse}; from \code{SparseSMat} and \code{CSRMat} the lower triangle is taken.}
 \lafunc{~NRSMat()}{Destructor, frees the data when the last reference disappears.}
 \lafunc{NRSMat & operator=(const NRSMat &rhs)}{Shallow copy, see section~\ref{sec:concepts:assign}.}
 \lafunc{NRSMat & operator|=(const NRSMat &rhs)}{Deep copy.}

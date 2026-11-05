@@ -1880,7 +1880,6 @@ c.moveto(gpu1);
 cout << "Error = "<<(c-cgpu).norm()<<endl;
 }
 
-/*
 if(0)
 {
 CSRMat<double> h0;
@@ -1903,7 +1902,6 @@ NRMat<complex<double> >r2 = exp(h2);
 cout <<"error = "<<(r2-NRMat<complex<double> >(r)).norm()<<endl;
 }
 }
-*/
 
 
 if(0)

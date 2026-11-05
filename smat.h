@@ -235,6 +235,7 @@ public:
 //members concerning sparse matrix
 	explicit NRSMat(const SparseMat<T> &rhs);               // dense from sparse
 	explicit NRSMat(const SparseSMat<T> &rhs);               // dense from sparse
+	explicit NRSMat(const CSRMat<T> &rhs);               // dense from sparse (lower triangle)
 	inline void simplify() {}; //just for compatibility with sparse ones
 	bool issymmetric() const {return 1;}
 	void swap(NRSMat &rhs) //more efficient swap than via tmp and constructors and operator=

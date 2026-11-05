@@ -297,10 +297,10 @@ infinity for a singular matrix. It is LAPACK's estimate, a lower bound that is u
 \section{Real and imaginary parts}\label{sec:nonclass:complex}
 \begin{lareference}
 \lafunc{const LA_traits<T>::realtype realpart(const T &a); const LA_traits<T>::realtype imagpart(const T &a)}{Real or imaginary part as a real object;
-specialized for \code{NRVec}, \code{NRMat}, \code{NRSMat} and \code{SparseMat} over \code{complex<double>} and \code{complex<float>}.}
+specialized for \code{NRVec}, \code{NRMat}, \code{NRSMat}, \code{SparseMat} and \code{CSRMat} over \code{complex<double>} and \code{complex<float>}.}
 \lafunc{const LA_traits<T>::complextype realmatrix(const T &a); const LA_traits<T>::complextype imagmatrix(const T &a)}{Complex object $A$ resp.\ $\mathrm{i}A$ from a real one;
-for \code{NRMat} and \code{SparseSMat} of \code{double} and \code{float}.}
-\lafunc{const LA_traits<T>::complextype complexmatrix(const T &re, const T &im)}{Complex object $\mathrm{re}+\mathrm{i}\,\mathrm{im}$; for \code{NRMat} and \code{SparseSMat} of \code{double} and \code{float}.}
+for \code{NRMat}, \code{SparseSMat} and \code{CSRMat} of \code{double} and \code{float}.}
+\lafunc{const LA_traits<T>::complextype complexmatrix(const T &re, const T &im)}{Complex object $\mathrm{re}+\mathrm{i}\,\mathrm{im}$; for \code{NRMat}, \code{SparseSMat} and \code{CSRMat} of \code{double} and \code{float}.}
 \end{lareference}
 For the same purpose the classes provide \code{complexify()} (chapters~\ref{ch:vec}, \ref{ch:mat}).
 The real and imaginary part functions are CPU only (sec.~\ref{sec:concepts:gpu}).

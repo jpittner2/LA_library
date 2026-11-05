@@ -424,9 +424,13 @@ public:
 	NRMat & operator+=(const SparseMat<T> &rhs);
 	//! subtract given sparse matrix
         NRMat & operator-=(const SparseMat<T> &rhs);
+	NRMat & operator+=(const CSRMat<T> &rhs);
+	NRMat & operator-=(const CSRMat<T> &rhs);
 
 	//! perform the \b gemm operation
 	void gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha);
+	void gemm(const T &beta, const CSRMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha);
+	const NRMat operator*(const CSRMat<T> &rhs) const; //dense times compressed row sparse, dense result
 
         inline void simplify() {};
 	bool issymmetric() const { return 0; };

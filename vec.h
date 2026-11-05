@@ -337,6 +337,7 @@ public:
 	void gemv(const T beta, const NRMat<T> &a, const char trans, const T alpha, const NRVec &x);
 	void gemv(const T beta, const NRSMat<T> &a, const char trans /**< just for compatibility reasons */, const T alpha, const NRVec &x);
 	void gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x,const bool treat_as_symmetric = false);
+	void gemv(const T beta, const CSRMat<T> &a, const char trans, const T alpha, const NRVec &x);
 
 	void gemv(	const typename LA_traits_complex<T>::Component_type beta, 
 			const typename LA_traits_complex<T>::NRMat_Noncomplex_type &a, 
@@ -375,6 +376,9 @@ public:
 		result.gemv((T)0, mat, 't', (T)1, *this);
 		return result;
 	};
+
+	//! multiply given compressed row sparse matrix with this vector from left (defined in csrmat.h)
+	inline const NRVec operator*(const CSRMat<T> &mat) const;
 	
 	//! compute the outer product of two vectors 
 	const NRMat<T> otimes(const NRVec<T> &rhs, const bool conjugate = false, const T &scale = 1) const;
@@ -486,6 +490,7 @@ public:
 
 	//! constructor creating vector from sparse matrix
 	explicit NRVec(const SparseMat<T> &rhs);
+	explicit NRVec(const CSRMat<T> &rhs);
 	
 	//! routine for compatibility with sparse types
 	inline void simplify() {}; 

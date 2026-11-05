@@ -66,6 +66,12 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   adds x at (i,j) and conj(x) at (j,i); NRSMat(SparseSMat) takes the lower triangle; operator* is the
   general product A B (correct for hermitian, complex symmetric exp(iH) and general matrices);
   SparseSMat::gemm computes A^T B (A^\dagger B with 'c'); otimes_sparse = M + M^\dagger incl. doubled diagonal.
+- CSRMat (completed 2026-11): compressed row format, members NRVec rowptr/col/v (share independently, value-only operations keep
+  the index arrays shared), columns strictly ascending in each row, full matrix always stored; flag symmetric only DECLARES hermitian
+  (A=A^dagger, for davidson/lanczos), set by CSRMat(NRSMat) and for real types from a symmetric SparseMat, never checked. Built by
+  conversion (SparseMat, SparseSMat, NRMat, NRSMat, arrays); conversions drop |x|<=sparse_epsilon, arithmetic keeps cancelled zeros
+  (simplify). dot conjugates the left operand (as NRMat); permuteme_rows permutes only rows; CSR*CSR = Gustavson; types double, float,
+  complex<double>, complex<float>, CPU only (cuSPARSE format for later). Tests bugtests/core/csrmat1,3,4,5 and iterative/csrmat2.
 - SparseMat with the symmetric flag is complex symmetric (no conjugation); its permuteme_* members use
   0-based matrix indices, NRPerm/CyclePerm are always 1-based.
 - Permutations: applypermutation(p,v,inverse) uses the same convention as NRVec::permuted (r_{p(i)}=v_i
@@ -83,8 +89,7 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
 - a-X and a/X (scalar minus/divided by object) are deleted on purpose; a single integer constructor is
   forbidden for NRMat, NRMat_from1, Mat3 (Mat3(double) works).
 - Real-storage gdiagonalize uses the dgeev convention (Re + i Im).
-- The NRMat offset view constructor is a feature. MATPTR is kept (rarely used). CSRMat is unfinished and
-  documented as unsupported, but kept. NRMat::strassen (2026-11-06): native Strassen-Winograd in strassen.cc, gemm-compatible
+- The NRMat offset view constructor is a feature. MATPTR is kept (rarely used). CSRMat: see above. NRMat::strassen (2026-11-06): native Strassen-Winograd in strassen.cc, gemm-compatible
   parameters + cutoff (default LA_traits<T>::strassen_cutoff()=2048 all types, to be tuned on HPC), explicit only (gemm stays classical),
   CBLAS leaves on strided quadrants, device primitives separated for CUDA; NO_STRASSEN removed everywhere. CUDA (CUDALA) is deferred/experimental
   until the author has NVIDIA RTX hardware (known CUDA issues collected in suspected_bugs.md F10).
@@ -98,7 +103,7 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   conjgrad, gmres, davidson, lanczos, diis: no changes needed beyond the defaults). Float twins are generated from the double specializations (placed right after them). Precision-
   dependent defaults live in LA_precision<T> (la_traits.h, only double and float; double values unchanged). optimize done
   2026-11-05: own trait opt_precision<T> in optimize.h, INSTANTIZE(float), float tests in testoptimize.cc (test_float);
-  float LM on badly scaled problems needs my_scaling=true. reg/regsurf, csrmat, CUDA stay double-only.
+  float LM on badly scaled problems needs my_scaling=true. reg/regsurf, CUDA stay double-only.
   Tensor Tucker bugs fixed 2026-11-06 (complex: factor = vt.transpose(false); unnamed tensors with inverseorder; bugtests/tensor/tucker.cc).
   BLAS-based NRVec members are meant for floating types only, not integers.
 - NRSMat: possible bool member `hermitian` toggling hermitian vs complex symmetric behaviour

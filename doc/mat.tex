@@ -111,7 +111,7 @@ its condition of use is that the vector outlives the matrix, see Pitfalls. The c
 \lafunc{explicit NRMat(const WeightPermutation<int,T> &p, const bool direction)}{Weight times permutation matrix.}
 \lafunc{explicit NRMat(const PermutationAlgebra<int,T> &p, const bool direction, const int nforce = 0)}{Sum of weighted permutation matrices of the elements of a permutation algebra; size taken from the first element unless \code{nforce>0}. (The header remarks that the permutation-matrix representation of $S_n$ is reducible to only the irreps $[n]$ and $[n-1,1]$, so e.g.\ Young projectors cannot be represented this way.) See chapter~\ref{ch:permutation}.}
 \lafunc{explicit NRMat(const SparseMat<T> &rhs); explicit NRMat(const SparseSMat<T> &rhs); explicit NRMat(const SemiSparseMat<T> &rhs)}{Dense matrix from sparse ones (chapter~\ref{ch:sparse}).}
-\lafunc{explicit NRMat(const CSRMat<T> &rhs)}{Not supported: \code{CSRMat} is unfinished, the declaration is kept for possible future work (no definition, a link error if used).}
+\lafunc{explicit NRMat(const CSRMat<T> &rhs)}{Dense matrix from a compressed row sparse one (section~\ref{sec:sparse:csr}).}
 \lafunc{~NRMat()}{Decrements the reference count, frees the data when it reaches zero.}
 \lafunc{NRMat & operator=(const NRMat &rhs)}{Shallow assignment (sec.~\ref{sec:concepts:assign}).}
 \lafunc{NRMat & operator|=(const NRMat &rhs)}{Deep copy.}
@@ -153,6 +153,7 @@ Note that scalar addition and subtraction act on the \emph{diagonal} only, i.e.\
 \lafunc{void gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha)}{The same with a sparse first factor; \code{double} and \code{float} only (the complex versions call \code{laerror("not implemented yet")}), see chapter~\ref{ch:sparse}.}
 \lafunc{const NRMat operator*(const NRSMat<T> &rhs) const}{$AS$ with packed symmetric (real) or hermitian (complex) $S$ (BLAS \code{dspmv}/\code{zhpmv} per row).}
 \lafunc{SparseSMat<T> operator*(const SparseSMat<T> &rhs) const}{Dense times sparse, the result is sparse (chapter~\ref{ch:sparse}).}
+\lafunc{void gemm(const T &beta, const CSRMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha); const NRMat operator*(const CSRMat<T> &rhs) const}{$C\leftarrow\beta C+\alpha\,\mathrm{op}(A)\,\mathrm{op}(B)$ with a compressed row sparse $A$ (all types, \code{trans} \code{'n'}, \code{'t'}, \code{'c'}), and dense times compressed row sparse with a dense result (section~\ref{sec:sparse:csr}).}
 \lafunc{const NRVec<T> operator*(const NRVec<T> &rhs) const; const NRVec<std::complex<T> > operator*(const NRVec<std::complex<T> > &rhs) const}{Matrix--vector product via \code{NRVec::gemv} (the second form: real matrix times complex vector).}
 \lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x) const; void gemv(const T beta, NRVec<std::complex<T> > &r, const char trans, const T alpha, const NRVec<std::complex<T> > &x) const}{$r\leftarrow\alpha\,\mathrm{op}(A)x+\beta r$; forwards to \code{r.gemv(beta,*this,trans,alpha,x)}, see chapter~\ref{ch:vec}.}
 \lafunc{const T dot(const NRMat &rhs) const}{$\sum_{ij}A_{ij}^*B_{ij}$ (Frobenius inner product, conjugating \code{*this}).}
@@ -238,6 +239,7 @@ See section~\ref{sec:concepts:io} for the general conventions.
 Besides the constructors, \code{operator*(const SparseSMat<T>&)} and \code{gemm} with a \code{SparseMat}
 factor listed above, \code{NRMat} declares
 \begin{lareference}
+\lafunc{NRMat & operator+=(const CSRMat<T> &rhs); NRMat & operator-=(const CSRMat<T> &rhs)}{Add/subtract a compressed row sparse matrix (section~\ref{sec:sparse:csr}).}
 \lafunc{NRMat & operator+=(const SparseMat<T> &rhs); NRMat & operator-=(const SparseMat<T> &rhs)}{Add/subtract the sparse matrix (defined in \code{sparsemat.h}; a symmetric \code{SparseMat} is unfolded, without conjugation).}
 \end{lareference}
 

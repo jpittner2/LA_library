@@ -66,6 +66,7 @@ one: \code{rhs} becomes the real part (or the imaginary part if \code{imagpart})
 $n(n+1)/2$ elements. \emph{Shares} the data with \code{S} (no copy).}
 \lafunc{explicit NRVec(const NRMat<T> &rhs)}{View of the row-major storage of an $n\times m$ matrix as a vector of $nm$ elements.
 \emph{Shares} the data with \code{rhs}; if the library is compiled with \code{MATPTR}, the data are copied instead.}
+\lafunc{explicit NRVec(const CSRMat<T> &rhs)}{The same from a compressed row sparse matrix (section~\ref{sec:sparse:csr}).}
 \lafunc{explicit NRVec(const SparseMat<T> &rhs)}{Dense vector from a sparse matrix having one row or one column (otherwise
 \code{laerror}); duplicate entries are summed. Defined in \texttt{sparsemat.cc} for \code{double} and \code{std::complex<double>}.}
 \lafunc{~NRVec()}{Decrements the reference count, frees the data when it reaches zero.}
@@ -162,6 +163,7 @@ with $y=$ \code{*this}; \code{trans} is \code{'n'} ($A$), \code{'t'} ($A\Tr$) or
 \code{*this} must already have the correct size (checked in DEBUG builds) and defined contents if $\beta\neq0$.}
 \lafunc{void gemv(const T beta, const NRSMat<T> &a, const char trans, const T alpha, const NRVec &x)}{Same for a packed
 symmetric (real) or Hermitian (complex) matrix (BLAS spmv/hpmv); \code{trans}: for complex \code{'t'} gives $a\Tr x = a^* x$, \code{'n'} and \code{'c'} give $a x$; ignored for real matrices.}
+\lafunc{void gemv(const T beta, const CSRMat<T> &a, const char trans, const T alpha, const NRVec &x)}{The same for a compressed row sparse matrix, \code{trans} \code{'n'}, \code{'t'} or \code{'c'} (section~\ref{sec:sparse:csr}).}
 \lafunc{void gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x, const bool treat_as_symmetric = false)}{Same
 for a sparse matrix (defined in \texttt{sparsemat.cc}, see Chapter~\ref{ch:sparse}); with \code{treat_as_symmetric} only one
 triangle is assumed to be stored.}
@@ -172,7 +174,7 @@ real and imaginary parts are processed separately.}
 \lafunc{const NRVec operator*(const NRMat<T> &mat) const}{Row vector times matrix, $x\Tr A$ (gemv with \code{'t'}; no conjugation).
 For $A x$ see \code{NRMat::operator*} in Chapter~\ref{ch:mat}.}
 \lafunc{const NRVec operator*(const NRSMat<T> &mat) const}{Row vector times packed symmetric/hermitian matrix, $x\Tr S$ (for hermitian $S$ computed as $S\Tr x = S^* x$ by \code{gemv} with \code{'t'}).}
-\lafunc{const NRVec operator*(const SparseMat<T> &mat) const}{Row vector times sparse matrix; CPU only.}
+\lafunc{const NRVec operator*(const SparseMat<T> &mat) const; const NRVec operator*(const CSRMat<T> &mat) const}{Row vector times sparse matrix; CPU only.}
 \lafunc{const NRMat<T> otimes(const NRVec<T> &rhs, const bool conjugate = false, const T &scale = 1) const}{Outer product
 $A_{ij}=\mathrm{scale}\cdot x_i\, y_j$, with $y_j^*$ if \code{conjugate} (complex only); BLAS ger/geru/gerc.}
 \lafunc{const NRMat<T> operator|(const NRVec<T> &rhs) const}{Same as \code{otimes(rhs,true)}, i.e.\ $x y\Hc$.}
