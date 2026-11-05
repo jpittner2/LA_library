@@ -50,7 +50,6 @@ INSTANTIZE(unsigned int)
 INSTANTIZE(unsigned long)
 INSTANTIZE(unsigned long long)
 
-#define EPSDET 1e-300
 
 template <typename T>
 void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
@@ -168,7 +167,7 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	if (det && r==0) {
 		*det = 1.;
 		//take into account some numerical instabilities in dgesv for singular matrices
-		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
+		for (int i=0; i<n; ++i)  {double t=A[i][i]; if(!finite(t) || std::abs(t) < LA_precision<double>::det_tiny() ) {*det=0.; break;} else *det *=t;}
 		//find out whether ipiv are numbered from 0 or from 1
 		int shift=1;
 	        for (int i=0; i<n; ++i)
@@ -224,7 +223,7 @@ static void linear_solve_do(NRMat<float> &A, float *B, const int nrhs, const int
 	if (det && r==0) {
 		*det = 1.;
 		//take into account some numerical instabilities in dgesv for singular matrices
-		for (int i=0; i<n; ++i)  {float t=A[i][i]; if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
+		for (int i=0; i<n; ++i)  {float t=A[i][i]; if(!finite(t) || std::abs(t) < LA_precision<float>::det_tiny() ) {*det=0.; break;} else *det *=t;}
 		//find out whether ipiv are numbered from 0 or from 1
 		int shift=1;
 	        for (int i=0; i<n; ++i)
@@ -319,7 +318,7 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 			double t;
 			if(ipiv[i]<0) {t = a(i,i)*a(i+1,i+1)-a(i,i+1)*a(i,i+1); ++i;} //2x2 block of D (dsptrf with UPLO='U')
 			else t=a(i,i);
-			if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;
+			if(!finite(t) || std::abs(t) < LA_precision<double>::det_tiny() ) {*det=0.; break;} else *det *= t;
 			}
 		//ipiv is needed only for the block structure of D, the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
 	}
@@ -355,7 +354,7 @@ static void linear_solve_do(NRSMat<float> &a, float *b, const int nrhs, const in
 			float t;
 			if(ipiv[i]<0) {t = a(i,i)*a(i+1,i+1)-a(i,i+1)*a(i,i+1); ++i;} //2x2 block of D (dsptrf with UPLO='U')
 			else t=a(i,i);
-			if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;
+			if(!finite(t) || std::abs(t) < LA_precision<float>::det_tiny() ) {*det=0.; break;} else *det *= t;
 			}
 		//ipiv is needed only for the block structure of D, the permutation matrix occurs twice in the decomposition and signs thus cancel (man dspsv)
 	}
@@ -435,7 +434,7 @@ static void linear_solve_do(NRSMat<std::complex<double> > &a, std::complex<doubl
 			double t; //determinant of a hermitian matrix is real, det(conj(A)) = det(A)
 			if(ipiv[i]<0) {t = a(i,i).real()*a(i+1,i+1).real()-std::norm(a(i,i+1)); ++i;} //2x2 block of D (zhptrf with UPLO='U')
 			else t=a(i,i).real();
-			if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;
+			if(!finite(t) || std::abs(t) < LA_precision<double>::det_tiny() ) {*det=0.; break;} else *det *= t;
 			}
 		//ipiv is needed only for the block structure of D, the permutation matrix occurs twice in the decomposition and signs thus cancel (man zhpsv)
 	}
@@ -470,7 +469,7 @@ static void linear_solve_do(NRSMat<std::complex<float> > &a, std::complex<float>
 			float t; //determinant of a hermitian matrix is real, det(conj(A)) = det(A)
 			if(ipiv[i]<0) {t = a(i,i).real()*a(i+1,i+1).real()-std::norm(a(i,i+1)); ++i;} //2x2 block of D (zhptrf with UPLO='U')
 			else t=a(i,i).real();
-			if(!finite(t) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *= t;
+			if(!finite(t) || std::abs(t) < LA_precision<float>::det_tiny() ) {*det=0.; break;} else *det *= t;
 			}
 		//ipiv is needed only for the block structure of D, the permutation matrix occurs twice in the decomposition and signs thus cancel (man zhpsv)
 	}
@@ -551,7 +550,7 @@ static void linear_solve_do(NRMat<std::complex<double> > &A, std::complex<double
 	if (det && r==0) {
 		*det = 1.;
 		//take into account some numerical instabilities in zgesv for singular matrices
-		for (int i=0; i<n; ++i)  {std::complex<double> t=A[i][i]; if(!std::isfinite(t.real()) || !std::isfinite(t.imag()) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
+		for (int i=0; i<n; ++i)  {std::complex<double> t=A[i][i]; if(!std::isfinite(t.real()) || !std::isfinite(t.imag()) || std::abs(t) < LA_precision<double>::det_tiny() ) {*det=0.; break;} else *det *=t;}
 		//find out whether ipiv are numbered from 0 or from 1
 		int shift=1;
 	        for (int i=0; i<n; ++i)
@@ -603,7 +602,7 @@ static void linear_solve_do(NRMat<std::complex<float> > &A, std::complex<float> 
 	if (det && r==0) {
 		*det = 1.;
 		//take into account some numerical instabilities in zgesv for singular matrices
-		for (int i=0; i<n; ++i)  {std::complex<float> t=A[i][i]; if(!std::isfinite(t.real()) || !std::isfinite(t.imag()) || std::abs(t) < EPSDET ) {*det=0.; break;} else *det *=t;}
+		for (int i=0; i<n; ++i)  {std::complex<float> t=A[i][i]; if(!std::isfinite(t.real()) || !std::isfinite(t.imag()) || std::abs(t) < LA_precision<float>::det_tiny() ) {*det=0.; break;} else *det *=t;}
 		//find out whether ipiv are numbered from 0 or from 1
 		int shift=1;
 	        for (int i=0; i<n; ++i)

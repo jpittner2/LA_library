@@ -73,7 +73,7 @@ for(int i=0;i<=k;i++)
 
 //x contains ev. initial guess and on return the solution
 template<typename T, typename Matrix>
-bool gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=1e-7, const int MAXIT=50, const bool verbose=1, bool square=1,const bool precondition=1, int neustart=0, const int incore=1)
+bool gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=LA_precision<typename LA_traits<T>::normtype>::gmres_eps(), const int MAXIT=50, const bool verbose=1, bool square=1,const bool precondition=1, int neustart=0, const int incore=1)
 {
 int zeilen=bigmat.nrows();
 int spalten=bigmat.ncols();

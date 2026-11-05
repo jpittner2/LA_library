@@ -39,7 +39,7 @@ namespace LA {
 
 template <typename T, typename Matrix>
 extern void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
-		int nroots=1,  const bool verbose=0, const double eps=1e-6,
+		int nroots=1,  const bool verbose=0, const double eps=LA_precision<typename LA_traits<T>::normtype>::eigensolver_eps(),
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 1000,
 		void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)
 {

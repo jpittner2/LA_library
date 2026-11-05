@@ -274,7 +274,7 @@ double scale=std::exp(-std::log(2.)*power);
 
 
 //find how long taylor expansion will be necessary
-const double precision=1e-14; //further decreasing brings nothing
+const double precision=LA_precision<typename LA_traits<C>::normtype>::taylor_precision(); //further decreasing brings nothing
 double s,t;
 s=mnorm*scale;
 int n=0;
@@ -311,7 +311,7 @@ if(maxpower>=0 && power>maxpower) power=maxpower;
 double scale=std::exp(-std::log(2.)*power);
 
 //find how long taylor expansion will be necessary
-const double precision=1e-14; //further decreasing brings nothing
+const double precision=LA_precision<typename LA_traits<C>::normtype>::taylor_precision(); //further decreasing brings nothing
 double s,t;
 s=mnorm*scale;
 int n=0;

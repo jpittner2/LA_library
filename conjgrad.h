@@ -34,7 +34,7 @@ namespace LA {
 
 
 template<typename T, typename Matrix>
-extern bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=true, const double tol=1e-8, const int itmax=1000, const bool verbose=true, bool issquare=1,const bool precondition=1)
+extern bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=true, const double tol=LA_precision<typename LA_traits<T>::normtype>::conjgrad_tol(), const int itmax=1000, const bool verbose=true, bool issquare=1,const bool precondition=1)
 {
 int m=bigmat.nrows();
 int n=bigmat.ncols();

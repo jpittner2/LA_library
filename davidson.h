@@ -47,7 +47,7 @@ namespace LA {
 
 template <typename T, typename Matrix>
 void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
-		int nroots=1,  const bool verbose=0, const double eps=1e-6,
+		int nroots=1,  const bool verbose=0, const double eps=LA_precision<typename LA_traits<T>::normtype>::eigensolver_eps(),
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 500,
 		void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)
 {
@@ -235,7 +235,7 @@ eival_n = r[nroot];
 for(i=0; i<n; ++i)
 	{
 	typename LA_traits<T>::normtype denom = LA_traits<T>::realpart(diagonal[i]) - eival_n;
-        denom = denom<0?-std::max(0.1,std::abs(denom)):std::max(0.1,std::abs(denom));
+        denom = denom<0?-std::max((typename LA_traits<T>::normtype)0.1,std::abs(denom)):std::max((typename LA_traits<T>::normtype)0.1,std::abs(denom));
         vec1[i] /= denom;
 	}
 }

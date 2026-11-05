@@ -156,7 +156,7 @@ public:
 	NRMat<T> companion() const; //matrix which has this characteristic polynomial
 	NRVec<typename LA_traits<T>::complextype> roots() const; //implemented for complex<double> and double only
 	NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const;
-	T newton(const T x0, const typename LA_traits<T>::normtype thr=1e-14, const int maxit=1000) const; //solve root from the guess
+	T newton(const T x0, const typename LA_traits<T>::normtype thr=LA_precision<typename LA_traits<T>::normtype>::newton_threshold(), const int maxit=1000) const; //solve root from the guess
 	Polynomial pow(const int i) const; //integer power
 	Polynomial powx(const int i) const; //substitute x^i for x in the polynomial
 	void binomial(const int n); //(1+x)^n

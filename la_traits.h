@@ -457,9 +457,28 @@ template<typename C>
 struct LA_traits : LA_traits_aux<C, typename isscalar<C>::scalar_type> {};
 
 
-//precision-dependent default thresholds (the double values are those used so far)
-template<typename T> struct LA_precision {static T svd_threshold() {return (T)1e-12;}};
-template<> struct LA_precision<float> {static float svd_threshold() {return 1e-5f;}};
+//precision-dependent default thresholds; only float and double are supported (the double values are those used so far)
+template<typename T> struct LA_precision;
+template<> struct LA_precision<double>
+	{
+	static double svd_threshold() {return 1e-12;} //singular values treated as zero (svd_solve, Tucker)
+	static double taylor_precision() {return 1e-14;} //truncation of the Taylor series in matexp
+	static double conjgrad_tol() {return 1e-8;} //default convergence threshold of conjgrad
+	static double gmres_eps() {return 1e-7;} //default relative residual of gmres
+	static double eigensolver_eps() {return 1e-6;} //default convergence threshold of davidson and lanczos
+	static double newton_threshold() {return 1e-14;} //convergence of Polynomial::newton
+	static double det_tiny() {return 1e-300;} //determinant underflow guard in linear_solve
+	};
+template<> struct LA_precision<float>
+	{
+	static float svd_threshold() {return 1e-5f;}
+	static float taylor_precision() {return 1e-7f;}
+	static float conjgrad_tol() {return 1e-5f;}
+	static float gmres_eps() {return 1e-5f;}
+	static float eigensolver_eps() {return 1e-4f;}
+	static float newton_threshold() {return 1e-6f;}
+	static float det_tiny() {return 1e-37f;}
+	};
 
 }//namespace
 
