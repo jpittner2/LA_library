@@ -5415,6 +5415,44 @@ for(int j=0; j<nn; ++j) (*this)(j,i) *= f;
 
 
 /***************************************************************************//**
+ * complexify a given real matrix \f$A\f$ (double and float, by BLAS; the complex default constructor zeroes the imaginary parts)
+ * @param[in] rhs matrix \f$A\f$ intended for this operation
+ * @return matrix \f$B\f$ where \f$\Re B=A\f$ and \f$\Im B = 0\f$
+ ******************************************************************************/
+template<>
+NRMat<std::complex<double> > complexify<double>(const NRMat<double> &rhs) {
+	NRMat<std::complex<double> > r(rhs.nrows(), rhs.ncols(), rhs.getlocation());
+#ifdef CUDALA
+	if(rhs.getlocation() == cpu){
+#endif
+		cblas_dcopy((size_t)rhs.nrows()*rhs.ncols(), &rhs(0,0), 1, (double*)(&r(0,0)), 2);
+#ifdef CUDALA
+	}else{
+		cublasDcopy((size_t)rhs.nrows()*rhs.ncols(), &rhs(0,0), 1, (double*)(&r(0,0)), 2);
+		TEST_CUBLAS("cublasDcopy");//"NRMat<std::complex<double> > complexify(const NRMat<double> &)"
+	}
+#endif
+	return r;
+}
+
+template<>
+NRMat<std::complex<float> > complexify<float>(const NRMat<float> &rhs) {
+	NRMat<std::complex<float> > r(rhs.nrows(), rhs.ncols(), rhs.getlocation());
+#ifdef CUDALA
+	if(rhs.getlocation() == cpu){
+#endif
+		cblas_scopy((size_t)rhs.nrows()*rhs.ncols(), &rhs(0,0), 1, (float*)(&r(0,0)), 2);
+#ifdef CUDALA
+	}else{
+		cublasScopy((size_t)rhs.nrows()*rhs.ncols(), &rhs(0,0), 1, (float*)(&r(0,0)), 2);
+		TEST_CUBLAS("cublasScopy");//"NRMat<std::complex<float> > complexify(const NRMat<float> &)"
+	}
+#endif
+	return r;
+}
+
+
+/***************************************************************************//**
  * forced instantization in the corresponding object file
  ******************************************************************************/
 template class NRMat<double>;

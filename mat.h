@@ -1454,6 +1454,10 @@ NRMat<std::complex<T> > complexify(const NRMat<T> &rhs) {
 	return r;
 }
 
+//BLAS versions for double and float are in mat.cc
+template<> NRMat<std::complex<double> > complexify<double>(const NRMat<double> &rhs);
+template<> NRMat<std::complex<float> > complexify<float>(const NRMat<float> &rhs);
+
 //this is general for any type, complexmatrix() uses blas for doubles
 template<typename T>
 NRMat<std::complex<T> > complexify(const NRMat<T> &rhsr, const NRMat<T> &rhsi) {
