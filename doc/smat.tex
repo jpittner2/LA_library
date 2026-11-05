@@ -14,11 +14,10 @@ matrices) are returned as \code{NRMat<T>}.
 \code{NRSMat_from1<T>} (section~\ref{sec:smat:from1}) is the same class with the
 two-index \code{operator()} counting from 1.
 
-The file \code{smat.cc} contains explicit instantiations for the element types \code{double},
-\code{std::complex<double>} and the integer types \code{char}, \code{short}, \code{int}, \code{long}, \code{long long} and
-their unsigned variants (\code{float} is not instantiated).
-Most numerical members have BLAS-based specializations only for the two types \code{double} and
-\code{std::complex<double>}. Some members are defined only for these two types:
+The file \code{smat.cc} contains explicit instantiations for the element types \code{double}, \code{float},
+\code{std::complex<double>}, \code{std::complex<float>} and the integer types \code{char}, \code{short}, \code{int}, \code{long}, \code{long long} and
+their unsigned variants.
+Most numerical members have BLAS-based specializations only for the four floating point types. Some members are defined only for these types:
 \code{amax}, \code{amin}, \code{norm}, \code{dot}, \code{axpy}, \code{randomize}, \code{inverse}
 and the products with \code{NRMat} and \code{NRSMat}.
 
@@ -105,7 +104,7 @@ are CPU only (\code{NOT_GPU}).
 \lafunc{NRSMat(const T &a, const int n)}{Order $n$, all $n(n+1)/2$ stored elements (i.e.\ also the off-diagonal ones) set to \code{a}.}
 \lafunc{NRSMat(const T *a, const int n)}{Copy of $n(n+1)/2$ packed elements (lower triangle by rows) from \code{a}.}
 \lafunc{NRSMat(const NRSMat &rhs)}{Shallow copy.}
-\lafunc{NRSMat(const typename LA_traits_complex<T>::NRSMat_Noncomplex_type &rhs, bool imagpart = false)}{Complex matrix from a real one: \code{rhs} becomes the real part (\code{imagpart=false}) or the imaginary part (\code{imagpart=true}), the other part is zero. Defined only for \code{T=std::complex<double>}.}
+\lafunc{NRSMat(const typename LA_traits_complex<T>::NRSMat_Noncomplex_type &rhs, bool imagpart = false)}{Complex matrix from a real one: \code{rhs} becomes the real part (\code{imagpart=false}) or the imaginary part (\code{imagpart=true}), the other part is zero. Defined only for \code{T=std::complex<double>} and \code{std::complex<float>}.}
 \lafunc{explicit NRSMat(const NRMat<T> &rhs)}{Symmetric part $(A+A\Tr)/2$ of a square dense matrix (deep copy; nonsquare input is checked only in DEBUG).}
 \lafunc{explicit NRSMat(const NRVec<T> &rhs, const int n)}{Interprets a vector of length $n(n+1)/2$ as packed matrix of order $n$. \emph{Shares} the data with \code{rhs} (no copy); length checked only in DEBUG.}
 \lafunc{explicit NRSMat(const SparseMat<T> &rhs); explicit NRSMat(const SparseSMat<T> &rhs)}{Dense from sparse, see \ref{ch:sparse}.}
@@ -161,20 +160,20 @@ generated from the in-place ones.
 \lafunc{void gemv(const T beta, NRVec<std::complex<T> > &r, const char trans, const T alpha, const NRVec<std::complex<T> > &x) const}{The same, real matrix and complex vectors.}
 \lafunc{void axpy(const T alpha, const NRSMat &x)}{$S \leftarrow S + \alpha x$. For hermitian complex matrices the result is hermitian only for real $\alpha$
 (not checked).}
-\lafunc{void rank2update(const T alpha, const NRVec<T> &x, const NRVec<T> &y)}{Rank-2 update $S \leftarrow S + \alpha x y\Hc + \bar\alpha y x\Hc$ (real: $\alpha(xy\Tr+yx\Tr)$); \code{dspr2}/\code{zhpr2} for \code{double}/\code{complex<double>}, generic loop otherwise. A symmetric rank-1 update $S \leftarrow S + \beta x x\Hc$ (real $\beta$) is obtained as \code{rank2update(beta/2,x,x)}; there is no separate rank-1 member.}
+\lafunc{void rank2update(const T alpha, const NRVec<T> &x, const NRVec<T> &y)}{Rank-2 update $S \leftarrow S + \alpha x y\Hc + \bar\alpha y x\Hc$ (real: $\alpha(xy\Tr+yx\Tr)$); \code{dspr2}/\code{zhpr2}/\code{sspr2}/\code{chpr2} for \code{double}/\code{complex<double>}/\code{float}/\code{complex<float>}, generic loop otherwise. A symmetric rank-1 update $S \leftarrow S + \beta x x\Hc$ (real $\beta$) is obtained as \code{rank2update(beta/2,x,x)}; there is no separate rank-1 member.}
 \lafunc{const T dot(const NRSMat &rhs) const}{$\sum_{i\ge j} \bar A_{ij} B_{ij}$, i.e.\ the dot product of the \emph{packed} vectors (off-diagonal elements counted once; \code{ddot}/\code{zdotc}).}
 \lafunc{const T dot(const NRVec<T> &rhs) const}{Dot product of the packed data with a vector of length $n(n+1)/2$.}
 \lafunc{const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const}{Euclidean norm of the packed data of $S - \mathtt{scalar}\cdot 1$; off-diagonal elements are counted \emph{once}, so this is not the Frobenius norm of the full matrix.}
 \lafunc{const T trace() const}{Trace.}
 \lafunc{const T sum(bool onlytriangle=false) const}{Sum of all elements of the full matrix, or of the stored triangle only.}
 \lafunc{const NRVec<T> rsum() const; const NRVec<T> csum() const}{Row sums and column sums of the full matrix (equal for real, complex conjugate of each other for hermitian matrices).}
-\lafunc{inline const T amax() const; inline const T amin() const}{Stored element with the largest/smallest absolute value (complex: $|\Re|+|\Im|$); \code{double} and \code{complex<double>} only.}
+\lafunc{inline const T amax() const; inline const T amin() const}{Stored element with the largest/smallest absolute value (complex: $|\Re|+|\Im|$); floating point types only.}
 \lafunc{const T* diagonalof(NRVec<T> &r, const bool divide = 0, bool cache = false) const}{\code{divide=false}: store the diagonal into \code{r} and return \code{&r[0]}; \code{divide=true}: divide \code{r} elementwise by the nonzero diagonal elements and return \code{NULL}. \code{cache} is unused. Interface used by iterative solvers (\ref{ch:iterative}).}
-\lafunc{NRSMat inverse()}{Inverse via \code{NRMat<T>(*this).inverse()}, symmetrized back. \code{double} and \code{complex<double>} only.}
+\lafunc{NRSMat inverse()}{Inverse via \code{NRMat<T>(*this).inverse()}, symmetrized back. Floating point types only.}
 \lafunc{NRSMat& conjugateme(); const NRSMat conjugate() const}{Complex conjugation of all stored elements (no-op for real types).}
 \lafunc{NRSMat<typename LA_traits<T>::normtype> abs() const}{Elementwise absolute values.}
 \lafunc{NRSMat<typename LA_traits<T>::normtype> diffabs(const NRSMat &rhs) const}{Elementwise $|A_{ij}|-|B_{ij}|$.}
-\lafunc{void randomize(const typename LA_traits<T>::normtype &x)}{Uniformly distributed elements in $(-x,x)$; complex: real and imaginary parts independent, imaginary part of the diagonal set to zero. \code{double} and \code{complex<double>} only.}
+\lafunc{void randomize(const typename LA_traits<T>::normtype &x)}{Uniformly distributed elements in $(-x,x)$; complex: real and imaginary parts independent, imaginary part of the diagonal set to zero. Floating point types only.}
 \lafunc{const bool operator==(const NRSMat &rhs) const; const bool operator!=(const NRSMat &rhs) const}{Exact elementwise comparison.}
 \end{lareference}
 

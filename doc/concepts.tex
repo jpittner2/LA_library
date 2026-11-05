@@ -145,6 +145,7 @@ Its main members are:
 \lafunc{static void put(int fd, const T &x, ...); static void get(int fd, T &x, ...); multiput; multiget}{binary I/O, recursive for nested types}
 \lafunc{static T conjugate(const T &x); realpart(x); imagpart(x); setrealpart(x,y); setimagpart(x,y)}{complex helpers, trivial for real types}
 \lafunc{static bool bigger(const T &x, const T &y); smaller(x,y)}{comparison used for sorting; for complex types it is an error}
+\lafunc{static int strassen_cutoff()}{scalar types only: default \code{cutoff} of \code{NRMat::strassen} (section~\ref{sec:mat:strassen}), currently 2048 for all types}
 \end{lareference}
 The auxiliary template \code{isscalar<T>} distinguishes scalars from classes, \code{LA_traits_complex<T>}
 gives for a complex type the component type and the corresponding real vector and matrix types (used by

@@ -6,8 +6,8 @@ This chapter describes the free (non-member) functions operating on the dense cl
 \code{NRVec}, \code{NRMat} and \code{NRSMat}: linear systems, determinants, inverses, Cholesky
 decomposition, symmetric/hermitian and general eigenvalue problems, singular value decomposition,
 matrix functions, and a few auxiliary products and conversions. Most of them are thin wrappers of
-LAPACK routines (\header{nonclass.cc}); they exist for \code{T}${}={}$\code{double} and
-\code{std::complex<double>} only. The templates in \header{matexp.h} (matrix polynomials, matrix
+LAPACK routines (\header{nonclass.cc}); they exist for \code{T}${}={}$\code{double}, \code{float},
+\code{std::complex<double>} and \code{std::complex<float>} only. The templates in \header{matexp.h} (matrix polynomials, matrix
 exponential, $\exp(A)\,x$, BCH expansion) are generic: they work for every class that provides the few
 operations listed in section~\ref{sec:nonclass:matexp}, including sparse matrices
 (chapter~\ref{ch:sparse}) and user-defined matrix classes which only implement \code{gemv}.
@@ -44,8 +44,8 @@ growing leading block.
 (sec.~\ref{sec:concepts:errors}), e.g.\ ``singular matrix'' or ``convergence problem''. Exceptions:
 \code{linear_solve_x} and \code{multiply_by_inverse} return \code{info}.
 
-\paragraph{Element types and availability.} The functions are declared for \code{double} and
-\code{std::complex<double>} by the macro \code{declare_la}, but not all declared complex variants are
+\paragraph{Element types and availability.} The functions are declared for \code{double}, \code{float},
+\code{std::complex<double>} and \code{std::complex<float>} by the macro \code{declare_la}, but not all declared complex variants are
 defined in \header{nonclass.cc}. Calling an undefined one gives a link error
 (table~\ref{tab:nonclass:avail}).
 \begin{table}[htbp]
@@ -54,15 +54,15 @@ defined in \header{nonclass.cc}. Calling an undefined one gives a link error
 \toprule
 Function & Available for \\
 \midrule
-\texttt{linear\_solve(NRMat\&, NRMat*, ...)} & \texttt{double}, \texttt{complex<double>} \\
-\texttt{linear\_solve(NRMat\&, NRVec\&, ...)}, \texttt{linear\_solve(NRSMat\&, ...)} & \texttt{double}, \texttt{complex<double>} (complex \texttt{NRSMat}: hermitian) \\
+\texttt{linear\_solve(NRMat\&, NRMat*, ...)} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} \\
+\texttt{linear\_solve(NRMat\&, NRVec\&, ...)}, \texttt{linear\_solve(NRSMat\&, ...)} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} (complex \texttt{NRSMat}: hermitian) \\
 \texttt{determinant}, \texttt{determinant\_destroy} & \texttt{NRMat}, \texttt{NRSMat}, real and complex \\
 \texttt{diagonalize}, \texttt{singular\_decomposition}, \texttt{cholesky}, \texttt{diagofproduct},
-\texttt{trace2(NRMat,NRMat)}, \texttt{linear\_solve\_x}, \texttt{multiply\_by\_inverse}, \texttt{MatrixNorm}, \texttt{CondNumber} & \texttt{double}, \texttt{complex<double>} \\
+\texttt{trace2(NRMat,NRMat)}, \texttt{linear\_solve\_x}, \texttt{multiply\_by\_inverse}, \texttt{MatrixNorm}, \texttt{CondNumber} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} \\
 \texttt{gdiagonalize} & real matrix (real or complex eigenvector storage), complex matrix \\
-\texttt{trace2} with \texttt{NRSMat} & \texttt{double}, \texttt{complex<double>} (hermitian) \\
+\texttt{trace2} with \texttt{NRSMat} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} (hermitian) \\
 \texttt{diagonalize3}, \texttt{realmatrixfunction}, \texttt{complexmatrixfunction},
-\texttt{adjustphases}, \texttt{xcopy}, \texttt{xaxpy}, \texttt{xdot} & \texttt{double} only \\
+\texttt{adjustphases}, \texttt{xcopy}, \texttt{xaxpy}, \texttt{xdot} & \texttt{double}, \texttt{float} \\
 templates of \texttt{matexp.h}, \texttt{power}, \texttt{commutator}, \texttt{twoside\_transform}, \dots & any type providing the needed operations \\
 \bottomrule
 \end{tabular}
@@ -106,17 +106,17 @@ $n_{\mathrm{rhs}}=0$).}
 \lafunc{void linear_solve(NRSMat<T> &a, NRMat<T> *b, T *det=0, int n=0); void linear_solve(NRSMat<T> &a, NRVec<T> &b, T *det=0, int n=0)}{Symmetric (real) or hermitian (complex), possibly indefinite $A$ in packed storage, \code{dspsv}/\code{zhpsv}
 (Bunch--Kaufman factorization; the determinant is computed from its $1\times1$ and $2\times2$ blocks and is real in the hermitian case).
 \code{n} selects a leading block, which is contiguous in the packed storage.}
-\lafunc{int linear_solve_x(NRMat<T> &A, T *B, const int rhsCount, const int eqCount, const bool eq, const bool saveA, double *rcond)}{Expert solver
+\lafunc{int linear_solve_x(NRMat<T> &A, T *B, const int rhsCount, const int eqCount, const bool eq, const bool saveA, typename LA_traits<T>::normtype *rcond)}{Expert solver
 (\code{dgesvx}/\code{zgesvx}): solves $A x=b$ for \code{rhsCount} right-hand sides stored consecutively (each of length \code{eqCount}) in the raw
 array \code{B}, using the leading \code{eqCount}${}\times{}$\code{eqCount} block of \code{A}. \code{eq}: equilibrate $A$ (for badly conditioned matrices);
 then \code{A} is overwritten unless \code{saveA}. The reciprocal condition number is stored in \code{*rcond} if non-NULL. Returns LAPACK \code{info}
 (0 success, $>0$ singular or ill-conditioned). The solution replaces \code{B}.}
-\lafunc{int multiply_by_inverse(NRMat<T> &A, NRMat<T> &B, bool useEq=false, double *rcond=NULL)}{$B\leftarrow A B^{-1}$ for square $A$, $B$ via
+\lafunc{int multiply_by_inverse(NRMat<T> &A, NRMat<T> &B, bool useEq=false, typename LA_traits<T>::normtype *rcond=NULL)}{$B\leftarrow A B^{-1}$ for square $A$, $B$ via
 \code{dgesvx}/\code{zgesvx}; \code{useEq} as \code{eq} above. \code{A} is not modified (with \code{useEq} a temporary copy is
 scaled). Returns \code{info}.}
 \lafunc{const NRMat<T> calcinverse(NRMat<T> a, T *det=NULL)}{$A^{-1}$ by \code{linear_solve} with unit right-hand sides; optionally the determinant.
 \code{NRMat::inverse()} (chapter~\ref{ch:mat}) calls it.}
-\lafunc{const NRMat<T> calcsvdinverse(NRMat<T> a, double thr=0, bool do_absadjoint=false)}{Inverse via SVD, $V\,\mathrm{diag}(1/s_i)\,U\Hc$,
+\lafunc{const NRMat<T> calcsvdinverse(NRMat<T> a, typename LA_traits<T>::normtype thr=0, bool do_absadjoint=false)}{Inverse via SVD, $V\,\mathrm{diag}(1/s_i)\,U\Hc$,
 singular values $s_i<$\code{thr} are treated as zero (pseudoinverse). With \code{do_absadjoint} returns
 $V\,\mathrm{diag}(\prod_{j\ne i}s_j)\,U\Hc$, the adjugate matrix up to the phase $\det U\det V$. Square matrices only.}
 \lafunc{NRVec<T> svd_solve(NRMat<T> &a, const NRVec<T> &b, normtype thres=LA_precision<normtype>::svd_threshold(), int *nullity=NULL); NRMat<T> svd_solve(NRMat<T> &a, const NRMat<T> &b, normtype thres=LA_precision<normtype>::svd_threshold(), int *nullity=NULL)}{Least-squares
@@ -126,7 +126,7 @@ the number of discarded ones is stored in \code{*nullity}. Here (unlike \code{li
 \lafunc{const LA_traits<MAT>::elementtype determinant(MAT a)}{Determinant by LU (\code{NRMat}) or Bunch--Kaufman (\code{NRSMat}) factorization of a copy.}
 \lafunc{const LA_traits<MAT>::elementtype determinant_destroy(MAT &a)}{The same, overwriting \code{a}. Unless \code{HAS_MKL} is defined, a dummy right-hand side
 is passed to \code{linear_solve} (work-around for OpenBLAS, which skips the factorization without right-hand sides).}
-\lafunc{void cholesky(NRMat<double> &a, bool upper=1); void cholesky(NRMat<std::complex<double> > &a, bool upper=1)}{Cholesky factorization of a
+\lafunc{void cholesky(NRMat<T> &a, bool upper=1)}{Cholesky factorization of a
 positive definite matrix in place (\code{dpotrf}/\code{zpotrf}). \code{upper=1}: \code{a} becomes the upper triangular $U$ with
 $A=U\Hc U$; \code{upper=0}: lower triangular $L$ with $A=L L\Hc$. The other triangle is zeroed. Raises \code{laerror} if $A$ is not positive definite.}
 \end{lareference}
@@ -138,15 +138,15 @@ Eigenvalues are always returned in \textbf{ascending order} (LAPACK). Only the \
 (row index ${}\ge{}$ column index) of an \code{NRMat} is referenced (verified); \code{NRSMat} stores only that
 triangle and is interpreted as hermitian (sec.~\ref{sec:smat:hermitian}).
 \begin{lareference}
-\lafunc{void diagonalize(NRMat<T> &a, NRVec<double> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1)}{Eigenvalues
+\lafunc{void diagonalize(NRMat<T> &a, NRVec<typename LA_traits<T>::normtype> &w, const bool eivec=1, const bool corder=1, int n=0, NRMat<T> *b=NULL, const int itype=1)}{Eigenvalues
 \code{w} (size must equal \code{a.nrows()}) and, if \code{eivec}, eigenvectors stored in \code{a} (columns for \code{corder=1}, see table~\ref{tab:nonclass:eivec})
 of a real symmetric or complex hermitian matrix (\code{dsyev}/\code{zheev}). If \code{b} is given, the generalized problem with positive definite $B$
 is solved (\code{dsygv}/\code{zhegv}): \code{itype=1}: $A x=\lambda B x$, \code{itype=2}: $A B x=\lambda x$, \code{itype=3}: $B A x=\lambda x$;
 eigenvectors are $B$-normalized ($x\Hc B x=1$ for \code{itype} 1, 2), \code{b} is overwritten by its Cholesky factor.}
-\lafunc{void diagonalize(NRSMat<T> &a, NRVec<double> &w, NRMat<T> *v, const bool corder=1, int n=0, NRSMat<T> *b=NULL, const int itype=1)}{The same for packed
+\lafunc{void diagonalize(NRSMat<T> &a, NRVec<typename LA_traits<T>::normtype> &w, NRMat<T> *v, const bool corder=1, int n=0, NRSMat<T> *b=NULL, const int itype=1)}{The same for packed
 storage (\code{dspev}/\code{zhpev}, \code{dspgv}/\code{zhpgv}); eigenvectors go to \code{*v} (square, at least $n\times n$) or are not computed if \code{v==NULL}.
 \code{a} (and \code{b}) are destroyed.}
-\lafunc{void diagonalize3(NRVec<double> &d, NRVec<double> &d1, NRMat<double> *v, const bool corder=1, int n0=0)}{Real symmetric tridiagonal matrix
+\lafunc{void diagonalize3(NRVec<double> &d, NRVec<double> &d1, NRMat<double> *v, const bool corder=1, int n0=0)}{(also for \code{float}) Real symmetric tridiagonal matrix
 (\code{dsteqr}) with diagonal \code{d} and sub-diagonal \code{d1} (size ${}\ge n-1$). On return \code{d} holds the eigenvalues (ascending), \code{d1} is destroyed,
 \code{*v} (exactly $n\times n$) the eigenvectors. \code{n0>0} uses only the first \code{n0} elements. Used by \code{lanczos} (chapter~\ref{ch:iterative}).}
 \end{lareference}
@@ -158,7 +158,7 @@ may contain zeros for infinite eigenvalues). Right (\code{vr}) and left (\code{v
 pointers are non-NULL; storage according to table~\ref{tab:nonclass:eivec}. Without sorting, the eigenvalues come in
 LAPACK order (unsorted, complex conjugate pairs adjacent with positive imaginary part first).
 \begin{lareference}
-\lafunc{void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi, NRMat<double> *vl=NULL, NRMat<double> *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0, NRMat<double> *b=NULL, NRVec<double> *beta=NULL)}{Real
+\lafunc{void gdiagonalize(NRMat<double> &a, NRVec<double> &wr, NRVec<double> &wi, NRMat<double> *vl=NULL, NRMat<double> *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0, NRMat<double> *b=NULL, NRVec<double> *beta=NULL)}{(also for \code{float}) Real
 matrix, eigenvalues $w_r+\mathrm{i}\,w_i$, eigenvectors in the real storage of \code{dgeev}: for a real eigenvalue the vector is real; for a complex pair
 $(j,j{+}1)$ the vectors $j$ and $j{+}1$ hold the real and imaginary part. Verified: the right eigenvector belonging to
 $w_{r,j}+\mathrm{i}w_{i,j}$ ($w_{i,j}>0$) is $\mathrm{Re}-\mathrm{i}\,\mathrm{Im}$, and $\mathrm{Re}+\mathrm{i}\,\mathrm{Im}$ of \code{vl} satisfies $y\Tr A=\lambda y\Tr$ --
@@ -167,15 +167,15 @@ note that this sign is opposite to the \code{dgeev} documentation.
 2 real eigenvalues first, then complex ones, each group ordered as for 1. Eigenvectors are permuted accordingly.
 \code{biorthonormalize} (needs \code{vl} and \code{vr}, not with \code{b}): 1 scales the left, 2 the right eigenvectors so that $y_k\Tr x_k=1$;
 complex pairs are rotated to biorthonormality. \code{a} is destroyed (and used as scratch space).}
-\lafunc{void gdiagonalize(NRMat<T> &a, NRVec<std::complex<double> > &w, NRMat<std::complex<double> > *vl=NULL, NRMat<std::complex<double> > *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0, NRMat<T> *b=NULL, NRVec<T> *beta=NULL)}{Template
-specialized for \code{T=double} (calls the previous routine and converts to complex eigenvalues and eigenvectors) and \code{T=complex<double>} (\code{zgeev}/\code{zggev}).
+\lafunc{void gdiagonalize(NRMat<T> &a, NRVec<typename LA_traits<T>::complextype> &w, NRMat<typename LA_traits<T>::complextype> *vl=NULL, NRMat<typename LA_traits<T>::complextype> *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0, NRMat<T> *b=NULL, NRVec<T> *beta=NULL)}{Template
+specialized for \code{T=double}, \code{float} (calls the previous routine and converts to complex eigenvalues and eigenvectors) and \code{T=complex<double>}, \code{complex<float>} (\code{zgeev}/\code{zggev}, \code{cgeev}/\code{cggev}).
 For the complex matrix, \code{sorttype>0} raises \code{laerror} (not implemented) and \code{biorthonormalize} scales so that $\bar y_k\Tr x_k=1$ in the row storage.}
-\lafunc{void gdiagonalize(NRMat<std::complex<double> > &a, NRVec<double> &wr, NRVec<double> &wi, NRMat<std::complex<double> > *vl=NULL, NRMat<std::complex<double> > *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0, NRMat<std::complex<double> > *b=NULL, NRVec<std::complex<double> > *beta=NULL)}{Complex
+\lafunc{void gdiagonalize(NRMat<std::complex<double> > &a, NRVec<double> &wr, NRVec<double> &wi, NRMat<std::complex<double> > *vl=NULL, NRMat<std::complex<double> > *vr=NULL, const bool corder=1, int n=0, const int sorttype=0, const int biorthonormalize=0, NRMat<std::complex<double> > *b=NULL, NRVec<std::complex<double> > *beta=NULL)}{(also for \code{complex<float>}) Complex
 matrix with real and imaginary parts of the eigenvalues in separate vectors; exists to make \code{davidson} compile for complex \code{T}.}
 \end{lareference}
 \section{Singular value decomposition}\label{sec:nonclass:svd}
 \begin{lareference}
-\lafunc{void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<double> &s, NRMat<T> *v, const bool vnotdagger=0, int m=0, int n=0)}{SVD
+\lafunc{void singular_decomposition(NRMat<T> &a, NRMat<T> *u, NRVec<typename LA_traits<T>::normtype> &s, NRMat<T> *v, const bool vnotdagger=0, int m=0, int n=0)}{SVD
 $A=U\,\mathrm{diag}(s)\,V\Hc$ of the $m\times n$ matrix \code{a} (\code{dgesvd}/\code{zgesvd}; \code{m}, \code{n} select a leading block, default whole matrix).
 \code{s} (size ${}\ge\min(m,n)$) receives the singular values in descending order. \code{u}: \code{NULL} (not computed), $m\times m$ (all columns) or
 $m\times\min(m,n)$ (economy size, chosen by \code{u} being non-square). \code{v}: \code{NULL}, $n\times n$ or $\min(m,n)\times n$, receives $V\Hc$
@@ -186,11 +186,12 @@ $m\times\min(m,n)$ (economy size, chosen by \code{u} being non-square). \code{v}
 Functions of matrices computed via the eigendecomposition $f(A)=V f(\Lambda) V^{-1}$. For general matrices
 the eigenvalue problem is solved in complex arithmetic and the result converted back to the element type of the
 argument; for a real argument the imaginary part is \emph{silently dropped} (its size is not checked). The matrix must be
-diagonalizable; nothing is done about defective or ill-conditioned eigenvector matrices.
+diagonalizable; nothing is done about defective or ill-conditioned eigenvector matrices. The functions listed below with
+\code{double} in the signature exist also with \code{float} (and \code{complex<float>} in place of \code{complex<double>}).
 \begin{lareference}
-\lafunc{NRMat<T> matrixfunction(NRSMat<T> a, double (*f)(double))}{$f(A)$ for a real symmetric or complex hermitian packed matrix, real function \code{f}
+\lafunc{NRMat<T> matrixfunction(NRSMat<T> a, typename LA_traits<T>::normtype (*f)(typename LA_traits<T>::normtype))}{$f(A)$ for a real symmetric or complex hermitian packed matrix, real function \code{f}
 of the (real) eigenvalues.}
-\lafunc{NRMat<T> matrixfunction(NRMat<T> a, std::complex<double> (*f)(const std::complex<double> &))}{$f(A)$ for a general real or complex
+\lafunc{NRMat<T> matrixfunction(NRMat<T> a, typename LA_traits<T>::complextype (*f)(const typename LA_traits<T>::complextype &))}{$f(A)$ for a general real or complex
 matrix by \code{gdiagonalize}, $f(A)=\sum_k f(\lambda_k)\,x_k y_k\Tr/(y_k\Tr x_k)$.}
 \lafunc{NRMat<double> realmatrixfunction(NRMat<double> a, double (*f)(double))}{$f(A)$ for a real symmetric matrix in full storage (only the lower triangle is used).}
 \lafunc{NRMat<std::complex<double> > complexmatrixfunction(NRMat<double> a, double (*fre)(double), double (*fim)(double))}{Complex function
@@ -285,7 +286,7 @@ with two \code{gemm} calls; \code{trx}, \code{tryy} transpose the factors (no co
 \section{Norms and condition number}\label{sec:nonclass:norms}
 \begin{lareference}
 \lafunc{typename LA_traits<MAT>::normtype MatrixNorm(const MAT &A, const char norm)}{Matrix norm by \code{dlange}/\code{zlange}, implemented for
-\code{NRMat<double>} and \code{NRMat<std::complex<double> >} (explicit specializations of the template, which can be added for other types).
+\code{NRMat} of \code{double}, \code{float}, \code{std::complex<double>} and \code{std::complex<float>} (explicit specializations of the template, which can be added for other types).
 \code{'1'} or \code{'O'}: 1-norm (maximum column sum); \code{'I'}: $\infty$-norm (maximum row sum); \code{'F'} or \code{'E'}: Frobenius norm;
 \code{'M'}: largest absolute value of an element (lower case accepted). Works for non-square matrices.}
 \lafunc{typename LA_traits<MAT>::normtype CondNumber(const MAT &A, const char norm)}{Condition number $\|A\|\,\|A^{-1}\|$ of a square matrix in the 1-norm
@@ -296,10 +297,10 @@ infinity for a singular matrix. It is LAPACK's estimate, a lower bound that is u
 \section{Real and imaginary parts}\label{sec:nonclass:complex}
 \begin{lareference}
 \lafunc{const LA_traits<T>::realtype realpart(const T &a); const LA_traits<T>::realtype imagpart(const T &a)}{Real or imaginary part as a real object;
-specialized for \code{NRVec}, \code{NRMat}, \code{NRSMat} and \code{SparseMat} over \code{complex<double>}.}
+specialized for \code{NRVec}, \code{NRMat}, \code{NRSMat} and \code{SparseMat} over \code{complex<double>} and \code{complex<float>}.}
 \lafunc{const LA_traits<T>::complextype realmatrix(const T &a); const LA_traits<T>::complextype imagmatrix(const T &a)}{Complex object $A$ resp.\ $\mathrm{i}A$ from a real one;
-for \code{NRMat<double>} and \code{SparseSMat<double>}.}
-\lafunc{const LA_traits<T>::complextype complexmatrix(const T &re, const T &im)}{Complex object $\mathrm{re}+\mathrm{i}\,\mathrm{im}$; for \code{NRMat<double>} and \code{SparseSMat<double>}.}
+for \code{NRMat} and \code{SparseSMat} of \code{double} and \code{float}.}
+\lafunc{const LA_traits<T>::complextype complexmatrix(const T &re, const T &im)}{Complex object $\mathrm{re}+\mathrm{i}\,\mathrm{im}$; for \code{NRMat} and \code{SparseSMat} of \code{double} and \code{float}.}
 \end{lareference}
 For the same purpose the classes provide \code{complexify()} (chapters~\ref{ch:vec}, \ref{ch:mat}).
 The real and imaginary part functions are CPU only (sec.~\ref{sec:concepts:gpu}).
@@ -314,7 +315,7 @@ Application from the source: overlap of Slater determinants with signed spin-orb
 \lafunc{NRMat<T> reconstructmatrix<M,T>(const M &implicitmat)}{Explicit matrix of an implicit one (applying \code{gemv} to unit vectors), for debugging;
 both template arguments must be given. Equivalent to \code{explicit_matrix<T>} of \header{davidson.h} (chapter~\ref{ch:iterative}).}
 \lafunc{void xcopy(int n, const T *x, int incx, T *y, int incy); void xaxpy(int n, const T &a, const T *x, int incx, T *y, int incy); T xdot(int n, const T *x, int incx, const T *y, int incy)}{Type-generic
-names of the CBLAS routines (to ease switching between \code{float}/\code{double}/complex in user code); at present specialized only for \code{double}.}
+names of the CBLAS routines (to ease switching between \code{float}/\code{double}/complex in user code); specialized for \code{double} and \code{float}.}
 \end{lareference}
 
 \section{Examples}\label{sec:nonclass:examples}

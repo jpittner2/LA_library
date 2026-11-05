@@ -77,9 +77,9 @@ vector, hence also a \code{Polynomial} (section~\ref{sec:nonclass:matexp}).
 \subsection{Roots, interpolation, gcd}
 \begin{lareference}
 \lafunc{NRMat<T> companion() const}{companion matrix ($d\times d$, ones on the superdiagonal, last row $-c_i/c_d$) whose characteristic polynomial is $p/c_d$.}
-\lafunc{NRVec<typename LA_traits<T>::complextype> roots() const}{all roots as eigenvalues of the companion matrix (\code{gdiagonalize}, chapter~\ref{ch:nonclass}); for \code{double}
-	and \code{std::complex<double>} only (laerror for integer types).}
-\lafunc{NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const}{roots with $|\mathrm{Im}|<$ \code{thr}, real parts sorted ascending (\code{T = double}).}
+\lafunc{NRVec<typename LA_traits<T>::complextype> roots() const}{all roots as eigenvalues of the companion matrix (\code{gdiagonalize}, chapter~\ref{ch:nonclass}); for the floating point types
+	\code{double}, \code{float}, \code{std::complex<double>} and \code{std::complex<float>} only (laerror for integer types).}
+\lafunc{NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const}{roots with $|\mathrm{Im}|<$ \code{thr}, real parts sorted ascending (floating point types).}
 \lafunc{T newton(const T x0, const typename LA_traits<T>::normtype thr=LA_precision<normtype>::newton_threshold(), const int maxit=1000) const}{Newton iteration from \code{x0} until $|p(x)|<$ \code{thr}; no convergence report.}
 \lafunc{template <typename T> Polynomial<T> polyfromroots(const NRVec<T> &roots, const int skip= -1)}{monic $\prod_{i\ne\mathrm{skip}}(x-r_i)$.}
 \lafunc{template <typename T> Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y)}{interpolating polynomial of degree $n-1$ through the $n$ points; laerror for repeated $x$.}

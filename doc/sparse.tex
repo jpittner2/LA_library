@@ -26,8 +26,8 @@ Common definitions in \code{sparsemat.h}:
 \lafunc{const double SPARSEEPSILON=1e-15}{Kept for user code. The library itself uses the precision-dependent threshold \code{LA_precision<normtype>::sparse_epsilon()} (section~\ref{sec:concepts:traits}; $10^{-15}$ for double, i.e.\ $\epsilon_{\rm sp}$, and $10^{-7}$ for float): elements with absolute value below (or equal to) it are dropped by \code{simplify()} and by most constructors and accumulating operations; it is denoted $\epsilon_{\rm sp}$ below.}
 \lafunc{template<typename T> struct matel {T elem; SPMatindex row; SPMatindex col; matel *next;}}{List element of \code{SparseMat}; also the value type returned by the iterators of both classes.}
 \end{lareference}
-Both classes are explicitly instantiated for \code{double} and \code{std::complex<double>}.
-Several operations are implemented for \code{double} only. \code{SparseMat} nowhere conjugates when
+Both classes are explicitly instantiated for \code{double}, \code{float}, \code{std::complex<double>} and \code{std::complex<float>}.
+Several operations are implemented for the real types \code{double} and \code{float} only. \code{SparseMat} nowhere conjugates when
 it mirrors elements of a symmetric matrix (source comments: ``not OK for complex hermitean''), so
 its complex symmetric matrices are complex symmetric, not hermitian. \code{SparseSMat} stores both triangles
 and its mirroring operations follow the hermitian convention of \code{NRSMat} (section~\ref{sec:smat:hermitian}).
@@ -132,7 +132,7 @@ Binary operators with a matrix operand must not combine a symmetric left operand
 \lafunc{const T trace() const}{Trace.}
 \lafunc{const typename LA_traits<T>::normtype norm(const T scalar=(T)0) const}{Frobenius norm of $A-\mathtt{scalar}\cdot1$ of the full matrix (symmetric off-diagonal elements counted twice). Calls \code{simplify()}.}
 \lafunc{const T dot(const SparseMat &rhs) const}{$\sum_{ij} a_{ij} b_{ij}$ without conjugation (also for complex types), general (not symmetric) matrices only; merge of the two lists sorted by rows.}
-\lafunc{const T dot(const NRMat<T> &rhs) const}{$\sum_{ij} a_{ij} b_{ij}$ with a dense matrix; \code{double} only.}
+\lafunc{const T dot(const NRMat<T> &rhs) const}{$\sum_{ij} a_{ij} b_{ij}$ with a dense matrix; \code{double} and \code{float} only.}
 \lafunc{const T* diagonalof(NRVec<T> &r, const bool divide=0, bool cache=false) const}{Square matrix: diagonal into \code{r} (\code{divide=false}, returns \code{&r[0]}) or divide \code{r} by the nonzero diagonal elements (\code{divide=true}, returns \code{NULL}). Rectangular matrix: the diagonal of $A\Tr A$ (assuming a simplified matrix), for preconditioning. \code{cache} is unused.}
 \end{lareference}
 
@@ -140,7 +140,7 @@ Binary operators with a matrix operand must not combine a symmetric left operand
 \begin{lareference}
 \lafunc{inline const NRVec<T> operator*(const NRVec<T> &rhs) const}{$A x$.}
 \lafunc{void gemv(const T beta, NRVec<T> &r, const char trans, const T alpha, const NRVec<T> &x, bool treat_as_symmetric=false) const}{$r \leftarrow \beta r + \alpha\,\mathrm{op}(A)x$; forwards to \code{NRVec<T>::gemv}. Any \code{trans} other than \code{'n'} means transposition (no conjugation). With \code{treat_as_symmetric} a general matrix is used as if it had the symmetric flag. The sizes of \code{x} and (in DEBUG) of the result are checked.}
-\lafunc{inline const NRMat<T> operator*(const NRMat<T> &rhs) const}{$A B$ via \code{NRMat<T>::gemm} with a sparse first operand; \code{double} only (\code{complex<double>} raises ``not implemented yet'').}
+\lafunc{inline const NRMat<T> operator*(const NRMat<T> &rhs) const}{$A B$ via \code{NRMat<T>::gemm} with a sparse first operand; \code{double} and \code{float} only (the complex types raise ``not implemented yet'').}
 \lafunc{const SparseMat operator*(const SparseMat &rhs) const}{Sparse product of two general matrices (error if one is symmetric); the result is simplified.}
 \lafunc{void gemm(const T beta, const SparseMat &a, const char transa, const SparseMat &b, const char transb, const T alpha)}{$C \leftarrow \beta C + \alpha\,\mathrm{op}(A)\,\mathrm{op}(B)$ for general \code{a}, \code{b}; if \code{*this} is symmetric (possible only with $\beta\neq0$) only elements with $i\le j$ are added. Result simplified. \code{a} and \code{b} must not be \code{*this} (checked in DEBUG).}
 \end{lareference}
@@ -148,7 +148,7 @@ Related functions in other classes:
 \code{NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char trans, const T alpha, const NRVec &x, const bool treat_as_symmetric=false)},
 \code{NRVec<T>::operator*(const SparseMat<T>&)} ($x\Tr A$),
 \code{NRMat<T>::gemm(const T &beta, const SparseMat<T> &a, const char transa, const NRMat &b, const char transb, const T &alpha)}
-(\code{double} only) and \code{NRMat<T>::operator+=}, \code{operator-=(const SparseMat<T>&)}.
+(\code{double} and \code{float} only) and \code{NRMat<T>::operator+=}, \code{operator-=(const SparseMat<T>&)}.
 
 \subsection{Transposition, permutations, direct sums}
 \begin{lareference}
@@ -180,7 +180,7 @@ e.g.\ \code{NRVec<SparseMat<T>>} can be written and read; the ORCA format is def
 \lafunc{inline const SparseMat<T> commutator(const SparseMat<T> &x, const SparseMat<T> &y, const bool trx=0, const bool tryy=0)}{$[\mathrm{op}(x),\mathrm{op}(y)] = xy-yx$, via two \code{gemm} calls (general matrices only).}
 \lafunc{inline const SparseMat<T> anticommutator(const SparseMat<T> &x, const SparseMat<T> &y, const bool trx=0, const bool tryy=0)}{$xy+yx$.}
 \end{lareference}
-In \ref{ch:nonclass}: \code{realpart()} and \code{imagpart()} of a \code{SparseMat<complex<double>>}. The generic
+In \ref{ch:nonclass}: \code{realpart()} and \code{imagpart()} of a \code{SparseMat<complex<double>>} or \code{SparseMat<complex<float>>}. The generic
 matrix functions in \code{matexp.h} (e.g.\ \code{exp()}) work with \code{SparseMat}, and the iterative solvers
 of \ref{ch:iterative} use its \code{gemv}, \code{diagonalof}, \code{issymmetric}, \code{nrows} interface.
 
@@ -306,7 +306,7 @@ Elements with $|S_{ij}|\le$ $\epsilon_{\rm sp}$ are omitted. Both vectors must h
 \lafunc{SparseSMat<T> NRMat<T>::operator*(const SparseSMat<T> &rhs) const}{Declared in mat.h: dense times sparse, general product $AS$ with a sparse result (row $i$ accumulated as $\sum_k A_{ik}\,(\text{row }k\text{ of }S)$, zero $A_{ik}$ skipped; simplified). Instantiated for \code{double} and \code{std::complex<double>}.}
 \end{lareference}
 In \ref{ch:nonclass}: \code{complexmatrix()}, \code{realmatrix()} and \code{imagmatrix()} build a
-\code{SparseSMat<complex<double>>} from real ones. The generic \code{exp()} of \code{matexp.h} works with
+\code{SparseSMat<complex<double>>} (\code{SparseSMat<complex<float>>}) from real ones. The generic \code{exp()} of \code{matexp.h} works with
 \code{SparseSMat}.
 
 \section{CSRMat}\label{sec:sparse:csr}
