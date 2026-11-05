@@ -14,8 +14,8 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
 
 ## Build and test
 - Build the library with `make -j 8` (after header changes most files rebuild; run it in the background).
-- Flags used: `-std=gnu++11 -O3 -DDEBUG -DNO_STRASSEN -DFORTRAN_ -DNONCLAPACK`, libs `-lcblas -lblas -llapack`.
-  Quick test program: `g++ -std=gnu++11 -I<repo> -O0 -DDEBUG -DNO_STRASSEN -DFORTRAN_ -DNONCLAPACK X.cc <repo>/.libs/libla.a -lcblas -lblas -llapack`
+- Flags used: `-std=gnu++11 -O3 -DDEBUG -DFORTRAN_ -DNONCLAPACK`, libs `-lcblas -lblas -llapack`.
+  Quick test program: `g++ -std=gnu++11 -I<repo> -O0 -DDEBUG -DFORTRAN_ -DNONCLAPACK X.cc <repo>/.libs/libla.a -lcblas -lblas -llapack`
   (add `-fsanitize=address` for memory checks).
 - Regression test of the optimizers: `make check` builds `testoptimize`; `./testoptimize` must report
   "137 passed, 0 failed" (exit code = number of failures). New optimizer tests go to testoptimize.cc;
@@ -84,7 +84,9 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   forbidden for NRMat, NRMat_from1, Mat3 (Mat3(double) works).
 - Real-storage gdiagonalize uses the dgeev convention (Re + i Im).
 - The NRMat offset view constructor is a feature. MATPTR is kept (rarely used). CSRMat is unfinished and
-  documented as unsupported, but kept. Strassen is experimental. CUDA (CUDALA) is deferred/experimental
+  documented as unsupported, but kept. NRMat::strassen (2026-11-06): native Strassen-Winograd in strassen.cc, gemm-compatible
+  parameters + cutoff (default LA_traits<T>::strassen_cutoff()=2048 all types, to be tuned on HPC), explicit only (gemm stays classical),
+  CBLAS leaves on strided quadrants, device primitives separated for CUDA; NO_STRASSEN removed everywhere. CUDA (CUDALA) is deferred/experimental
   until the author has NVIDIA RTX hardware (known CUDA issues collected in suspected_bugs.md F10).
 - The regression module (reg.*, regsurf.*) is experimental, not much tested in practice (remarked in the manual);
   its NEA oscillator strength f=dE_min/dE is a placeholder for the true one.
@@ -96,7 +98,7 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   conjgrad, gmres, davidson, lanczos, diis: no changes needed beyond the defaults). Float twins are generated from the double specializations (placed right after them). Precision-
   dependent defaults live in LA_precision<T> (la_traits.h, only double and float; double values unchanged). optimize done
   2026-11-05: own trait opt_precision<T> in optimize.h, INSTANTIZE(float), float tests in testoptimize.cc (test_float);
-  float LM on badly scaled problems needs my_scaling=true. reg/regsurf, csrmat, strassen, CUDA stay double-only.
+  float LM on badly scaled problems needs my_scaling=true. reg/regsurf, csrmat, CUDA stay double-only.
   Tensor Tucker bugs fixed 2026-11-06 (complex: factor = vt.transpose(false); unnamed tensors with inverseorder; bugtests/tensor/tucker.cc).
   BLAS-based NRVec members are meant for floating types only, not integers.
 - NRSMat: possible bool member `hermitian` toggling hermitian vs complex symmetric behaviour
@@ -118,6 +120,8 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   all doc questions answered (2026-10-30), the manual has no open question boxes.
 - configure.ac and Makefile.am were changed 2026-10-30 (--enable-fortran64int, TESTS = testoptimize, targets manual/doc,
   doxygen; all-local builds only the manual (if pdflatex found), doxygen only on request; MANUAL_TEX lists the .tex files - add new chapters there): run autoreconf.
+- configure.ac (2026-11-06): OpenBLAS (with LAPACK+CBLAS) preferred after MKL, only -lopenblas linked; --without-openblas;
+  not with --enable-fortran64int (its parsing moved up). Test programs then link with -lopenblas instead of -lcblas -lblas -llapack.
 - matexp.h: exp()/sincos() default horner=false (polynom, faster for dense); use horner=true for sparse matrices.
 - AuxStorage temporaries go to $TMPDIR (else cwd) and are unlinked at once; AuxStorage and DIIS are not copyable.
 - reg.cc/regsurf.cc cache raw pointers into their NRVec/NRMat members (set in Init): never reallocate those

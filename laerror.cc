@@ -149,7 +149,7 @@ throw LAerror(s1);
 }
 
 
-//stub for f77 blas called from strassen routine
+//stub for f77 blas error handler
 extern "C" void xerbla_(const char name[6], int *n){
 	char msg[1024];
 	strcpy(msg,"LAPACK or BLAS error in routine ");

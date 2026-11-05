@@ -438,11 +438,8 @@ public:
         void printsorted(std::ostream &s, int direction=1, bool absvalue=false, bool stable=false, typename LA_traits<T>::normtype thr=0, int topmax=0) const;
 
 
-#ifndef NO_STRASSEN
-	//! Strassen's multiplication (better than \f$\mathacal{O}(n^3)\f$, analogous syntax to \see NRMat<T>::gemm() )
-	void strassen(const T beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T alpha);
-	void s_cutoff(const int,const int,const int,const int) const;
-#endif
+	//! Strassen-Winograd multiplication (\f$\mathcal{O}(n^{2.81})\f$), the same operation as \see NRMat<T>::gemm(); blocks with a dimension <= cutoff are multiplied by gemm
+	void strassen(const T &beta, const NRMat &a, const char transa, const NRMat &b, const char transb, const T &alpha, const int cutoff=LA_traits<T>::strassen_cutoff());
 	void swap(NRMat &rhs) //more efficient swap than via tmp and constructors and operator=
 		{
 		int tmpnn=nn; nn=rhs.nn; rhs.nn=tmpnn;

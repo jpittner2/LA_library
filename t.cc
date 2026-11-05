@@ -324,16 +324,11 @@ cout <<" big1*big2 "<<big3[0][0]<<" time "<<clock()/((double) (CLOCKS_PER_SEC))-
 
 */
 
-#ifndef NO_STRASSEN
 if(0)
 {
 NRMat<double> atest, btest,ctest;
-{
-int cc,c1,c2,c3;
-cin >>cc>>c1>>c2>>c3;
-
-atest.s_cutoff(cc,c1,c2,c3);
-}
+int cc;
+cin >>cc;
 cin>>atest;
 cin>>btest;
 
@@ -342,7 +337,7 @@ dtest.gemm(0., atest, 't', btest, 'n', 1.);
 cout << dtest;
 
 NRMat<double> etest(atest.nrows(),btest.ncols());
-etest.strassen(0., atest, 't', btest, 'n', 1.);
+etest.strassen(0., atest, 't', btest, 'n', 1., cc);
 cout << etest;
 }
 
@@ -363,13 +358,11 @@ cout <<" classical big1*big2 "<<big3[0][0]<<" time "<<clock()/((double) (CLOCKS_
 
 for (int c=64; c<=512;c+=64)
 	{
-	big4.s_cutoff(c,c,c,c);
 	t=clock()/((double) (CLOCKS_PER_SEC));
-	big4.strassen(0., big1, 'n', big2, 'n', 1.);
+	big4.strassen(0., big1, 'n', big2, 'n', 1., c);
 	cout <<"cutoff "<<c<<" big1*big2 "<<big4[0][0]<<" time "<<clock()/((double) (CLOCKS_PER_SEC))-t <<"\n";
 	}
 }
-#endif
 
 if(0)
 {

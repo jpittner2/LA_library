@@ -308,6 +308,7 @@ static inline C realpart(const std::complex<C> &x) {return x.real();}
 static inline C imagpart(const std::complex<C> &x) {return x.imag();}
 static inline void setrealpart(std::complex<C> &x, const C &y) {reinterpret_cast<C(&)[2]>(x)[0]=y;}
 static inline void setimagpart(std::complex<C> &x, const C &y) {reinterpret_cast<C(&)[2]>(x)[1]=y;}
+static int strassen_cutoff() {return 2048;} //NRMat::strassen uses plain gemm for blocks with a dimension <= cutoff
 };
 
 
@@ -368,6 +369,7 @@ static inline C realpart(const C &x) {return x;}
 static inline C imagpart(const C &x) {return 0;}
 static inline void setrealpart(C &x, const C &y) {x=y;}
 static inline void setimagpart(C &x, const C &y) {}
+static int strassen_cutoff() {return 2048;} //NRMat::strassen uses plain gemm for blocks with a dimension <= cutoff
 };
 
 
