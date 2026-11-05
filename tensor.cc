@@ -1188,12 +1188,32 @@ std::cout<<"cblas_dgemm CPU time " << (clock()-t0)/(double)CLOCKS_PER_SEC<<std::
 }
 
 template<>
+void auxmatmult<float>(int nn, int mm, int kk, float *r, const float *a, const float *b, float alpha, float beta, bool conjugate)
+{
+clock_t t0=clock();
+cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, nn, mm, kk, alpha, a, kk, b, kk, beta, r, mm);
+#ifdef TIMING
+std::cout<<"cblas_sgemm CPU time " << (clock()-t0)/(double)CLOCKS_PER_SEC<<std::endl;
+#endif
+}
+
+template<>
 void auxmatmult<std::complex<double> >(int nn, int mm, int kk, std::complex<double> *r, const std::complex<double> *a, const std::complex<double> *b,  std::complex<double> alpha,  std::complex<double> beta, bool conjugate)
 {
 clock_t t0=clock();
 cblas_zgemm(CblasRowMajor, CblasNoTrans, (conjugate?CblasConjTrans:CblasTrans), nn, mm, kk, &alpha, a, kk, b, kk, &beta, r, mm);
 #ifdef TIMING
 std::cout<<"cblas_zgemm CPU time " << (clock()-t0)/(double)CLOCKS_PER_SEC<<std::endl;
+#endif
+}
+
+template<>
+void auxmatmult<std::complex<float> >(int nn, int mm, int kk, std::complex<float> *r, const std::complex<float> *a, const std::complex<float> *b,  std::complex<float> alpha,  std::complex<float> beta, bool conjugate)
+{
+clock_t t0=clock();
+cblas_cgemm(CblasRowMajor, CblasNoTrans, (conjugate?CblasConjTrans:CblasTrans), nn, mm, kk, &alpha, a, kk, b, kk, &beta, r, mm);
+#ifdef TIMING
+std::cout<<"cblas_cgemm CPU time " << (clock()-t0)/(double)CLOCKS_PER_SEC<<std::endl;
 #endif
 }
 
@@ -2646,6 +2666,12 @@ template std::ostream & operator<<(std::ostream &s, const Tensor<double> &x);
 template std::ostream & operator<<(std::ostream &s, const Tensor<std::complex<double> > &x);
 template std::istream & operator>>(std::istream &s, Tensor<double> &x);
 template std::istream & operator>>(std::istream &s, Tensor<std::complex<double> > &x);
+template class Tensor<float>;
+template class Tensor<std::complex<float> >;
+template std::ostream & operator<<(std::ostream &s, const Tensor<float> &x);
+template std::ostream & operator<<(std::ostream &s, const Tensor<std::complex<float> > &x);
+template std::istream & operator>>(std::istream &s, Tensor<float> &x);
+template std::istream & operator>>(std::istream &s, Tensor<std::complex<float> > &x);
 
 
 }//namespace
