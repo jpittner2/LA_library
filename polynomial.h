@@ -86,7 +86,7 @@ public:
 		while(n>0 && MYABS((*this)[n])<=thr) --n;
 		resize(n,true);
 		};
-	void normalize() {if((*this)[degree()]==(T)0) laerror("zero coefficient at highest degree - simplify first"); *this /= (*this)[degree()];};
+	void normalize() {const T lead=((const Polynomial &)*this)[degree()]; if(lead==(T)0) laerror("zero coefficient at highest degree - simplify first"); *this /= lead;};
 	Polynomial shifted(const int shift) const
 		{
 		if(shift==0) return *this;
@@ -154,7 +154,7 @@ public:
 	Polynomial operator/(const Polynomial &rhs) const {Polynomial q,r; polydiv(rhs,q,r); return q;};
 	Polynomial operator%(const Polynomial &rhs) const {Polynomial q,r; polydiv(rhs,q,r); return r;};
 	NRMat<T> companion() const; //matrix which has this characteristic polynomial
-	NRVec<typename LA_traits<T>::complextype> roots() const; //implemented for complex<double> and double only
+	NRVec<typename LA_traits<T>::complextype> roots() const; //implemented for double, float and their complex types only
 	NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const;
 	T newton(const T x0, const typename LA_traits<T>::normtype thr=LA_precision<typename LA_traits<T>::normtype>::newton_threshold(), const int maxit=1000) const; //solve root from the guess
 	Polynomial pow(const int i) const; //integer power

@@ -264,6 +264,8 @@ template class Polynomial<int>;
 template class Polynomial<unsigned int>;
 template class Polynomial<double>;
 template class Polynomial<std::complex<double> >;
+template class Polynomial<float>;
+template class Polynomial<std::complex<float> >;
 
 #define INSTANTIZE(T) \
 template NRMat<T> Sylvester(const Polynomial<T> &p, const Polynomial<T> &q); \
@@ -277,12 +279,15 @@ INSTANTIZE(int)
 INSTANTIZE(unsigned int)
 INSTANTIZE(double)
 INSTANTIZE(std::complex<double>)
+INSTANTIZE(float)
+INSTANTIZE(std::complex<float>)
 
 #define INSTANTIZE2(T) \
 template Polynomial<T> hermite_polynomial(int); \
 
 INSTANTIZE2(int)
 INSTANTIZE2(double)
+INSTANTIZE2(float)
 
 
 
