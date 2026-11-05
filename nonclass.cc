@@ -37,6 +37,8 @@ template void lawritemat(FILE *file,const T *a,int r,int c,const char *form0, \
 		int nodim,int modulo, int issym);
 INSTANTIZE(double)
 INSTANTIZE(std::complex<double>)
+INSTANTIZE(float)
+INSTANTIZE(std::complex<float>)
 INSTANTIZE(int)
 INSTANTIZE(short)
 INSTANTIZE(char)

@@ -106,6 +106,23 @@ const NRVec<double> NRVec<double>::operator-() const {
 	return result;
 }
 
+template<>
+const NRVec<float> NRVec<float>::operator-() const {
+	NRVec<float> result(*this);
+	result.copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_sscal(nn, -1.0, result.v, 1);
+#ifdef CUDALA
+	}else{
+		cublasSscal(nn, -1.0, result.v, 1);
+		TEST_CUBLAS("cublasSscal");
+	}
+#endif
+	return result;
+}
+
 
 
 /***************************************************************************//**
@@ -124,6 +141,23 @@ const NRVec<std::complex<double> > NRVec<std::complex<double> >::operator-() con
 	}else{
 		cublasZdscal(nn, -1.0, (cuDoubleComplex*)result.v, 1);
 		TEST_CUBLAS("cublasZdscal");
+	}
+#endif
+	return result;
+}
+
+template<>
+const NRVec<std::complex<float> > NRVec<std::complex<float> >::operator-() const {
+	NRVec<std::complex<float> > result(*this);
+	result.copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_csscal(nn, -1.0, result.v, 1);
+#ifdef CUDALA
+	}else{
+		cublasCsscal(nn, -1.0, (cuComplex*)result.v, 1);
+		TEST_CUBLAS("cublasCsscal");
 	}
 #endif
 	return result;
@@ -199,6 +233,16 @@ void NRVec<double>::randomize(const double &x){
 	}
 }
 
+template<>
+void NRVec<float>::randomize(const float &x){
+	NOT_GPU(*this);
+	copyonwrite();
+
+	for(register int i=0; i<nn; ++i){
+		v[i] = x*RANDDOUBLESIGNED();
+	}
+}
+
 /***************************************************************************//**
  * fill the complex vector with pseudorandom numbers generated using uniform distribution
  * the real and imaginary parts are generated independently
@@ -214,6 +258,16 @@ void NRVec<std::complex<double> >::randomize(const double &x) {
 
 	for(register int i=0; i<nn; ++i){
 		v[i] = std::complex<double>(x*RANDDOUBLESIGNED(), x*RANDDOUBLESIGNED());
+	}
+}
+
+template<>
+void NRVec<std::complex<float> >::randomize(const float &x) {
+	NOT_GPU(*this);
+	copyonwrite();
+
+	for(register int i=0; i<nn; ++i){
+		v[i] = std::complex<float>(x*RANDDOUBLESIGNED(), x*RANDDOUBLESIGNED());
 	}
 }
 
@@ -252,6 +306,31 @@ NRVec<std::complex<double> >::NRVec(const NRVec<double> &rhs, bool imagpart): nn
 #endif
 }
 
+template<>
+NRVec<std::complex<float> >::NRVec(const NRVec<float> &rhs, bool imagpart): nn(rhs.size()){
+
+	 count = new int;
+	*count = 1;
+#ifdef CUDALA
+	location = rhs.getlocation();
+	if(location == cpu){
+#endif
+		v = (std::complex<float>*)new std::complex<float>[nn];
+		memset(v, 0, nn*sizeof(std::complex<float>));
+		cblas_scopy(nn, &rhs[0], 1, ((float *)v) + (imagpart?1:0), 2);
+#ifdef CUDALA
+	}else{
+		v = (std::complex<float>*) gpualloc(nn*sizeof(std::complex<float>));
+
+		cublasCscal(nn, CUZERO, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCscal");
+
+		cublasScopy(nn, &rhs[0], 1, ((float *)v) + (imagpart?1:0), 2);
+		TEST_CUBLAS("cublasScopy");
+	}
+#endif
+}
+
 /***************************************************************************//**
  * perform the <b>axpy</b> operation on the current real vector \f$\vec{v}\f$, i.e.
  * \f[ \vec{v} \leftarrow \vec{v} + \alpha\vec{x} \f]
@@ -274,6 +353,26 @@ void NRVec<double>::axpy(const double alpha, const NRVec<double> &x) {
 	}else{
 		cublasDaxpy(nn, alpha, x.v, 1, v, 1);
 		TEST_CUBLAS("cublasDaxpy");
+	}
+#endif
+}
+
+template<>
+void NRVec<float>::axpy(const float alpha, const NRVec<float> &x) {
+#ifdef DEBUG
+	if (nn != x.nn) laerror("incompatible vectors");
+#endif
+	SAME_LOC(*this, x);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_saxpy(nn, alpha, x.v, 1, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasSaxpy(nn, alpha, x.v, 1, v, 1);
+		TEST_CUBLAS("cublasSaxpy");
 	}
 #endif
 }
@@ -306,6 +405,28 @@ void NRVec<std::complex<double> >::axpy(const std::complex<double> alpha, const 
 
 }
 
+template<>
+void NRVec<std::complex<float> >::axpy(const std::complex<float> alpha, const NRVec<std::complex<float> > &x){
+#ifdef DEBUG
+	if (nn != x.nn) laerror("incompatible vectors");
+#endif
+	SAME_LOC(*this, x);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_caxpy(nn, &alpha, x.v, 1, v, 1);
+#ifdef CUDALA
+	}else{
+		const cuComplex _alpha = make_cuComplex(alpha.real(), alpha.imag());
+		cublasCaxpy(nn, _alpha, (cuComplex*)x.v, 1, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCaxpy");
+	}
+#endif
+
+}
+
 /***************************************************************************//**
  * perform the <b>axpy</b> operation on the current real vector \f$\vec{v}\f$, i.e.
  * \f[ \vec{v} \leftarrow \vec{v} + \alpha\vec{x} \f]
@@ -321,6 +442,14 @@ void NRVec<double>::axpy(const double alpha, const double *x, const int stride){
 	cblas_daxpy(nn, alpha, x, stride, v, 1);
 }
 
+template<>
+void NRVec<float>::axpy(const float alpha, const float *x, const int stride){
+	NOT_GPU(*this);
+
+	copyonwrite();
+	cblas_saxpy(nn, alpha, x, stride, v, 1);
+}
+
 /***************************************************************************//**
  * perform the <b>axpy</b> operation on the current complex vector \f$\vec{v}\f$, i.e.
  * \f[ \vec{v} \leftarrow \vec{v} + \alpha\vec{x} \f]
@@ -334,6 +463,14 @@ void NRVec<std::complex<double> >::axpy(const std::complex<double> alpha, const 
 
 	copyonwrite();
 	cblas_zaxpy(nn, &alpha, x, stride, v, 1);
+}
+
+template<>
+void NRVec<std::complex<float> >::axpy(const std::complex<float> alpha, const std::complex<float> *x, const int stride){
+	NOT_GPU(*this);
+
+	copyonwrite();
+	cblas_caxpy(nn, &alpha, x, stride, v, 1);
 }
 
 /***************************************************************************//**
@@ -357,6 +494,22 @@ copyonwrite();
 	return *this;
 }
 
+template<>
+NRVec<float>& NRVec<float>::operator=(const float &a){
+copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_scopy(nn, &a, 0, v, 1);
+#ifdef CUDALA
+	}else{
+		smart_gpu_set(nn, (float)0, v);
+	}
+#endif	
+	return *this;
+}
+
 /***************************************************************************//**
  * assign complex scalar value to every element of the current vector
  * @param[in] a scalar value to be assigned
@@ -373,6 +526,22 @@ copyonwrite();
 #ifdef CUDALA
 	}else{
 		smart_gpu_set(nn, (std::complex<double>)0, v);
+	}
+#endif	
+	return *this;
+}
+
+template<>
+NRVec<std::complex<float> >& NRVec<std::complex<float> >::operator=(const std::complex<float> &a){
+copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_ccopy(nn, &a, 0, v, 1);
+#ifdef CUDALA
+	}else{
+		smart_gpu_set(nn, (std::complex<float>)0, v);
 	}
 #endif	
 	return *this;
@@ -433,6 +602,38 @@ NRVec<double>& NRVec<double>::normalize(double *norm){
 	return *this;
 }
 
+template<>
+NRVec<float>& NRVec<float>::normalize(float *norm){
+	float tmp(0.0);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		tmp = cblas_snrm2(nn, v, 1);
+		if(norm) *norm = tmp;
+		#ifdef DEBUG
+			if(!tmp) laerror("attempt to normalize zero vector");
+		#endif
+		copyonwrite();
+		tmp = 1.0 / tmp;
+		cblas_sscal(nn, tmp, v, 1);
+#ifdef CUDALA
+	}else{
+		tmp = cublasSnrm2(nn, v, 1);
+		TEST_CUBLAS("cublasSnrm2");
+
+		if(norm) *norm = tmp;
+		#ifdef DEBUG
+			if(!tmp) laerror("attempt to normalize zero vector");
+		#endif
+		copyonwrite();
+		tmp = 1.0 / tmp;
+		cublasSscal(nn, tmp, v, 1);
+		TEST_CUBLAS("cublasSscal");
+	}
+#endif
+	return *this;
+}
+
 /***************************************************************************//**
  * normalize current complex vector (in the Euclidean norm)
  * @param[in] norm if not NULL, the norm of this vector is stored into *norm
@@ -471,6 +672,39 @@ NRVec<std::complex<double> > & NRVec<std::complex<double> >::normalize(double *n
 	return *this;
 }
 
+template<>
+NRVec<std::complex<float> > & NRVec<std::complex<float> >::normalize(float *norm){
+	float tmp(0.0);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		tmp = cblas_scnrm2(nn, v, 1);
+		if(norm) *norm = tmp;
+		#ifdef DEBUG
+		if(tmp == 0.0) laerror("attempt to normalize zero vector");
+		#endif
+		copyonwrite();
+		tmp = 1.0 / tmp;
+		cblas_csscal(nn, tmp, v, 1);
+#ifdef CUDALA
+	}else{
+		tmp = cublasScnrm2(nn, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasScnrm2");
+
+		if(norm) *norm = tmp;
+		#ifdef DEBUG
+			if(tmp == 0.0) laerror("attempt to normalize zero vector");
+		#endif
+		copyonwrite();
+
+		tmp = 1.0 / tmp;
+		cublasCsscal(nn, tmp, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCsscal");
+	}
+#endif		
+	return *this;
+}
+
 /***************************************************************************//**
  * perform the \b gemv operation on this real vector \f$\vec{y}\f$, i.e.
  * \f[\vec{y}\leftarrow \alpha\operatorname{op}(A)\cdot\vec{x}+\beta\vec{y}\f]
@@ -499,6 +733,28 @@ void NRVec<double>::gemv(const double beta, const NRMat<double> &A,
 	}else{
 		cublasDgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
 		TEST_CUBLAS("cublasDgemv");
+	}
+#endif
+}
+
+template<>
+void NRVec<float>::gemv(const float beta, const NRMat<float> &A, 
+		const char trans, const float alpha, const NRVec &x) {
+#ifdef DEBUG
+	if((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if((tolower(trans) == 'n'?A.nrows():A.ncols()) != nn){ laerror("incompatible result vector in gemv"); }
+#endif
+	SAME_LOC3(*this, x, A);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location==cpu){
+#endif
+		cblas_sgemv(CblasRowMajor, (tolower(trans)=='n' ? CblasNoTrans:CblasTrans), A.nrows(), A.ncols(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasSgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), x.v, 1, beta, v, 1);
+		TEST_CUBLAS("cublasSgemv");
 	}
 #endif
 }
@@ -537,6 +793,34 @@ void NRVec<std::complex<double> >::gemv(const double beta, const NRMat<double> &
 
 		cublasDgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), ((double *)x.v) + 1, 2, beta, ((double *)v)+1, 2);
 		TEST_CUBLAS("cublasDgemv");
+	}
+#endif
+}
+
+template<>
+void NRVec<std::complex<float> >::gemv(const float beta, const NRMat<float> &A,
+                const char trans, const float alpha, const NRVec<std::complex<float> > &x) {
+#ifdef DEBUG
+	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if((tolower(trans) == 'n'?A.nrows():A.ncols()) != nn){ laerror("incompatible result vector in gemv"); }
+#endif
+	SAME_LOC3(*this, x, A);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location==cpu){
+#endif
+		cblas_sgemv(CblasRowMajor, (tolower(trans)=='n'?CblasNoTrans:CblasTrans),
+				A.nrows(), A.ncols(), alpha, A, A.ncols(), (float *)x.v, 2, beta, (float *)v, 2);
+		cblas_sgemv(CblasRowMajor, (tolower(trans)=='n'?CblasNoTrans:CblasTrans),
+				A.nrows(), A.ncols(), alpha, A, A.ncols(), ((float *)x.v) + 1, 2, beta, ((float *)v)+1, 2);
+#ifdef CUDALA
+	}else{
+		cublasSgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), (float*)(x.v), 2, beta, (float *)v, 2);
+		TEST_CUBLAS("cublasSgemv");
+
+		cublasSgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(), alpha, A, A.ncols(), ((float *)x.v) + 1, 2, beta, ((float *)v)+1, 2);
+		TEST_CUBLAS("cublasSgemv");
 	}
 #endif
 }
@@ -581,6 +865,35 @@ void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
 #endif
 }
 
+template<>
+void NRVec<std::complex<float> >::gemv(const std::complex<float> beta,
+		const NRMat<std::complex<float> > &A, const char trans, 
+		const std::complex<float> alpha, const NRVec<std::complex<float> > &x) {
+#ifdef DEBUG
+	if ((tolower(trans) == 'n'?A.ncols():A.nrows()) != x.size()){ laerror("incompatible vectors"); }
+	if((tolower(trans) == 'n'?A.nrows():A.ncols()) != nn){ laerror("incompatible result vector in gemv"); }
+#endif
+	SAME_LOC3(*this, x, A);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_cgemv(CblasRowMajor, (tolower(trans)=='n' ? CblasNoTrans : (tolower(trans)=='c'?CblasConjTrans:CblasTrans)), 
+				A.nrows(), A.ncols(), &alpha, A, A.ncols(), x.v, 1, &beta, v, 1);
+#ifdef CUDALA
+	}else{
+		if(tolower(trans)=='c') laerror("gemv with conjugate transposition not implemented on GPU");
+
+		const cuComplex _alpha = make_cuComplex(alpha.real(), alpha.imag());
+		const cuComplex  _beta = make_cuComplex(beta.real(), beta.imag());
+
+		cublasCgemv((tolower(trans)=='n'?'T':'N'), A.ncols(), A.nrows(),
+				_alpha, (cuComplex*)(A[0]), A.ncols(), (cuComplex*)(x.v), 1, _beta, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCgemv");
+	}
+#endif
+}
+
 /***************************************************************************//**
  * perform the \b gemv operation on this real vector \f$\vec{y}\f$, i.e.
  * \f[\vec{y}\leftarrow \alpha\operatorname{op}(A)\cdot\vec{x}+\beta\vec{y}\f]
@@ -609,6 +922,28 @@ void NRVec<double>::gemv(const double beta, const NRSMat<double> &A,
 	}else{
 		cublasDspmv('U', A.ncols(), alpha, A, x.v, 1, beta, v, 1);
 		TEST_CUBLAS("cublasDspmv");
+	}
+#endif
+}
+
+template<>
+void NRVec<float>::gemv(const float beta, const NRSMat<float> &A,
+		const char trans, const float alpha, const NRVec &x) {
+#ifdef DEBUG
+	if(A.ncols() != x.size()){ laerror("incompatible dimensions"); }
+	if(A.nrows() != nn){ laerror("incompatible result vector in gemv"); }
+#endif
+	SAME_LOC3(*this, A, x);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location==cpu){
+#endif
+		cblas_sspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, x.v, 1, beta, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasSspmv('U', A.ncols(), alpha, A, x.v, 1, beta, v, 1);
+		TEST_CUBLAS("cublasSspmv");
 	}
 #endif
 }
@@ -646,6 +981,32 @@ void NRVec<std::complex<double> >::gemv(const double beta, const NRSMat<double> 
 		
 		cublasDspmv('U', A.ncols(), alpha, A, ((double*)(x.v)) + 1, 2, beta, ((double*)v) + 1, 2);
 		TEST_CUBLAS("cublasDspmv");
+	}
+#endif
+}
+
+template<>
+void NRVec<std::complex<float> >::gemv(const float beta, const NRSMat<float> &A,
+		const char trans, const float alpha, const NRVec<std::complex<float> > &x) {
+#ifdef DEBUG
+	if(A.ncols() != x.size()){ laerror("incompatible dimensions"); }
+	if(A.nrows() != nn){ laerror("incompatible result vector in gemv"); }
+#endif
+	SAME_LOC3(*this, A, x);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_sspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, (float *)x.v, 2, beta, (float *)v, 2);
+		cblas_sspmv(CblasRowMajor, CblasLower, A.ncols(), alpha, A, ((float *)x.v) + 1, 2, beta, ((float *)v) + 1, 2);
+#ifdef CUDALA
+	}else{
+		cublasSspmv('U', A.ncols(), alpha, A, (float*)(x.v), 2, beta, (float*)v, 2);
+		TEST_CUBLAS("cublasSspmv");
+		
+		cublasSspmv('U', A.ncols(), alpha, A, ((float*)(x.v)) + 1, 2, beta, ((float*)v) + 1, 2);
+		TEST_CUBLAS("cublasSspmv");
 	}
 #endif
 }
@@ -689,6 +1050,35 @@ void NRVec<std::complex<double> >::gemv(const std::complex<double> beta,
 #endif
 }
 
+template<>
+void NRVec<std::complex<float> >::gemv(const std::complex<float> beta,
+                const NRSMat<std::complex<float> > &A, const char trans,
+                const std::complex<float> alpha, const NRVec<std::complex<float> > &x){
+#ifdef DEBUG
+	if(A.ncols() != x.size()) laerror("incompatible dimensions");
+	if(A.nrows() != nn){ laerror("incompatible result vector in gemv"); }
+#endif
+	SAME_LOC3(*this, A, x);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		if(tolower(trans) == 't') //row-major lower packed H is column-major upper packed H^T
+			cblas_chpmv(CblasColMajor, CblasUpper, A.ncols(), &alpha, A, x.v, 1, &beta, v, 1);
+		else
+			cblas_chpmv(CblasRowMajor, CblasLower, A.ncols(), &alpha, A, x.v, 1, &beta, v, 1);
+#ifdef CUDALA
+	}else{
+		const cuComplex _alpha = make_cuComplex(alpha.real(), alpha.imag());
+		const cuComplex  _beta = make_cuComplex(beta.real(), beta.imag());
+
+		cublasChpmv('U', A.ncols(), _alpha, (cuComplex*)((const std::complex<float>*)A), (cuComplex*)(x.v), 1, _beta, (cuComplex*)(this->v), 1);
+		TEST_CUBLAS("cublasChpmv");
+	}
+#endif
+}
+
 /***************************************************************************//**
  * computes the outer product of this real vector \f$\vec{a}\f$ with given
  * real vector \f$\vec{b}\f$ and scales the resulting matrix with factor \f$\alpha\f$, i.e.
@@ -717,6 +1107,24 @@ const NRMat<double> NRVec<double>::otimes(const NRVec<double> &b,const bool conj
 }
 
 template<>
+const NRMat<float> NRVec<float>::otimes(const NRVec<float> &b,const bool conj, const float &scale) const {
+
+	SAME_LOC(*this, b);
+	NRMat<float> result(0.0, nn, b.nn, this->getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_sger(CblasRowMajor, nn, b.nn, scale, v, 1, b.v, 1, result, b.nn);
+#ifdef CUDALA
+	}else{
+		cublasSger(b.nn, nn, scale, b.v, 1, v, 1, result[0], b.nn);
+		TEST_CUBLAS("cublasSger");
+	}
+#endif
+	return result;
+}
+
+template<>
 const NRVec<double> NRVec<double>::otimes2vec(const NRVec<double> &b,const bool conj, const double &scale) const {
 
 	SAME_LOC(*this, b);
@@ -729,6 +1137,24 @@ const NRVec<double> NRVec<double>::otimes2vec(const NRVec<double> &b,const bool 
 	}else{
 		cublasDger(b.nn, nn, scale, b.v, 1, v, 1, result.v, b.nn);
 		TEST_CUBLAS("cublasDger");
+	}
+#endif
+	return result;
+}
+
+template<>
+const NRVec<float> NRVec<float>::otimes2vec(const NRVec<float> &b,const bool conj, const float &scale) const {
+
+	SAME_LOC(*this, b);
+	NRVec<float> result(0.0, nn*b.nn, this->getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_sger(CblasRowMajor, nn, b.nn, scale, v, 1, b.v, 1, result.v, b.nn);
+#ifdef CUDALA
+	}else{
+		cublasSger(b.nn, nn, scale, b.v, 1, v, 1, result.v, b.nn);
+		TEST_CUBLAS("cublasSger");
 	}
 #endif
 	return result;
@@ -781,6 +1207,41 @@ NRVec<std::complex<double> >::otimes(const NRVec<std::complex<double> > &b, cons
 }
 
 template<>
+const NRMat<std::complex<float> > 
+NRVec<std::complex<float> >::otimes(const NRVec<std::complex<float> > &b, const bool conj, const std::complex<float> &scale) const {
+	
+	SAME_LOC(*this, b);
+	NRMat<std::complex<float> > result(0., nn, b.nn, this->getlocation());
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		if(conj){
+			cblas_cgerc(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result, b.nn);
+		}else{
+			cblas_cgeru(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result, b.nn);
+		}
+#ifdef CUDALA
+	}else{
+		if(conj){
+			const cuComplex alpha = make_cuComplex(scale.real(), -scale.imag());
+
+			cublasCgerc(b.nn, nn, alpha, (cuComplex*)(b.v), 1, (cuComplex*)(v), 1, (cuComplex*)(result[0]), b.nn);
+			TEST_CUBLAS("cublasCgerc");
+
+			result.conjugateme();
+		}else{
+			const cuComplex alpha = make_cuComplex(scale.real(), +scale.imag());
+
+			cublasCgeru(b.nn, nn, alpha, (cuComplex*)(b.v), 1, (cuComplex*)(v), 1, (cuComplex*)(result[0]), b.nn);
+			TEST_CUBLAS("cublasCgeru");
+		}
+	}
+#endif
+	return result;
+}
+
+template<>
 const NRVec<std::complex<double> > 
 NRVec<std::complex<double> >::otimes2vec(const NRVec<std::complex<double> > &b, const bool conj, const std::complex<double> &scale) const {
 	
@@ -815,6 +1276,41 @@ NRVec<std::complex<double> >::otimes2vec(const NRVec<std::complex<double> > &b, 
 	return result;
 }
 
+template<>
+const NRVec<std::complex<float> > 
+NRVec<std::complex<float> >::otimes2vec(const NRVec<std::complex<float> > &b, const bool conj, const std::complex<float> &scale) const {
+	
+	SAME_LOC(*this, b);
+	NRVec<std::complex<float> > result(0., nn*b.nn, this->getlocation());
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		if(conj){
+			cblas_cgerc(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result.v, b.nn);
+		}else{
+			cblas_cgeru(CblasRowMajor, nn, b.nn, &scale, v, 1, b.v, 1, result.v, b.nn);
+		}
+#ifdef CUDALA
+	}else{
+		if(conj){
+			const cuComplex alpha = make_cuComplex(scale.real(), -scale.imag());
+
+			cublasCgerc(b.nn, nn, alpha, (cuComplex*)(b.v), 1, (cuComplex*)(v), 1, (cuComplex*)(result.v), b.nn);
+			TEST_CUBLAS("cublasCgerc");
+
+			result.conjugateme();
+		}else{
+			const cuComplex alpha = make_cuComplex(scale.real(), +scale.imag());
+
+			cublasCgeru(b.nn, nn, alpha, (cuComplex*)(b.v), 1, (cuComplex*)(v), 1, (cuComplex*)(result.v), b.nn);
+			TEST_CUBLAS("cublasCgeru");
+		}
+	}
+#endif
+	return result;
+}
+
 
 template<>
 NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
@@ -829,6 +1325,24 @@ NRVec<std::complex<double> > complexify(const NRVec<double> &rhs) {
 		r = 0;
 		cublasDcopy(rhs.size(), rhs.v, 1, (double*)(r.v), 2);
 		TEST_CUBLAS("cublasDcopy");
+	}
+#endif
+	return r;
+}
+
+template<>
+NRVec<std::complex<float> > complexify(const NRVec<float> &rhs) {
+	NRVec<std::complex<float> > r(rhs.size(), rhs.getlocation());
+
+#ifdef CUDALA
+	if(rhs.getlocation() == cpu){
+#endif
+		cblas_scopy(rhs.size(), &rhs[0], 1, (float *)(&r[0]), 2);
+#ifdef CUDALA
+	}else{
+		r = 0;
+		cublasScopy(rhs.size(), rhs.v, 1, (float*)(r.v), 2);
+		TEST_CUBLAS("cublasScopy");
 	}
 #endif
 	return r;
@@ -1073,6 +1587,22 @@ const double NRVec<double>::sum() const {
         return result;
 }
 
+template <>
+const float NRVec<float>::sum() const {
+        float result=0;
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                        cblas_saxpy(nn, 1.0, v, 1, &result, 0);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented");
+                }
+        }
+#endif
+        return result;
+}
+
 /***************************************************************************//**
  * sum up the all of the current double-precision complex vector
  * @return sum
@@ -1084,6 +1614,22 @@ const std::complex<double>  NRVec<std::complex<double> >::sum() const {
         if(location == cpu){
 #endif
                         cblas_zaxpy(nn, &CONE, v, 1, &result, 0);
+#ifdef CUDALA
+        }else{
+        laerror("not implemented");
+                }
+        }
+#endif
+        return result;
+}
+
+template <>
+const std::complex<float>  NRVec<std::complex<float> >::sum() const {
+        std::complex<float>  result=0;
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                        cblas_caxpy(nn, &CONEF, v, 1, &result, 0);
 #ifdef CUDALA
         }else{
         laerror("not implemented");
@@ -1232,8 +1778,8 @@ INSTANTIZE_CONCAT(std::complex<double>)
 
 
 
-//template class NRVec<float>;
-//template class NRVec<std::complex<float> >;
+template class NRVec<float>;
+template class NRVec<std::complex<float> >;
 template class NRVec<double>;
 template class NRVec<std::complex<double> >;
 template class NRVec<char>;

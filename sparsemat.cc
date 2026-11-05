@@ -1444,5 +1444,9 @@ template void NRVec<T>::gemv(const T beta, const SparseMat<T> &a, const char tra
 INSTANTIZE(double)
 INSTANTIZE(std::complex<double>)
 
+//needed by the instantiation of NRVec<float> and NRVec<std::complex<float> >
+template void NRVec<float>::gemv(const float beta, const SparseMat<float> &a, const char trans, const float alpha, const NRVec<float> &x, const bool treat_as_symmetric);
+template void NRVec<std::complex<float> >::gemv(const std::complex<float> beta, const SparseMat<std::complex<float> > &a, const char trans, const std::complex<float> alpha, const NRVec<std::complex<float> > &x, const bool treat_as_symmetric);
+
 
 }//namespace
