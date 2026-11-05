@@ -456,6 +456,11 @@ generate_traits_smat(NRSMat_from1)
 template<typename C>
 struct LA_traits : LA_traits_aux<C, typename isscalar<C>::scalar_type> {};
 
+
+//precision-dependent default thresholds (the double values are those used so far)
+template<typename T> struct LA_precision {static T svd_threshold() {return (T)1e-12;}};
+template<> struct LA_precision<float> {static float svd_threshold() {return 1e-5f;}};
+
 }//namespace
 
 #endif

@@ -689,5 +689,8 @@ int cblas_errprn(int ierr, int info, char *form, ...);
 int clapack_dgesv(const  CBLAS_ORDER Order, const int N, const int NRHS,
                   double *A, const int lda, int *ipiv,
                   double *B, const int ldb); 
+int clapack_sgesv(const  CBLAS_ORDER Order, const int N, const int NRHS,
+                  float *A, const int lda, int *ipiv,
+                  float *B, const int ldb); 
 #endif
 #endif

@@ -1325,7 +1325,13 @@ template<>
 NRSMat<double>  NRSMat<double>::inverse() {return NRSMat<double>(NRMat<double>(*this).inverse());}
 
 template<>
+NRSMat<float>  NRSMat<float>::inverse() {return NRSMat<float>(NRMat<float>(*this).inverse());}
+
+template<>
 NRSMat<std::complex<double> >  NRSMat<std::complex<double> >::inverse() {return NRSMat<std::complex<double> >(NRMat<std::complex<double> >(*this).inverse());}
+
+template<>
+NRSMat<std::complex<float> >  NRSMat<std::complex<float> >::inverse() {return NRSMat<std::complex<float> >(NRMat<std::complex<float> >(*this).inverse());}
 
 
 
