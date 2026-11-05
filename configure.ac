@@ -40,14 +40,41 @@ then
 	MKLOPT="-DHAS_MKL"
 	AC_SUBST([MKLOPT])
 else
-	echo "MKL LIBRARY OR HEADER NOT FOUND, will try ATLAS next!"
+	echo "MKL LIBRARY OR HEADER NOT FOUND, will try OpenBLAS next!"
+fi
+
+FORINTOPT=""
+forint64=""
+AC_ARG_ENABLE([fortran64int],[  --enable-fortran64int to link with 64-bit-integer-BLAS+LAPACK ],[forint64=${enableval}],)
+AC_ARG_ENABLE([fotran64int],[  --enable-fotran64int old misspelled alias of --enable-fortran64int ],[forint64=${enableval}],)
+
+# OpenBLAS (with LAPACK and CBLAS included) is preferred if MKL is not present; not for 64-bit integers
+openblas_present=0
+AC_ARG_WITH([openblas],[  --without-openblas  do not use OpenBLAS even if found (use ATLAS or reference BLAS)],[],[with_openblas=yes])
+case "${forint64}" in
+	""|no) ;;
+	*) with_openblas=no ;;
+esac
+if test $mkl_present == 0 -a "${with_openblas}" != no
+then
+AC_CHECK_LIB([openblas], [dgeev_], [AC_CHECK_LIB([openblas], [cblas_dgemm], [openblas_present=1])])
+fi
+if test $openblas_present == 1
+then
+	echo "OPENBLAS FOUND"
+	BLASLIB="-lopenblas"
+	AC_SUBST([BLASLIB])
+	CLAPACKOPT=-DNONCLAPACK
+	AC_SUBST([CLAPACKOPT])
+else
+	echo "OPENBLAS NOT FOUND OR NOT USED, will try ATLAS next!"
 fi
 
 
 # Checks for mandatory libraries.
 ATLASLIB=""	
 
-if test $mkl_present == 0
+if test $mkl_present == 0 -a $openblas_present == 0
 then
 AC_CHECK_LIB([atlas], [ATL_zgemv],ATLASLIB="-lblas -latlas", [
         echo "ATLAS not found, I hope you are using some other efficient BLAS!"
@@ -75,7 +102,13 @@ AC_ARG_ENABLE([matptr],[  --enable-matptr   switch to double** matrix representa
 CBLASLIB=""
 CBLASOPT=""
 
-if test $mkl_present == 0
+if test $openblas_present == 1
+then
+AC_CHECK_HEADER([cblas.h],,[CBLASOPT=-DNONCBLAS], AC_INCLUDES_DEFAULT)
+AC_SUBST([CBLASOPT])
+fi
+
+if test $mkl_present == 0 -a $openblas_present == 0
 then
 AC_CHECK_LIB([cblas], [cblas_ddot], [CBLASLIB="-lcblas"], [CBLASOPT=-DNONCBLAS],[$ATLASLIB])
 AC_CHECK_HEADER([cblas.h],,[CBLASOPT=-DNONCBLAS CBLASLIB=""], AC_INCLUDES_DEFAULT)
@@ -107,10 +140,6 @@ AC_SUBST([MATPTROPT])
 
 
 #process options
-FORINTOPT=""
-forint64=""
-AC_ARG_ENABLE([fortran64int],[  --enable-fortran64int to link with 64-bit-integer-BLAS+LAPACK ],[forint64=${enableval}],)
-AC_ARG_ENABLE([fotran64int],[  --enable-fotran64int old misspelled alias of --enable-fortran64int ],[forint64=${enableval}],)
 if test -n "${forint64}"; then
     case "${forint64}" in
      yes) FORINTOPT="-DLONG_FORTRAN_INT" 

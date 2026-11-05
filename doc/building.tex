@@ -5,7 +5,7 @@
 \begin{itemize}
 \item a C++11 capable compiler (the library is developed with GNU g++),
 \item BLAS and LAPACK (Fortran interface); optionally the C interfaces CBLAS and CLAPACK,
-	or Intel MKL, or ATLAS,
+	or Intel MKL, or OpenBLAS, or ATLAS,
 \item GNU autotools (autoconf, automake, libtool) when building from the git repository,
 \item optionally NVIDIA CUBLAS (experimental, section~\ref{sec:concepts:gpu}),
 \item optionally doxygen for the generated source code reference, which is independent of this manual.
@@ -29,6 +29,10 @@ accordingly:
 \begin{enumerate}
 \item Intel MKL (\code{mkl_intel_lp64}, \code{mkl_sequential}, \code{mkl_core} and the header
 	\header{mkl_cblas.h}); if found, \code{-DHAS_MKL -DNONCLAPACK} is used;
+\item otherwise OpenBLAS, if \code{libopenblas} contains LAPACK (\code{dgeev_}) and CBLAS (\code{cblas_dgemm}): only
+	\code{-lopenblas} is linked, \code{-DNONCLAPACK} is used and \code{-DNONCBLAS} if \header{cblas.h} is missing; skipped
+	with \code{--without-openblas} and with \code{--enable-fortran64int}. A threaded OpenBLAS uses all cores unless
+	\code{OPENBLAS_NUM_THREADS} is set;
 \item otherwise ATLAS (optional) and the reference BLAS (mandatory), CBLAS (if \code{cblas_ddot} and \header{cblas.h}
 	are not found, \code{-DNONCBLAS} is set) and LAPACK (mandatory; if the C interface \code{clapack_dgesv}
 	with \header{clapack.h} is not found, \code{-DNONCLAPACK} is set);
@@ -47,7 +51,8 @@ accordingly:
 \code{--enable-optimize=<flags>} & compiler optimization flags, default \code{-O3 -finline-limit=1000}; \code{--disable-optimize} for none \\
 \code{--enable-profile} & compile with \code{-pg} \\
 \code{--enable-matptr} & define \code{MATPTR}: \code{NRMat} stores an array of row pointers (\code{T**}), see chapter~\ref{ch:mat}; incompatible with CUDA \\
-\code{--enable-fortran64int} & define \code{LONG_FORTRAN_INT} to link with BLAS and LAPACK using 64-bit integers; implies \code{NONCBLAS} and \code{NONCLAPACK} (the old misspelling \code{--enable-fotran64int} is accepted as an alias) \\
+\code{--enable-fortran64int} & define \code{LONG_FORTRAN_INT} to link with BLAS and LAPACK using 64-bit integers; implies \code{NONCBLAS} and \code{NONCLAPACK} (the old misspelling \code{--enable-fotran64int} is accepted as an alias); OpenBLAS is then not used \\
+\code{--without-openblas} & do not use OpenBLAS even if found (ATLAS or the reference BLAS is used) \\
 \bottomrule
 \end{longtable}
 
