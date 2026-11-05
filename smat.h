@@ -387,6 +387,22 @@ inline NRSMat<double> & NRSMat<double>::operator*=(const double &a) {
 	return *this;
 }
 
+template<>
+inline NRSMat<float> & NRSMat<float>::operator*=(const float &a) {
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_sscal(NN2, a, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasSscal(NN2, a, v, 1);
+		TEST_CUBLAS("cublasSscal");//"NRSMat<float>& NRSMat<float>::operator*=(const float &)"
+	}
+#endif
+	return *this;
+}
+
 /***************************************************************************//**
  * multiply this complex symmetric matrix with complex scalar value
  * @param[in] a complex multiplicative factor
@@ -405,6 +421,24 @@ NRSMat<std::complex<double> >::operator*=(const std::complex<double> &a) {
 		const cuDoubleComplex _a = make_cuDoubleComplex(a.real(), a.imag());
 		cublasZscal(NN2, _a, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasZscal");//"NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator*=(const std::complex<double> &)"
+	}
+#endif
+	return *this;
+}
+
+template<>
+inline NRSMat<std::complex<float> > &
+NRSMat<std::complex<float> >::operator*=(const std::complex<float> &a) {
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_cscal(NN2, &a, v, 1);
+#ifdef CUDALA
+	}else{
+		const cuComplex _a = make_cuComplex(a.real(), a.imag());
+		cublasCscal(NN2, _a, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCscal");//"NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::operator*=(const std::complex<float> &)"
 	}
 #endif
 	return *this;
@@ -508,6 +542,27 @@ inline NRSMat<double>& NRSMat<double>::operator+=(const NRSMat<double> & rhs) {
 	return *this;
 }
 
+template<>
+inline NRSMat<float>& NRSMat<float>::operator+=(const NRSMat<float> & rhs) {
+#ifdef DEBUG
+	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<float>& NRSMat<float>::operator+=(const NRSMat<float> &)");
+#endif
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_saxpy(NN2, 1.0, rhs.v, 1, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasSaxpy(NN2, 1.0, rhs.v, 1, v, 1);
+		TEST_CUBLAS("cublasSaxpy");//" NRSMat<float>& NRSMat<float>::operator+=(const NRSMat<float> &)"
+	}
+#endif
+	return *this;
+}
+
 /***************************************************************************//**
  * add up this complex symmetric matrix with given symmetric matrix
  * @param[in] rhs complex symmetric matrix to be added
@@ -529,6 +584,27 @@ inline NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator+=(
 	}else{
 		cublasZaxpy(NN2, CUONE, (cuDoubleComplex*)(rhs.v), 1, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasZaxpy");//"NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator+=(const NRSMat<std::complex<double> > &)"
+	}
+#endif
+	return *this;
+}
+
+template<>
+inline NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::operator+=(const NRSMat<std::complex<float> > & rhs) {
+#ifdef DEBUG
+	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::operator+=(const NRSMat<std::complex<float> > &)");
+#endif
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_caxpy(NN2, &CONEF, rhs.v, 1, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasCaxpy(NN2, CUONE, (cuComplex*)(rhs.v), 1, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCaxpy");//"NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::operator+=(const NRSMat<std::complex<float> > &)"
 	}
 #endif
 	return *this;
@@ -578,6 +654,27 @@ inline NRSMat<double>& NRSMat<double>::operator-=(const NRSMat<double>& rhs) {
 	return *this;
 }
 
+template<>
+inline NRSMat<float>& NRSMat<float>::operator-=(const NRSMat<float>& rhs) {
+#ifdef DEBUG
+	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<float>& NRSMat<float>::operator-=(const NRSMat<float> &)");
+#endif
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_saxpy(NN2, -1.0, rhs.v, 1, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasSaxpy(NN2, -1.0, rhs.v, 1, v, 1);
+		TEST_CUBLAS("cublasSaxpy");//" NRSMat<float>& NRSMat<float>::operator-=(const NRSMat<float> &)"
+	}
+#endif
+	return *this;
+}
+
 /***************************************************************************//**
  * subtracts given complex symmetric matrix from this complex symmetric matrix
  * @param[in] rhs complex symmetric matrix to be subtracted
@@ -599,6 +696,27 @@ inline NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator-=(
 	}else{
 		cublasZaxpy(NN2, CUMONE, (cuDoubleComplex*)(rhs.v), 1, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasZaxpy");//"NRSMat<std::complex<double> >& NRSMat<std::complex<double> >::operator-=(const NRSMat<std::complex<double> > &)"
+	}
+#endif
+	return *this;
+}
+
+template<>
+inline NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::operator-=(const NRSMat<std::complex<float> >& rhs) {
+#ifdef DEBUG
+	if(nn != rhs.nn) laerror("incompatible dimensions in NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::operator-=(const NRSMat<std::complex<float> > &)");
+#endif
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_caxpy(NN2, &CMONEF, rhs.v, 1, v, 1);
+#ifdef CUDALA
+	}else{
+		cublasCaxpy(NN2, CUMONE, (cuComplex*)(rhs.v), 1, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCaxpy");//"NRSMat<std::complex<float> >& NRSMat<std::complex<float> >::operator-=(const NRSMat<std::complex<float> > &)"
 	}
 #endif
 	return *this;
@@ -871,6 +989,24 @@ inline const double NRSMat<double>::amax() const {
 	return ret;
 }
 
+template<>
+inline const float NRSMat<float>::amax() const {
+	float ret(0.0);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		ret = v[cblas_isamax(NN2, v, 1)];
+#ifdef CUDALA
+	}else{
+		const int pozice = cublasIsamax(NN2, v, 1) ;
+		TEST_CUBLAS("cublasIsamax");//"float NRSMat<float>::amax()"
+
+		gpuget(1, sizeof(float), v + pozice, &ret);
+	}
+#endif
+	return ret;
+}
+
 /***************************************************************************//**
  * for this real symmetric matrix \f$A\f$, determine the 
  * first element with smallest absolute value
@@ -901,6 +1037,31 @@ inline const double NRSMat<double>::amin() const {
 	return ret;
 }
 
+template<>
+inline const float NRSMat<float>::amin() const {
+	float ret(0.0);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		// idamin seems not to be supported
+		float val(0.0);
+		int index(-1);
+		ret = std::numeric_limits<float>::max();
+		for(register size_t i = 0; i < NN2; i++){
+			val = std::abs(v[i]);
+			if(val < ret){ index = i; ret = val; }
+		}
+		ret = v[index];
+#ifdef CUDALA
+	}else{
+		const int pozice = cublasIsamin(nn, v, 1);
+		TEST_CUBLAS("cublasIsamin");//"float NRSMat<float>::amin()"
+		gpuget(1, sizeof(float), v + pozice, &ret);
+	}
+#endif
+	return ret;
+}
+
 /***************************************************************************//**
  * for this complex symmetric matrix \f$A\f$, determine the 
  * first element with largest "absolute value"
@@ -918,6 +1079,23 @@ inline const std::complex<double> NRSMat< std::complex<double> >::amax() const{
 		const int pozice = cublasIzamax(NN2, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamax");//"std::complex<double> NRSMat<std::complex<double> >::amax()"
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
+	}
+#endif
+	return ret;
+}
+
+template<>
+inline const std::complex<float> NRSMat< std::complex<float> >::amax() const{
+	std::complex<float> ret(0., 0.);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		ret = v[cblas_icamax(NN2, v, 1)];
+#ifdef CUDALA
+	}else{
+		const int pozice = cublasIcamax(NN2, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasIcamax");//"std::complex<float> NRSMat<std::complex<float> >::amax()"
+		gpuget(1, sizeof(std::complex<float>), v + pozice, &ret);
 	}
 #endif
 	return ret;
@@ -951,6 +1129,34 @@ inline const std::complex<double> NRSMat<std::complex<double> >::amin() const{
 		const int pozice = cublasIzamin(nn, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamin");//"std::complex<double> NRSMat<std::complex<double> >::amin()"
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
+	}
+#endif
+	return ret;
+}
+
+template<>
+inline const std::complex<float> NRSMat<std::complex<float> >::amin() const{
+	std::complex<float> ret(0., 0.);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		// izamin seems not to be supported
+		int index(0);
+		float val(0.0), min_val(0.0);
+		std::complex<float> z_val(0.0, 0.0);
+
+		min_val = std::numeric_limits<float>::max();
+		for(register size_t i = 0; i < NN2; i++){
+			z_val = v[i];
+			val = std::abs(z_val.real()) + std::abs(z_val.imag());
+			if(val < min_val){ index = i; min_val = val; }	
+		}
+		ret = v[index];
+#ifdef CUDALA
+	}else{
+		const int pozice = cublasIcamin(nn, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasIcamin");//"std::complex<float> NRSMat<std::complex<float> >::amin()"
+		gpuget(1, sizeof(std::complex<float>), v + pozice, &ret);
 	}
 #endif
 	return ret;
@@ -1215,28 +1421,9 @@ NRSMat<std::complex<T> > complexify(const NRSMat<T> &rhs) {
 }
 
 
-/***************************************************************************//**
- * complexify a given double-precision real matrix \f$A\f$
- * @param[in] rhs matrix \f$A\f$ intended for this operation
- * @return matrix \f$B\f$ where \f$\Re B=A\f$ and \f$\Im B = 0\f$
- ******************************************************************************/
-/*
-template<>
-NRSMat<std::complex<double> > complexify(const NRSMat<double> &rhs) {
-	NRSMat<std::complex<double> > r(rhs.nrows(), rhs.getlocation());
-#ifdef CUDALA
-	if(rhs.getlocation() == cpu){
-#endif
-		cblas_dcopy(rhs.size(), &(rhs[0]), 1, (double*)(&(r[0])), 2);
-#ifdef CUDALA
-	}else{
-		cublasDcopy(rhs.size(), &(rhs[0]), 1, (double*)(&(r[0])), 2);
-		TEST_CUBLAS("cublasDcopy");//"NRSMat<std::complex<double> > complexify(const NRSMat<double> &)"
-	}
-#endif
-	return r;
-}
-*/
+//BLAS versions for double and float are in smat.cc (a full specialization defined in the header would be multiply defined)
+template<> NRSMat<std::complex<double> > complexify<double>(const NRSMat<double> &rhs);
+template<> NRSMat<std::complex<float> > complexify<float>(const NRSMat<float> &rhs);
 /***************************************************************************//**
  * output operator
  * @param[in,out] s output stream
