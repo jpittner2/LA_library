@@ -27,7 +27,6 @@ _$*
 core
 Makefile.in
 aclocal.m4
-acinclude.m4
 ar-lib
 autom4te.cache
 compile
