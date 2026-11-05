@@ -153,12 +153,36 @@ the mixed real--complex functions such as \code{gemv} of a complex vector with a
 The functions \code{LA::real(c)} and \code{LA::imag(c)} return references to the real and imaginary part of a
 \code{std::complex}, which can be used as l-values.
 
+Default thresholds of the numerical methods depend on the floating point precision and are collected in
+\code{LA_precision<T>} (\header{la_traits.h}), which is defined for \code{T = double} and \code{float} only (any other type
+gives a compile-time error); functions with an argument of type \code{T} use \code{LA_precision<typename LA_traits<T>::normtype>},
+so that complex types take the values of their real component. The double values are those used by the library before.
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+member & double & float & used by \\
+\midrule
+\code{svd_threshold()} & $10^{-12}$ & $10^{-5}$ & \code{svd_solve}, \code{Tensor::Tucker} \\
+\code{taylor_precision()} & $10^{-14}$ & $10^{-7}$ & \code{exp}, \code{sincos}, \code{exptimes} (\header{matexp.h}) \\
+\code{conjgrad_tol()} & $10^{-8}$ & $10^{-5}$ & \code{conjgrad} \\
+\code{gmres_eps()} & $10^{-7}$ & $10^{-5}$ & \code{gmres} \\
+\code{eigensolver_eps()} & $10^{-6}$ & $10^{-4}$ & \code{davidson}, \code{lanczos} \\
+\code{newton_threshold()} & $10^{-14}$ & $10^{-6}$ & \code{Polynomial::newton} \\
+\code{det_tiny()} & $10^{-300}$ & $10^{-37}$ & underflow guard of the determinant in \code{linear_solve} \\
+\code{sparse_epsilon()} & $10^{-15}$ & $10^{-7}$ & zero elements of \code{SparseMat}, \code{SparseSMat} (\code{SPARSEEPSILON}) \\
+\code{cholesky_epsilon()} & $10^{-16}$ & $10^{-8}$ & pivots skipped by \code{SparseSMat::cholesky} (\code{CHOLESKYEPSILON}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
 \subsection{Element types and instantiation}
 
 The class templates are explicitly instantiated in the library for \code{double}, \code{std::complex<double>}
 and the integer types \code{char}, \code{short}, \code{int}, \code{long}, \code{long long} and their unsigned
-variants. The BLAS and LAPACK backed functions are implemented for \code{double} and \code{std::complex<double>}
-(some also for mixed real--complex arguments); calling them for other types results in a run-time
+variants; \code{NRVec}, \code{NRMat}, \code{NRSMat}, \code{SparseMat}, \code{SparseSMat}, \code{Tensor}, \code{fourindex} (with \code{unsigned char} indices) and \code{Polynomial} also for \code{float} and
+\code{std::complex<float>} (single precision support, 2026, in progress for the other classes). The BLAS and LAPACK backed
+functions are implemented for \code{double} and \code{std::complex<double>} (some also for mixed real--complex arguments)
+and for their single precision counterparts, which always use the single precision BLAS/LAPACK routines (\code{s}/\code{c}); calling them for other types results in a run-time
 \code{laerror} (``not implemented for this type'') or a link error. Functions implemented in the headers work
 for any type with the necessary arithmetic operations.
 

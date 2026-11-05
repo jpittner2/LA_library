@@ -18,8 +18,8 @@ Typical uses are many-body quantities (amplitudes, integrals, density matrices) 
 in groups of indices should be exploited for storage.
 Limitations stated in the source:
 \begin{itemize}
-\item the implementation is ``rudimentary''; only \code{Tensor<double>} and \code{Tensor<std::complex<double> >}
-	are instantiated (tensor.cc);
+\item the implementation is ``rudimentary''; only \code{Tensor<double>}, \code{Tensor<std::complex<double> >} and their single precision
+	counterparts \code{Tensor<float>}, \code{Tensor<std::complex<float> >} are instantiated (tensor.cc);
 \item index types \code{LA_index} and \code{LA_largeindex} are \code{int}, so the total size is limited
 	to $2^{31}$ elements (\code{NRVec} limitation);
 \item symmetry \emph{between} index groups (e.g.\ $(ij|kl)=(kl|ij)$) is not supported; one would have to
@@ -291,7 +291,7 @@ Names are permuted together with the indices unless stated otherwise.
 \begin{lareference}
 \lafunc{void apply_permutation_algebra(const Tensor &rhs, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0, bool conjugate_by_parity=false)}{$\mathtt{*this} \leftarrow \beta\,\mathtt{*this}$, then for all stored elements $I$ of \code{*this}: $\mathtt{this}(I) \mathrel{+}= \alpha \sum_P c_P\, \mathtt{rhs}(P(I))$, with $P$ acting on the flat index list (inverse permutations if \code{inverse}); with \code{conjugate_by_parity} odd permutations take the complex conjugate. Can represent general (anti)symmetrizers, e.g.\ \code{general_antisymmetrizer} (chapter~\ref{ch:permutation}). \code{*this} may have a symmetry which \code{rhs} lacks. The names of \code{*this} are taken from (or checked against) the names of \code{rhs} permuted by the first permutation. Element-by-element, not optimally efficient.}
 \lafunc{void apply_permutation_algebra(const NRVec<Tensor> &rhsvec, const PermutationAlgebra<int,T> &pa, bool inverse=false, T alpha=1, T beta=0)}{the same with \code{rhs} being the outer product of the tensors in \code{rhsvec}, which is not formed explicitly (e.g.\ Grassmann products building a density matrix from cumulants); rather inefficient.}
-\lafunc{NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=1e-12, bool inverseorder=false)}{HOSVD/Tucker decomposition: \code{*this} is replaced by the flat core tensor and the factor matrices (one per index, columns orthonormal) are returned; singular values below \code{thr} are dropped, which reduces the corresponding range of the core.}
+\lafunc{NRVec<NRMat<T> > Tucker(typename LA_traits<T>::normtype thr=LA_precision<normtype>::svd_threshold(), bool inverseorder=false)}{HOSVD/Tucker decomposition: \code{*this} is replaced by the flat core tensor and the factor matrices (one per index, columns orthonormal) are returned; singular values below \code{thr} are dropped, which reduces the corresponding range of the core.}
 \lafunc{Tensor inverseTucker(const NRVec<NRMat<T> > &x, bool inverseorder=false) const}{rebuild the tensor from the core (\code{*this}) and the matrices returned by \code{Tucker} with the same \code{inverseorder}.}
 \lafunc{Tensor linear_transform(const NRVec<NRMat<T> > &x) const}{transform every index of group $g$ by the matrix \code{x[g]} (\code{x[g].ncols()} must equal the range; the new range is \code{x[g].nrows()}), preserving the group symmetries: $t'_{\dots a \dots} = \sum_i x_{ai}\, t_{\dots i\dots}$.}
 \lafunc{Tensor linear_transform(const int g, const Tensor<T> &x) const; Tensor linear_transform(const int g, const NRMat<T> &x) const}{transform only group \code{g}, keeping its position and symmetry; \code{x} must be a flat rank-2 tensor (useful for raising/lowering indices) or a matrix.}

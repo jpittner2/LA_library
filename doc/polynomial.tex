@@ -10,7 +10,7 @@ This chapter describes the polynomial class \code{Polynomial<T>} and the exact r
 \code{template <typename T> class Polynomial : public NRVec<T>} represents $p(x)=\sum_{i=0}^{d}c_ix^i$; the coefficient $c_i$ is the vector element
 \code{p[i]} (indexed from 0, i.e.\ by the power) and the vector has $d+1$ elements. The member \code{size()} is made private to prevent confusion; use
 \code{degree()}. The leading coefficient may be zero (e.g.\ after a subtraction); \code{simplify()} removes such terms. The class is explicitly
-instantiated for \code{int}, \code{unsigned int}, \code{double}, \code{std::complex<double>}; root finding and SVD-based gcd require a floating point type.
+instantiated for \code{int}, \code{unsigned int}, \code{double}, \code{std::complex<double>}, \code{float}, \code{std::complex<float>}; root finding and SVD-based gcd require a floating point type.
 
 All inherited \code{NRVec} functionality (norms, \code{randomize}, \code{clear}, I/O operators printing the number of coefficients followed by the
 coefficients, \ldots) is available. \code{Polynomial} follows the copy-on-demand scheme of section~\ref{sec:concepts:refcount}: its modifying members call
@@ -80,7 +80,7 @@ vector, hence also a \code{Polynomial} (section~\ref{sec:nonclass:matexp}).
 \lafunc{NRVec<typename LA_traits<T>::complextype> roots() const}{all roots as eigenvalues of the companion matrix (\code{gdiagonalize}, chapter~\ref{ch:nonclass}); for \code{double}
 	and \code{std::complex<double>} only (laerror for integer types).}
 \lafunc{NRVec<T> realroots(const typename LA_traits<T>::normtype thr) const}{roots with $|\mathrm{Im}|<$ \code{thr}, real parts sorted ascending (\code{T = double}).}
-\lafunc{T newton(const T x0, const typename LA_traits<T>::normtype thr=1e-14, const int maxit=1000) const}{Newton iteration from \code{x0} until $|p(x)|<$ \code{thr}; no convergence report.}
+\lafunc{T newton(const T x0, const typename LA_traits<T>::normtype thr=LA_precision<normtype>::newton_threshold(), const int maxit=1000) const}{Newton iteration from \code{x0} until $|p(x)|<$ \code{thr}; no convergence report.}
 \lafunc{template <typename T> Polynomial<T> polyfromroots(const NRVec<T> &roots, const int skip= -1)}{monic $\prod_{i\ne\mathrm{skip}}(x-r_i)$.}
 \lafunc{template <typename T> Polynomial<T> lagrange_interpolation(const NRVec<T> &x, const NRVec<T> &y)}{interpolating polynomial of degree $n-1$ through the $n$ points; laerror for repeated $x$.}
 \lafunc{template <typename T> NRMat<T> Sylvester(const Polynomial<T> &p, const Polynomial<T> &q)}{Sylvester matrix of dimension $\deg p+\deg q$ (its determinant is the resultant).}

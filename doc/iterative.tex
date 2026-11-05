@@ -14,6 +14,9 @@ or of the normal equations $A\Tr Ax=A\Tr b$ for rectangular $A$ (least squares);
 \item the class \code{DIIS} (\header{diis.h}): Pulay's DIIS convergence acceleration of a general fixed-point iteration;
 \item \code{bisection_find()} and \code{interpolation_find()} (\header{bisection.h}): search in a sorted array.
 \end{itemize}
+All of them work for \code{T = float} and \code{std::complex<float>} as well (where the double versions support the
+corresponding real or complex type); their default thresholds then come from \code{LA_precision<float>}
+(section~\ref{sec:concepts:traits}).
 Dense (LAPACK based) diagonalization, linear solvers and matrix functions are in chapter~\ref{ch:nonclass}; the small
 subspace problems of \code{davidson} and \code{lanczos} are solved by the routines described there
 (\code{diagonalize}, \code{gdiagonalize}, \code{diagonalize3}, \code{linear_solve}). The quasi-Newton GDIIS optimizer built on
@@ -96,7 +99,7 @@ problem.
 \laheader{davidson.h}
 
 \begin{lareference}
-\lafunc{template <typename T, typename Matrix> void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=1e-6, const bool incore=1, int maxit=100, const int maxkrylov = 500, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)}{
+\lafunc{template <typename T, typename Matrix> void davidson(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=LA_precision<normtype>::eigensolver_eps(), const bool incore=1, int maxit=100, const int maxkrylov = 500, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)}{
 Davidson's method \cite{iterative:davidson1975} for the \code{nroots} lowest eigenvalues of \code{bigmat}.
 \begin{itemize}
 \item \code{eivals}: on return the eigenvalues in its first \code{nroots} elements (ascending, or by increasing distance from
@@ -167,7 +170,7 @@ implicitly given one, built column by column by \code{gemv} on unit vectors (for
 \laheader{lanczos.h}
 
 \begin{lareference}
-\lafunc{template <typename T, typename Matrix> void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=1e-6, const bool incore=1, int maxit=100, const int maxkrylov = 1000, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)}{
+\lafunc{template <typename T, typename Matrix> void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=LA_precision<normtype>::eigensolver_eps(), const bool incore=1, int maxit=100, const int maxkrylov = 1000, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)}{
 Lanczos method for the \code{nroots} lowest (or closest to \code{*target}) eigenvalues of a hermitian matrix. The parameters
 have the same meaning as for \code{davidson}, with these differences: \code{bigmat.issymmetric()} must be \code{true}
 (\code{laerror} otherwise); the start vector is normalized by the function; \code{incore=false} keeps only the Lanczos vectors
@@ -194,7 +197,7 @@ the method fails with \code{laerror} when more than \code{maxit} iterations are 
 \laheader{conjgrad.h}
 
 \begin{lareference}
-\lafunc{template<typename T, typename Matrix> bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=true, const double tol=1e-8, const int itmax=1000, const bool verbose=true, bool issquare=1, const bool precondition=1)}{
+\lafunc{template<typename T, typename Matrix> bool conjgrad(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=true, const double tol=LA_precision<normtype>::conjgrad_tol(), const int itmax=1000, const bool verbose=true, bool issquare=1, const bool precondition=1)}{
 Solves $Ax=b$ by the (Jacobi preconditioned) conjugate gradient method (the source refers to the book of Stoer and Bulirsch).
 Returns \code{true} if converged, \code{false} after \code{itmax}+1 iterations without convergence; \code{x} then holds the
 last iterate.
@@ -227,7 +230,7 @@ $p\cdot Ap$ (or $|Ap|^2$) or the residual product $r\cdot z$ vanishes. Only real
 \laheader{gmres.h}
 
 \begin{lareference}
-\lafunc{template<typename T, typename Matrix> bool gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=1e-7, const int MAXIT=50, const bool verbose=1, bool square=1, const bool precondition=1, int neustart=0, const int incore=1)}{
+\lafunc{template<typename T, typename Matrix> bool gmres(const Matrix &bigmat, const NRVec<T> &b, NRVec<T> &x, const bool doguess=1, const double eps=LA_precision<normtype>::gmres_eps(), const int MAXIT=50, const bool verbose=1, bool square=1, const bool precondition=1, int neustart=0, const int incore=1)}{
 Solves $Ax=b$ by restarted GMRES with Givens rotations (after H.~R.~Schwarz, original implementation by M.~Warken). Returns
 \code{true} if converged; otherwise \code{false}, with \code{x} holding the last iterate.
 \begin{itemize}

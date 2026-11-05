@@ -18,7 +18,7 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   Quick test program: `g++ -std=gnu++11 -I<repo> -O0 -DDEBUG -DNO_STRASSEN -DFORTRAN_ -DNONCLAPACK X.cc <repo>/.libs/libla.a -lcblas -lblas -llapack`
   (add `-fsanitize=address` for memory checks).
 - Regression test of the optimizers: `make check` builds `testoptimize`; `./testoptimize` must report
-  "123 passed, 0 failed" (exit code = number of failures). New optimizer tests go to testoptimize.cc;
+  "137 passed, 0 failed" (exit code = number of failures). New optimizer tests go to testoptimize.cc;
   test problems live in testoptimize.h.
 - `t` (t.cc) is a collection of if(0)/if(1) test blocks, most read n from stdin (`echo 10 | ./t`).
 - NONCBLAS check: copy the repo with `cp -a` (keeps timestamps, otherwise automake reruns and fails),
@@ -90,10 +90,15 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
   its NEA oscillator strength f=dE_min/dE is a placeholder for the true one.
 
 ## Planned (only when the author asks)
-- float version: float and complex<float> must ALWAYS use BLAS/LAPACK (s*/c* routines, noncblas wrappers)
-  like double/complex<double>, never generic loops. INSTANTIZE(float) in optimize.cc currently needs float
-  versions of diagonalize, linear_solve, singular_decomposition. BLAS-based NRVec members are meant for
-  floating types only, not integers.
+- float version (IN PROGRESS since 2026-11-05): float and complex<float> must ALWAYS use BLAS/LAPACK (s*/c* routines,
+  noncblas wrappers) like double/complex<double>, never generic loops. Done: noncblas, vec, mat, smat, nonclass (+ complexify
+  BLAS for NRSMat/NRMat), sparsemat, sparsesmat, tensor, fourindex, polynomial, header templates (matexp,
+  conjgrad, gmres, davidson, lanczos, diis: no changes needed beyond the defaults). Float twins are generated from the double specializations (placed right after them). Precision-
+  dependent defaults live in LA_precision<T> (la_traits.h, only double and float; double values unchanged). optimize done
+  2026-11-05: own trait opt_precision<T> in optimize.h, INSTANTIZE(float), float tests in testoptimize.cc (test_float);
+  float LM on badly scaled problems needs my_scaling=true. reg/regsurf, csrmat, strassen, CUDA stay double-only.
+  Open: Tensor Tucker bugs (complex roundtrip, inverseorder=true abort, also double; bugtests/tensor_tucker_bug.cc).
+  BLAS-based NRVec members are meant for floating types only, not integers.
 - NRSMat: possible bool member `hermitian` toggling hermitian vs complex symmetric behaviour
   (Tensor(const NRSMat&) must then respect it).
 - SparseSMat: possible member `symmetry_type` (0 none, 1 symmetric, 2 hermitian) for NRSMat conversion,

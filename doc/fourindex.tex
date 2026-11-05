@@ -24,9 +24,9 @@ Indices are opaque to the sparse classes (they are never compared with the dimen
 1-based indexing are possible there; the dense classes use indices from 1.
 
 Only \code{fourindex<unsigned char,double>}, \code{fourindex_ext<unsigned char,double>} and
-\code{fourindex_dense<nosymmetry,double,unsigned char>} are explicitly instantiated in fourindex.cc;
+\code{fourindex_dense<nosymmetry,double,unsigned char>} and the same with \code{float} are explicitly instantiated in fourindex.cc;
 everything else is implemented in the header and instantiated on use, except \code{fscanf()} and
-\code{fprintf()} which exist only for \code{fourindex<unsigned char,double>}.
+\code{fprintf()} which exist only for \code{fourindex<unsigned char,double>} and \code{fourindex<unsigned char,float>}.
 
 \section{Symmetry types}\label{sec:fourindex:symmetry}
 
@@ -131,7 +131,7 @@ The symmetry must be set (not \code{undefined_symmetry}) for \code{piterator} an
 \lafunc{unsigned long get(int fd, bool withattr=true)}{read the same format until end of file, \emph{adding} the elements to the list; returns their number.}
 \lafunc{template <class I, class T> std::ostream& operator<<(std::ostream &s, const fourindex<I,T> &x)}{text output: the dimension, lines \code{i j k l value}, and a final line with four terminators and 0.}
 \lafunc{template <class I, class T> std::istream& operator>>(std::istream &s, fourindex<I,T> &x)}{read the text format; \code{x} is resized to the read dimension (the symmetry is not set) and reading stops at the first line containing the terminator of \code{x} as an index.}
-\lafunc{void fscanf(FILE *f); void fprintf(FILE *f, char *format) const}{C-style text I/O, only for \code{fourindex<unsigned char,double>}; line format \code{value i j k l}. \code{fscanf} adds elements until a line in which any index equals the terminator (compared after conversion to the index type, so $-1$ in the file matches the default terminator 255); \code{fprintf} applies \code{format} (which must consume a \code{double} and four \code{int}s) to each element and ends with a line \code{0 t t t t} with the terminator $t$. With terminator 0 this is the FCIDUMP-like convention (blocks separated by zero lines, read by consecutive \code{fscanf} calls; a one-electron line $i\,j\,0\,0$ also ends a block).}
+\lafunc{void fscanf(FILE *f); void fprintf(FILE *f, char *format) const}{C-style text I/O, only for \code{fourindex<unsigned char,double>} and \code{<unsigned char,float>}; line format \code{value i j k l}. \code{fscanf} adds elements until a line in which any index equals the terminator (compared after conversion to the index type, so $-1$ in the file matches the default terminator 255); \code{fprintf} applies \code{format} (which must consume a \code{double} and four \code{int}s) to each element and ends with a line \code{0 t t t t} with the terminator $t$. With terminator 0 this is the FCIDUMP-like convention (blocks separated by zero lines, read by consecutive \code{fscanf} calls; a one-electron line $i\,j\,0\,0$ also ends a block).}
 \end{lareference}
 
 \section{Disc storage: \texttt{fourindex\_ext<I,T>}}\label{sec:fourindex:ext}

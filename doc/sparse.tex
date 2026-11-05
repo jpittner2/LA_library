@@ -23,7 +23,7 @@
 Common definitions in \code{sparsemat.h}:
 \begin{lareference}
 \lafunc{typedef unsigned int SPMatindex; typedef int SPMatindexdiff}{Index type and index difference type. All row and column indices count from 0.}
-\lafunc{const double SPARSEEPSILON=1e-15}{Threshold: elements with absolute value below (or equal to) it are dropped by \code{simplify()} and by most constructors and accumulating operations.}
+\lafunc{const double SPARSEEPSILON=1e-15}{Kept for user code. The library itself uses the precision-dependent threshold \code{LA_precision<normtype>::sparse_epsilon()} (section~\ref{sec:concepts:traits}; $10^{-15}$ for double, i.e.\ $\epsilon_{\rm sp}$, and $10^{-7}$ for float): elements with absolute value below (or equal to) it are dropped by \code{simplify()} and by most constructors and accumulating operations; it is denoted $\epsilon_{\rm sp}$ below.}
 \lafunc{template<typename T> struct matel {T elem; SPMatindex row; SPMatindex col; matel *next;}}{List element of \code{SparseMat}; also the value type returned by the iterators of both classes.}
 \end{lareference}
 Both classes are explicitly instantiated for \code{double} and \code{std::complex<double>}.
@@ -43,7 +43,7 @@ which no longer exists, is not included by any file and is not installed; it is 
 The nonzero elements form a singly linked list of \code{matel<T>} (pointer \code{list}); new elements are
 prepended. The list is in no particular order and may contain several entries with the same
 $(i,j)$, which represent their sum; \code{simplify()} merges such duplicates, removes elements with
-$|a_{ij}|\le$ \code{SPARSEEPSILON} and leaves the list sorted by rows. Operations needing an ordering
+$|a_{ij}|\le$ $\epsilon_{\rm sp}$ and leaves the list sorted by rows. Operations needing an ordering
 (\code{simplify}, sparse products, \code{dot}) build private arrays of pointers sorted by rows or by columns
 (member \code{sort()}); these arrays and the cached element count \code{nonzero} are kept until the next
 operation which calls the private \code{unsort()}: \code{add()} (and everything built on it), \code{simplify},
@@ -86,7 +86,7 @@ Most modifying members call \code{copyonwrite()}: \code{simplify}, \code{operato
 \lafunc{SparseMat()}{Undefined empty matrix ($0\times0$, no reference count).}
 \lafunc{SparseMat(const SPMatindex n, const SPMatindex m)}{Defined empty (all zero) $n\times m$ matrix, not symmetric.}
 \lafunc{SparseMat(const SparseMat &rhs)}{Shallow copy; an empty matrix gets its own reference count.}
-\lafunc{explicit SparseMat(const NRMat<T> &rhs)}{From a dense matrix, elements with $|a_{ij}|>$ \code{SPARSEEPSILON}.}
+\lafunc{explicit SparseMat(const NRMat<T> &rhs)}{From a dense matrix, elements with $|a_{ij}|>$ $\epsilon_{\rm sp}$.}
 \lafunc{explicit SparseMat(const NRSMat<T> &rhs)}{From a packed symmetric matrix; symmetric flag set, lower triangle stored.}
 \lafunc{~SparseMat()}{Destructor.}
 \lafunc{SparseMat & operator=(const SparseMat &rhs)}{Shallow copy (also copies the symmetric flag).}
@@ -107,8 +107,8 @@ duplicates summed), \code{explicit NRSMat<T>(const SparseMat<T>&)} (requires the
 \subsection{Element insertion and access}
 \begin{lareference}
 \lafunc{inline void add(const SPMatindex n, const SPMatindex m, const T elem)}{Prepend element $(n,m)$; it is summed with existing entries at the same position. No checks, no \code{copyonwrite()}, see section~\ref{sec:sparse:refcount}. The matrix must have been dimensioned (constructor with dimensions or \code{resize}).}
-\lafunc{void addsafe(const SPMatindex n, const SPMatindex m, const T elem)}{As \code{add}, but ignores $|$\code{elem}$|\le$ \code{SPARSEEPSILON}, calls \code{copyonwrite()} and creates the reference count of an undefined matrix (range check only with the lowercase \code{debug} macro).}
-\lafunc{void simplify(const double sparseepsilon=SPARSEEPSILON)}{Sum duplicates, remove elements with $|a_{ij}|\le$ \code{sparseepsilon}, sort by rows; symmetric matrices are first moved to the upper triangle ($i\le j$).}
+\lafunc{void addsafe(const SPMatindex n, const SPMatindex m, const T elem)}{As \code{add}, but ignores $|$\code{elem}$|\le\epsilon_{\rm sp}$, calls \code{copyonwrite()} and creates the reference count of an undefined matrix (range check only with the lowercase \code{debug} macro).}
+\lafunc{void simplify(const typename LA_traits<T>::normtype sparseepsilon=LA_precision<normtype>::sparse_epsilon())}{Sum duplicates, remove elements with $|a_{ij}|\le$ \code{sparseepsilon}, sort by rows; symmetric matrices are first moved to the upper triangle ($i\le j$).}
 \lafunc{unsigned int length() const}{Number of list elements (cached until the next modification, see section~\ref{sec:sparse:storage}).}
 \lafunc{unsigned int sort(int type) const}{Build the internal array sorted by rows (\code{type=0}) or columns (\code{type=1}) and return the number of elements. Logically const, but unfolds a symmetric matrix (\code{setunsymmetric}). Normally called internally only.}
 \lafunc{inline matel<T> *getlist() const; void setlist(matel<T> *l)}{Raw access to the list head (no reference count handling; \code{setlist} does not free the old list).}
@@ -245,7 +245,7 @@ copies).
 \lafunc{SparseSMat()}{Undefined empty matrix.}
 \lafunc{explicit SparseSMat(const SPMatindex n); explicit SparseSMat(const SPMatindex n, const SPMatindex m)}{Empty (zero) $n\times n$ or $n\times m$ matrix.}
 \lafunc{SparseSMat(const SparseSMat &rhs)}{Shallow copy.}
-\lafunc{explicit SparseSMat(const NRSMat<T> &rhs)}{From a packed symmetric (complex: hermitian) matrix (both triangles inserted, the upper one conjugated, $|a_{ij}|>$ \code{SPARSEEPSILON}).}
+\lafunc{explicit SparseSMat(const NRSMat<T> &rhs)}{From a packed symmetric (complex: hermitian) matrix (both triangles inserted, the upper one conjugated, $|a_{ij}|>$ $\epsilon_{\rm sp}$).}
 \lafunc{explicit SparseSMat(const NRMat<T> &rhs)}{From a dense $n\times m$ matrix, nonzero elements copied as they are (no symmetrization).}
 \lafunc{explicit SparseSMat(const SparseMat<T> &rhs)}{From a \code{SparseMat} (same dimensions); duplicates are summed, a symmetric \code{SparseMat} is unfolded without conjugation (complex symmetric, as \code{SparseMat} defines it).}
 \lafunc{explicit SparseSMat(const CSRMat<T> &rhs)}{Declared but not implemented (\code{CSRMat} is not supported).}
@@ -266,7 +266,7 @@ Dense from sparse: \code{explicit NRMat<T>(const SparseSMat<T>&)} copies all sto
 \lafunc{inline void add(const SPMatindex n, const SPMatindex m, const T elem, const bool both=true)}{Add \code{elem} to element $(n,m)$ and, if \code{both} and $n\ne m$, its complex conjugate to $(m,n)$. Creates the row map if needed; no \code{copyonwrite()}; range check in DEBUG only. Resulting zeros remain until \code{simplify()}.}
 \lafunc{inline const std::map<SPMatindex,T> *line(const SPMatindex n) const}{Read-only access to row $n$ (\code{NULL} if empty).}
 \lafunc{inline ROWTYPE & operator[](const SPMatindex i)}{Row $i$ as a reference to the pointer \code{std::map<SPMatindex,T>*} (\code{typedef ROWTYPE}), possibly \code{NULL}. Non-const only.}
-\lafunc{unsigned long long simplify()}{Remove elements with $|a_{ij}|<$ \code{SPARSEEPSILON} and empty rows; returns the number of remaining elements.}
+\lafunc{unsigned long long simplify()}{Remove elements with $|a_{ij}|<$ $\epsilon_{\rm sp}$ and empty rows; returns the number of remaining elements.}
 \lafunc{inline unsigned long long length()}{\code{simplify()} (non-const).}
 \lafunc{int nrows() const; int ncols() const; inline bool issymmetric() const}{Dimensions; \code{issymmetric()} is always true.}
 \lafunc{iterator begin() const; iterator end() const}{Iterator over all stored elements, row by row in increasing column order. \code{*it} is a \code{matel<T>} \emph{copy} held in the iterator (writing to it does not change the matrix). It is meant for comparison with \code{end()} or via \code{it.notend()}; \code{iterator(const SparseSMat&)} starts at the first element.}
@@ -288,7 +288,7 @@ Dense from sparse: \code{explicit NRMat<T>(const SparseSMat<T>&)} copies all sto
 \lafunc{const T* diagonalof(NRVec<T> &r, const bool divide=0, bool cache=false) const}{As for \code{SparseMat} (square matrices only).}
 \lafunc{SparseSMat transpose(bool conj=false) const}{Transposed (optionally conjugated) copy.}
 \lafunc{void transposeme() const}{Raises an error (not implemented).}
-\lafunc{SparseSMat<T> cholesky(void) const}{Pivoted Cholesky decomposition of a positive semidefinite symmetric/hermitian matrix (not checked): returns $R$ with $R\Hc R = A$ (\code{result.transpose(true)*result} reproduces the input). The pivoting is done a priori by sorting the diagonal; pivots with real part below \code{CHOLESKYEPSILON}$=10^{-16}$ are skipped (rank-deficient case), elements below \code{SPARSEEPSILON} are dropped. $R$ is upper triangular only in the permuted basis.}
+\lafunc{SparseSMat<T> cholesky(void) const}{Pivoted Cholesky decomposition of a positive semidefinite symmetric/hermitian matrix (not checked): returns $R$ with $R\Hc R = A$ (\code{result.transpose(true)*result} reproduces the input). The pivoting is done a priori by sorting the diagonal; pivots with real part below \code{LA_precision<normtype>::cholesky_epsilon()} ($10^{-16}$ for double, the old \code{CHOLESKYEPSILON}, $10^{-8}$ for float) are skipped (rank-deficient case), elements below $\epsilon_{\rm sp}$ are dropped. $R$ is upper triangular only in the permuted basis.}
 \lafunc{SparseSMat submatrix(const int fromrow, const int torow, const int fromcol, const int tocol) const}{Block (inclusive bounds).}
 \lafunc{void storesubmatrix(const int fromrow, const int fromcol, const SparseSMat &rhs)}{Store \code{rhs} into the block starting at $(\mathtt{fromrow},\mathtt{fromcol})$: the old elements of the block are removed first (as \code{NRMat::storesubmatrix}); calls \code{copyonwrite()}.}
 \end{lareference}
@@ -302,7 +302,7 @@ Dense from sparse: \code{explicit NRMat<T>(const SparseSMat<T>&)} copies all sto
 \lafunc{SparseSMat<T> otimes_sparse(const NRVec<T> &lhs, const NRVec<T> &rhs, const bool conjugate=false, const T &scale=1)}{\emph{Symmetrized} outer product, symmetric (complex: hermitian) regardless of the input vectors (unlike \code{SparseMat}):
 with $M=\mathtt{scale}\cdot l\,r\Tr$ (or $l\,r\Hc$ if \code{conjugate}) the result is $S=M+M\Hc$ ($=l\,r\Tr+r\,l\Tr$ for real types),
 including the doubled diagonal $S_{ii}=M_{ii}+M_{ii}^*$. Note that \code{otimes_sparse(x,x,true)} is $2\,x x\Hc$; use \code{scale=0.5} for $x x\Hc$.
-Elements with $|S_{ij}|\le$ \code{SPARSEEPSILON} are omitted. Both vectors must have the same length (\code{laerror} otherwise).}
+Elements with $|S_{ij}|\le$ $\epsilon_{\rm sp}$ are omitted. Both vectors must have the same length (\code{laerror} otherwise).}
 \lafunc{SparseSMat<T> NRMat<T>::operator*(const SparseSMat<T> &rhs) const}{Declared in mat.h: dense times sparse, general product $AS$ with a sparse result (row $i$ accumulated as $\sum_k A_{ik}\,(\text{row }k\text{ of }S)$, zero $A_{ik}$ skipped; simplified). Instantiated for \code{double} and \code{std::complex<double>}.}
 \end{lareference}
 In \ref{ch:nonclass}: \code{complexmatrix()}, \code{realmatrix()} and \code{imagmatrix()} build a

@@ -23,12 +23,13 @@ Methods are written on top of a small infrastructure (evaluation counter, iterat
 common drivers (line search, first order, trust region), so that a new method usually consists of a short class supplying the
 search direction, the update rule or the trust-region step (section~\ref{sec:optimize:drivers}).
 
-All templates are parameterized by the real type \code{T}, but optimize.cc instantiates them for \code{T = double} only.
-The capability interfaces, adapters and the hyperparameter classes are header-only templates; the optimizers, the adapters with
-member functions in optimize.cc (\code{FrozenOptProblem}, \code{ParameterShift}, \code{FiniteDifference},
-\code{OptLeastSquares}) and the auxiliary functions exist in the library only for \code{double}.
+All templates are parameterized by the real type \code{T}; optimize.cc instantiates them for \code{T = double} and
+\code{float}. The capability interfaces, adapters and the hyperparameter classes are header-only templates; the optimizers, the
+adapters with member functions in optimize.cc (\code{FrozenOptProblem}, \code{ParameterShift}, \code{FiniteDifference},
+\code{OptLeastSquares}) and the auxiliary functions exist in the library for \code{double} and \code{float}.
 The common drivers \code{linesearch_minimize}, \code{firstorder_minimize} and \code{trustregion_minimize}, the extension
-points for user-written methods, are explicitly instantiated for \code{double} as well.
+points for user-written methods, are explicitly instantiated for both types as well. The defaults depending on the precision
+are taken from \code{opt_precision<T>} (section~\ref{sec:optimize:hyper}).
 
 The data members of all classes of this chapter are small, except vectors held by \code{FrozenOptProblem} and
 \code{optevaluator}; these are ordinary \code{NRVec} objects following the reference counting and copy-on-demand scheme of
@@ -253,6 +254,29 @@ hyperparameters                    maxstep(200) maxfunc(0) f_thr(0) x_thr(0) sad
  |   +- Rotosolve_hyperparameters     reevaluate(false)
  +- Cobyla_hyperparameters         rhobeg(0.5) rhoend(1e-6) flexible_radius(true); maxstep=100000
 \end{lstlisting}
+
+The defaults given above and below are those for \code{double}. The precision-dependent ones are taken from the trait
+\code{opt_precision<T>} (\header{optimize.h}, analogous to \code{LA_precision<T>} of section~\ref{sec:concepts:traits}), defined
+for \code{T = double} and \code{float} only; the double values are those used by the library before. In float the gradient norm
+reachable by a line search is limited by the resolution of $f$ (about $\epsilon|f|$ divided by the step), hence the larger
+\code{g_thr}.
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+member & double & float & default of \\
+\midrule
+\code{fd_central_step()} & $10^{-6}$ & $5\cdot10^{-3}$ & \code{hh} of \code{FiniteDifference}, \code{ParameterShift} \\
+\code{fd_forward_step()} & $10^{-7}$ & $3\cdot10^{-4}$ & \code{h} of \code{OptLeastSquares}, \code{my_fd_step} (LM) \\
+\code{g_thr()} & $10^{-6}$ & $10^{-3}$ & \code{my_g_thr} \\
+\code{sy_thr()} & $10^{-12}$ & $10^{-6}$ & \code{my_sy_thr} (quasi-Newton) \\
+\code{sr1_thr()} & $10^{-8}$ & $10^{-4}$ & \code{my_sr1_thr} (SR1) \\
+\code{update_thr()} & $10^{-8}$ & $10^{-4}$ & \code{my_update_thr} (trust region) \\
+\code{nm_f_thr()}, \code{nm_x_thr()} & $10^{-8}$, $10^{-6}$ & $10^{-5}$, $10^{-4}$ & \code{my_f_thr}, \code{my_x_thr} (Nelder-Mead) \\
+\code{powell_f_thr()}, \code{powell_x_thr()} & $10^{-10}$, $10^{-6}$ & $10^{-6}$, $10^{-4}$ & \code{my_f_thr}, \code{my_x_thr} (Powell) \\
+\code{rhoend()} & $10^{-6}$ & $10^{-4}$ & \code{my_rhoend} (COBYLA) \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \paragraph{Base classes.}
 \begin{lareference}
@@ -671,16 +695,19 @@ saddle order.}
 
 For least-squares problems providing \code{OptResiduals} (typically derived from \code{OptLeastSquares}): the step $h$ solves
 $(J\Tr J+\mu D)h=-J\Tr r$ (\code{linear_solve}), $D=I$ or $D=\mathrm{diag}(J\Tr J)$ (Marquardt scaling); the damping starts at
-$\mu=\tau\max_i(J\Tr J)_{ii}$ and is updated by the gain ratio $\varrho$ \cite{optimize:madsen2004} (alg.~3.16): for $\varrho>0$
+$\mu=\tau\max_i(J\Tr J)_{ii}$ (with scaling $\mu=\tau$, the same relative to $D$) and is updated by the gain ratio $\varrho$ \cite{optimize:madsen2004} (alg.~3.16): for $\varrho>0$
 the step is accepted and $\mu\leftarrow\mu\max(1/3,1-(2\varrho-1)^3)$, $\nu=2$, otherwise $\mu\leftarrow\mu\nu$, $\nu\leftarrow2\nu$.
 The Jacobian comes from \code{jacobian()} of the problem or from forward differences (relative step \code{my_fd_step}, $n$
 residual evaluations counted in \code{my_maxfunc}). Convergence: $|J\Tr r|<$ \code{my_g_thr}, the general $f$/$x$ criterion, or
-when a rejected step becomes negligible at machine precision ($|h|\le10\epsilon(|x|+\epsilon)$). The function value returned is
+when a rejected step becomes negligible at machine precision ($h_i^2\le(10\epsilon)^2(x_i^2+\epsilon^2)$ for all $i$,
+tested per component to be scale invariant, cf.\ \cite{optimize:madsen2004} eq.~3.16). The function value returned is
 $f=\frac12|r|^2$. The problem's \code{funcgrad()} is not used.
 \begin{lareference}
 \lafunc{template<typename T> class LM_hyperparameters : public gradient_hyperparameters<T>}{}
 \lafunc{T my_tau}{Initial damping factor $\tau$ (\code{1e-3}).}
-\lafunc{bool my_scaling}{Marquardt scaling $D=\mathrm{diag}(J\Tr J)$ (default \code{false}, $D=I$).}
+\lafunc{bool my_scaling}{Marquardt scaling $D=\mathrm{diag}(J\Tr J)$ (default \code{false}, $D=I$). Recommended for
+badly scaled parameters, in float usually necessary (otherwise the steps in the weakly curved directions fall below the
+resolution of $f$).}
 \lafunc{T my_fd_step}{Relative step of the forward-difference Jacobian (\code{1e-7}).}
 \lafunc{template<typename T> class LM_Optimizer : public Optimizer<T>}{\code{laerror} if the problem does not provide
 \code{OptResiduals}. Verbose name Levenberg-Marquardt.}
