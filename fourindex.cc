@@ -33,9 +33,34 @@ while((unsigned char)i!=terminator&&(unsigned char)j!=terminator&&(unsigned char
 }
 
 template <>
+void fourindex<unsigned char,float>::fscanf(FILE *ff)
+{
+int i,j,k,l;
+float elem;
+if(5!= ::fscanf(ff,"%f %d %d %d %d",&elem,&i,&j,&k,&l)) laerror("read error in fourindex::fscanf");
+while((unsigned char)i!=terminator&&(unsigned char)j!=terminator&&(unsigned char)k!=terminator&&(unsigned char)l!=terminator) //cast: -1 in the file matches the default terminator
+        {
+        add(i,j,k,l,elem);
+        if(5!= ::fscanf(ff,"%f %d %d %d %d",&elem,&i,&j,&k,&l)) laerror("read error in fourindex::fscanf");
+        }
+}
+
+template <>
 void fourindex<unsigned char,double>::fprintf(FILE *f, char *format) const
 {
 fourindex<unsigned char,double>::iterator it=this->begin(),end=this->end();
+while(it!=end)
+            {
+	    ::fprintf(f,format,it->elem,it->index.indiv.i,it->index.indiv.j,it->index.indiv.k,it->index.indiv.l);
+            ++it;
+            }
+::fprintf(f,format,0.,(int)terminator,(int)terminator,(int)terminator,(int)terminator); //zero line for terminator 0 (FCIDUMP-like)
+}
+
+template <>
+void fourindex<unsigned char,float>::fprintf(FILE *f, char *format) const
+{
+fourindex<unsigned char,float>::iterator it=this->begin(),end=this->end();
 while(it!=end)
             {
 	    ::fprintf(f,format,it->elem,it->index.indiv.i,it->index.indiv.j,it->index.indiv.k,it->index.indiv.l);
@@ -52,4 +77,7 @@ while(it!=end)
 template class fourindex<unsigned char,double>;
 template class fourindex_ext<unsigned char,double>;
 template class fourindex_dense<nosymmetry,double,unsigned char>;
+template class fourindex<unsigned char,float>;
+template class fourindex_ext<unsigned char,float>;
+template class fourindex_dense<nosymmetry,float,unsigned char>;
 }
