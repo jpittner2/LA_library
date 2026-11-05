@@ -970,6 +970,27 @@ inline const double NRMat<double>::amax() const{
 #endif
 }
 
+template<>
+inline const float NRMat<float>::amax() const{
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+	#ifdef MATPTR
+		return v[0][cblas_isamax(nn*mm, v[0], 1) ];
+	#else
+		return v[cblas_isamax(nn*mm, v, 1) ];
+	#endif
+#ifdef CUDALA
+	}else{
+		float ret(0.0);
+		const size_t pozice = cublasIsamax((size_t)nn*mm, v, 1);
+		TEST_CUBLAS("cublasIsamax");
+		gpuget(1, sizeof(float), v + pozice, &ret);
+		return ret;
+	}
+#endif
+}
+
 /***************************************************************************//**
  * for this real matrix \f$A\f$, determine the first element
  * with smallest absolute value
@@ -1009,6 +1030,40 @@ inline const double NRMat<double>::amin() const{
 	return ret;
 }
 
+template<>
+inline const float NRMat<float>::amin() const{
+	float ret(0.0);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		// idamin seems not to be supported
+		const size_t nm = (size_t)nn*mm;
+		float val(0.0);
+		int index(-1);
+		ret = std::numeric_limits<float>::max();
+		for(register int i=0; i < nm; i++){
+		#ifdef MATPTR			
+			val = std::abs(v[0][i]);
+		#else
+			val = std::abs(v[i]);
+		#endif
+			if(val < ret){ index = i; ret = val; }
+		}
+		#ifdef MATPTR
+			ret = v[0][index];
+		#else
+			ret = v[index];
+		#endif	
+#ifdef CUDALA
+	}else{
+		const size_t pozice = cublasIsamin((size_t)nn*mm, v, 1);
+		TEST_CUBLAS("cublasIsamin");
+		gpuget(1, sizeof(float), v + pozice, &ret);
+	}
+#endif
+	return ret;
+}
+
 /***************************************************************************//**
  * for this complex matrix \f$A\f$, determine the smallest index of the maximum 
  * magnitude element, i.e. maximal element in the 1-norm
@@ -1030,6 +1085,28 @@ inline const std::complex<double> NRMat<std::complex<double> >::amax() const{
 		const size_t pozice = cublasIzamax((size_t)nn*mm, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamax");
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
+		return ret;
+	}
+#endif
+
+}
+
+template<>
+inline const std::complex<float> NRMat<std::complex<float> >::amax() const{
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+	#ifdef MATPTR
+		return v[0][cblas_icamax(nn*mm, v[0], 1) ];
+	#else
+		return v[cblas_icamax(nn*mm, v, 1) ];
+	#endif
+#ifdef CUDALA
+	}else{
+		std::complex<float> ret(0.0, 0.0);
+		const size_t pozice = cublasIcamax((size_t)nn*mm, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasIcamax");
+		gpuget(1, sizeof(std::complex<float>), v + pozice, &ret);
 		return ret;
 	}
 #endif
@@ -1073,6 +1150,43 @@ inline const std::complex<double> NRMat<std::complex<double> >::amin() const{
 		const size_t pozice = cublasIzamin((size_t)nn*mm, (cuDoubleComplex*)v, 1);
 		TEST_CUBLAS("cublasIzamin");
 		gpuget(1, sizeof(std::complex<double>), v + pozice, &ret);
+	}
+#endif
+	return ret;
+}
+
+template<>
+inline const std::complex<float> NRMat<std::complex<float> >::amin() const{
+	std::complex<float> ret(0.0, 0.0);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		// idamin seems not to be supported
+		const size_t nm = (size_t)nn*mm;
+		int index(-1);
+		float val(0.0), min_val(0.0);
+		std::complex<float> z_val(0.0, 0.0);
+
+		min_val = std::numeric_limits<float>::max();
+		for(register int i=0; i < nm; i++){
+		#ifdef MATPTR			
+			z_val = v[0][i];
+		#else
+			z_val = v[i];
+		#endif
+			val = std::abs(z_val.real()) + std::abs(z_val.imag());
+			if(val < min_val){ index = i; min_val = val; }
+		}
+		#ifdef MATPTR
+			ret = v[0][index];
+		#else
+			ret = v[index];
+		#endif	
+#ifdef CUDALA
+	}else{
+		const size_t pozice = cublasIcamin((size_t)nn*mm, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasIcamin");
+		gpuget(1, sizeof(std::complex<float>), v + pozice, &ret);
 	}
 #endif
 	return ret;

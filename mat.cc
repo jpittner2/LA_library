@@ -308,6 +308,35 @@ NRMat<double>& NRMat<double>::operator=(const double &a){
          return *this;
 }
 
+template <>
+NRMat<float>& NRMat<float>::operator=(const float &a){
+	const int n2 = nn*nn;
+	copyonwrite();
+#ifdef DEBUG
+	if(nn != mm) laerror("nonsquare matrix");
+#endif
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+#ifdef MATPTR
+		memset(v[0], 0, n2*sizeof(float));
+		for(register int i=0; i< nn; i++) v[i][i] = a;
+#else
+		const float n = 0.;
+		//set all matrix elements equal to zero
+		cblas_scopy(n2, &n, 0, v, 1);
+		//update the diagonal elements
+		cblas_scopy(nn, &a, 0, v, nn + 1);
+#endif
+#ifdef CUDALA
+	}else{
+		smart_gpu_set(n2, 0.0, v, 1);
+		smart_gpu_set(nn, a, v, nn + 1);
+	}
+#endif
+         return *this;
+}
+
 /***************************************************************************//**
  * assigns a double-precision complex scalar value to the diagonal elements of this
  * double-precision complex matrix
@@ -341,6 +370,34 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::operator=(const std:
 #endif
          return *this;
 }
+
+template <>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::operator=(const std::complex<float> &a){
+	const int n2 = nn*nn;
+	copyonwrite();
+#ifdef DEBUG
+	if(nn != mm) laerror("nonsquare matrix");
+#endif
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+#ifdef MATPTR
+		memset(v[0], 0, n2*sizeof(std::complex<float>));
+		for(register int i=0; i< nn; i++) v[i][i] = a;
+#else
+		//set all matrix elements equal to zero
+		cblas_ccopy(n2, &CZEROF, 0, v, 1);
+		//update the diagonal elements
+		cblas_ccopy(nn, &a, 0, v, nn + 1);
+#endif
+#ifdef CUDALA
+	}else{
+		smart_gpu_set(n2, CZEROF, v, 1);
+		smart_gpu_set(nn, a, v, nn + 1);
+	}
+#endif
+         return *this;
+}
 /***************************************************************************//**
  * adds a double-precision real scalar value to the diagonal elements of this
  * double-precision real matrix
@@ -366,6 +423,31 @@ NRMat<double> & NRMat<double>::operator+=(const double& a) {
 		double *d = gpuputdouble(a);
 		cublasDaxpy(nn, 1.0, d, 0, *this, nn+1);
 		TEST_CUBLAS("cublasDaxpy");
+		gpufree(d);
+	}
+#endif
+        return *this;
+}
+
+template <>
+NRMat<float> & NRMat<float>::operator+=(const float& a) {
+        copyonwrite();
+#ifdef DEBUG
+	if(nn != mm) laerror("nonsquare matrix");
+#endif
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+#ifdef MATPTR
+		for(register int i=0; i < nn; i++) v[i][i] += a;
+#else
+		cblas_saxpy(nn, 1.0, &a, 0, *this, nn + 1);
+#endif
+#ifdef CUDALA
+	}else{
+		float *d = gpuputdouble(a);
+		cublasSaxpy(nn, 1.0, d, 0, *this, nn+1);
+		TEST_CUBLAS("cublasSaxpy");
 		gpufree(d);
 	}
 #endif
@@ -403,6 +485,31 @@ NRMat<std::complex<double> > & NRMat<std::complex<double> >::operator+=(const st
         return *this;
 }
 
+template <>
+NRMat<std::complex<float> > & NRMat<std::complex<float> >::operator+=(const std::complex<float>& a) {
+        copyonwrite();
+#ifdef DEBUG
+	if(nn != mm) laerror("nonsquare matrix");
+#endif
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+#ifdef MATPTR
+		for(register int i=0; i < nn; i++) v[i][i] += a;
+#else
+		cblas_caxpy(nn, &CONEF, &a, 0, *this, nn + 1);
+#endif
+#ifdef CUDALA
+	}else{
+		std::complex<float>* d = gpuputcomplex(a);
+		cublasCaxpy(nn, CUMONE, (cuComplex*)d, 0, (cuComplex*)v, nn+1);
+		TEST_CUBLAS("cublasSaxpy");
+		gpufree(d);
+	}
+#endif
+        return *this;
+}
+
 /***************************************************************************//**
  * subtracts a double-precision real scalar value from the diagonal elements of this
  * double-precision real matrix
@@ -434,6 +541,31 @@ NRMat<double>& NRMat<double>::operator-=(const double& a) {
         return *this;
 }
 
+template <>
+NRMat<float>& NRMat<float>::operator-=(const float& a) {
+        copyonwrite();
+#ifdef DEBUG
+        if(nn != mm) laerror("nonsquare matrix");
+#endif
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+#ifdef MATPTR
+		for(register int i=0; i< nn; i++) v[i][i] -= a;
+#else
+		cblas_saxpy(nn, -1.0, &a, 0, *this, nn+1);
+#endif
+#ifdef CUDALA
+	}else{
+		float *d = gpuputdouble(a);
+		cublasSaxpy(nn, -1.0, d, 0, *this, nn+1);
+		TEST_CUBLAS("cublasSaxpy");
+		gpufree(d);
+	}
+#endif
+        return *this;
+}
+
 /***************************************************************************//**
  * subtracts a double-precision complex scalar value from the diagonal elements of this
  * double-precision complex matrix
@@ -459,6 +591,31 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::operator-=(const std
 		std::complex<double>* d = gpuputcomplex(a);
 		cublasZaxpy(nn, CUMONE, (cuDoubleComplex*)d, 0, (cuDoubleComplex*)v, nn+1);
 		TEST_CUBLAS("cublasDaxpy");
+		gpufree(d);
+	}
+#endif
+        return *this;
+}
+
+template <>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::operator-=(const std::complex<float>& a) {
+        copyonwrite();
+#ifdef DEBUG
+	if(nn != mm) laerror("nonsquare matrix");
+#endif
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+#ifdef MATPTR
+		for(register int i=0; i < nn; i++) v[i][i] -= a;
+#else
+		cblas_caxpy(nn, &CMONEF, &a, 0, *this, nn + 1);
+#endif
+#ifdef CUDALA
+	}else{
+		std::complex<float>* d = gpuputcomplex(a);
+		cublasCaxpy(nn, CUMONE, (cuComplex*)d, 0, (cuComplex*)v, nn+1);
+		TEST_CUBLAS("cublasSaxpy");
 		gpufree(d);
 	}
 #endif
@@ -535,6 +692,31 @@ const NRMat<double> NRMat<double>::operator-() const {
         return result;
 }
 
+template <>
+const NRMat<float> NRMat<float>::operator-() const {
+	const size_t nm = (size_t)nn*mm;
+        NRMat<float> result(nn, mm, getlocation());
+#ifdef CUDALA
+        if(location == cpu) {
+#endif
+#ifdef MATPTR
+	        for(register size_t i=0; i<nm; i++) result.v[0][i] = -v[0][i];
+#else
+		memcpy(result.v, v, nm*sizeof(float));
+		cblas_sscal(nm, -1., result.v, 1);
+#endif
+#ifdef CUDALA
+        }else{
+		cublasScopy(nm, v, 1, result.v, 1);
+		TEST_CUBLAS("cublasScopy");
+
+		cublasSscal(nm, -1., result.v, 1);
+		TEST_CUBLAS("cublasSscal");
+	}
+#endif
+        return result;
+}
+
 
 /***************************************************************************//**
  * implements unary minus operator for this double-precision complex matrix
@@ -560,6 +742,31 @@ const NRMat<std::complex<double> > NRMat<std::complex<double> >::operator-() con
 
 		cublasZscal(nm, CUMONE, (cuDoubleComplex*)result.v, 1);
 		TEST_CUBLAS("cublasZscal");
+	}
+#endif
+        return result;
+}
+
+template <>
+const NRMat<std::complex<float> > NRMat<std::complex<float> >::operator-() const {
+	const size_t nm = (size_t)nn*mm;
+        NRMat<std::complex<float> > result(nn, mm, getlocation());
+#ifdef CUDALA
+        if(location == cpu) {
+#endif
+#ifdef MATPTR
+	        for(register size_t i=0; i<nm; i++) result.v[0][i]= -v[0][i];
+#else
+		memcpy(result.v, v, nm*sizeof(std::complex<float>));
+		cblas_cscal(nm, &CMONEF, result.v, 1);
+#endif
+#ifdef CUDALA
+        }else{
+		cublasCcopy(nm, (cuComplex*)v, 1, (cuComplex*)result.v, 1);
+		TEST_CUBLAS("cublasCcopy");
+
+		cublasCscal(nm, CUMONE, (cuComplex*)result.v, 1);
+		TEST_CUBLAS("cublasCscal");
 	}
 #endif
         return result;
@@ -666,6 +873,27 @@ const NRVec<double> NRMat<double>::csum() const {
 	return result;
 }
 
+template <>
+const NRVec<float> NRMat<float>::csum() const {
+	NRVec<float> result(mm, getlocation());
+	result.clear();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<mm; i++){
+			cblas_saxpy(nn, 1.0, &((*this)(0, i)), mm, result.v+i, 0);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<mm; i++){
+			cublasSaxpy(nn, 1.0, v + i, mm, result.v+i, 0);
+			TEST_CUBLAS("cublasSaxpy");
+		}
+	}
+#endif
+	return result;
+}
+
 /***************************************************************************//**
  * sum up the columns of the current double-precision complex matrix
  * @return summed columns in a form of a vector
@@ -685,6 +913,27 @@ const NRVec<std::complex<double> > NRMat<std::complex<double> >::csum() const {
 		for(register int i=0;i<mm;i++){
 			cublasZaxpy(nn, CUONE, (cuDoubleComplex*)(v + i), mm, (cuDoubleComplex*)(result.v+i), 0);
 			TEST_CUBLAS("cublasZaxpy");
+		}
+	}
+#endif
+	return result;
+}
+
+template <>
+const NRVec<std::complex<float> > NRMat<std::complex<float> >::csum() const {
+	NRVec<std::complex<float> > result(mm, getlocation());
+	result.clear();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0;i<mm;i++){
+			cblas_caxpy(nn, &CONEF, &((*this)(0, i)), mm, result.v+i, 0);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0;i<mm;i++){
+			cublasCaxpy(nn, CUONE, (cuComplex*)(v + i), mm, (cuComplex*)(result.v+i), 0);
+			TEST_CUBLAS("cublasCaxpy");
 		}
 	}
 #endif
@@ -734,6 +983,27 @@ const NRVec<double> NRMat<double>::rsum() const {
 	return result;
 }
 
+template <>
+const NRVec<float> NRMat<float>::rsum() const {
+	NRVec<float> result(nn, getlocation());
+	result.clear();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0;i<nn;i++){
+			cblas_saxpy(mm, 1.0, (*this)[i], 1, result.v+i, 0);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0;i<nn;i++){
+			cublasSaxpy(mm, 1.0, v + i*(size_t)mm, 1, result.v+i, 0);
+			TEST_CUBLAS("cublasSaxpy");
+		}
+	}
+#endif
+	return result;
+}
+
 /***************************************************************************//**
  * sum up the rows of the current double-precision complex matrix
  * @return summed rows in a form of a vector
@@ -753,6 +1023,27 @@ const NRVec<std::complex<double> > NRMat<std::complex<double> >::rsum() const {
 		for(register int i=0;i<nn;i++){
 			cublasZaxpy(mm, CUONE, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(result.v+i), 0);
 			TEST_CUBLAS("cublasZaxpy");
+		}
+	}
+#endif
+	return result;
+}
+
+template <>
+const NRVec<std::complex<float> > NRMat<std::complex<float> >::rsum() const {
+	NRVec<std::complex<float> > result(nn, getlocation());
+	result.clear();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0;i<nn;i++){
+			cblas_caxpy(mm, &CONEF, (*this)[i], 1, result.v+i, 0);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0;i<nn;i++){
+			cublasCaxpy(mm, CUONE, (cuComplex*)(v + i*(size_t)mm), 1, (cuComplex*)(result.v+i), 0);
+			TEST_CUBLAS("cublasCaxpy");
 		}
 	}
 #endif
@@ -793,6 +1084,22 @@ const double NRMat<double>::sum() const {
 	return result;
 }
 
+template <>
+const float NRMat<float>::sum() const {
+	float result=0;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_saxpy(nn*mm, 1.0, (*this)[0], 1, &result, 0);
+#ifdef CUDALA
+	}else{
+	laerror("not implemented");
+		}
+	}
+#endif
+	return result;
+}
+
 /***************************************************************************//**
  * sum up the all of the current double-precision complex matrix
  * @return sum
@@ -804,6 +1111,22 @@ const std::complex<double>  NRMat<std::complex<double> >::sum() const {
 	if(location == cpu){
 #endif
 			cblas_zaxpy(nn*mm, &CONE, (*this)[0], 1, &result, 0);
+#ifdef CUDALA
+	}else{
+	laerror("not implemented");
+		}
+	}
+#endif
+	return result;
+}
+
+template <>
+const std::complex<float>  NRMat<std::complex<float> >::sum() const {
+	std::complex<float>  result=0;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_caxpy(nn*mm, &CONEF, (*this)[0], 1, &result, 0);
 #ifdef CUDALA
 	}else{
 	laerror("not implemented");
@@ -1048,12 +1371,76 @@ laerror("nonsymmetry not implemented on GPU yet");
 }
 
 template <>
+const float NRMat<std::complex<float> >::nonhermiticity() const {
+#ifdef DEBUG
+	if (nn != mm) laerror("NRMat<T>:nonsymmetry() invalid for non-square matrix");
+#endif
+float sum = 0;
+std::complex<float> tmp;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++){
+			for(register int j=0; j<=i; j++){
+			#ifdef MATPTR
+				tmp = std::complex<float> (v[i][j].real()-v[j][i].real(),v[i][j].imag()+v[j][i].imag()); 
+			#else
+				register int a, b; 
+				a = i*(size_t)mm + j;
+				b = j*(size_t)mm + i;
+				tmp = std::complex<float> (v[a].real() - v[b].real(), v[a].imag()+v[b].imag());
+			#endif
+			sum += tmp.real()*tmp.real()+tmp.imag()*tmp.imag();
+			}
+		}
+#ifdef CUDALA
+	}else{
+laerror("nonsymmetry not implemented on GPU yet");
+
+	}
+#endif
+	return sum;
+}
+
+template <>
 const double NRMat<std::complex<double> >::nonsymmetry() const {
 #ifdef DEBUG
         if (nn != mm) laerror("NRMat<T>:nonsymmetry() invalid for non-square matrix");
 #endif
 double sum = 0;
 std::complex<double> tmp;
+#ifdef CUDALA
+        if(location == cpu){
+#endif
+                for(register int i=1; i<nn; i++){
+                        for(register int j=0; j<i; j++){
+                        #ifdef MATPTR
+                                tmp = v[i][j]-v[j][i];
+                        #else
+                                register int a, b;
+                                a = i*(size_t)mm + j;
+                                b = j*(size_t)mm + i;
+                                tmp = v[a] - v[b];
+                        #endif
+                        sum += tmp.real()*tmp.real()+tmp.imag()*tmp.imag();
+                        }
+                }
+#ifdef CUDALA
+        }else{
+laerror("nonsymmetry not implemented on GPU yet");
+
+        }
+#endif
+        return sum;
+}
+
+template <>
+const float NRMat<std::complex<float> >::nonsymmetry() const {
+#ifdef DEBUG
+        if (nn != mm) laerror("NRMat<T>:nonsymmetry() invalid for non-square matrix");
+#endif
+float sum = 0;
+std::complex<float> tmp;
 #ifdef CUDALA
         if(location == cpu){
 #endif
@@ -1120,6 +1507,39 @@ NRMat<std::complex<double> >::NRMat(const NRMat<double> &rhs, bool imagpart): nn
 #endif
 }
 
+template<>
+NRMat<std::complex<float> >::NRMat(const NRMat<float> &rhs, bool imagpart): nn(rhs.nrows()), mm(rhs.ncols()), count(new int(1)) {
+	const size_t nn_mm = (size_t)nn*mm;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+	#ifdef MATPTR
+	        v = new std::complex<float>*[nn];
+	        v[0] = new std::complex<float>[nn_mm];
+	        for(register int i=1; i<nn; i++) v[i] = v[i-1] + mm;
+	
+		memset(v[0], 0, nn_mm*sizeof(std::complex<float>));
+	        cblas_scopy(nn_mm, &rhs[0][0], 1, ((float *)v[0]) + (imagpart?1:0), 2);
+	#else
+	        v = new std::complex<float>[nn_mm];
+	        memset(v, 0, nn_mm*sizeof(std::complex<float>));
+	
+		cblas_scopy(nn_mm, &rhs[0][0], 1, ((float *)v) + (imagpart?1:0), 2);
+	#endif
+#ifdef CUDALA
+	}else{
+		v = (std::complex<float>*)gpualloc(sizeof(std::complex<float>)*nn_mm);
+		std::complex<float> *_val = gpuputcomplex(CZEROF);
+		cublasCcopy(nn_mm, (cuComplex*)_val, 0, (cuComplex*)v, 1);
+		TEST_CUBLAS("cublasCcopy");
+		gpufree(_val);
+
+		cublasScopy(nn_mm, (float*)(&rhs[0][0]), 1, ((float*)v) + (imagpart?1:0), 2);
+		TEST_CUBLAS("cublasScopy");
+	}
+#endif
+}
+
 
 
 /***************************************************************************//**
@@ -1149,6 +1569,31 @@ NRMat<double>::NRMat(const NRMat<std::complex<double> > &rhs, bool imagpart): nn
 		v = (double *)gpualloc(sizeof(double)*nn_mm);
 		cublasDcopy(nn_mm, ((double*)&rhs[0][0])+ (imagpart?1:0), 2, v , 1);
 		TEST_CUBLAS("cublasDcopy");
+	}
+#endif
+}
+
+template<>
+NRMat<float>::NRMat(const NRMat<std::complex<float> > &rhs, bool imagpart): nn(rhs.nrows()), mm(rhs.ncols()), count(new int(1)) {
+	const size_t nn_mm = (size_t) nn*mm;
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+	#ifdef MATPTR
+	        v = new float*[nn];
+	        v[0] = new float[nn_mm];
+	        for(register int i=1; i<nn; i++) v[i] = v[i-1] + mm;
+	
+	        cblas_scopy(nn_mm, ((float *)&rhs[0][0]) + (imagpart?1:0), 2, v[0], 1);
+	#else
+	        v = new float[nn_mm];
+		cblas_scopy(nn_mm, ((float *) &rhs[0][0]) + (imagpart?1:0), 2, v , 1);
+	#endif
+#ifdef CUDALA
+	}else{
+		v = (float *)gpualloc(sizeof(float)*nn_mm);
+		cublasScopy(nn_mm, ((float*)&rhs[0][0])+ (imagpart?1:0), 2, v , 1);
+		TEST_CUBLAS("cublasScopy");
 	}
 #endif
 }
@@ -1251,6 +1696,36 @@ const NRSMat<double> NRMat<double>::transposedtimes() const {
 	return r;
 }
 
+template<>
+const NRSMat<float> NRMat<float>::transposedtimes() const {
+	int i(0), j(0);
+	NRSMat<float> r(mm, getlocation());//!< resulting matrix has mm rows
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(i=0; i<mm; ++i){
+			for(j=0; j<=i; ++j){
+			#ifdef MATPTR
+				r(i, j) = cblas_sdot(nn, v[0] + i, mm, v[0] + j, mm);
+			#else
+				r(i, j) = cblas_sdot(nn, v + i, mm, v + j, mm);
+			#endif
+			}
+		}
+#ifdef CUDALA
+	}else{
+		for(i=0; i<mm; ++i){
+			for(j=0; j<=i; ++j){
+				r(i, j) = cublasSdot(nn, v + i, mm, v + j, mm);
+				TEST_CUBLAS("cublasSdot");
+			}
+		}
+		r.moveto(this->location);
+	}
+#endif
+	return r;
+}
+
 /***************************************************************************//**
  * for a given complex matrix \f$A\f$ compute \f$A^\dagger{}A\f$
  * @return complex NRSMat object because of the hermiticity of \f$A^\dagger{}A\f$
@@ -1278,6 +1753,37 @@ const NRSMat<std::complex<double> >  NRMat<std::complex<double> >::transposedtim
 				cuDoubleComplex val = cublasZdotc(nn, (const cuDoubleComplex*)(v + i), mm, (const cuDoubleComplex*)(v + j), mm);
 				TEST_CUBLAS("cublasZdotc");
 				r(i, j) = *(reinterpret_cast<std::complex<double>*> (&val));
+			}
+		}
+		r.moveto(this->location);
+	}
+#endif
+	return r;
+}
+
+template<>
+const NRSMat<std::complex<float> >  NRMat<std::complex<float> >::transposedtimes() const {
+	int i(0), j(0);
+	NRSMat<std::complex<float> > r(mm, getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(i=0; i<mm; ++i){
+			for(j=0; j<=i; ++j){
+			#ifdef MATPTR
+				cblas_cdotc_sub(nn, v[0] + i , mm, v[0] + j, mm, &r(i,j));
+			#else
+				cblas_cdotc_sub(nn, v + i , mm, v + j, mm, &r(i,j));
+			#endif
+			}
+		}
+#ifdef CUDALA
+	}else{
+		for(i=0; i<mm; ++i){
+			for(j=0; j<=i; ++j){
+				cuComplex val = cublasCdotc(nn, (const cuComplex*)(v + i), mm, (const cuComplex*)(v + j), mm);
+				TEST_CUBLAS("cublasCdotc");
+				r(i, j) = *(reinterpret_cast<std::complex<float>*> (&val));
 			}
 		}
 		r.moveto(this->location);
@@ -1343,6 +1849,36 @@ const NRSMat<double>  NRMat<double>::timestransposed() const {
 	return r;
 }
 
+template<>
+const NRSMat<float>  NRMat<float>::timestransposed() const {
+	int i(0), j(0);
+	NRSMat<float> r(nn, getlocation());//!< resulting matrix has nn rows
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(i=0; i<nn; ++i){
+			for(j=0; j<=i; ++j){
+			#ifdef MATPTR
+				r(i, j) = cblas_sdot(mm, v[i], 1, v[j], 1);
+			#else
+				r(i, j) = cblas_sdot(mm, v + i*(size_t)mm, 1, v + j*(size_t)mm, 1);
+			#endif
+			}
+		}
+#ifdef CUDALA
+	}else{
+		for(i=0; i<nn; ++i){
+			for(j=0; j<=i; ++j){
+				r(i, j) = cublasSdot(nn, v + i*(size_t)mm, 1, v + j*(size_t)mm, 1);
+				TEST_CUBLAS("cublasSdot");
+			}
+		}
+		r.moveto(this->location);
+	}
+#endif
+	return r;
+}
+
 /***************************************************************************//**
  * for a given complex matrix \f$A\f$ compute \f$AA^\dagger{}\f$
  * @return complex NRSMat object because of the hermiticity of \f$AA^\dagger{}\f$
@@ -1370,6 +1906,37 @@ const NRSMat<std::complex<double> >  NRMat<std::complex<double> >::timestranspos
 				cuDoubleComplex val = cublasZdotc(nn, (const cuDoubleComplex *)(v + i*(size_t)mm), 1, (const cuDoubleComplex *)(v + j*(size_t)mm), 1);
 				TEST_CUBLAS("cublasZdotc");
 				r(i, j) = *(reinterpret_cast<std::complex<double>*> (&val));
+			}
+		}
+		r.moveto(this->location);
+	}
+#endif
+	return r;
+}
+
+template<>
+const NRSMat<std::complex<float> >  NRMat<std::complex<float> >::timestransposed() const {
+	int i(0), j(0);
+	NRSMat<std::complex<float> > r(nn, getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(i=0; i<nn; ++i){
+			for(j=0; j<=i; ++j){
+			#ifdef MATPTR
+				cblas_cdotc_sub(mm, v[j], 1, v[i], 1, &r(i,j)); //(A A^H)_ij = sum_k A_ik conj(A_jk), lower triangle of the hermitian result
+			#else
+				cblas_cdotc_sub(mm, v + j*(size_t)mm, 1, v + i*(size_t)mm, 1, &r(i,j)); //(A A^H)_ij = sum_k A_ik conj(A_jk), lower triangle of the hermitian result
+			#endif
+			}
+		}
+#ifdef CUDALA
+	}else{
+		for(i=0; i<mm; ++i){
+			for(j=0; j<=i; ++j){
+				cuComplex val = cublasCdotc(nn, (const cuComplex *)(v + i*(size_t)mm), 1, (const cuComplex *)(v + j*(size_t)mm), 1);
+				TEST_CUBLAS("cublasCdotc");
+				r(i, j) = *(reinterpret_cast<std::complex<float>*> (&val));
 			}
 		}
 		r.moveto(this->location);
@@ -1428,6 +1995,30 @@ void NRMat<double>::randomize(const double &x) {
 #endif
 }
 
+template<>
+void NRMat<float>::randomize(const float &x) {
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		copyonwrite();
+		for(register int i=0; i<nn; ++i){
+			for(register int j=0; j<mm; ++j){
+				(*this)(i,j) = x*RANDDOUBLESIGNED();
+			}
+		}
+#ifdef CUDALA
+	}else{
+		NRMat<float> tmp(nn, mm, cpu);
+		float *tmp_data = tmp;
+		for(register size_t i=0; i<(size_t)nn*mm; ++i){
+			tmp_data[i] = x*RANDDOUBLESIGNED();
+		}
+		tmp.moveto(this->location);
+		*this |= tmp;
+	}
+#endif
+}
+
 
 /***************************************************************************//**
  * fill given complex matrix with random numbers
@@ -1462,6 +2053,34 @@ void NRMat<std::complex<double> >::randomize(const double &x) {
 #endif
 }
 
+template<>
+void NRMat<std::complex<float> >::randomize(const float &x) {
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		copyonwrite();
+		for(register int i=0; i<nn; ++i){
+			for(register int j=0; j<mm; ++j){
+				const float re = x*RANDDOUBLESIGNED();
+				const float im = x*RANDDOUBLESIGNED();
+				(*this)(i,j) = std::complex<float>(re, im);
+			}
+		}
+#ifdef CUDALA
+	}else{
+		NRMat<std::complex<float> > tmp(nn, mm, cpu);
+		std::complex<float> *tmp_data = tmp;
+		for(register size_t i=0; i<(size_t)nn*mm; ++i){
+			const float re = x*RANDDOUBLESIGNED();
+			const float im = x*RANDDOUBLESIGNED();
+			tmp_data[i] = std::complex<float>(re, im);
+		}
+		tmp.moveto(this->location);
+		*this |= tmp;
+	}
+#endif
+}
+
 
 /***************************************************************************//**
  * scale real matrix with a real factor
@@ -1479,6 +2098,22 @@ NRMat<double>& NRMat<double>::operator*=(const double &a) {
 	}else{
 		cublasDscal((size_t)nn*mm, a, v, 1);
 		TEST_CUBLAS("cublasDscal");
+	}
+#endif
+	return *this;
+}
+
+template<>
+NRMat<float>& NRMat<float>::operator*=(const float &a) {
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_sscal((size_t)nn*mm, a, *this, 1);
+#ifdef CUDALA
+	}else{
+		cublasSscal((size_t)nn*mm, a, v, 1);
+		TEST_CUBLAS("cublasSscal");
 	}
 #endif
 	return *this;
@@ -1503,6 +2138,24 @@ NRMat<std::complex<double> >::operator*=(const std::complex<double> &a) {
 		const cuDoubleComplex fac = *(reinterpret_cast<const cuDoubleComplex*> (&a));
 		cublasZscal((size_t)nn*mm, fac, (cuDoubleComplex *)v, 1);
 		TEST_CUBLAS("cublasZscal");
+	}
+#endif
+	return *this;
+}
+
+template<>
+NRMat<std::complex<float> > &
+NRMat<std::complex<float> >::operator*=(const std::complex<float> &a) {
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_cscal((size_t)nn*mm, &a, (*this)[0], 1);
+#ifdef CUDALA
+	}else{
+		const cuComplex fac = *(reinterpret_cast<const cuComplex*> (&a));
+		cublasCscal((size_t)nn*mm, fac, (cuComplex *)v, 1);
+		TEST_CUBLAS("cublasCscal");
 	}
 #endif
 	return *this;
@@ -1552,6 +2205,26 @@ NRMat<double> & NRMat<double>::operator+=(const NRMat<double>  &rhs) {
 	return *this;
 }
 
+template<>
+NRMat<float> & NRMat<float>::operator+=(const NRMat<float>  &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
+#endif
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_saxpy((size_t)nn*mm, 1.0, rhs, 1, *this, 1);
+#ifdef CUDALA
+	}else{
+		cublasSaxpy((size_t)nn*mm, 1.0, rhs, 1, v, 1);
+		TEST_CUBLAS("cublasSaxpy");
+	}
+#endif
+	return *this;
+}
+
 /***************************************************************************//**
  * add a given complex matrix \f$A\f$ to the current complex matrix
  * @param[in] rhs complex matrix \f$A\f$
@@ -1572,6 +2245,26 @@ NRMat<std::complex<double> >::operator+=(const NRMat< std::complex<double> >  &r
 #ifdef CUDALA
 	}else{
 		cublasZaxpy((size_t)nn*mm, CUONE, (cuDoubleComplex*)(rhs[0]), 1, (cuDoubleComplex*)((*this)[0]), 1);
+	}
+#endif
+	return *this;
+}
+
+template<>
+NRMat<std::complex<float> > &
+NRMat<std::complex<float> >::operator+=(const NRMat< std::complex<float> >  &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
+#endif
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_caxpy((size_t)nn*mm, &CONEF, rhs[0], 1, (*this)[0], 1);
+#ifdef CUDALA
+	}else{
+		cublasCaxpy((size_t)nn*mm, CUONE, (cuComplex*)(rhs[0]), 1, (cuComplex*)((*this)[0]), 1);
 	}
 #endif
 	return *this;
@@ -1602,6 +2295,25 @@ NRMat<double> & NRMat<double>::operator-=(const NRMat<double>  &rhs) {
 	return *this;
 }
 
+template<>
+NRMat<float> & NRMat<float>::operator-=(const NRMat<float>  &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
+#endif
+	SAME_LOC(*this,rhs);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_saxpy((size_t)nn*mm, -1.0, rhs, 1, *this, 1);
+#ifdef CUDALA
+	}else{
+		cublasSaxpy((size_t)nn*mm, -1.0, rhs, 1, v, 1);
+	}
+#endif
+	return *this;
+}
+
 
 /***************************************************************************//**
  * subtract a given complex matrix \f$A\f$ from the current complex matrix
@@ -1624,6 +2336,27 @@ NRMat< std::complex<double> >::operator-=(const NRMat< std::complex<double> >  &
 #ifdef CUDALA
 	}else{
 		cublasZaxpy((size_t)nn*mm, CUMONE, (cuDoubleComplex*)(rhs[0]), 1, (cuDoubleComplex*)((*this)[0]), 1);
+	}
+#endif
+	return *this;
+}
+
+template<>
+NRMat< std::complex<float> > &
+NRMat< std::complex<float> >::operator-=(const NRMat< std::complex<float> >  &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices");
+#endif
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_caxpy((size_t)nn*mm, &CMONEF, rhs[0], 1, (*this)[0], 1);
+#ifdef CUDALA
+	}else{
+		cublasCaxpy((size_t)nn*mm, CUMONE, (cuComplex*)(rhs[0]), 1, (cuComplex*)((*this)[0]), 1);
 	}
 #endif
 	return *this;
@@ -1678,6 +2411,46 @@ NRMat<double> & NRMat<double>::operator+=(const NRSMat<double> &rhs) {
 	return *this;
 }
 
+template<>
+NRMat<float> & NRMat<float>::operator+=(const NRSMat<float> &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.nn) laerror("incompatible matrices");
+#endif
+	const float *p = rhs;
+
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++){
+			cblas_saxpy(i + 1, 1.0, p, 1, (*this)[i], 1); 
+			p += i + 1;
+		}
+
+		p = rhs; p++;
+		for(int i=1; i<nn; i++){
+			cblas_saxpy(i, 1.0, p, 1, (*this)[0] + i, nn);
+			p += i + 1;
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			cublasSaxpy(i + 1, 1.0, p, 1, (*this)[i], 1); 
+			p += i + 1;
+		}
+
+		p = rhs; p++;
+		for(int i=1; i<nn; i++){
+			cublasSaxpy(i, 1.0, p, 1, (*this)[0] + i, nn);
+			p += i + 1;
+		}
+	}
+#endif
+	return *this;
+}
+
 
 /***************************************************************************//**
  * add a given sparse complex matrix \f$A\f$ stored in packed form to the current
@@ -1718,6 +2491,46 @@ NRMat< std::complex<double> >::operator+=(const NRSMat< std::complex<double> > &
 		p = rhs; p++;
 		for(register int i=1; i<nn; i++){
 			cublasZaxpy(i, CUONE, (cuDoubleComplex*)p, 1, (cuDoubleComplex*)((*this)[0]+i), nn);
+			p += i+1;
+		}
+
+	}
+#endif
+	return *this;
+}
+
+template<>
+NRMat< std::complex<float> > & 
+NRMat< std::complex<float> >::operator+=(const NRSMat< std::complex<float> > &rhs)
+{
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.nn) laerror("incompatible matrices");
+#endif
+	const std::complex<float> *p = rhs;
+
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++){
+			cblas_caxpy(i + 1, &CONEF, p, 1, (*this)[i], 1); 
+			p += i + 1;
+		}
+		p = rhs; p++;
+		for(register int i=1; i<nn; i++){ //upper triangle is conjugated (hermitian)
+			for(register int j=0; j<i; ++j) *((*this)[j]+i) += std::conj(p[j]);
+			p += i+1;
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			cublasCaxpy(i + 1, CUONE, (cuComplex*)p, 1, (cuComplex*)((*this)[i]), 1); 
+			p += i + 1;
+		}
+		p = rhs; p++;
+		for(register int i=1; i<nn; i++){
+			cublasCaxpy(i, CUONE, (cuComplex*)p, 1, (cuComplex*)((*this)[0]+i), nn);
 			p += i+1;
 		}
 
@@ -1804,6 +2617,44 @@ NRMat<double> & NRMat<double>::operator-=(const NRSMat<double> &rhs)
 	return *this;
 }
 
+template<>
+NRMat<float> & NRMat<float>::operator-=(const NRSMat<float> &rhs)
+{
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.nn) laerror("incompatible matrices");
+#endif
+	const float *p = rhs;
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++) {
+			cblas_saxpy(i+1, -1.0, p, 1, (*this)[i], 1); 
+			p += i+1;
+		}
+		p = rhs; p++;
+		for(register int i=1; i<nn; i++) {
+			cblas_saxpy(i, -1.0, p, 1, (*this)[0]+i, nn);
+			p += i+1;
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++) {
+			cublasSaxpy(i+1, -1.0, p, 1, (*this)[i], 1); 
+			p += i+1;
+		}
+		p = rhs; p++;
+		for(register int i=1; i<nn; i++) {
+			cublasSaxpy(i, -1.0, p, 1, (*this)[0]+i, nn);
+			p += i+1;
+		}
+	}
+#endif
+	return *this;
+}
+
 /***************************************************************************//**
  * subtract a given sparse complex matrix \f$A\f$ stored in packed form from
  * the current complex matrix
@@ -1842,6 +2693,44 @@ NRMat<std::complex<double> >::operator-=(const NRSMat<std::complex<double> > &rh
 		p = rhs; p++;
 		for(register int i=1; i<nn; i++){
 			cublasZaxpy(i, CUMONE, (cuDoubleComplex*)p, 1, (cuDoubleComplex*)((*this)[0]+i), nn);
+			p += i + 1;
+		}
+	}
+#endif
+	return *this;
+}
+
+template<>
+NRMat<std::complex<float> > & 
+NRMat<std::complex<float> >::operator-=(const NRSMat<std::complex<float> > &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.nn || mm != rhs.nn) laerror("incompatible matrices");
+#endif
+	const std::complex<float> *p = rhs;
+
+	SAME_LOC(*this, rhs);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++){
+			cblas_caxpy(i + 1, &CMONEF, p, 1, (*this)[i], 1); 
+			p += i + 1;
+		}
+		p = rhs; p++;
+		for(register int i=1; i<nn; i++){ //upper triangle is conjugated (hermitian)
+			for(register int j=0; j<i; ++j) *((*this)[j]+i) -= std::conj(p[j]);
+			p += i + 1;
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			cublasCaxpy(i + 1, CUMONE, (cuComplex*)p, 1, (cuComplex*)((*this)[i]), 1); 
+			p += i + 1;
+		}
+		p = rhs; p++;
+		for(register int i=1; i<nn; i++){
+			cublasCaxpy(i, CUMONE, (cuComplex*)p, 1, (cuComplex*)((*this)[0]+i), nn);
 			p += i + 1;
 		}
 	}
@@ -1904,6 +2793,25 @@ const double NRMat<double>::dot(const NRMat<double> &rhs) const {
 	return ret;
 }
 
+template<>
+const float NRMat<float>::dot(const NRMat<float> &rhs) const {
+#ifdef DEBUG
+	if(nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices in NRMat<float>::dot(const NRMat<float>&)");
+#endif
+	float ret(0.0);
+	SAME_LOC(*this, rhs);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		ret = cblas_sdot((size_t)nn*mm, (*this)[0], 1, rhs[0], 1);
+#ifdef CUDALA
+	}else{
+		ret = cublasSdot((size_t)nn*mm, v, 1, rhs.v, 1);
+	}
+#endif
+	return ret;
+}
+
 
 
 /***************************************************************************//**
@@ -1928,6 +2836,27 @@ NRMat<std::complex<double> >::dot(const NRMat<std::complex<double> > &rhs) const
 	}else{
 		cuDoubleComplex val = cublasZdotc((size_t)nn*mm, (cuDoubleComplex*)v, 1, (cuDoubleComplex*)(rhs.v), 1);
 		ret = *(reinterpret_cast<std::complex<double>*> (&val));
+	}
+#endif
+	return ret;
+}
+
+template<>
+const std::complex<float>
+NRMat<std::complex<float> >::dot(const NRMat<std::complex<float> > &rhs) const {
+#ifdef DEBUG
+	if(nn != rhs.nn || mm != rhs.mm) laerror("incompatible matrices in NRMat<std::complex<float> >::dot(const NRMat<std::complex<float> >&)");
+#endif
+
+	std::complex<float> ret(0.0, 0.0);
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_cdotc_sub((size_t)nn*mm, (*this)[0], 1, rhs[0], 1, &ret);
+#ifdef CUDALA
+	}else{
+		cuComplex val = cublasCdotc((size_t)nn*mm, (cuComplex*)v, 1, (cuComplex*)(rhs.v), 1);
+		ret = *(reinterpret_cast<std::complex<float>*> (&val));
 	}
 #endif
 	return ret;
@@ -1978,6 +2907,27 @@ const NRMat<double> NRMat<double>::operator*(const NRMat<double> &rhs) const {
 	return result;
 }
 
+template<>
+const NRMat<float> NRMat<float>::operator*(const NRMat<float> &rhs) const {
+#ifdef DEBUG
+	if(mm != rhs.nn) laerror("incompatible matrices in NRMat<float>::operator*(const NRMat<float>&)");
+	if(rhs.mm <= 0) laerror("illegal matrix dimension in gemm");
+#endif
+	SAME_LOC(*this, rhs);
+	NRMat<float> result(nn, rhs.mm, getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nn, rhs.mm, mm, 1.0,
+		*this, mm, rhs, rhs.mm, 0.0, result, rhs.mm);
+#ifdef CUDALA
+	}else{
+		cublasSgemm('N', 'N', rhs.mm, nn, mm, 1.0, rhs, rhs.mm, *this, mm, 0.0, result, rhs.mm);
+	}
+#endif
+	return result;
+}
+
 /***************************************************************************//**
  * compute product of this matrix \f$A\f$ with given complex matrix \f$B\f$
  * @param[in] rhs matrix \f$B\f$
@@ -2006,6 +2956,29 @@ NRMat< std::complex<double> >::operator*(const NRMat< std::complex<double> > &rh
 	return result;
 }
 
+template<>
+const NRMat< std::complex<float> > 
+NRMat< std::complex<float> >::operator*(const NRMat< std::complex<float> > &rhs) const {
+#ifdef DEBUG
+	if(mm != rhs.nn) laerror("incompatible matrices in NRMat<std::complex<float> >::operator*(const NRMat<std::complex<float> >&)");
+	if(rhs.mm <= 0) laerror("illegal matrix dimension in gemm");
+#endif
+	SAME_LOC(*this, rhs);
+	NRMat<std::complex<float> > result(nn, rhs.mm, getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, nn, rhs.mm, mm,
+			&CONEF, (*this)[0], mm, rhs[0], rhs.mm, &CZEROF, result[0], rhs.mm);
+#ifdef CUDALA
+	}else{
+		cublasCgemm('N', 'N', rhs.mm, nn, mm, CUONE, 
+				(cuComplex*)rhs.v, rhs.mm, (cuComplex*)(this->v), mm, CUZERO, (cuComplex*)result.v, rhs.mm);
+	}
+#endif
+	return result;
+}
+
 /***************************************************************************//**
  * multiply this real matrix \f$A\f$ by diagonal real matrix \f$D\f$ from left
  * because of cuBlas implementation, \f$D\f$ is required to be placed in CPU memory
@@ -2026,6 +2999,25 @@ void NRMat<double>::diagmultl(const NRVec<double> &rhs) {
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<nn; i++){ cublasDscal(mm, rhs[i], v + i*(size_t)mm, 1); }
+	}
+#endif
+}
+
+template<>
+void NRMat<float>::diagmultl(const NRVec<float> &rhs) {
+#ifdef DEBUG
+	if(nn != rhs.size()) laerror("incompatible matrices in NRMat<float>::diagmultl(const NRVec<float>&)");
+#endif
+	NOT_GPU(rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif		
+		for(register int i=0; i<nn; i++){ cblas_sscal(mm, rhs[i], (*this)[i], 1); }
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){ cublasSscal(mm, rhs[i], v + i*(size_t)mm, 1); }
 	}
 #endif
 }
@@ -2057,6 +3049,28 @@ void NRMat< std::complex<double> >::diagmultl(const NRVec< std::complex<double> 
 #endif
 }
 
+template<>
+void NRMat< std::complex<float> >::diagmultl(const NRVec< std::complex<float> > &rhs) {
+#ifdef DEBUG
+	if (nn != rhs.size()) laerror("incompatible matrices in NRMat<std::complex<float> >::diagmultl(const NRVec<std::complex<float> >&)");
+#endif
+	NOT_GPU(rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif		
+		for(register int i=0; i<nn; i++){ cblas_cscal(mm, &(rhs[i]), (*this)[i], 1); }
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			const cuComplex alpha = make_cuComplex(rhs[i].real(), rhs[i].imag());
+			cublasCscal(mm, alpha, (cuComplex*)(v + i*(size_t)mm), 1);
+		}
+	}
+#endif
+}
+
 /***************************************************************************//**
  * multiply this real matrix \f$A\f$ by diagonal real matrix \f$D\f$ from right
  * because of cuBlas implementation, \f$D\f$ is required to be placed in CPU memory
@@ -2077,6 +3091,25 @@ void NRMat<double>::diagmultr(const NRVec<double> &rhs) {
 #ifdef CUDALA
 	}else{
 		for(register int i=0; i<mm; i++){ cublasDscal(nn, rhs[i], v + i, mm); }
+	}
+#endif
+}
+
+template<>
+void NRMat<float>::diagmultr(const NRVec<float> &rhs) {
+#ifdef DEBUG
+	if(mm != rhs.size()) laerror("incompatible matrices in NRMat<float>::diagmultr(const NRVec<float>&)");
+#endif
+	NOT_GPU(rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif		
+		for(register int i=0; i<mm; i++){ cblas_sscal(nn, rhs[i], &(*this)(0, i), mm); }
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<mm; i++){ cublasSscal(nn, rhs[i], v + i, mm); }
 	}
 #endif
 }
@@ -2103,6 +3136,28 @@ void NRMat< std::complex<double> >::diagmultr(const NRVec< std::complex<double> 
 		for(register int i=0; i<mm; i++){
 			const cuDoubleComplex alpha = make_cuDoubleComplex(rhs[i].real(), rhs[i].imag());
 			cublasZscal(nn, alpha, (cuDoubleComplex*)(v + i), mm);
+		}
+	}
+#endif
+}
+
+template<>
+void NRMat< std::complex<float> >::diagmultr(const NRVec< std::complex<float> > &rhs) {
+#ifdef DEBUG
+	if(mm != rhs.size()) laerror("incompatible matrices in NRMat<std::complex<float> >::diagmultr(const NRVec<std::complex<float> >&)");
+#endif
+	NOT_GPU(rhs);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif		
+		for(register int i=0; i<mm; i++){ cblas_cscal(nn, &(rhs[i]), &(*this)(0, i), mm); }
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<mm; i++){
+			const cuComplex alpha = make_cuComplex(rhs[i].real(), rhs[i].imag());
+			cublasCscal(nn, alpha, (cuComplex*)(v + i), mm);
 		}
 	}
 #endif
@@ -2141,6 +3196,33 @@ NRMat<double>::operator*(const NRSMat<double> &rhs) const {
 	return result;
 }
 
+template<>
+const NRMat<float> 
+NRMat<float>::operator*(const NRSMat<float> &rhs) const {
+#ifdef DEBUG
+	if(mm != rhs.nrows()) laerror("incompatible matrices int NRMat<float>::operator*(const NRSMat<float> &)");
+#endif
+	SAME_LOC(*this, rhs);
+	const int rhs_ncols = rhs.ncols();
+	NRMat<float> result(nn, rhs_ncols, getlocation());
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++){
+			cblas_sspmv(CblasRowMajor, CblasLower, mm, 1.0, &rhs[0], 
+					(*this)[i], 1, 0.0, result[i], 1);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			cublasSspmv('U', mm, 1.0, rhs.v, v + i*(size_t)mm, 1, 0.0, result.v + i*(size_t)rhs_ncols, 1);
+		}
+	}
+#endif
+	return result;
+}
+
 
 /***************************************************************************//**
  * multiply this complex matrix \f$A\f$ by symmetric complex matrix \f$S\f$
@@ -2170,6 +3252,34 @@ NRMat< std::complex<double> >::operator*(const NRSMat< std::complex<double> > &r
 	}else{
 		for(register int i=0; i<nn; i++){
 			cublasZhpmv('U', mm, CUONE, (cuDoubleComplex*)rhs.v, (cuDoubleComplex*)(v + i*(size_t)mm), 1, CUZERO, (cuDoubleComplex*)(result.v + i*(size_t)rhs_ncols), 1);
+		}
+	}
+#endif
+	return result;
+}
+
+template<>
+const NRMat< std::complex<float> >
+NRMat< std::complex<float> >::operator*(const NRSMat< std::complex<float> > &rhs) const {
+#ifdef DEBUG
+	if(mm != rhs.nrows()) laerror("incompatible matrices int NRMat<std::complex<float> >::operator*(const NRSMat<std::complex<float> > &)");
+#endif
+	SAME_LOC(*this, rhs);
+	const int rhs_ncols = rhs.ncols();
+	NRMat<std::complex<float> > result(nn, rhs_ncols, getlocation());
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++){
+			//row i of A H is H^T a_i; the C-order lower packed hermitian H read as fortran-order upper packed is H^T
+			cblas_chpmv(CblasColMajor, CblasUpper, mm, &CONEF, &rhs[0],
+					(*this)[i], 1, &CZEROF, result[i], 1);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			cublasChpmv('U', mm, CUONE, (cuComplex*)rhs.v, (cuComplex*)(v + i*(size_t)mm), 1, CUZERO, (cuComplex*)(result.v + i*(size_t)rhs_ncols), 1);
 		}
 	}
 #endif
@@ -2250,6 +3360,24 @@ const NRMat<double> NRMat<double>::transpose(bool conj) const {
 	return result;
 }
 
+template<>
+const NRMat<float> NRMat<float>::transpose(bool conj) const {
+
+	NRMat<float> result(mm, nn, getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++) cblas_scopy(mm, (*this)[i], 1, result[0] + i, nn);
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			cublasScopy(mm, (*this)[i], 1, result[0] + i, nn);
+		}
+	}
+#endif
+	return result;
+}
+
 /***************************************************************************//**
  * compute transpose (optionally conjugated) of this real matrix \f$A\f$
  * @param[in] conj conjugation flag
@@ -2272,6 +3400,28 @@ NRMat<std::complex<double> >::transpose(bool conj) const {
 			cublasZcopy(mm, (cuDoubleComplex*)((*this)[i]), 1, (cuDoubleComplex*)(result[0] + i), nn);
 		}
 		if(conj){ cublasDscal(mm*nn, -1.0, (double *)(result.v) + 1, 2); }
+	}
+#endif
+	return result;
+}
+
+template<>
+const NRMat<std::complex<float> >
+NRMat<std::complex<float> >::transpose(bool conj) const {
+	NRMat<std::complex<float> > result(mm, nn, getlocation());
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<nn; i++){
+			cblas_ccopy(mm, (*this)[i], 1, (result[0] + i), nn);
+		}
+		if(conj){ cblas_sscal(mm*nn, -1.0, (float *)(result[0]) + 1, 2); }
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<nn; i++){
+			cublasCcopy(mm, (cuComplex*)((*this)[i]), 1, (cuComplex*)(result[0] + i), nn);
+		}
+		if(conj){ cublasSscal(mm*nn, -1.0, (float *)(result.v) + 1, 2); }
 	}
 #endif
 	return result;
@@ -2320,6 +3470,39 @@ void NRMat<double>::gemm(const double &beta, const NRMat<double> &a,
 #endif
 }
 
+template<>
+void NRMat<float>::gemm(const float &beta, const NRMat<float> &a,
+		const char transa, const NRMat<float> &b, const char transb, 
+		const float &alpha) {
+
+	int k(tolower(transa)=='n'?a.mm:a.nn);
+
+#ifdef DEBUG
+	int l(tolower(transa)=='n'?a.nn:a.mm);
+	int kk(tolower(transb)=='n'?b.nn:b.mm);
+	int ll(tolower(transb)=='n'?b.mm:b.nn);
+	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in NRMat<float>::gemm(...)");
+	if(b.mm <=0 || mm<=0) laerror("illegal matrix dimension in gemm");
+#endif
+
+	SAME_LOC3(*this, a, b);
+
+	if (alpha==0.0 && beta==1.0) return;
+
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_sgemm(CblasRowMajor, (tolower(transa)=='n' ? CblasNoTrans : CblasTrans),
+				(tolower(transb)=='n' ? CblasNoTrans : CblasTrans), nn, mm, k, alpha, a,
+				a.mm, b , b.mm, beta, *this , mm);
+#ifdef CUDALA
+	}else{
+		cublasSgemm(transb, transa, mm, nn, k, alpha, b, b.mm, a, a.mm, beta, *this, mm);
+	}
+#endif
+}
+
 
 template<>
 void NRMat<std::complex<double> >::gemm(const std::complex<double> & beta,
@@ -2339,6 +3522,29 @@ void NRMat<std::complex<double> >::gemm(const std::complex<double> & beta,
 
 	copyonwrite();
 	cblas_zgemm(CblasRowMajor,
+			(tolower(transa)=='n' ? CblasNoTrans : (tolower(transa)=='c'?CblasConjTrans:CblasTrans)), 
+			(tolower(transb)=='n' ? CblasNoTrans : (tolower(transb)=='c'?CblasConjTrans:CblasTrans)),
+			nn, mm, k, &alpha, a , a.mm, b , b.mm, &beta, *this , mm);
+}
+
+template<>
+void NRMat<std::complex<float> >::gemm(const std::complex<float> & beta,
+		const NRMat<std::complex<float> > & a, const char transa, 
+		const NRMat<std::complex<float> > & b, const char transb, 
+		const std::complex<float> & alpha)
+{
+	int k(tolower(transa)=='n'?a.mm:a.nn);
+
+#ifdef DEBUG
+	int l(tolower(transa)=='n'?a.nn:a.mm);
+	int kk(tolower(transb)=='n'?b.nn:b.mm);
+	int ll(tolower(transb)=='n'?b.mm:b.nn);
+	if (l!=nn || ll!=mm || k!=kk) laerror("incompatible matrices in NRMat<std::complex<float> >::gemm(...)");
+#endif
+	if (alpha==CZEROF && beta==CONEF) return;
+
+	copyonwrite();
+	cblas_cgemm(CblasRowMajor,
 			(tolower(transa)=='n' ? CblasNoTrans : (tolower(transa)=='c'?CblasConjTrans:CblasTrans)), 
 			(tolower(transb)=='n' ? CblasNoTrans : (tolower(transb)=='c'?CblasConjTrans:CblasTrans)),
 			nn, mm, k, &alpha, a , a.mm, b , b.mm, &beta, *this , mm);
@@ -2371,6 +3577,37 @@ const double  NRMat<double>::norm(const double scalar) const {
 	for(register int i=0; i<nn; i++)
 		for(register int j=0; j<mm; j++) {
 			register double tmp(0.0);
+#ifdef MATPTR
+			tmp = v[i][j];
+#else
+			tmp = v[i*(size_t)mm+j];
+#endif
+			if(i == j) tmp -= scalar;
+			sum += tmp*tmp;
+		}
+	return std::sqrt(sum);
+}
+
+template<>
+const float  NRMat<float>::norm(const float scalar) const {
+	if(!scalar){
+#ifdef CUDALA
+		if(location == cpu){
+#endif
+			return cblas_snrm2((size_t)nn*mm, (*this)[0], 1);
+#ifdef CUDALA
+		}else{
+			return cublasSnrm2((size_t)nn*mm, v, 1);
+		}
+#endif
+	}
+
+	NOT_GPU(*this);
+
+	float sum(0.0);
+	for(register int i=0; i<nn; i++)
+		for(register int j=0; j<mm; j++) {
+			register float tmp(0.0);
 #ifdef MATPTR
 			tmp = v[i][j];
 #else
@@ -2422,6 +3659,38 @@ const double NRMat<std::complex<double> >::norm(const std::complex<double> scala
 	return std::sqrt(sum);
 }
 
+template<>
+const float NRMat<std::complex<float> >::norm(const std::complex<float> scalar) const {
+	if(scalar == CZEROF){
+#ifdef CUDALA
+		if(location == cpu){
+#endif
+			return cblas_scnrm2((size_t)nn*mm, (*this)[0], 1);
+#ifdef CUDALA
+		}else{
+			return cublasScnrm2((size_t)nn*mm, (cuComplex*)v, 1);
+		}
+#endif
+	}
+
+	NOT_GPU(*this);
+	float sum(0.0);
+	for(register int i=0; i<nn; i++)
+		for(register int j=0; j<mm; j++) {
+			register std::complex<float> tmp(0.0, 0.0);
+#ifdef MATPTR
+			tmp = v[i][j];
+#else
+			tmp = v[i*(size_t)mm+j];
+#endif
+			if(i == j) tmp -= scalar;
+			const float re = tmp.real();
+			const float im = tmp.imag();
+			sum += re*re + im*im;
+		}
+	return std::sqrt(sum);
+}
+
 /***************************************************************************//**
  * perform the <b>axpy</b> operation on the current real matrix \f$A\f$, i.e.
  * \f[ A \leftarrow A + \alpha{}B \f]
@@ -2443,6 +3712,24 @@ void NRMat<double>::axpy(const double alpha, const NRMat<double> &mat) {
 #ifdef CUDALA
 	}else{
 		cublasDaxpy((size_t)nn*mm, alpha, mat, 1, *this, 1);
+	}
+#endif
+}
+
+template<>
+void NRMat<float>::axpy(const float alpha, const NRMat<float> &mat) {
+#ifdef DEBUG
+	if (nn != mat.nn || mm != mat.mm) laerror("incompatible matrices in NRMat<float>::axpy(...)");
+#endif
+	SAME_LOC(*this, mat);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_saxpy((size_t)nn*mm, alpha, mat, 1, *this, 1);
+#ifdef CUDALA
+	}else{
+		cublasSaxpy((size_t)nn*mm, alpha, mat, 1, *this, 1);
 	}
 #endif
 }
@@ -2470,6 +3757,26 @@ void NRMat<std::complex<double> >::axpy(const std::complex<double> alpha,
 	}else{
 		const cuDoubleComplex _alpha = make_cuDoubleComplex(alpha.real(), alpha.imag());
 		cublasZaxpy(nn*mm, _alpha, (cuDoubleComplex*)(mat[0]), 1, (cuDoubleComplex*)(this->v), 1);
+	}
+#endif
+}
+
+template<>
+void NRMat<std::complex<float> >::axpy(const std::complex<float> alpha, 
+		const NRMat<std::complex<float> > & mat) {
+#ifdef DEBUG
+	if (nn != mat.nn || mm != mat.mm) laerror("incompatible matrices in NRMat<std::complex<float> >::axpy(...)");
+#endif
+	SAME_LOC(*this, mat);
+	copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		cblas_caxpy((size_t)nn*mm, &alpha, mat, 1, (*this)[0], 1);
+#ifdef CUDALA
+	}else{
+		const cuComplex _alpha = make_cuComplex(alpha.real(), alpha.imag());
+		cublasCaxpy(nn*mm, _alpha, (cuComplex*)(mat[0]), 1, (cuComplex*)(this->v), 1);
 	}
 #endif
 }
@@ -2577,6 +3884,76 @@ const double* NRMat<double>::diagonalof(NRVec<double> &r, const bool divide, boo
 	return ret;
 }
 
+template<>
+const float* NRMat<float>::diagonalof(NRVec<float> &r, const bool divide, bool cache) const {
+	float *ret(NULL);
+#ifdef DEBUG
+	if(r.size() != mm) laerror("incompatible vector in NRMat<float>::diagonalof(...)");
+#endif
+
+	float a(0.0);//!< temporary variable for storing the scaling factor
+
+	SAME_LOC(*this, r);
+	if(divide){
+		NOT_GPU(*this);
+	}
+
+	r.copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		if(nn==mm){
+		#ifdef MATPTR
+			if(divide){
+				for(int i=0; i< nn; i++) if((a=v[i][i])) r[i] /= a;
+			}else{
+				for(int i=0; i< nn; i++) r[i] = v[i][i];
+			}
+		#else
+			if(divide){
+				int i(0),j(0);
+				for(i=j=0; j<nn; ++j, i+=nn+1){
+					if((a=v[i])) r[j] /= a;
+				}
+			}else{
+				/*
+				 int i(0),j(0);
+				 for(i=j=0; j< nn; ++j, i+=nn+1) r[j] = v[i];
+				*/
+				cblas_scopy(nn, v, nn+1, r.v, 1);
+			}
+		#endif
+		}else{//non-square matrix
+			for(register int i=0; i< mm; i++){
+			#ifdef MATPTR
+				a = cblas_sdot(nn, v[0]+i, mm, v[0]+i, mm);
+			#else
+				a = cblas_sdot(nn, v+i, mm, v+i, mm);
+			#endif
+				if(divide){ if(a) r[i] /= a;}
+				else{ r[i] = a; }
+			}
+		}
+		ret = divide?NULL:&r[0];
+#ifdef CUDALA
+	}else{
+		if(nn == mm){
+			cublasScopy(nn, v, nn+1, r.v, 1);
+		}else{
+			NRVec<float> tmp(mm, cpu);
+			for(int i=0;i<mm;i++){
+				const float x = cublasSdot(nn, v + i, mm, v + i, mm); //column i
+				tmp[i] = x;
+			}
+			tmp.moveto(location);
+			r |= tmp;
+		}
+		ret = NULL;
+	}
+#endif
+	return ret;
+}
+
 /***************************************************************************//**
  * sets the diagonal of real matrix to a given real vector
  * @param[in] r real vector which is supposed to be assigned to the diagonal 
@@ -2609,6 +3986,33 @@ int nnmin= nn<=mm?nn:mm;
 #endif
 }
 
+template<>
+void NRMat<float>::diagonalset(const NRVec<float> &r) {
+int nnmin= nn<=mm?nn:mm;
+#ifdef DEBUG
+	if(r.size() != nnmin) laerror("incompatible vectors int NRMat<float>::diagonalset(...)");
+#endif
+
+	SAME_LOC(*this, r);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+
+#ifdef MATPTR
+	for (int i=0; i<nnmin; i++) v[i][i] = r[i];
+#else
+	cblas_scopy(nnmin, r.v, 1, v, mm+1); //{int i,j; for (i=j=0; j< nnmin; ++j, i+=mm+1) v[i] = r[j];}
+#endif
+
+#ifdef CUDALA
+	}else{
+		cublasScopy(nnmin, r.v, 1, v, mm+1);
+	}
+#endif
+}
+
 /***************************************************************************//**
  * sets the diagonal of complex matrix to a given complex vector
  * @param[in] r complex vector which is supposed to be assigned to the diagonal 
@@ -2634,6 +4038,30 @@ int nnmin= nn<=mm?nn:mm;
 #ifdef CUDALA
 	}else{
 		cublasZcopy(nnmin, (cuDoubleComplex*)(r.v), 1, (cuDoubleComplex*)(this->v), mm+1);
+	}
+#endif
+}
+
+template<>
+void NRMat<std::complex<float> >::diagonalset(const NRVec<std::complex<float> > &r) {
+int nnmin= nn<=mm?nn:mm;
+#ifdef DEBUG
+	if(r.size() != nnmin) laerror("incompatible vectors int NRMat<std::complex<float> >::diagonalset(...)");
+#endif
+	SAME_LOC(*this, r);
+	copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+	#ifdef MATPTR
+		for (int i=0; i<nnmin; i++) v[i][i] = r[i];
+	#else
+		cblas_ccopy(nnmin, r.v, 1, v, mm+1);//{int i,j; for (i=j=0; j<nnmin; ++j, i+=mm+1) v[i] = r[j];}
+	#endif
+#ifdef CUDALA
+	}else{
+		cublasCcopy(nnmin, (cuComplex*)(r.v), 1, (cuComplex*)(this->v), mm+1);
 	}
 #endif
 }
@@ -2781,6 +4209,139 @@ void NRMat<double>::orthonormalize(const bool rowcol, const NRSMat<double> *metr
 	} //end of the unit-metric branch
 }
 
+template<>
+void NRMat<float>::orthonormalize(const bool rowcol, const NRSMat<float> *metric) {
+
+	if(metric) SAME_LOC(*this, *metric);
+	copyonwrite();
+	if(metric){
+		if(rowcol){ //vectors are stored in rows
+			if((*metric).nrows() != mm) laerror("incompatible metric in NRMat<float>::orthonormalize(rowcol = true)");
+
+#ifdef CUDALA
+			if(location == cpu){
+#endif
+				for(register int j=0; j<nn; ++j){
+					for(register int i=0; i<j; ++i){
+						NRVec<float> tmp = *metric * (*this).row(i);
+						const float fact = cblas_sdot(mm,(*this)[j],1,tmp,1);
+						cblas_saxpy(mm,-fact,(*this)[i],1,(*this)[j],1);
+					}
+					const NRVec<float> tmp = *metric * (*this).row(j);
+					const float norm = cblas_sdot(mm,(*this)[j],1,tmp,1);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+					cblas_sscal(mm,1./std::sqrt(norm),(*this)[j],1);
+				}
+#ifdef CUDALA
+			}else{
+				for(register int j=0; j<nn; ++j){
+					for(register int i=0; i<j; ++i){
+						NRVec<float> tmp(mm, location);
+					        tmp = *metric * (*this).row(i);
+						const float fact = cublasSdot(mm, (*this)[j], 1, tmp, 1);
+						cublasSaxpy(mm, -fact, (*this)[i], 1, (*this)[j], 1);
+					}
+					NRVec<float> tmp(mm, location);
+					tmp = *metric * (*this).row(j);
+					const float norm = cublasSdot(mm, (*this)[j], 1, tmp, 1);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+					cublasSscal(mm, 1./std::sqrt(norm), (*this)[j], 1);
+				}
+
+			}
+#endif			
+		}else{ //vectors are stored in columns
+#ifdef CUDALA
+			if(location = cpu){
+#endif
+				if((*metric).nrows() != nn) laerror("incompatible metric in NRMat<float>::orthonormalize(rowcol = false)");
+				for(register int j=0; j<mm; ++j){
+					for(register int i=0; i<j; ++i){
+						NRVec<float> tmp = *metric * (*this).column(i);
+						float fact = cblas_sdot(nn, &(*this)[0][j], mm, tmp, 1);
+						cblas_saxpy(nn, -fact, &(*this)[0][i], mm, &(*this)[0][j], mm);
+					}
+					NRVec<float> tmp = *metric * (*this).column(j);
+					float norm = cblas_sdot(nn, &(*this)[0][j], mm, tmp, 1);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+			                cblas_sscal(nn, 1./std::sqrt(norm), &(*this)[0][j], mm);
+				}
+#ifdef CUDALA
+			}else{
+				if((*metric).nrows() != nn) laerror("incompatible metric in NRMat<float>::orthonormalize(rowcol = false)");
+				for(register int j=0; j<mm; ++j){
+					for(register int i=0; i<j; ++i){
+						NRVec<float> tmp(nn, location);
+						tmp = *metric * (*this).column(i);
+						float fact = cublasSdot(nn, &(*this)[0][j], mm, tmp, 1);
+						cublasSaxpy(nn, -fact, &(*this)[0][i], mm, &(*this)[0][j], mm);
+					}
+					NRVec<float> tmp(nn, location);
+					tmp = *metric * (*this).column(j);
+					float norm = cublasSdot(nn, &(*this)[0][j], mm, tmp, 1);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+			                cublasSscal(nn, 1./std::sqrt(norm), &(*this)[0][j], mm);
+				}
+			}
+#endif
+		}
+	}else{ //unit metric (standard inner product) will be used
+		if(rowcol){
+#ifdef CUDALA
+			if(location == cpu){
+#endif			
+				for(register int j=0; j<nn; ++j){
+					for(register int i=0; i<j; ++i){
+						const float fact = cblas_sdot(mm,(*this)[j],1,(*this)[i],1);
+						cblas_saxpy(mm,-fact,(*this)[i],1,(*this)[j],1);
+					}
+					const float norm = cblas_snrm2(mm,(*this)[j],1);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+					cblas_sscal(mm,1./norm,(*this)[j],1);
+				}
+#ifdef CUDALA
+			}else{
+				for(register int j=0; j<nn; ++j){
+					for(register int i=0; i<j; ++i){
+						const float fact = cublasSdot(mm, (*this)[j], 1, (*this)[i], 1);
+						cublasSaxpy(mm, -fact, (*this)[i], 1, (*this)[j], 1);
+					}
+					const float norm = cublasSnrm2(mm, (*this)[j], 1);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+					cublasSscal(mm, 1./norm, (*this)[j], 1);
+				}
+			}
+#endif
+		}else{ // vectors are stored in columns
+#ifdef CUDALA
+			if(location == cpu){
+#endif
+				for(register int j=0; j<mm; ++j){
+					for(register int i=0; i<j; ++i){
+						const float fact = cblas_sdot(nn, &(*this)[0][j], mm, &(*this)[0][i], mm);
+						cblas_saxpy(nn, -fact, &(*this)[0][i], mm, &(*this)[0][j], mm);
+					}
+					const float norm = cblas_snrm2(nn, &(*this)[0][j], mm);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+					cblas_sscal(nn, 1./norm, &(*this)[0][j], mm);
+				}
+#ifdef CUDALA
+			}else{
+				for(register int j=0; j<mm; ++j){
+					for(register int i=0; i<j; ++i){
+						const float fact = cublasSdot(nn, &(*this)[0][j], mm, &(*this)[0][i], mm);
+						cublasSaxpy(nn, -fact, &(*this)[0][i], mm, &(*this)[0][j], mm);
+					}
+					const float norm = cublasSnrm2(nn, &(*this)[0][j], mm);
+					if(norm <= 0.) laerror("zero vector or nonpositive metric in NRMat<float>::orthonormalize(...)");
+					cublasSscal(nn, 1./norm, &(*this)[0][j], mm);
+				}
+			}
+#endif
+		}
+	} //end of the unit-metric branch
+}
+
 /***************************************************************************//**
  * interchange the order of the rows of the current (real) matrix
  * @return reference to the modified matrix
@@ -2808,6 +4369,28 @@ NRMat<double>& NRMat<double>::swap_rows(){
 }
 
 template<>
+NRMat<float>& NRMat<float>::swap_rows(){
+        copyonwrite();
+        const int n_pul = this->nn >> 1;
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif		
+	        for(register int i=0; i<n_pul; i++){
+		        cblas_sswap(mm, (*this)[i], 1, (*this)[nn - i - 1], 1);
+	        }
+#ifdef CUDALA
+	}else{
+	        for(register int i=0; i<n_pul; i++){
+		        cublasSswap(mm, v + i*(size_t)mm, 1, v + (nn - i - 1)*mm, 1);
+			TEST_CUBLAS("cublasSswap");
+	        }
+	}
+#endif	
+        return *this;
+}
+
+template<>
 NRMat<double>& NRMat<double>::swap_rows(const int i, const int j){
         copyonwrite();
 
@@ -2819,6 +4402,23 @@ NRMat<double>& NRMat<double>::swap_rows(const int i, const int j){
 	}else{
 		        cublasDswap(mm, v + i*(size_t)mm, 1, v + j*mm, 1);
 			TEST_CUBLAS("cublasDswap");
+	}
+#endif	
+        return *this;
+}
+
+template<>
+NRMat<float>& NRMat<float>::swap_rows(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif		
+		        cblas_sswap(mm, (*this)[i], 1, (*this)[j], 1);
+#ifdef CUDALA
+	}else{
+		        cublasSswap(mm, v + i*(size_t)mm, 1, v + j*mm, 1);
+			TEST_CUBLAS("cublasSswap");
 	}
 #endif	
         return *this;
@@ -2851,6 +4451,28 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_rows(){
 }
 
 template<>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::swap_rows(){
+        copyonwrite();
+        const int n_pul = this->nn >> 1;
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<n_pul; i++){
+		        cblas_cswap(mm, (*this)[i], 1, (*this)[nn - i - 1], 1);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<n_pul; i++){
+		        cublasCswap(mm, (cuComplex*)(v + i*(size_t)mm), 1, (cuComplex*)(v + (nn - i - 1)*mm), 1);
+			TEST_CUBLAS("cublasCswap");
+		}
+	}
+#endif
+        return *this;
+}
+
+template<>
 NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_rows(const int i, const int j){
         copyonwrite();
 
@@ -2862,6 +4484,23 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_rows(const int 
 	}else{
 		        cublasZswap(mm, (cuDoubleComplex*)(v + i*(size_t)mm), 1, (cuDoubleComplex*)(v + j*(size_t)mm), 1);
 			TEST_CUBLAS("cublasZswap");
+	}
+#endif
+        return *this;
+}
+
+template<>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::swap_rows(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		        cblas_cswap(mm, (*this)[i], 1, (*this)[j], 1);
+#ifdef CUDALA
+	}else{
+		        cublasCswap(mm, (cuComplex*)(v + i*(size_t)mm), 1, (cuComplex*)(v + j*(size_t)mm), 1);
+			TEST_CUBLAS("cublasCswap");
 	}
 #endif
         return *this;
@@ -2928,6 +4567,28 @@ NRMat<double>& NRMat<double>::swap_cols(){
 }
 
 template<>
+NRMat<float>& NRMat<float>::swap_cols(){
+        copyonwrite();
+        const int m_pul = mm >> 1;
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<m_pul; i++){
+			cblas_sswap(nn, &((*this)(0, i)), mm, &((*this)(0, mm - i - 1)), mm);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<m_pul; i++){
+			cublasSswap(nn, v + i, mm, v + (mm - i - 1), mm);
+			TEST_CUBLAS("cublasSswap");
+		}
+	}
+#endif	
+	return *this;
+}
+
+template<>
 NRMat<double>& NRMat<double>::swap_cols(const int i, const int j){
         copyonwrite();
 
@@ -2939,6 +4600,23 @@ NRMat<double>& NRMat<double>::swap_cols(const int i, const int j){
 	}else{
 			cublasDswap(nn, v + i, mm, v + j, mm);
 			TEST_CUBLAS("cublasDswap");
+	}
+#endif	
+	return *this;
+}
+
+template<>
+NRMat<float>& NRMat<float>::swap_cols(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_sswap(nn, &((*this)(0, i)), mm, &((*this)(0, j)), mm);
+#ifdef CUDALA
+	}else{
+			cublasSswap(nn, v + i, mm, v + j, mm);
+			TEST_CUBLAS("cublasSswap");
 	}
 #endif	
 	return *this;
@@ -2971,6 +4649,28 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_cols(){
 }
 
 template<>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::swap_cols(){
+        copyonwrite();
+        const int m_pul = mm >> 1;
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+		for(register int i=0; i<m_pul; i++){
+			cblas_cswap(nn, &((*this)(0, i)), mm, &((*this)(0, mm - i - 1)), mm);
+		}
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<m_pul; i++){
+			cublasCswap(nn, (cuComplex*)(v + i), mm, (cuComplex*)(v + (mm - i - 1)), mm);
+			TEST_CUBLAS("cublasCswap");
+		}
+	}
+#endif	
+	return *this;
+}
+
+template<>
 NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_cols(const int i, const int j){
         copyonwrite();
 
@@ -2982,6 +4682,23 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_cols(const int 
 	}else{
 			cublasZswap(nn, (cuDoubleComplex*)(v + i), mm, (cuDoubleComplex*)(v + j), mm);
 			TEST_CUBLAS("cublasZswap");
+	}
+#endif	
+	return *this;
+}
+
+template<>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::swap_cols(const int i, const int j){
+        copyonwrite();
+
+#ifdef CUDALA
+	if(location == cpu){
+#endif
+			cblas_cswap(nn, &((*this)(0, i)), mm, &((*this)(0, j)), mm);
+#ifdef CUDALA
+	}else{
+			cublasCswap(nn, (cuComplex*)(v + i), mm, (cuComplex*)(v + j), mm);
+			TEST_CUBLAS("cublasCswap");
 	}
 #endif	
 	return *this;
@@ -3165,6 +4882,37 @@ NRMat<double>& NRMat<double>::swap_rows_cols(){
         return *this;
 }
 
+template<>
+NRMat<float>& NRMat<float>::swap_rows_cols(){
+	const int n_pul = nn >> 1;
+	const int m_pul = mm >> 1;
+	float tmp(0.0);
+
+        copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif	
+		//reversal of the whole C-order array; for a negative increment BLAS expects the pointer to the first element in memory
+		const size_t dim = (size_t)nn*mm;
+		cblas_sswap(dim/2, (*this)[0], 1, (*this)[0] + dim - dim/2, -1);
+#ifdef CUDALA
+	}else{
+		for(register int i=0; i<n_pul; i++){
+			cublasSswap(mm, v + i*(size_t)mm, 1, v + (nn - i - 1)*mm + mm - 1, -1);
+			TEST_CUBLAS("cublasSswap");
+		}
+
+		if(nn & 1){
+			void *gpu_ptr = gpualloc(sizeof(float)*mm);
+			cublasSswap(mm, v + n_pul*mm + mm - 1, -1, (float *)gpu_ptr, 1);
+			cublasScopy(mm, (float *)gpu_ptr, 1, v + n_pul*mm, 1);
+			gpufree(gpu_ptr);
+		}
+        }
+#endif
+        return *this;
+}
+
 /***************************************************************************//**
  * interchange the order of the rows and columns of the current
  * complex matrix \f$A\f$ of type T, i.e. perform the operation
@@ -3196,6 +4944,37 @@ NRMat<std::complex<double> >& NRMat<std::complex<double> >::swap_rows_cols(){
 			void *gpu_ptr = gpualloc(sizeof(std::complex<double>)*mm);
 			cublasZswap(mm, (cuDoubleComplex*)(v + n_pul*mm + mm - 1), -1, (cuDoubleComplex*)gpu_ptr, 1);
 			cublasZcopy(mm, (cuDoubleComplex*)gpu_ptr, 1, (cuDoubleComplex*)(v + n_pul*mm), 1);
+			gpufree(gpu_ptr);
+		}
+        }
+#endif
+        return *this;
+}
+
+template<>
+NRMat<std::complex<float> >& NRMat<std::complex<float> >::swap_rows_cols(){
+	const int n_pul = nn >> 1;
+	const int m_pul = mm >> 1;
+
+	std::complex<float> tmp(0.0, 0.0);
+
+        copyonwrite();
+#ifdef CUDALA
+	if(location == cpu){
+#endif	
+		//reversal of the whole C-order array; for a negative increment BLAS expects the pointer to the first element in memory
+		const size_t dim = (size_t)nn*mm;
+		cblas_cswap(dim/2, (*this)[0], 1, (*this)[0] + dim - dim/2, -1);
+#ifdef CUDALA
+	}else{
+		for(register int i=0;i<n_pul;i++){
+			cublasCswap(mm, (cuComplex*)(v + i*(size_t)mm), 1, (cuComplex*)(v + (nn - i - 1)*mm + mm - 1), -1);
+			TEST_CUBLAS("cublasCswap");
+		}
+		if(nn & 1){
+			void *gpu_ptr = gpualloc(sizeof(std::complex<float>)*mm);
+			cublasCswap(mm, (cuComplex*)(v + n_pul*mm + mm - 1), -1, (cuComplex*)gpu_ptr, 1);
+			cublasCcopy(mm, (cuComplex*)gpu_ptr, 1, (cuComplex*)(v + n_pul*mm), 1);
 			gpufree(gpu_ptr);
 		}
         }
@@ -3424,6 +5203,25 @@ copyonwrite();
 }
 
 template<>
+void NRMat<float>::scale_row(const int i, const float f)
+{
+#ifdef DEBUG
+if(i<0||i>=nn) laerror("index out of range in scale_row");
+#endif
+copyonwrite();
+#ifdef CUDALA
+        if(location == cpu) {
+#endif
+                cblas_sscal(mm, f, &(*this)(i,0), 1);
+#ifdef CUDALA
+        }else{
+                cublasSscal(mm, f, v+i*mm, 1);
+                TEST_CUBLAS("cublasSscal");
+        }
+#endif
+}
+
+template<>
 void NRMat<double>::scale_col(const int i, const double f)
 {
 #ifdef DEBUG
@@ -3438,6 +5236,25 @@ copyonwrite();
         }else{
                 cublasDscal(nn, f, v+i, mm);
                 TEST_CUBLAS("cublasDscal");
+        }
+#endif
+}
+
+template<>
+void NRMat<float>::scale_col(const int i, const float f)
+{
+#ifdef DEBUG
+if(i<0||i>=mm) laerror("index out of range in scale_col");
+#endif
+copyonwrite();
+#ifdef CUDALA
+        if(location == cpu) {
+#endif
+                cblas_sscal(nn, f, &(*this)(0,i), mm);
+#ifdef CUDALA
+        }else{
+                cublasSscal(nn, f, v+i, mm);
+                TEST_CUBLAS("cublasSscal");
         }
 #endif
 }
@@ -3464,6 +5281,26 @@ copyonwrite();
 }
 
 template<>
+void NRMat<std::complex<float> >::scale_row(const int i, const std::complex<float> f)
+{
+#ifdef DEBUG
+if(i<0||i>=nn) laerror("index out of range in scale_row");
+#endif
+copyonwrite();
+#ifdef CUDALA
+        if(location == cpu) {
+#endif
+                cblas_cscal(mm, &f, &(*this)(i,0), 1);
+#ifdef CUDALA
+        }else{
+		const cuComplex fac = *(reinterpret_cast<const cuComplex*> (&f));
+                cublasCscal(mm, &fac, v+i*mm, 1);
+                TEST_CUBLAS("cublasSscal");
+        }
+#endif
+}
+
+template<>
 void NRMat<std::complex<double> >::scale_col(const int i, const std::complex<double> f)
 {
 #ifdef DEBUG
@@ -3479,6 +5316,26 @@ copyonwrite();
 		const cuDoubleComplex fac = *(reinterpret_cast<const cuDoubleComplex*> (&f));
                 cublasZscal(nn, &fac, v+i, mm);
                 TEST_CUBLAS("cublasDscal");
+        }
+#endif
+}
+
+template<>
+void NRMat<std::complex<float> >::scale_col(const int i, const std::complex<float> f)
+{
+#ifdef DEBUG
+if(i<0||i>=mm) laerror("index out of range in scale_col");
+#endif
+copyonwrite();
+#ifdef CUDALA
+        if(location == cpu) {
+#endif
+                cblas_cscal(nn, &f, &(*this)(0,i), mm);
+#ifdef CUDALA
+        }else{
+		const cuComplex fac = *(reinterpret_cast<const cuComplex*> (&f));
+                cublasCscal(nn, &fac, v+i, mm);
+                TEST_CUBLAS("cublasSscal");
         }
 #endif
 }
@@ -3562,8 +5419,8 @@ for(int j=0; j<nn; ++j) (*this)(j,i) *= f;
  ******************************************************************************/
 template class NRMat<double>;
 template class NRMat<std::complex<double> >;
-//template class NRMat<float>;
-//template class NRMat<std::complex<float> >;
+template class NRMat<float>;
+template class NRMat<std::complex<float> >;
 template class NRMat<long long>;
 template class NRMat<long>;
 template class NRMat<int>;
