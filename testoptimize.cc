@@ -936,6 +936,77 @@ check("NRSMat::storesubmatrix(selection) copy-on-write and size check",unchanged
 }
 
 
+//single precision: every method with the float defaults (opt_precision<float>) on float test problems
+template<class O, class H>
+static float runf(O &o, const OptProblem<float> *p, NRVec<float> &x, H &h, bool *converged)
+{
+h.my_verbose=0;
+x.copyonwrite();
+optresult<float> r=o.minimize(p,x,&h,NULL);
+*converged=r.converged;
+return r.f;
+}
+
+static NRVec<float> startpointf(const int n, const int seed)
+{
+NRVec<double> xd=startpoint(n,seed);
+NRVec<float> x(n);
+for(int i=0; i<n; ++i) x[i]=xd[i];
+return x;
+}
+
+//the same method in double and in float from the same start, the float run with its default thresholds
+template<template<class> class O, template<class> class H>
+static void compare_float(const char *name, const OptProblem<double> *pd, const OptProblem<float> *pf, const int n, const int seed, const int maxstep, void (*modify)(H<double> &, H<float> &)=NULL)
+{
+NRVec<double> xd=startpoint(n,seed); NRVec<float> xf(n); for(int i=0; i<n; ++i) xf[i]=xd[i];
+H<double> hd; H<float> hf; hd.my_maxstep=hf.my_maxstep=maxstep; if(modify) modify(hd,hf);
+O<double> od; O<float> of;
+bool convd, convf;
+hd.my_verbose=0; xd.copyonwrite(); optresult<double> rd=od.minimize(pd,xd,&hd,NULL); convd=rd.converged;
+float ff=runf(of,pf,xf,hf,&convf);
+string s=string("float ")+name+" agrees with double";
+check(s.c_str(),convd && convf && abs(ff-rd.f)<1e-5*max(1.,abs(rd.f)),ff-rd.f);
+}
+static void dfp(BFGS_hyperparameters<double> &hd, BFGS_hyperparameters<float> &hf) {hd.my_update=hf.my_update=QN_DFP; hd.my_c2=hf.my_c2=0.1;}
+static void sr1(BFGS_hyperparameters<double> &hd, BFGS_hyperparameters<float> &hf) {hd.my_update=hf.my_update=QN_SR1;}
+
+static void test_float()
+{
+cout <<"--- single precision (float)\n";
+testproblem<float> tp; //f=0 at x=0, used for the derivative-free methods; its large constant term n(n-1)/2 cancels in f, so f is not
+		      //resolved below about 3e-6 in float and gradient methods cannot reach g_thr there: they use testproblem_vqe
+testproblem_vqe<double> vd; testproblem_vqe<float> vf;
+compare_float<BFGS_Optimizer,BFGS_hyperparameters>("BFGS on testproblem_vqe",&vd,&vf,8,3,5000);
+compare_float<BFGS_Optimizer,BFGS_hyperparameters>("DFP on testproblem_vqe",&vd,&vf,8,3,5000,&dfp);
+compare_float<BFGS_Optimizer,BFGS_hyperparameters>("SR1 on testproblem_vqe",&vd,&vf,8,3,5000,&sr1);
+compare_float<LBFGS_Optimizer,LBFGS_hyperparameters>("L-BFGS on testproblem_vqe",&vd,&vf,8,3,5000);
+compare_float<CG_Optimizer,CG_hyperparameters>("CG on testproblem_vqe",&vd,&vf,8,3,5000);
+compare_float<GDIIS_Optimizer,GDIIS_hyperparameters>("GDIIS on testproblem_vqe",&vd,&vf,8,3,5000);
+{NelderMead_hyperparameters<float> h; h.my_maxstep=100000; NelderMead_Optimizer<float> o; NRVec<float> x=startpointf(4,1); bool conv; float f=runf(o,&tp,x,h,&conv); check("float Nelder-Mead converges on testproblem n=4 (default f_thr, x_thr)",conv && f<1e-5,f);}
+{Powell_hyperparameters<float> h; Powell_Optimizer<float> o; NRVec<float> x=startpointf(10,1); bool conv; float f=runf(o,&tp,x,h,&conv); check("float Powell converges on testproblem n=10 (default f_thr, x_thr)",conv && f<1e-5,f);}
+{Cobyla_hyperparameters<float> h; Cobyla_Optimizer<float> o; NRVec<float> x=startpointf(4,1); bool conv; float f=runf(o,&tp,x,h,&conv); check("float COBYLA converges on testproblem n=4 (default rhoend)",conv && f<1e-5,f);}
+{Adam_hyperparameters<float> h; h.my_maxstep=20000; h.my_lr=1e-2; Adam_Optimizer<float> o; NRVec<float> x=startpointf(10,1); bool conv; float f=runf(o,&tp,x,h,&conv); check("float Adam converges on testproblem n=10",conv && f<1e-5,f);}
+{//finite-difference gradient with the float default step
+FiniteDifference<float> fd(&tp); NRVec<float> x=startpointf(10,2), g(10), gfd(10); tp.funcgrad(x,&g); fd.funcgrad(x,&gfd); gfd-=g;
+check("float FiniteDifference gradient (default step 5e-3)",gfd.norm()<1e-3*g.norm(),gfd.norm()/g.norm());
+FiniteDifference<double> fdd(&vd); FiniteDifference<float> fdf(&vf);
+compare_float<BFGS_Optimizer,BFGS_hyperparameters>("BFGS with finite-difference gradients (default steps)",&fdd,&fdf,8,3,5000);
+}
+{//Hessian-based methods on the VQE-like test problem, compared with double
+NRVec<double> xd=startpoint(6,3); NRVec<float> xf(6); for(int i=0;i<6;++i) xf[i]=xd[i];
+TrustRegion_hyperparameters<double> hd; TrustRegion_Optimizer<double> od; double fd=run(od,&vd,xd,hd);
+TrustRegion_hyperparameters<float> hf; TrustRegion_Optimizer<float> of; bool conv; float ff=runf(of,&vf,xf,hf,&conv);
+check("float trust region on testproblem_vqe agrees with double",conv && abs(ff-fd)<1e-5*max(1.,abs(fd)),ff-fd);
+}
+{//least squares: NIST Misra1a in float needs Marquardt scaling (unscaled b1 steps fall below float resolution)
+testproblem_misra1a<float> p; NRVec<float> b(2); for(int i=0;i<2;++i) b[i]=p.start(0,i);
+LM_hyperparameters<float> h; h.my_maxstep=100000; h.my_scaling=true; LM_Optimizer<float> o; bool conv; float f=runf(o,&p,b,h,&conv);
+float perr=0; for(int i=0;i<2;++i) perr=max(perr,(float)abs(b[i]-p.certified(i))/abs(p.certified(i)));
+check("float Levenberg-Marquardt fits NIST Misra1a",conv && perr<1e-3,perr);
+}
+}
+
 int main(int argc, char **argv)
 {
 test_problems_and_capabilities();
@@ -949,6 +1020,7 @@ test_leastsquares();
 test_maxfunc_and_parameters();
 test_diis();
 test_copyonwrite();
+test_float();
 cout <<"=== "<<npass<<" passed, "<<nfail<<" failed\n";
 return nfail;
 }

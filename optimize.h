@@ -34,6 +34,37 @@
 
 namespace LA {
 
+//precision-dependent default steps and thresholds of the optimizers; only double and float are supported (the double values are those used so far)
+template<typename T> struct opt_precision;
+template<> struct opt_precision<double>
+	{
+	static double fd_central_step() {return 1e-6;} //central differences (FiniteDifference, ParameterShift), optimum ~ eps^(1/3)
+	static double fd_forward_step() {return 1e-7;} //forward differences (OptLeastSquares, LM), optimum ~ eps^(1/2)
+	static double g_thr() {return 1e-6;} //gradient convergence
+	static double sy_thr() {return 1e-12;} //curvature condition of the quasi-Newton updates
+	static double sr1_thr() {return 1e-8;} //SR1 skipping rule
+	static double update_thr() {return 1e-8;} //trust-region Hessian update skipping rule
+	static double nm_f_thr() {return 1e-8;} //Nelder-Mead stopping
+	static double nm_x_thr() {return 1e-6;}
+	static double powell_f_thr() {return 1e-10;} //Powell stopping
+	static double powell_x_thr() {return 1e-6;}
+	static double rhoend() {return 1e-6;} //final COBYLA trust radius
+	};
+template<> struct opt_precision<float>
+	{
+	static float fd_central_step() {return 5e-3f;}
+	static float fd_forward_step() {return 3e-4f;}
+	static float g_thr() {return 1e-3f;}
+	static float sy_thr() {return 1e-6f;}
+	static float sr1_thr() {return 1e-4f;}
+	static float update_thr() {return 1e-4f;}
+	static float nm_f_thr() {return 1e-5f;}
+	static float nm_x_thr() {return 1e-4f;}
+	static float powell_f_thr() {return 1e-6f;}
+	static float powell_x_thr() {return 1e-4f;}
+	static float rhoend() {return 1e-4f;}
+	};
+
 //base classes with purely virtual functions for multiple inheritance use
 
 //optimization problem - provides function and optional gradient, in multiply inherited classess will store auxiliary data for the function
@@ -102,7 +133,7 @@ template<typename T>
 class OptLeastSquares : public OptProblem<T>, public OptResiduals<T> {
 public:
 T fd_step; //relative step of the forward-difference Jacobian
-OptLeastSquares(const T h=1e-7) : fd_step(h) {};
+OptLeastSquares(const T h=opt_precision<T>::fd_forward_step()) : fd_step(h) {};
 void jacobian_fd(const NRVec<T> &x, const NRVec<T> &r, NRMat<T> &J) const; //Jacobian by forward differences, r = residuals at x
 virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
 virtual ~OptLeastSquares() {};
@@ -164,7 +195,7 @@ class ParameterShift : public OptProblemAdapter<T> {
 public:
 const OptTrigonometric<T> *trig;
 T h;
-ParameterShift(const OptProblem<T> *pp, const T hh=1e-6);
+ParameterShift(const OptProblem<T> *pp, const T hh=opt_precision<T>::fd_central_step());
 virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
 };
 
@@ -173,7 +204,7 @@ template<typename T>
 class FiniteDifference : public OptProblemAdapter<T> {
 public:
 T h;
-FiniteDifference(const OptProblem<T> *pp, const T hh=1e-6) : OptProblemAdapter<T>(pp), h(hh) {};
+FiniteDifference(const OptProblem<T> *pp, const T hh=opt_precision<T>::fd_central_step()) : OptProblemAdapter<T>(pp), h(hh) {};
 virtual T funcgrad(const NRVec<T> &x, NRVec<T> *grad) const;
 };
 
@@ -207,7 +238,7 @@ template<typename T>
 class gradient_hyperparameters : public hyperparameters<T> {
 public:
 T my_g_thr; //gradient norm convergence threshold
-gradient_hyperparameters() : my_g_thr(1e-6) {};
+gradient_hyperparameters() : my_g_thr(opt_precision<T>::g_thr()) {};
 virtual void setfrom(const hyperparameters<T> &p) {const gradient_hyperparameters *q=dynamic_cast<const gradient_hyperparameters *>(&p); if(q) *this= *q; else hyperparameters<T>::setfrom(p);}
 virtual bool converged(const optstate<T> &s) const {return (s.gnorm>=0 && s.gnorm<my_g_thr) || hyperparameters<T>::converged(s);}
 virtual void setreached(const optstate<T> &s) {hyperparameters<T>::setreached(s); my_g_thr=s.gnorm;}
@@ -379,7 +410,7 @@ template<typename T>
 class quasinewton_hyperparameters : public linesearch_hyperparameters<T> {
 public:
 T my_sy_thr; //skip the BFGS-type update if s.y <= sy_thr*|s|*|y| (curvature condition violated numerically)
-quasinewton_hyperparameters() : my_sy_thr(1e-12) {};
+quasinewton_hyperparameters() : my_sy_thr(opt_precision<T>::sy_thr()) {};
 virtual void setfrom(const hyperparameters<T> &p) {const quasinewton_hyperparameters *q=dynamic_cast<const quasinewton_hyperparameters *>(&p); if(q) *this= *q; else linesearch_hyperparameters<T>::setfrom(p);}
 };
 
@@ -392,7 +423,7 @@ class BFGS_hyperparameters : public quasinewton_hyperparameters<T> {
 public:
 QN_update my_update; //BFGS, DFP or SR1 (Nocedal & Wright eqs. 6.17, 6.15, 6.25); DFP needs an accurate line search (c2~0.1), otherwise it can stall
 T my_sr1_thr; //SR1: skip the update if |(s-Hy).y| <= sr1_thr*|s-Hy|*|y| (cf. Nocedal & Wright eq. 6.26)
-BFGS_hyperparameters() : my_update(QN_BFGS), my_sr1_thr(1e-8) {};
+BFGS_hyperparameters() : my_update(QN_BFGS), my_sr1_thr(opt_precision<T>::sr1_thr()) {};
 virtual void setfrom(const hyperparameters<T> &p) {const BFGS_hyperparameters *q=dynamic_cast<const BFGS_hyperparameters *>(&p); if(q) *this= *q; else quasinewton_hyperparameters<T>::setfrom(p);}
 };
 
@@ -485,7 +516,7 @@ T my_eta; //a step of a minimization is accepted if (actual reduction)/(predicte
 TR_hessian my_hessian;
 int my_hessian_recompute; //exact Hessian computed every k-th iteration and updated in between; 1 = always exact
 T my_update_thr; //threshold for skipping the Hessian updates (curvature condition of BFGS, denominator of SR1)
-trustregion_hyperparameters() : my_delta0(1), my_deltamax(1e3), my_eta(1e-4), my_hessian(TR_AUTO), my_hessian_recompute(1), my_update_thr(1e-8) {};
+trustregion_hyperparameters() : my_delta0(1), my_deltamax(1e3), my_eta(1e-4), my_hessian(TR_AUTO), my_hessian_recompute(1), my_update_thr(opt_precision<T>::update_thr()) {};
 virtual void setfrom(const hyperparameters<T> &p) {const trustregion_hyperparameters *q=dynamic_cast<const trustregion_hyperparameters *>(&p); if(q) *this= *q; else gradient_hyperparameters<T>::setfrom(p);}
 };
 
@@ -553,7 +584,7 @@ public:
 T my_tau; //initial damping mu = tau*max diag(J^T J)
 bool my_scaling; //Marquardt scaling D = diag(J^T J)
 T my_fd_step; //relative step of the forward-difference Jacobian
-LM_hyperparameters() : my_tau(1e-3), my_scaling(false), my_fd_step(1e-7) {};
+LM_hyperparameters() : my_tau(1e-3), my_scaling(false), my_fd_step(opt_precision<T>::fd_forward_step()) {};
 virtual void setfrom(const hyperparameters<T> &p) {const LM_hyperparameters *q=dynamic_cast<const LM_hyperparameters *>(&p); if(q) *this= *q; else gradient_hyperparameters<T>::setfrom(p);}
 };
 
@@ -576,7 +607,7 @@ T my_alpha; //reflection
 T my_gamma; //expansion
 T my_rho; //contraction
 T my_sigma; //shrink
-NelderMead_hyperparameters() : my_initstep(0.1), my_adaptive(true), my_alpha(1), my_gamma(2), my_rho(0.5), my_sigma(0.5) {this->my_maxstep=5000; this->my_f_thr=1e-8; this->my_x_thr=1e-6;};
+NelderMead_hyperparameters() : my_initstep(0.1), my_adaptive(true), my_alpha(1), my_gamma(2), my_rho(0.5), my_sigma(0.5) {this->my_maxstep=5000; this->my_f_thr=opt_precision<T>::nm_f_thr(); this->my_x_thr=opt_precision<T>::nm_x_thr();};
 virtual void setfrom(const hyperparameters<T> &p) {const NelderMead_hyperparameters *q=dynamic_cast<const NelderMead_hyperparameters *>(&p); if(q) *this= *q; else hyperparameters<T>::setfrom(p);}
 };
 
@@ -596,7 +627,7 @@ public:
 T my_initstep; //initial trial step of the line minimizations
 T my_linmin_tol; //relative tolerance of the line minimizations, the absolute one is 0.01*x_thr
 int my_maxlinemin; //max. no. of function evaluations in one line minimization
-Powell_hyperparameters() : my_initstep(0.1), my_linmin_tol(1e-4), my_maxlinemin(50) {this->my_maxstep=1000; this->my_f_thr=1e-10; this->my_x_thr=1e-6;};
+Powell_hyperparameters() : my_initstep(0.1), my_linmin_tol(1e-4), my_maxlinemin(50) {this->my_maxstep=1000; this->my_f_thr=opt_precision<T>::powell_f_thr(); this->my_x_thr=opt_precision<T>::powell_x_thr();};
 virtual void setfrom(const hyperparameters<T> &p) {const Powell_hyperparameters *q=dynamic_cast<const Powell_hyperparameters *>(&p); if(q) *this= *q; else hyperparameters<T>::setfrom(p);}
 };
 
@@ -620,7 +651,7 @@ T my_rhobeg; //initial trust region radius, about one tenth of the expected chan
 T my_rhoend; //final trust region radius, the accuracy of x
 bool my_flexible_radius; //trust region radius delta >= rho revised by the reduction ratio and rho reduced by the rules of NEWUOA
                          //(Powell, Report DAMTP 2004/NA08, eqs. (7.1), (7.6), (6.16)), so that delta can also increase; false = Powell's original COBYLA with delta = rho
-Cobyla_hyperparameters() : my_rhobeg(0.5), my_rhoend(1e-6), my_flexible_radius(true) {this->my_maxstep=100000;};
+Cobyla_hyperparameters() : my_rhobeg(0.5), my_rhoend(opt_precision<T>::rhoend()), my_flexible_radius(true) {this->my_maxstep=100000;};
 virtual void setfrom(const hyperparameters<T> &p) {const Cobyla_hyperparameters *q=dynamic_cast<const Cobyla_hyperparameters *>(&p); if(q) *this= *q; else hyperparameters<T>::setfrom(p);}
 };
 

@@ -1124,7 +1124,7 @@ NRSMat<T> A=J.transposedtimes(); //J^T J
 NRVec<T> g=r*J; //J^T r, the gradient of f
 NRVec<T> diag(n);
 for(int i=0; i<n; ++i) diag[i]=((const NRSMat<T> &)A)(i,i);
-T mu=hp.my_tau*diag.amax(), nu=2;
+T mu=hp.my_scaling ? hp.my_tau : hp.my_tau*diag.amax(), nu=2;
 
 for(; budget; ++st.iter)
 	{
@@ -1163,7 +1163,12 @@ for(; budget; ++st.iter)
 		{
 		mu*=nu; nu*=2;
 		const T eps=std::numeric_limits<T>::epsilon();
-		if(h.norm()<=10*eps*(x.norm()+eps)) //no further improvement at machine precision (cf. Madsen, Nielsen & Tingleff eq. 3.16)
+		//no further improvement at machine precision (cf. Madsen, Nielsen & Tingleff eq. 3.16), tested per component to be scale invariant:
+		//h_i^2 <= (10 eps)^2 (x_i^2+eps^2) for all i (with |h|<=10 eps |x| badly scaled parameters stopped too early in float)
+		NRVec<T> hh(h); hh*=h;
+		NRVec<T> xx(x); xx*=x; xx+=eps*eps;
+		hh/=xx;
+		if(hh.amax()<=100*eps*eps)
 			{
 			if(verbose) std::cout <<name<<": step at machine precision\n";
 			st.converged=true;
@@ -2080,6 +2085,7 @@ template optresult<T> firstorder_minimize(const char *name, firstorder_step<T> &
 template optresult<T> trustregion_minimize(const char *name, trustregion_step<T> &stepper, const OptProblem<T> *o, NRVec<T> &x, const trustregion_hyperparameters<T> &hp, hyperparameters<T> *achieved); \
 
 INSTANTIZE(double)
+INSTANTIZE(float)
 
 
 }//namespace
