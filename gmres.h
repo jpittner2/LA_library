@@ -205,11 +205,15 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	    	//Schritt 6: Konvergenz?
 	    	if(verbose) 
 			{
+			std::ios::fmtflags oldflags=std::cout.flags(); //setting scientific on top of fixed would give hexfloat output
+			std::streamsize oldprecision=std::cout.precision();
 			std::cout << "gmres iter "<<l<<" "<<k<<" resid "
-		<<std::setw(0)<<std::setiosflags(std::ios::scientific)<<std::setprecision(8)
+		<<std::scientific<<std::setprecision(8)
 		<<std::abs(d[k+1])<< " thr "<<eps*beta_0<< " reduction "
-		<<std::setw(5)<<std::setprecision(2)<<std::resetiosflags(std::ios::scientific)
-		<<(d_alt - std::abs(d[k+1]))/d_alt*100<< "\n" <<std::setprecision(12);
+		<<std::fixed<<std::setw(5)<<std::setprecision(2)
+		<<(d_alt - std::abs(d[k+1]))/d_alt*100<< "\n";
+			std::cout.flags(oldflags);
+			std::cout.precision(oldprecision);
 			std::cout.flush();
 			}
 		
