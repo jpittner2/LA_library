@@ -61,7 +61,9 @@ when the data are shared (count check as in \code{NRVec::operator[]}).
 \lafunc{bitvector &operator&=(const bitvector_block rhs); operator|=, operator^=}{Bitwise operation with the \emph{first block} only.}
 \lafunc{bitvector &operator>>=(unsigned int i); bitvector operator>>(unsigned int i) const}{Logical right shift (towards bit 0), length kept.}
 \lafunc{bitvector &leftshift(unsigned int i, bool autoresize=false); bitvector &operator<<=(unsigned int i); bitvector operator<<(unsigned int i) const}{Logical left shift; \code{<<} and \code{<<=} enlarge the vector by $i$ bits (autoresize), \code{leftshift} by default keeps the length and drops the top bits.}
-\lafunc{unsigned int population(const unsigned int before=0) const}{Hamming weight (number of ones); \code{before}$\neq0$ is not implemented (laerror).}
+\lafunc{unsigned int population(const unsigned int before=0) const}{Hamming weight (number of ones); with \code{before}$\neq0$ only the ones at the positions $0,\ldots,$\code{before}$-1$ are
+counted (\code{laerror} if \code{before} exceeds the size, checked only with \code{DEBUG}). Inline, using the hardware population
+count (\code{__builtin_popcountll}) with gcc.}
 \lafunc{unsigned int bitdiff(const bitvector &y) const}{Hamming distance (same number of blocks required).}
 \lafunc{unsigned int nlz() const; unsigned int ntz() const}{Number of leading (from the top bit) and trailing zeros.}
 \end{lareference}

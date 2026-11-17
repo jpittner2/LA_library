@@ -43,6 +43,20 @@ inline unsigned int bitvector_rounded(unsigned int n)
 return ((n+blockbits-1)/blockbits)*blockbits; 
 }
 
+//number of ones in a block (Hamming weight)
+inline unsigned int word_popul(bitvector_block x)
+{
+#ifdef __GNUC__
+return __builtin_popcountll(x);
+#else
+//from the "Hacker's delight" book
+x -= (x>>1) & 0x5555555555555555ULL;
+x = (x & 0x3333333333333333ULL) + ((x>>2) & 0x3333333333333333ULL);
+x = (x + (x>>4)) & 0x0f0f0f0f0f0f0f0fULL;
+return (x*0x0101010101010101ULL)>>56;
+#endif
+}
+
 class bitvector : public NRVec<bitvector_block>
 	{
 private:
@@ -176,7 +190,25 @@ if(i>=size())
 	bitvector lcm(const bitvector &rhs) const {return (*this)*rhs/this->gcd(rhs);};
 	bitvector composition(const bitvector &rhs) const;
         unsigned int bitdiff(const bitvector &y) const; //number of differing bits (Hamming distance)
-	unsigned int population(const unsigned int before=0) const; //number of 1's (Hamming weight)
+	unsigned int population(const unsigned int before=0) const //number of 1's (Hamming weight), with before>0 only at positions 0..before-1
+		{
+		unsigned int s=0;
+		if(before)
+			{
+#ifdef DEBUG
+			if(before>size()) laerror("before parameter beyond the size in population()");
+#endif
+			int full=before/blockbits;
+			for(int i=0; i<full; ++i) s+=word_popul(v[i]);
+			int rest=before%blockbits;
+			if(rest) s+=word_popul(v[full] & ((((bitvector_block)1)<<rest)-1));
+			return s;
+			}
+		for(int i=0; i<nn-1; ++i) s+=word_popul(v[i]);
+		bitvector_block a=v[nn-1];
+		if(modulo) a &= ~((~((bitvector_block)0))<<modulo);
+		return s+word_popul(a);
+		};
 	unsigned int nlz() const; //number of leading zeroes
 	unsigned int degree() const {if(iszero()) return 0; else return size()-nlz()-1;}; //interprested as a polynomial over GF(2)
 	void truncate(int t=0) {int s=degree()+1; if(t>s) s=t;  resize(s,true);};

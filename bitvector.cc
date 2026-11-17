@@ -182,31 +182,7 @@ return *this;
 }
 
 
-/*number of ones in a binary number, from "Hacker's delight" book*/
-#ifdef LONG_IS_32 
-static unsigned int word_popul(unsigned long x) 
-{
-x -= ((x>>1)&0x55555555);
-x = (x&0x33333333) + ((x>>2)&0x33333333);
-x=(x + (x>>4))&0x0f0f0f0f;
-x+= (x>>8);
-x+= (x>>16);
-return x&0x3f;
-}
-#else
-//@@@@ use an efficient trick too
-static unsigned int word_popul(unsigned long x)
-{
-unsigned int s=0;
-for(int i=0; i<64; ++i)
-        {
-        if(x&1) ++s;
-        x>>=1;
-        }
-return s;
-}
-
-#endif
+//word_popul is inline in bitvector.h
 
 
 bitvector& bitvector::operator>>=(unsigned int i)
@@ -260,30 +236,7 @@ zero_padding();
 
 
 
-//with before>0 only the ones at positions 0..before-1 are counted
-unsigned int bitvector::population(const unsigned int before) const
-{
-int i;
-unsigned int s=0;
-if(before)
-	{
-	if(before>size()) laerror("before parameter beyond the size in population()");
-	int full=before/blockbits;
-	for(i=0; i<full; ++i) s+=word_popul(v[i]);
-	int rest=before%blockbits;
-	if(rest) s+=word_popul(v[full] & ((((bitvector_block)1)<<rest)-1));
-	return s;
-	}
-for(i=0; i<nn-1; ++i) s+=word_popul(v[i]);
-bitvector_block a=v[nn-1];
-if(modulo)
-	{
-	bitvector_block mask= ~((bitvector_block)0);
-	mask <<=modulo;
-	a &= ~mask;
-	}
-return s+word_popul(a);
-}
+//population is inline in bitvector.h
 
 unsigned int bitvector::bitdiff(const bitvector &y) const
 {
