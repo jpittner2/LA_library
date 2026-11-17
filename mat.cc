@@ -3954,6 +3954,88 @@ const float* NRMat<float>::diagonalof(NRVec<float> &r, const bool divide, bool c
 	return ret;
 }
 
+template<>
+const std::complex<double>* NRMat<std::complex<double> >::diagonalof(NRVec<std::complex<double> > &r, const bool divide, bool cache) const {
+#ifdef DEBUG
+	if(r.size() != mm) laerror("incompatible vector in NRMat<std::complex<double> >::diagonalof(...)");
+#endif
+	NOT_GPU(*this);
+	NOT_GPU(r);
+
+	std::complex<double> a;//!< temporary variable for storing the scaling factor
+	r.copyonwrite();
+	if(nn==mm){
+	#ifdef MATPTR
+		if(divide){
+			for(int i=0; i< nn; i++) if((a=v[i][i])!=(double)0) r[i] /= a;
+		}else{
+			for(int i=0; i< nn; i++) r[i] = v[i][i];
+		}
+	#else
+		if(divide){
+			int i(0),j(0);
+			for(i=j=0; j<nn; ++j, i+=nn+1){
+				if((a=v[i])!=(double)0) r[j] /= a;
+			}
+		}else{
+			cblas_zcopy(nn, v, nn+1, r.v, 1);
+		}
+	#endif
+	}else{//non-square matrix: squared column norms
+		for(register int i=0; i< mm; i++){
+		#ifdef MATPTR
+			cblas_zdotc_sub(nn, v[0]+i, mm, v[0]+i, mm, &a);
+		#else
+			cblas_zdotc_sub(nn, v+i, mm, v+i, mm, &a);
+		#endif
+			if(divide){ if(a!=(double)0) r[i] /= a;}
+			else{ r[i] = a; }
+		}
+	}
+	return divide?NULL:&r[0];
+}
+
+template<>
+const std::complex<float> * NRMat<std::complex<float> >::diagonalof(NRVec<std::complex<float> > &r, const bool divide, bool cache) const {
+#ifdef DEBUG
+	if(r.size() != mm) laerror("incompatible vector in NRMat<std::complex<float> >::diagonalof(...)");
+#endif
+	NOT_GPU(*this);
+	NOT_GPU(r);
+
+	std::complex<float> a;//!< temporary variable for storing the scaling factor
+	r.copyonwrite();
+	if(nn==mm){
+	#ifdef MATPTR
+		if(divide){
+			for(int i=0; i< nn; i++) if((a=v[i][i])!=(float)0) r[i] /= a;
+		}else{
+			for(int i=0; i< nn; i++) r[i] = v[i][i];
+		}
+	#else
+		if(divide){
+			int i(0),j(0);
+			for(i=j=0; j<nn; ++j, i+=nn+1){
+				if((a=v[i])!=(float)0) r[j] /= a;
+			}
+		}else{
+			cblas_ccopy(nn, v, nn+1, r.v, 1);
+		}
+	#endif
+	}else{//non-square matrix: squared column norms
+		for(register int i=0; i< mm; i++){
+		#ifdef MATPTR
+			cblas_cdotc_sub(nn, v[0]+i, mm, v[0]+i, mm, &a);
+		#else
+			cblas_cdotc_sub(nn, v+i, mm, v+i, mm, &a);
+		#endif
+			if(divide){ if(a!=(float)0) r[i] /= a;}
+			else{ r[i] = a; }
+		}
+	}
+	return divide?NULL:&r[0];
+}
+
 /***************************************************************************//**
  * sets the diagonal of real matrix to a given real vector
  * @param[in] r real vector which is supposed to be assigned to the diagonal 
