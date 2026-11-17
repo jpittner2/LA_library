@@ -433,7 +433,7 @@ extern void adjustphases(NRMat<float> &v);
 //very incomplete, add new ones as needed
 template<class T> inline void xcopy(int n, const T *x, int incx, T *y, int incy);
 template<class T> inline void xaxpy(int n, const T &a, const T *x, int incx, T *y, int incy);
-template<class T> inline T xdot(int n, const T *x, int incx, const T *y, int incy);
+template<class T> inline T xdot(int n, const T *x, int incx, const T *y, int incy, bool conjugate=true); //sum conj(x_i) y_i, for complex T without conjugation if !conjugate
 
 //specialized definitions have to be in the header file to be inlineable, eliminating any runtime overhead
 
@@ -450,7 +450,7 @@ cblas_daxpy(n, a, x, incx, y, incy);
 }
 
 template<>
-inline double xdot<double>(int n, const double *x, int incx, const double *y, int incy)
+inline double xdot<double>(int n, const double *x, int incx, const double *y, int incy, bool conjugate)
 {
 return cblas_ddot(n,x,incx,y,incy);
 }
@@ -468,9 +468,27 @@ cblas_saxpy(n, a, x, incx, y, incy);
 }
 
 template<>
-inline float xdot<float>(int n, const float *x, int incx, const float *y, int incy)
+inline float xdot<float>(int n, const float *x, int incx, const float *y, int incy, bool conjugate)
 {
 return cblas_sdot(n,x,incx,y,incy);
+}
+
+template<>
+inline std::complex<double> xdot<std::complex<double> >(int n, const std::complex<double> *x, int incx, const std::complex<double> *y, int incy, bool conjugate)
+{
+std::complex<double> r;
+if(conjugate) cblas_zdotc_sub(n, x, incx, y, incy, &r);
+else cblas_zdotu_sub(n, x, incx, y, incy, &r);
+return r;
+}
+
+template<>
+inline std::complex<float> xdot<std::complex<float> >(int n, const std::complex<float> *x, int incx, const std::complex<float> *y, int incy, bool conjugate)
+{
+std::complex<float> r;
+if(conjugate) cblas_cdotc_sub(n, x, incx, y, incy, &r);
+else cblas_cdotu_sub(n, x, incx, y, incy, &r);
+return r;
 }
 
 template<>
