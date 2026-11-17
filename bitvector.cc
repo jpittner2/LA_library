@@ -260,11 +260,20 @@ zero_padding();
 
 
 
+//with before>0 only the ones at positions 0..before-1 are counted
 unsigned int bitvector::population(const unsigned int before) const
 {
-if(before) laerror("before parameter in population() not implemented yet");
 int i;
 unsigned int s=0;
+if(before)
+	{
+	if(before>size()) laerror("before parameter beyond the size in population()");
+	int full=before/blockbits;
+	for(i=0; i<full; ++i) s+=word_popul(v[i]);
+	int rest=before%blockbits;
+	if(rest) s+=word_popul(v[full] & ((((bitvector_block)1)<<rest)-1));
+	return s;
+	}
 for(i=0; i<nn-1; ++i) s+=word_popul(v[i]);
 bitvector_block a=v[nn-1];
 if(modulo)
