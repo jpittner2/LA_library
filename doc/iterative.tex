@@ -62,8 +62,8 @@ the caller with the right size. With $\beta=0$ the previous contents of \code{r}
 \midrule
 \code{davidson} & yes & \code{divide=false} & \code{'n'}, $\beta=0$ \\
 \code{lanczos} & yes (must be true) & \code{divide=false}, only without \code{initguess} & \code{'n'}, $\beta=0$ and $\beta=1$ \\
-\code{conjgrad} & -- & \code{divide=true}, if \code{precondition} & \code{'n'}; \code{'t'} if \code{doguess} or non-square \\
-\code{gmres} & -- & \code{divide=true}, if \code{precondition} & \code{'n'}; \code{'t'} if \code{doguess} or non-square \\
+\code{conjgrad} & -- & \code{divide=true}, if \code{precondition} & \code{'n'}; \code{'t'} (\code{'c'} for complex \code{T}) if \code{doguess} or non-square \\
+\code{gmres} & -- & \code{divide=true}, if \code{precondition} & \code{'n'}; \code{'t'} (\code{'c'} for complex \code{T}) if \code{doguess} or non-square \\
 \code{explicit_matrix} & -- & -- & \code{'n'}, $\beta=0$ \\
 \bottomrule
 \end{tabular}
@@ -221,8 +221,12 @@ diagonal elements; use \code{precondition=false} then.
 
 \paragraph{Convergence.} The criterion is $|p|\le$ \code{tol} for the current search direction $p$ (an absolute criterion;
 in the first iteration $p$ is the preconditioned residual). The function calls \code{laerror} (``singular matrix'') if
-$p\cdot Ap$ (or $|Ap|^2$) or the residual product $r\cdot z$ vanishes. Only real \code{T} is supported (the scalars are
-\code{double}).
+$p\cdot Ap$ (or $|Ap|^2$) or the residual product $r\cdot z$ vanishes. The steps are $\alpha = r^\dagger z/p^\dagger Ap$ and
+$\beta = r_{\rm new}^\dagger z_{\rm new}/r^\dagger z$, $z$ being the preconditioned residual (the product $r^\dagger z$ is kept
+between the iterations). Complex \code{T} is supported for a hermitian
+positive (semi)definite matrix: the scalar products are conjugated ($p^\dagger Ap$, $r^\dagger z$) and $A^\dagger$ replaces
+$A\Tr$ in the start vector and in the normal equations. Started from \code{x}=0 on a consistent singular semidefinite system,
+the iterates stay in the range of $A$, so the result is the minimum-norm solution.
 
 %-----------------------------------------------------------------------------------------------------------------------------
 \section{GMRES}\label{sec:iterative:gmres}
@@ -248,7 +252,8 @@ On convergence the minimizer over the whole current Krylov space is returned. A 
 the Krylov space is invariant) ends the current cycle with the solution in that space; if it is not converged (singular
 matrix), the next cycle starts from the new residual.
 Calls \code{laerror} for a $1\times1$ system (\code{ncols()==1}), for incompatible sizes and for an exactly singular triangular
-factor. The scalars are \code{double}, so only real \code{T} is supported.}
+factor. Complex \code{T} is supported: the Arnoldi coefficients are $v_i^\dagger z$, the Givens rotations are unitary
+(for real \code{T} the usual ones), and $A^\dagger$ replaces $A\Tr$ in the start vector and in the normal equations.}
 \lafunc{template<class T> void gmres_backsubstitute(const NRMat<T> &R, NRVec<T> &c, const NRVec<T> &d, const int k)}{Auxiliary:
 solves the upper triangular system $R_{0..k,0..k}\,c=d$ (calls \code{c.copyonwrite()}; \code{c} must be allocated).}
 \lafunc{template<typename T> void gmres_update(NRMat<T> &H, const NRVec<T> &cci, const NRVec<T> &ssi, NRVec<T> &d, NRVec<T> &c, const int k, NRVec<T> *v, AuxStorage<T> *st, const int incore, NRVec<T> &x)}{Auxiliary:

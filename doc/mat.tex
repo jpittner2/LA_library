@@ -47,9 +47,9 @@ Members & Available for \\
 \midrule
 \texttt{gemm}, \texttt{norm}, \texttt{axpy(T,const NRMat\&)}, \texttt{dot}, \texttt{transpose}, \texttt{diagmultl}, \texttt{diagmultr},
 \texttt{operator*(const NRSMat\&)}, \texttt{diagonalset}, \texttt{inverse}, \texttt{svdinverse}, \texttt{absadjoint},
-\texttt{randomize}, \texttt{amax}, \texttt{amin}, \texttt{strassen} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} \\
+\texttt{randomize}, \texttt{amax}, \texttt{amin}, \texttt{strassen}, \texttt{diagonalof} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} \\
 \texttt{operator*(const NRMat\&)} & the same and \texttt{int} \\
-\texttt{diagonalof}, \texttt{orthonormalize}, \texttt{gemm} with \texttt{SparseMat} & \texttt{double}, \texttt{float} \\
+\texttt{orthonormalize}, \texttt{gemm} with \texttt{SparseMat} & \texttt{double}, \texttt{float} \\
 \texttt{nonhermiticity} & \texttt{complex<double>}, \texttt{complex<float>} \\
 everything else & all instantiated types \\
 \bottomrule
@@ -177,7 +177,7 @@ Note that scalar addition and subtraction act on the \emph{diagonal} only, i.e.\
 \lafunc{const NRMat submatrix(const NRVec<int> &rows, const NRVec<int> &cols) const}{Copy of the elements $A_{r_i c_j}$ for given (arbitrary) lists of row and column indices; indices are always range-checked.}
 \lafunc{void storesubmatrix(const int fromrow, const int fromcol, const NRMat &rhs)}{Store \code{rhs} as a block with the upper left corner at (\code{fromrow},\code{fromcol}). Plain data only.}
 \lafunc{void storesubmatrix(const NRVec<int> &rows, const NRVec<int> &cols, const NRMat &rhs)}{Scatter: $A_{r_i c_j}\leftarrow R_{ij}$.}
-\lafunc{const T* diagonalof(NRVec<T> &r, const bool divide = 0, bool cache = false) const}{\code{double} and \code{float} only. For a square matrix copy the diagonal into \code{r}, or with \code{divide} divide \code{r} element-wise by the (nonzero) diagonal elements. For a non-square matrix the diagonal of $A\Tr A$ (squared column norms) is used instead; \code{r} must have \code{ncols()} elements. Returns pointer to \code{r}'s data, or NULL if \code{divide}. \code{cache} is unused. Same interface as in other matrix classes, so that it can be used by iterative solvers as a preconditioner (chapter~\ref{ch:iterative}).}
+\lafunc{const T* diagonalof(NRVec<T> &r, const bool divide = 0, bool cache = false) const}{For a square matrix copy the diagonal into \code{r}, or with \code{divide} divide \code{r} element-wise by the (nonzero) diagonal elements. For a non-square matrix the diagonal of $A\Tr A$ (squared column norms, $A^\dagger A$ for complex \code{T}) is used instead; complex \code{T} only on the CPU; \code{r} must have \code{ncols()} elements. Returns pointer to \code{r}'s data, or NULL if \code{divide}. \code{cache} is unused. Same interface as in other matrix classes, so that it can be used by iterative solvers as a preconditioner (chapter~\ref{ch:iterative}).}
 \lafunc{void diagonalset(const NRVec<T> &r)}{Set the diagonal; \code{r} has $\min(n,m)$ elements.}
 \end{lareference}
 
