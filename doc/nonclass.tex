@@ -62,7 +62,8 @@ Function & Available for \\
 \texttt{gdiagonalize} & real matrix (real or complex eigenvector storage), complex matrix \\
 \texttt{trace2} with \texttt{NRSMat} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} (hermitian) \\
 \texttt{diagonalize3}, \texttt{realmatrixfunction}, \texttt{complexmatrixfunction},
-\texttt{adjustphases}, \texttt{xcopy}, \texttt{xaxpy}, \texttt{xdot} & \texttt{double}, \texttt{float} \\
+\texttt{adjustphases}, \texttt{xcopy}, \texttt{xdot} & \texttt{double}, \texttt{float} \\
+\texttt{xaxpy} & \texttt{double}, \texttt{float}, \texttt{complex<double>}, \texttt{complex<float>} \\
 templates of \texttt{matexp.h}, \texttt{power}, \texttt{commutator}, \texttt{twoside\_transform}, \dots & any type providing the needed operations \\
 \bottomrule
 \end{tabular}
@@ -315,7 +316,8 @@ Application from the source: overlap of Slater determinants with signed spin-orb
 \lafunc{NRMat<T> reconstructmatrix<M,T>(const M &implicitmat)}{Explicit matrix of an implicit one (applying \code{gemv} to unit vectors), for debugging;
 both template arguments must be given. Equivalent to \code{explicit_matrix<T>} of \header{davidson.h} (chapter~\ref{ch:iterative}).}
 \lafunc{void xcopy(int n, const T *x, int incx, T *y, int incy); void xaxpy(int n, const T &a, const T *x, int incx, T *y, int incy); T xdot(int n, const T *x, int incx, const T *y, int incy)}{Type-generic
-names of the CBLAS routines (to ease switching between \code{float}/\code{double}/complex in user code); specialized for \code{double} and \code{float}.}
+names of the CBLAS routines (to ease switching between \code{float}/\code{double}/complex in user code); specialized for \code{double} and \code{float},
+\code{xaxpy} also for \code{complex<double>} and \code{complex<float>}.}
 \end{lareference}
 
 \section{Examples}\label{sec:nonclass:examples}

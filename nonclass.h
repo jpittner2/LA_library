@@ -473,6 +473,18 @@ inline float xdot<float>(int n, const float *x, int incx, const float *y, int in
 return cblas_sdot(n,x,incx,y,incy);
 }
 
+template<>
+inline void xaxpy<std::complex<double> >(int n, const std::complex<double> &a, const std::complex<double> *x, int incx, std::complex<double> *y, int incy)
+{
+cblas_zaxpy(n, &a, x, incx, y, incy);
+}
+
+template<>
+inline void xaxpy<std::complex<float> >(int n, const std::complex<float> &a, const std::complex<float> *x, int incx, std::complex<float> *y, int incy)
+{
+cblas_caxpy(n, &a, x, incx, y, incy);
+}
+
 
 
 //debugging aid: reconstruct an explicit matrix from the implicit version
