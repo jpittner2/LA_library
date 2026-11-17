@@ -31,6 +31,7 @@ namespace LA {
 //matrix can be any class which has nrows(), ncols(), diagonalof() and gemv() available
 //does not even have to be explicitly stored
 //Conjugate gradient algorithm, cf. Bulirsch-Stoer book
+//complex T: hermitian positive (semi)definite matrix, conjugated inner products, A^H for the guess and the normal equations
 
 
 template<typename T, typename Matrix>
@@ -42,7 +43,8 @@ int n=bigmat.ncols();
 if(x.size()!=n || b.size() != m) laerror("incompatible vectors and matrix sizes in conjgrad");
 if(m!=n) issquare=0;
 
-double t,tt,bscal,ascal;
+T t,tt,bscal,ascal;
+const char transc= LA_traits<T>::is_complex()? 'c':'t';
 
 NRVec<T> p,rr, *r;
 NRVec<T> q(m),s(m);
@@ -50,17 +52,18 @@ if(issquare) r=&s; else r = new NRVec<T>(n); //A^T s
 
 if(doguess)
 	{
-	bigmat.gemv(0,x,'t',-1.,b); //x.gemv(0,bigmat,'t',-1.,b);
+	bigmat.gemv(0,x,transc,-1.,b); //x.gemv(0,bigmat,'t',-1.,b);
         if(precondition) bigmat.diagonalof(x,true);
         x.normalize();
 	}
 
 bigmat.gemv(0,s,'n',-1.,x); //s.gemv(0,bigmat,'n',-1.,x);
 s+=b;
-if(!issquare) bigmat.gemv(0,*r,'t',1,s); //(*r).gemv(0,bigmat,'t',1,s);
+if(!issquare) bigmat.gemv(0,*r,transc,1,s); //(*r).gemv(0,bigmat,'t',1,s);
 rr= *r;
 if(precondition) bigmat.diagonalof(rr,true);
 p=rr;
+tt= (*r) * rr; //r^dagger z, kept between iterations
 
 for(int iter=0; iter<= itmax; iter++)
 	{
@@ -79,17 +82,18 @@ for(int iter=0; iter<= itmax; iter++)
 		} 
 
 	bigmat.gemv(0,q,'n',1,p); //q.gemv(0,bigmat,'n',1,p);
-	tt= (*r) * rr;
 	t=issquare?p*q:q*q;
-	if(!t) {if(!issquare) delete r; laerror("conjgrad: singular matrix 1");}
+	if(t==(T)0) {if(!issquare) delete r; laerror("conjgrad: singular matrix 1");}
 	ascal=tt/t;
 	x.axpy(ascal,p);
 	s.axpy(-ascal,q);
-	if(!issquare) bigmat.gemv(0,*r,'t',1,s); //(*r).gemv(0,bigmat,'t',1,s);
+	if(!issquare) bigmat.gemv(0,*r,transc,1,s); //(*r).gemv(0,bigmat,'t',1,s);
 	rr= *r;
 	if(precondition) bigmat.diagonalof(rr,true);
-	if(!tt) {if(!issquare) delete r; laerror("conjgrad: singular matrix 2");}
-	bscal= ((*r)*rr)/tt;
+	if(tt==(T)0) {if(!issquare) delete r; laerror("conjgrad: singular matrix 2");}
+	T rznew= (*r) * rr;
+	bscal= rznew/tt;
+	tt= rznew;
 	rr.axpy(bscal,p);
 	p=rr;
 	}

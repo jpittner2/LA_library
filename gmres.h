@@ -44,7 +44,7 @@ void gmres_backsubstitute(const NRMat<T> &R, NRVec<T> &c, const NRVec<T> &d, con
 c.copyonwrite();
 if(R(k,k)==0.) laerror("singular matrix in gmres triangular solution");
 c[k] = d[k]/R(k,k);
-for (int i=k-1;i>=0;i--) c[i] = (d[i]-xdot(k-i,&R(i,i+1),1,&c[i+1],1)) / R(i,i);
+for (int i=k-1;i>=0;i--) c[i] = (d[i]-xdot(k-i,&R(i,i+1),1,&c[i+1],1,false)) / R(i,i);
 }
 
 //rotate columns 0..k of H to the triangular R (rotations 0..k), solve R c = -d and add the k+1 Krylov vectors to x
@@ -57,7 +57,7 @@ for(int i=0;i<=k;i++)
 	for(int j=i;j<=k;j++)
 		{
 		T a = H(i,j);
-		H(i,j) = ci*a+si*H(i+1,j);
+		H(i,j) = LA_traits<T>::conjugate(ci)*a+LA_traits<T>::conjugate(si)*H(i+1,j); //unitary rotation, for real T the usual one
 		H(i+1,j) = -si*a+ci*H(i+1,j);
 		}
 	}
@@ -98,9 +98,10 @@ T ci,si;
 v = new NRVec<T>[incore?MAXIT+1:1];
 st = incore?NULL:new AuxStorage<T>;
 
+const char transc= LA_traits<T>::is_complex()? 'c':'t';
 if(doguess) 
 	{
-	bigmat.gemv(0,x,'t',-1.,b); //x.gemv(0,bigmat,'t',-1.,b);
+	bigmat.gemv(0,x,transc,-1.,b); //x.gemv(0,bigmat,'t',-1.,b);
         if(precondition) bigmat.diagonalof(x,true);
 	x.normalize();
 	}
@@ -116,8 +117,8 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 		{
 		NRVec<T> dum(zeilen);
 		bigmat.gemv(0,dum,'n',1,x); //dum.gemv(0,bigmat,'n',1,x);
-		bigmat.gemv(0,r_k,'t',1,dum); //r_k.gemv(0,bigmat,'t',1,dum);
-		bigmat.gemv(0,z,'t',-1.,b); //z.gemv(0,bigmat,'t',-1.,b);
+		bigmat.gemv(0,r_k,transc,1,dum); //r_k.gemv(0,bigmat,'t',1,dum);
+		bigmat.gemv(0,z,transc,-1.,b); //z.gemv(0,bigmat,'t',-1.,b);
 	 	r_k += z; 
 		}
 
@@ -145,7 +146,7 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 			{
 			NRVec<T> dum(zeilen);
 			bigmat.gemv(0,dum,'n',1,v[incore?k:0]); //dum.gemv(0,bigmat,'n',1,v[incore?k:0]);
-			bigmat.gemv(0,z,'t',1,dum); //z.gemv(0,bigmat,'t',1,dum);
+			bigmat.gemv(0,z,transc,1,dum); //z.gemv(0,bigmat,'t',1,dum);
 			}
               	if(precondition) bigmat.diagonalof(z,true);
 
@@ -153,7 +154,7 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 	        for (int i=0;i<=k;i++) 
 			{
 			if(!incore) st->get(v[0],i);
-			H(i,k) = z*v[incore?i:0];
+			H(i,k) = v[incore?i:0]*z; //v_i^dagger z
 			z.axpy(-H(i,k),v[incore?i:0]);
 	      		}
 
@@ -178,16 +179,16 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
                   	ci = cci[i];
 			si = ssi[i];
 		   	T a = d[i];
-		   	d[i] = ci*a+si*d[i+1];
+		   	d[i] = LA_traits<T>::conjugate(ci)*a+LA_traits<T>::conjugate(si)*d[i+1];
 		   	d[i+1] = -si*a+ci*d[i+1];
 	    		}
 	    	//phi[k]= atan(d[k+1]/d[k]);
-	    	ci=hypot(d[k],d[k+1]); 
-		if(ci==0) {cci[k]=1; ssi[k]=0;} //singular
+	    	double rho=hypot(std::abs(d[k]),std::abs(d[k+1])); 
+		if(rho==0) {cci[k]=1; ssi[k]=0;} //singular
 		else
 			{
-			cci[k]=d[k]/ci; 
-			ssi[k]=d[k+1]/ci;
+			cci[k]=d[k]/rho; 
+			ssi[k]=d[k+1]/rho;
 			}
 
 	    	//berechne neuen d-Vektor
@@ -197,7 +198,7 @@ for (int l=0;l<neustart;l++)  // main loop for restarts
 			{
                   	ci = cci[i];si = ssi[i];
 		 	T a = d[i];
-		 	d[i] = ci*a+si*d[i+1];
+		 	d[i] = LA_traits<T>::conjugate(ci)*a+LA_traits<T>::conjugate(si)*d[i+1];
 		 	d[i+1] = -si*a+ci*d[i+1];
 	    		}
 
