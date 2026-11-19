@@ -82,6 +82,8 @@ namespace LA {
 //forward declarations
 template<typename C> class NRVec;
 template<typename C> class NRVec_from1;
+template<typename C> class NRVec_colex;
+template<typename C> class NRVec_from1_colex;
 template<typename C> class NRMat;
 template<typename C> class NRMat_from1;
 template<typename C> class NRSMat;
@@ -413,6 +415,8 @@ generate_traits_nonscalar(NRMat)
 generate_traits_nonscalar(NRMat_from1)
 generate_traits_nonscalar(NRVec)
 generate_traits_nonscalar(NRVec_from1)
+generate_traits_nonscalar(NRVec_colex)
+generate_traits_nonscalar(NRVec_from1_colex)
 generate_traits_nonscalar(SparseMat)
 generate_traits_nonscalar(SparseSMat) //product leading to non-symmetric result not implemented
 generate_traits_nonscalar(CSRMat) 

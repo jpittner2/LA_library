@@ -21,6 +21,7 @@
 #define _LA_VEC_H_
 
 #include "la_traits.h"
+#include "miscfunc.h"
 #include "vecmat3.h"
 #include <list>
 
@@ -591,6 +592,142 @@ public:
 	inline const T& operator[] (const int i) const;
         inline T& operator[] (const int i);
 	inline int iamax() const {return NRVec<T>::iamax() + 1;};
+	using NRVec<T>::sort;
+	//! sort with the range from..to counted from 1 (to = -1: last)
+	int sort(int direction = 0, int from = 1, int to = -1, int *perm = NULL, bool stable=false) {return NRVec<T>::sort(direction, from-1, to<0?-1:to-1, perm, stable);};
+};
+
+
+/***************************************************************************//**
+ * colex (colexicographic) order: sequences are compared from their last elements backwards
+ * and a proper suffix is smaller, i.e. it is the lexicographic order of the reversed sequences;
+ * for ascending subsets of integers it is the order of the combinatorial number system
+ * the following functions work on raw storage and are shared by the classes below
+ ******************************************************************************/
+template<typename T>
+inline bool colex_bigger(const T *a, int na, const T *b, int nb)
+{
+while(na>0 && nb>0)
+	{
+	--na; --nb;
+	if(LA_traits<T>::bigger(a[na],b[nb])) return true;
+	if(LA_traits<T>::smaller(a[na],b[nb])) return false;
+	}
+return na>nb;
+}
+
+//ascending subsets s[0..m-1] of the n integers origin..origin+n-1 (integer T only): rank in the colex order counted from 0
+template<typename T>
+inline unsigned long long colex_rank(const T *s, const int m, const T origin)
+{
+static_assert(std::numeric_limits<T>::is_integer,"colex rank is defined only for integer types");
+unsigned long long r=0;
+for(int i=0; i<m; ++i) r+=binom(s[i]-origin,i+1);
+return r;
+}
+
+//next subset in the colex order, false after the last one (also for the empty subset)
+template<typename T>
+inline bool colex_next(T *s, const int m, const T n, const T origin)
+{
+static_assert(std::numeric_limits<T>::is_integer,"colex next is defined only for integer types");
+for(int i=0; i<m; ++i) if(s[i] < (i==m-1? origin+n-1 : s[i+1]-1)) {++s[i]; for(int j=0; j<i; ++j) s[j]=origin+j; return true;}
+return false;
+}
+
+//first subset in the colex order
+template<typename T>
+inline void colex_first(T *s, const int m, const T origin)
+{
+static_assert(std::numeric_limits<T>::is_integer,"colex setfirst is defined only for integer types");
+for(int i=0; i<m; ++i) s[i]=origin+i;
+}
+
+//subset from its rank
+template<typename T>
+inline void colex_unrank(T *s, const int m, unsigned long long r, const T origin)
+{
+static_assert(std::numeric_limits<T>::is_integer,"colex unrank is defined only for integer types");
+for(int i=m-1; i>=0; --i)
+	{
+	int c=i; //binom(i,i+1)=0
+	while(binom(c+1,i+1)<=r) ++c;
+	s[i]=origin+c;
+	r-=binom(c,i+1);
+	}
+}
+
+//length of the range starting at the zero-based position from in a vector of n elements (negative length: up to the end)
+inline int colex_range(const int n, const int from, const int length)
+{
+int l= length<0? n-from : length;
+#ifdef DEBUG
+if(from<0 || l<0 || from+l>n) laerror("illegal range in a colex vector");
+#endif
+return l;
+}
+
+
+/***************************************************************************//**
+ * \c NRVec<T> with the comparison operators in the colex order instead of the lexicographic one
+ * (so that e.g. sort() of a vector of such vectors sorts in the colex order);
+ * the conversion from \c NRVec<T> is explicit, a colex vector passed as \c NRVec<T> is compared lexicographically
+ * for integer T it represents also an ascending subset of 0..n-1 in the elements from..from+length-1
+ * (default the whole vector) with rank(), next(), setfirst() and unrank() in the colex order
+ ******************************************************************************/
+template<typename T>
+class NRVec_colex : public NRVec<T> {
+public:
+	NRVec_colex(): NRVec<T>() {};
+	template<int SIZE>  NRVec_colex(const T (&a)[SIZE]) : NRVec<T>(a) {};
+	explicit NRVec_colex(const int n): NRVec<T>(n) {};
+	explicit NRVec_colex(const NRVec<T> &rhs): NRVec<T>(rhs) {};
+	NRVec_colex(const T &a, const int n): NRVec<T>(a, n) {};
+	NRVec_colex(const T *a, const int n): NRVec<T>(a, n) {};
+	explicit NRVec_colex(const std::list<T> l) : NRVec<T>(l) {};
+	const bool operator>(const NRVec_colex &rhs) const {SAME_LOC(*this, rhs); NOT_GPU(*this); return colex_bigger(this->v,this->nn,rhs.v,rhs.nn);};
+	const bool operator<(const NRVec_colex &rhs) const {SAME_LOC(*this, rhs); NOT_GPU(*this); return colex_bigger(rhs.v,rhs.nn,this->v,this->nn);};
+	const bool operator>=(const NRVec_colex &rhs) const {return !(*this < rhs);};
+	const bool operator<=(const NRVec_colex &rhs) const {return !(*this > rhs);};
+	//comparison with a vector of another order is not defined (it would otherwise compare the pointers through operator T*)
+	const bool operator>(const NRVec<T> &rhs) const = delete;
+	const bool operator<(const NRVec<T> &rhs) const = delete;
+	const bool operator>=(const NRVec<T> &rhs) const = delete;
+	const bool operator<=(const NRVec<T> &rhs) const = delete;
+	unsigned long long rank(const int from=0, const int length= -1) const {return colex_rank(this->v+from,colex_range(this->nn,from,length),(T)0);};
+	bool next(const T n, const int from=0, const int length= -1) {this->copyonwrite(); return colex_next(this->v+from,colex_range(this->nn,from,length),n,(T)0);};
+	void setfirst(const int from=0, const int length= -1) {this->copyonwrite(); colex_first(this->v+from,colex_range(this->nn,from,length),(T)0);};
+	void unrank(const unsigned long long r, const int from=0, const int length= -1) {this->copyonwrite(); colex_unrank(this->v+from,colex_range(this->nn,from,length),r,(T)0);};
+};
+
+
+/***************************************************************************//**
+ * \c NRVec_from1<T> with the colex order: as \c NRVec_colex<T>, but the positions (also from)
+ * and the elements of the subsets (1..n) are counted from 1
+ ******************************************************************************/
+template<typename T>
+class NRVec_from1_colex : public NRVec_from1<T> {
+public:
+	NRVec_from1_colex(): NRVec_from1<T>() {};
+	template<int SIZE>  NRVec_from1_colex(const T (&a)[SIZE]) : NRVec_from1<T>(a) {};
+	explicit NRVec_from1_colex(const int n): NRVec_from1<T>(n) {};
+	explicit NRVec_from1_colex(const NRVec<T> &rhs): NRVec_from1<T>(rhs) {};
+	NRVec_from1_colex(const T &a, const int n): NRVec_from1<T>(a, n) {};
+	NRVec_from1_colex(const T *a, const int n): NRVec_from1<T>(a, n) {};
+	explicit NRVec_from1_colex(const std::list<T> l) : NRVec_from1<T>(l) {};
+	const bool operator>(const NRVec_from1_colex &rhs) const {SAME_LOC(*this, rhs); NOT_GPU(*this); return colex_bigger(this->v,this->nn,rhs.v,rhs.nn);};
+	const bool operator<(const NRVec_from1_colex &rhs) const {SAME_LOC(*this, rhs); NOT_GPU(*this); return colex_bigger(rhs.v,rhs.nn,this->v,this->nn);};
+	const bool operator>=(const NRVec_from1_colex &rhs) const {return !(*this < rhs);};
+	const bool operator<=(const NRVec_from1_colex &rhs) const {return !(*this > rhs);};
+	//comparison with a vector of another order is not defined (it would otherwise compare the pointers through operator T*)
+	const bool operator>(const NRVec<T> &rhs) const = delete;
+	const bool operator<(const NRVec<T> &rhs) const = delete;
+	const bool operator>=(const NRVec<T> &rhs) const = delete;
+	const bool operator<=(const NRVec<T> &rhs) const = delete;
+	unsigned long long rank(const int from=1, const int length= -1) const {return colex_rank(this->v+from-1,colex_range(this->nn,from-1,length),(T)1);};
+	bool next(const T n, const int from=1, const int length= -1) {this->copyonwrite(); return colex_next(this->v+from-1,colex_range(this->nn,from-1,length),n,(T)1);};
+	void setfirst(const int from=1, const int length= -1) {this->copyonwrite(); colex_first(this->v+from-1,colex_range(this->nn,from-1,length),(T)1);};
+	void unrank(const unsigned long long r, const int from=1, const int length= -1) {this->copyonwrite(); colex_unrank(this->v+from-1,colex_range(this->nn,from-1,length),r,(T)1);};
 };
 
 

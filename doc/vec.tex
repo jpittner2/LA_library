@@ -305,8 +305,8 @@ for unsigned integer types; auxiliary.}
 
 \code{NRVec_from1<T>} is derived publicly from \code{NRVec<T>} and differs only in indexing: \code{operator[]} takes
 $1\le i\le n$ (same DEBUG checks as \code{NRVec}), and \code{iamax()} returns a 1-based index. It is used e.g.\ for permutations
-(Chapter~\ref{ch:permutation}). Everything else is inherited unchanged and \emph{remains zero-based} (e.g.\ \code{subvector},
-\code{find}, \code{sort(direction,from,to,...)}, the raw pointer).
+(Chapter~\ref{ch:permutation}). The range of \code{sort} is counted from 1 as well. Everything else is inherited unchanged
+and \emph{remains zero-based} (e.g.\ \code{subvector}, \code{find}, the raw pointer).
 
 \begin{lareference}
 \lafunc{NRVec_from1(); explicit NRVec_from1(const int n); NRVec_from1(const T &a, const int n); NRVec_from1(const T *a, const int n)}{As
@@ -315,11 +315,62 @@ for \code{NRVec}.}
 \lafunc{NRVec_from1(const NRVec<T> &rhs)}{Implicit conversion from the base class (shares data).}
 \lafunc{const T& operator[](const int i) const; T& operator[](const int i)}{Element $i$, 1-based.}
 \lafunc{int iamax() const}{1-based index of the element of largest absolute value.}
+\lafunc{int sort(int direction = 0, int from = 1, int to = -1, int *perm = NULL, bool stable=false)}{As \code{NRVec::sort}, with
+the range \code{from}\dots\code{to} counted from 1 (\code{-1}: last); \code{perm} points to the entry belonging to the first
+element of the vector. The variant with \code{NRPerm} is inherited.}
 \end{lareference}
 
 \lawarning{\code{NRVec_from1} does not redeclare \code{operator=(const T&)}; the implicitly declared copy assignment hides it, so
 \code{f = 0.;} does not compile for \code{NRVec_from1<double> f}. Use the \code{(value, size)} constructor or assign through a base
 class reference.}
+
+\section{Colex order: NRVec\_colex and NRVec\_from1\_colex}\label{sec:vec:colex}
+
+\code{NRVec_colex<T>} (derived from \code{NRVec<T>}) and \code{NRVec_from1_colex<T>} (derived from \code{NRVec_from1<T>})
+differ from their base classes in the order defined by the comparison operators: the \emph{colex} (colexicographic) order
+compares two sequences from their last elements backwards, and a proper suffix is smaller; it is the lexicographic order of
+the reversed sequences. For ascending sequences of integers (subsets) it is the order of the combinatorial number system,
+equal to the numeric order of the corresponding bit masks, e.g.\ $\{3\}<\{1,3\}<\{2,3\}$. Since sorting uses
+\code{LA_traits<T>::bigger/smaller} of the elements, \code{sort()} of a \code{NRVec<NRVec_colex<int> >} sorts in the colex
+order, and the orders can be nested. The choice is static (no virtual functions, nothing stored in the object).
+
+\begin{lareference}
+\lafunc{NRVec_colex(); explicit NRVec_colex(const int n); NRVec_colex(const T &a, const int n); NRVec_colex(const T *a, const int n); template<int SIZE> NRVec_colex(const T (&a)[SIZE]); explicit NRVec_colex(const std::list<T> l)}{As
+for \code{NRVec}; the same for \code{NRVec_from1_colex}.}
+\lafunc{explicit NRVec_colex(const NRVec<T> &rhs)}{Conversion from a plain vector (shares data). It is explicit, so that
+vectors with different orders are not mixed by accident.}
+\lafunc{const bool operator>(const NRVec_colex &rhs) const; ... operator<, operator>=, operator<=}{Colex order using
+\code{LA_traits<T>::bigger/smaller} of the elements, for any \code{T}. The comparison with a vector of another class
+(\code{NRVec}, \code{NRVec_from1}, the other colex class) is deleted and does not compile. \code{operator==} and
+\code{operator!=} are inherited.}
+\end{lareference}
+
+For integer \code{T} (other types do not compile) a range of the vector can hold an ascending subset of $n$ integers: of
+$0,\dots,n-1$ in \code{NRVec_colex}, of $1,\dots,n$ in \code{NRVec_from1_colex}. The range is given by \code{from}
+(counted like the index of the class, default the first element) and \code{length} (default $-1$: up to the end of the
+vector; 0 is the empty subset).
+
+\begin{lareference}
+\lafunc{unsigned long long rank(const int from, const int length= -1) const}{Rank of the subset in the colex order of all
+subsets of the same size, counted from 0: $\sum_{i=1}^{m}\binom{s_i}{i}$ for the elements $s_1<\dots<s_m$ counted from 0.
+It does not depend on $n$.}
+\lafunc{void setfirst(const int from, const int length= -1)}{Set the first subset (the $m$ smallest integers); calls copyonwrite.}
+\lafunc{bool next(const T n, const int from, const int length= -1)}{Replace the subset of $n$ integers by the next one in
+the colex order; returns \code{false} and leaves it unchanged after the last one (and for the empty subset); calls copyonwrite.}
+\lafunc{void unrank(const unsigned long long r, const int from, const int length= -1)}{Set the subset of the given rank; calls copyonwrite.}
+\end{lareference}
+
+\lawarning{The operators are not virtual: a colex vector passed as \code{const NRVec<T>\&}, or standing on the right-hand side of
+a plain vector, is compared lexicographically.}
+
+The underlying functions on raw storage, \code{colex_bigger}, \code{colex_rank}, \code{colex_next}, \code{colex_first} and
+\code{colex_unrank} (\header{vec.h}), take a pointer, the length and the origin of the integers (0 or 1).
+
+\begin{lstlisting}
+NRVec_from1_colex<int> s(3);
+s.setfirst();                              //1 2 3
+do { /* s.rank() runs over 0..9 */ } while(s.next(5)); //all 3-element subsets of 1..5
+\end{lstlisting}
 
 \section{Examples}\label{sec:vec:examples}
 

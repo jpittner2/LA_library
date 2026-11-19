@@ -15,7 +15,16 @@ decisions and plans agreed with the author, so that they survive a fresh clone. 
 ## Build and test
 - Build the library with `make -j 8` (after header changes most files rebuild; run it in the background).
 - Flags used: `-std=gnu++11 -O3 -DDEBUG -DFORTRAN_ -DNONCLAPACK`, libs `-lcblas -lblas -llapack`.
-  Quick test program: `g++ -std=gnu++11 -I<repo> -O0 -DDEBUG -DFORTRAN_ -DNONCLAPACK X.cc <repo>/.libs/libla.a -lcblas -lblas -llapack`
+  Quick test program: `g++ -std=gnu++11 -I<repo> -O0 -DDEBUG -DFORTRAN_ -DNONCLAPACK X.cc <repo>/.libs/libla_debug.a -lcblas -lblas -llapack`
+- Library names (2026-11-19): the production build (configure default) is `libla`, `--enable-debug` gives `libla_debug` (DEBUG); both can be
+  installed together (two configure+make runs: in-tree with `make clean` in between, or two out-of-tree build directories).
+  Programs compiled with -DDEBUG link -lla_debug, others -lla (headers are common, their inline code follows the program's
+  DEBUG). `LA::version` ends with "(debug build)" or "(production build)" (get_git_version gets $(DEBUGOPT)).
+- Colex order (2026-11-19): `NRVec_colex<T>` (from NRVec) and `NRVec_from1_colex<T>` (from NRVec_from1) redefine the four
+  comparison operators (shared raw function colex_bigger; mixed-order comparisons are deleted, conversion from NRVec is
+  explicit); for integer T: rank/next/setfirst/unrank with optional (from, length) range, elements and positions from 0 or
+  from 1 like the class; next/setfirst/unrank call copyonwrite (like NRPerm::identity and next).
+  `NRVec_from1::sort` range is counted from 1. Test: bugtests/core/colex.cc.
   (add `-fsanitize=address` for memory checks).
 - Regression test of the optimizers: `make check` builds `testoptimize`; `./testoptimize` must report
   "137 passed, 0 failed" (exit code = number of failures). New optimizer tests go to testoptimize.cc;
