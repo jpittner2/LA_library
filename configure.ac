@@ -164,15 +164,17 @@ AC_ARG_ENABLE([optimize],[  --enable-optimize   to compile with optimization [[d
  ,)
 AC_SUBST([OPTIMIZEOPT])
 
-DEBUGOPT="-DDEBUG"
-AC_ARG_ENABLE([debug],[  --disable-debug   not to perform some range-checking [[default=yes]]],
+DEBUGOPT=""
+AC_ARG_ENABLE([debug],[  --enable-debug   to perform range-checking etc. and build libla_debug instead of libla [[default=no]]],
     [case "${enableval}" in
-     yes) ;;
-     no) DEBUGOPT="" ;;
+     yes) DEBUGOPT="-DDEBUG" ;;
+     no) ;;
      *) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
      esac],
  ,)
 AC_SUBST([DEBUGOPT])
+#the library with DEBUG is called libla_debug, to be installable together with the production one (libla)
+AM_CONDITIONAL([DEBUGLIB],[test -n "$DEBUGOPT"])
 
 PROFILEOPT=""
 AC_ARG_ENABLE([profile],[  --enable-profile  to perform performance profiling [[default=no]]],

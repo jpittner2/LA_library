@@ -11,5 +11,7 @@ echo -n $head
 echo -n ' dated '
 echo -n `git show -s --format=%ci $head`
 echo -n ' compiled on ' `date` 'at' `hostname` 'by' `whoami`
+#the argument is the DEBUGOPT of the build (Makefile)
+case "$1" in *DEBUG*) echo -n ' (debug build)';; *) echo -n ' (production build)';; esac
 echo -n '"'
 echo ';' 

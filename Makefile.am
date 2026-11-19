@@ -1,7 +1,18 @@
+#the production library (the default of configure) is libla, with --enable-debug it is libla_debug (compiled with DEBUG),
+#so that both can be installed together (two separate configure and make runs, the headers are common)
+LA_SOURCES = simple.cc optimize.cc tensor.cc miscfunc.cc quaternion.cc vecmat3.cc vec.cc mat.cc smat.cc sparsemat.cc sparsesmat.cc csrmat.cc laerror.cc noncblas.cc  numbers.cc bitvector.cc strassen.cc nonclass.cc cuda_la.cc fourindex.cc permutation.cc polynomial.cc contfrac.cc graph.cc la_random.cc reg.cc regsurf.cc
+if DEBUGLIB
+lib_LTLIBRARIES = libla_debug.la
+libla_debug_la_SOURCES = $(LA_SOURCES)
+nodist_libla_debug_la_SOURCES = version.cc
+LALIB = libla_debug
+else
 lib_LTLIBRARIES = libla.la
-include_HEADERS = LA_version.h optimize.h tensor.h miscfunc.h simple.h vecmat3.h quaternion.h fortran.h cuda_la.h auxstorage.h  davidson.h lanczos.h  laerror.h    mat.h          qsort.h             vec.h bisection.h   diis.h       la.h         noncblas.h     smat.h numbers.h bitvector.h   fourindex.h  la_traits.h la_random.h  nonclass.h     sparsemat.h sparsesmat.h csrmat.h conjgrad.h    gmres.h      matexp.h     permutation.h   polynomial.h contfrac.h graph.h reg.h regsurf.h
-libla_la_SOURCES = simple.cc optimize.cc tensor.cc miscfunc.cc quaternion.cc vecmat3.cc vec.cc mat.cc smat.cc sparsemat.cc sparsesmat.cc csrmat.cc laerror.cc noncblas.cc  numbers.cc bitvector.cc strassen.cc nonclass.cc cuda_la.cc fourindex.cc permutation.cc polynomial.cc contfrac.cc graph.cc la_random.cc reg.cc regsurf.cc
+libla_la_SOURCES = $(LA_SOURCES)
 nodist_libla_la_SOURCES = version.cc
+LALIB = libla
+endif
+include_HEADERS = LA_version.h optimize.h tensor.h miscfunc.h simple.h vecmat3.h quaternion.h fortran.h cuda_la.h auxstorage.h  davidson.h lanczos.h  laerror.h    mat.h          qsort.h             vec.h bisection.h   diis.h       la.h         noncblas.h     smat.h numbers.h bitvector.h   fourindex.h  la_traits.h la_random.h  nonclass.h     sparsemat.h sparsesmat.h csrmat.h conjgrad.h    gmres.h      matexp.h     permutation.h   polynomial.h contfrac.h graph.h reg.h regsurf.h
 noinst_HEADERS = testoptimize.h
 check_PROGRAMS = t test tX test_reg test_regsurf testoptimize
 TESTS = testoptimize
@@ -12,7 +23,7 @@ tX_SOURCES = tX.cc
 test_reg_SOURCES = test_reg.cc
 test_regsurf_SOURCES = test_regsurf.cc
 testoptimize_SOURCES = testoptimize.cc
-LDADD = .libs/libla.a
+LDADD = .libs/$(LALIB).a
 ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = get_git_version LICENSE doxygen.cfg aminclude.am acinclude.m4 footer.html
 CLEANFILES = version.cc
@@ -46,7 +57,7 @@ tX_LDFLAGS = $(AM_LDFLAGS) -lX11 -lm
 
 .PHONY: always manual 
 version.cc: always
-	./get_git_version >version.cc
+	(cd $(srcdir) && ./get_git_version $(DEBUGOPT)) >version.cc
 
 # commented out since autoreconf complains about duplicit .PHONY
 #include $(top_srcdir)/aminclude.am
@@ -59,12 +70,12 @@ EXTRA_DIST += doc/manual.pdf $(MANUAL_TEX)
 
 doc/manual.pdf: $(MANUAL_TEX)
 	mkdir -p doc/.build
-	cd doc && for i in 1 2 3; do $(PDFLATEX) -interaction=nonstopmode -halt-on-error -output-directory=.build manual.tex >/dev/null 2>&1 || { tail -20 .build/manual.log; exit 1; }; done
-	cp doc/.build/manual.pdf $@
+	cd $(srcdir)/doc && for i in 1 2 3; do $(PDFLATEX) -interaction=nonstopmode -halt-on-error -output-directory=$(abs_builddir)/doc/.build manual.tex >/dev/null 2>&1 || { tail -20 $(abs_builddir)/doc/.build/manual.log; exit 1; }; done
+	cp doc/.build/manual.pdf $(srcdir)/doc/manual.pdf
 
 manual doc: doc/manual.pdf
 
-doxygen-doc/html/index.html: doxygen.cfg $(include_HEADERS) $(libla_la_SOURCES)
+doxygen-doc/html/index.html: doxygen.cfg $(include_HEADERS) $(LA_SOURCES)
 	$(DX_ENV) $(DX_DOXYGEN) $(DX_CONFIG) >/dev/null
 
 doxygen: doxygen-doc/html/index.html
