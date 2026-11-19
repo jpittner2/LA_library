@@ -1570,7 +1570,7 @@ nn = n;
 			}
 		else
 			{
-			 if(preserve) {vold=v; d preserved= o_delete=true;} else gpufree(v);
+			 if(preserve) {vold=v; preserved= do_delete=true;} else gpufree(v);
 			v = (T*) gpualloc(nn*sizeof(T));
 			}
 #endif
