@@ -170,24 +170,50 @@ implicitly given one, built column by column by \code{gemv} on unit vectors (for
 \laheader{lanczos.h}
 
 \begin{lareference}
-\lafunc{template <typename T, typename Matrix> void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=LA_precision<normtype>::eigensolver_eps(), const bool incore=1, int maxit=100, const int maxkrylov = 1000, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)}{
+\lafunc{template <typename T, typename Matrix> void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, int nroots=1, const bool verbose=0, const double eps=LA_precision<normtype>::eigensolver_eps(), const bool incore=1, int maxit=100, const int maxkrylov = 1000, void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL, const int ghosts=1)}{
 Lanczos method for the \code{nroots} lowest (or closest to \code{*target}) eigenvalues of a hermitian matrix. The parameters
 have the same meaning as for \code{davidson}, with these differences: \code{bigmat.issymmetric()} must be \code{true}
 (\code{laerror} otherwise); the start vector is normalized by the function; \code{incore=false} keeps only the Lanczos vectors
-$v_k$ in one scratch file; the default \code{maxkrylov} is 1000.}
+$v_k$ in one scratch file; the default \code{maxkrylov} is 1000. \code{ghosts} selects the treatment of the spurious copies of
+converged eigenvalues (see below): 0 none, 1 merging of multiple eigenvalues (default), 2 full reorthogonalization. Since
+\code{T} is deduced also from \code{initguess}, a call giving \code{target} or \code{ghosts} has to pass the null pointers with
+their types, e.g.\ \code{(void (*)(NRVec<double> \&))NULL, (const double *)NULL}.}
 \end{lareference}
 
 \paragraph{Algorithm.} Plain three-term Lanczos recurrence $w=Av_j-\beta_{j-1}v_{j-1}$, $\alpha_j=v_j\cdot w$,
 $w\leftarrow w-\alpha_jv_j$, $\beta_j=|w|$, $v_{j+1}=w/\beta_j$, one \code{gemv} per iteration (with $\beta=1$ in the
-\code{gemv} sense, accumulating into $-\beta_{j-1}v_{j-1}$). The vectors are not reorthogonalized, so that in long runs
-copies of converged eigenvalues may appear (a known property of the method in finite precision). If $\beta_j=0$ (invariant
+\code{gemv} sense, accumulating into $-\beta_{j-1}v_{j-1}$). In finite precision the vectors lose their orthogonality as
+eigenvalues converge, and spurious copies (``ghosts'') of converged eigenvalues appear in long runs, with small residuals,
+so that a copy of a lower root can be returned in place of a higher one. \code{ghosts} selects the remedy:
+\begin{itemize}
+\item 0: none, the plain recurrence.
+\item 1 (default): numerically multiple eigenvalues of the tridiagonal matrix $T$ (copies of a converged eigenvalue) are kept
+  once in each iteration, the copy with the smallest residual; two eigenvalues count as equal within
+  $100\,(j+1)\,\epsilon\max|\theta|$ ($\epsilon$ the machine precision). This is the first half of the filtering of Cullum and
+  Willoughby; its second half (simple eigenvalues of $T$ which are also eigenvalues of $T$ without its first row and column are
+  dropped as spurious) is not used, since it drops also true eigenvalues weakly represented in the start vector. The cost is
+  negligible and the vectors are not touched, but with several roots and a tight \code{eps} more iterations may be needed than
+  with 2 (the iterations producing the copies do not improve the higher roots).
+\item 2: full reorthogonalization of each new $w$ to all stored $v_k$ (one \code{dot} and one \code{axpy} per vector), repeated
+  once if the norm of $w$ drops below 0.7 of its value before (``twice is enough''); the coefficients are discarded, so that
+  $T$ stays tridiagonal. The cost is about $k^2/2$ \code{dot}--\code{axpy} pairs in $k$ iterations, i.e.\ what \code{davidson}
+  spends on its orthogonalization; with \code{incore=false} each iteration reads all previous vectors from the scratch file.
+\end{itemize}
+Neither prevents eigenvectors of other symmetries (spin multiplicities, point group, particle number in a qubit
+representation), which are absent from the start vector in exact arithmetic, from growing in from rounding errors of
+\code{gemv} in long runs; they are true eigenvectors of the matrix. If $\beta_j=0$ (invariant
 subspace), a random vector orthonormalized to all previous $v_k$ is used to continue. The tridiagonal matrix is diagonalized
 in each iteration by \code{diagonalize3}. All $v_k$ are stored (in core or in the scratch file) to build the eigenvectors at the
 end. If the diagonal elements $v_j\cdot Av_j$ have an imaginary part larger than $10^{-6}$, \code{laerror} reports a
 non-hermitian matrix.
 
-\paragraph{Convergence.} Converged when the changes of the \code{nroots} lowest (or closest to the target) eigenvalues
-between two iterations are all $\le$ \code{eps}; this is checked once the dimension exceeds \code{nroots}. There is no restart:
+\paragraph{Convergence.} Converged when the residual norms $|Ay-\theta y|$ of the Ritz vectors $y$ of the \code{nroots} lowest
+(or closest to the target) eigenvalues $\theta$ are all $\le$ \code{eps}; this is checked once the dimension reaches
+\code{nroots}. The residual norm is obtained without any additional \code{gemv} as $\beta_j|s_j|$, the norm of the next $w$
+times the last component of the eigenvector of the tridiagonal matrix (exact in exact arithmetic), and it is printed with
+\code{verbose}. The error of the eigenvalue is typically much smaller than \code{eps}. With \code{ghosts=0} a copy of a converged
+eigenvalue (see above) has a small residual as well and is not recognized; with several roots and a very tight \code{eps}
+the longer runs make such copies likely. There is no restart:
 the method fails with \code{laerror} when more than \code{maxit} iterations are needed or when the dimension reaches
 \code{maxkrylov} (the effective limit is $\min(\mathtt{maxit},\mathtt{maxkrylov}-1)$ iterations).
 

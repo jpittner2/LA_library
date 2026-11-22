@@ -34,6 +34,9 @@ namespace LA {
 //matrix can be any class which has nrows(), ncols(), diagonalof(), issymmetric(), and gemv() available
 //does not even have to be explicitly stored - direct CI
 //therefore the whole implementation must be a template in a header
+//ghosts: treatment of the spurious copies of converged eigenvalues due to the loss of orthogonality of the Lanczos vectors:
+//0 none (plain Lanczos), 1 numerically multiple eigenvalues of the tridiagonal matrix are kept once (cheap),
+//2 full reorthogonalization of each new vector to all previous ones (one dot and one axpy per stored vector and iteration)
 
 
 
@@ -41,7 +44,7 @@ template <typename T, typename Matrix>
 extern void lanczos(const Matrix &bigmat, NRVec<T> &eivals, NRVec<T> *eivecs, const char *eivecsfile, 
 		int nroots=1,  const bool verbose=0, const double eps=LA_precision<typename LA_traits<T>::normtype>::eigensolver_eps(),
 	 	const bool incore=1, int maxit=100, const int maxkrylov = 1000,
-		void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL)
+		void (*initguess)(NRVec<T> &)=NULL, const typename LA_traits<T>::normtype *target=NULL, const int ghosts=1)
 {
 if(!bigmat.issymmetric()) laerror("lanczos only for hermitean matrices");
 bool flag=0;
@@ -94,7 +97,7 @@ if(LA_traits<T>::imagpart(tmp)>1e-6) laerror("matrix probably not hermitian in l
 vec2.axpy(-alpha[0],vec1); 
 
 NRVec<typename LA_traits<T>::normtype> r(1); r[0]=alpha[0];
-NRVec<typename LA_traits<T>::normtype> rold;
+typename LA_traits<T>::normtype betanext=vec2.norm(); //norm of the last w vector, the next beta
 NRMat<typename LA_traits<T>::normtype> smallV;
 int krylovsize=1;
 //iterative Lanczos
@@ -105,7 +108,7 @@ for(j=1; j<maxkrylov;++j)
 	if(it>maxit) {std::cout <<"too many interations in lanczos\n"; flag=1; goto finished;}
 	++krylovsize;
 	//extend the Krylov space (last w vector expected in vec2, last v vector in vec1)
-	beta[j-1] = vec2.norm();
+	beta[j-1] = betanext;
 	if(beta[j-1] > 0)
 		{
 		vec2 /= beta[j-1];
@@ -143,23 +146,64 @@ for(j=1; j<maxkrylov;++j)
 	}
 	vec1.axpy(-alpha[j],vec2);
 	vec1.swap(vec2); //move new w vector to vec2, new v vector to vec1
+	if(ghosts==2) //full reorthogonalization of the new w to all v_k, once more if its norm drops much ("twice is enough")
+		{
+		typename LA_traits<T>::normtype wnorm=vec2.norm();
+		NRVec<T> vec3;
+		if(!incore) vec3.resize(n);
+		for(int pass=0; pass<2; ++pass)
+			{
+			for(int k=0; k<=j; ++k)
+				{
+				if(!incore) s0->get(vec3,k);
+				const NRVec<T> &vk= incore? v0[k] : vec3;
+				T f=vk.dot(vec2);
+				vec2.axpy(-f,vk);
+				}
+			betanext=vec2.norm();
+			if(betanext>0.7*wnorm) break;
+			wnorm=betanext;
+			}
+		}
+	else betanext=vec2.norm();
 
 	//diagonalize the tridiagonal
 	smallV.resize(j+1,j+1);
-	rold=r;
 	r=alpha.subvector(0,j);
 	NRVec<typename LA_traits<T>::normtype> rr=beta.subvector(0,j-1);
 	diagonalize3(r,rr,&smallV); 
-	if(target) //resort eigenpairs by distance from the target
-		{
-		NRVec<typename LA_traits<T>::normtype> key(j+1);
-		for(int i=0; i<=j; ++i) key[i] = abs(r[i] - *target);
-		NRPerm<int> p(j+1);
-		key.sort(0,p);
-	
+	if(ghosts==1 && j>=1) //keep one of numerically multiple eigenvalues (copies of a converged eigenvalue), that with the smallest residual
+		{ //(the spurious eigenvalue test of Cullum and Willoughby is not used, it drops also true eigenvalues weakly represented in the start vector)
+		const typename LA_traits<T>::normtype tol= 100*(j+1)*std::numeric_limits<typename LA_traits<T>::normtype>::epsilon()*std::max(abs(r[0]),abs(r[j]));
 		NRVec<typename LA_traits<T>::normtype> rp(j+1);
 		NRMat<typename LA_traits<T>::normtype> smallVp(j+1,j+1);
-		for(int i=0; i<=j; ++i)
+		int ngood=0;
+		for(int i=0; i<=j; )
+			{
+			int k=i, best=i;
+			while(k<j && r[k+1]-r[k]<=tol) {++k; if(abs(smallV(j,k))<abs(smallV(j,best))) best=k;}
+			rp[ngood]=r[best];
+			for(int l=0; l<=j; ++l) smallVp(l,ngood)=smallV(l,best);
+			++ngood;
+			i=k+1;
+			}
+		if(ngood<=j)
+			{
+			r=rp; r.resize(ngood,true);
+			smallV=smallVp.submatrix(0,j,0,ngood-1);
+			}
+		}
+	if(target) //resort eigenpairs by distance from the target
+		{
+		const int nr=r.size();
+		NRVec<typename LA_traits<T>::normtype> key(nr);
+		for(int i=0; i<nr; ++i) key[i] = abs(r[i] - *target);
+		NRPerm<int> p(nr);
+		key.sort(0,p);
+	
+		NRVec<typename LA_traits<T>::normtype> rp(nr);
+		NRMat<typename LA_traits<T>::normtype> smallVp(j+1,nr);
+		for(int i=0; i<nr; ++i)
 			{
 			rp[i]= r[p[i+1]-1];
 			for(int k=0; k<=j; ++k) smallVp(k,i) = smallV(k,p[i+1]-1);
@@ -170,18 +214,18 @@ for(j=1; j<maxkrylov;++j)
 
        	  if(verbose)
       	    {
-	    for(int iroot=0; iroot<std::min(krylovsize,nroots); ++iroot)
+	    for(int iroot=0; iroot<std::min(r.size(),nroots); ++iroot)
        	         {
-       	         std::cout <<"Lanczos: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" eigenvalue="<<r[iroot]<<"\n";
+       	         std::cout <<"Lanczos: iter="<<it <<" dim="<<krylovsize<<" root="<<iroot<<" eigenvalue="<<r[iroot]<<" residual="<<betanext*abs(smallV(j,iroot))<<"\n";
        	         }
        	   std::cout.flush();
        	   }
-	//convergence test when we have enough roots even in rold
-	if(krylovsize>nroots)
+	//convergence test on the residual norms of the Ritz vectors, |H y - r y| = beta_{j+1} |smallV(j,iroot)|
+	if(r.size()>=nroots)
 		{
 		bool conv=true;
 		for(int  iroot=0; iroot<nroots; ++iroot)
-			if(abs(r[iroot]-rold[iroot])>eps) conv=false;
+			if(betanext*abs(smallV(j,iroot))>eps) conv=false;
 		if(conv)
 			{
 			flag=0;
