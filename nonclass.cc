@@ -137,13 +137,19 @@ void lawritemat(FILE *file,const T *a,int r,int c,const char *form0,
 // LAPACK interface //
 //////////////////////
 
+//LU decomposition alone, called when there are no right-hand sides (some gesv implementations skip the decomposition when nrhs==0)
+//fortran sees the row-major matrix transposed, which has the same determinant; the matrix is not transposed back
+extern "C" void FORNAME(zgetrf)(const FINT *M, const FINT *N, std::complex<double> *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
+extern "C" void FORNAME(cgetrf)(const FINT *M, const FINT *N, std::complex<float> *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
+extern "C" void FORNAME(dgetrf)(const FINT *M, const FINT *N, double *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
+extern "C" void FORNAME(sgetrf)(const FINT *M, const FINT *N, float *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
+
 // A will be overwritten, B will contain the solutions, A is nxn, B is rhs x n
 static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const int ldb, double *det, int n)
 {
 	int r, *ipiv;
 	int iswap=0;
 
-	if(nrhs==0) std::cout<<"Warning: some dgesv implementations might skip LU decomposition when nrhs==0\n";	
 	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
 	A.copyonwrite();
 	ipiv = new int[A.nrows()];
@@ -153,7 +159,22 @@ static void linear_solve_do(NRMat<double> &A, double *B, const int nrhs, const i
 	std::cout <<"A before clapack_dgesv = "<<A<<std::endl;
 	std::cout <<"Active dimension n= "<<n<<std::endl;
 #endif
-	r = clapack_dgesv(CblasRowMajor, n, nrhs, &A(0,0), A.ncols(), ipiv, B , ldb);
+	if(nrhs) r = clapack_dgesv(CblasRowMajor, n, nrhs, &A(0,0), A.ncols(), ipiv, B , ldb);
+	else
+		{
+		const FINT ntmp=n;
+		const FINT ldatmp=A.ncols();
+		FINT info;
+#ifdef FORINT
+		FINT *ipivtmp = new FINT[n];
+		FORNAME(dgetrf)(&ntmp,&ntmp,&A(0,0),&ldatmp,ipivtmp,&info);
+		for(int i=0; i<n; ++i) ipiv[i]=ipivtmp[i];
+		delete[] ipivtmp;
+#else
+		FORNAME(dgetrf)(&ntmp,&ntmp,&A(0,0),&ldatmp,ipiv,&info);
+#endif
+		r=info;
+		}
 #ifdef IPIV_DEBUG
 	std::cout <<"A after clapack_dgesv = "<<A<<std::endl;
 	std::cout <<"ipiv = ";
@@ -199,7 +220,6 @@ static void linear_solve_do(NRMat<float> &A, float *B, const int nrhs, const int
 	int r, *ipiv;
 	int iswap=0;
 
-	if(nrhs==0) std::cout<<"Warning: some dgesv implementations might skip LU decomposition when nrhs==0\n";	
 	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
 	A.copyonwrite();
 	ipiv = new int[A.nrows()];
@@ -209,7 +229,22 @@ static void linear_solve_do(NRMat<float> &A, float *B, const int nrhs, const int
 	std::cout <<"A before clapack_sgesv = "<<A<<std::endl;
 	std::cout <<"Active dimension n= "<<n<<std::endl;
 #endif
-	r = clapack_sgesv(CblasRowMajor, n, nrhs, &A(0,0), A.ncols(), ipiv, B , ldb);
+	if(nrhs) r = clapack_sgesv(CblasRowMajor, n, nrhs, &A(0,0), A.ncols(), ipiv, B , ldb);
+	else
+		{
+		const FINT ntmp=n;
+		const FINT ldatmp=A.ncols();
+		FINT info;
+#ifdef FORINT
+		FINT *ipivtmp = new FINT[n];
+		FORNAME(sgetrf)(&ntmp,&ntmp,&A(0,0),&ldatmp,ipivtmp,&info);
+		for(int i=0; i<n; ++i) ipiv[i]=ipivtmp[i];
+		delete[] ipivtmp;
+#else
+		FORNAME(sgetrf)(&ntmp,&ntmp,&A(0,0),&ldatmp,ipiv,&info);
+#endif
+		r=info;
+		}
 #ifdef IPIV_DEBUG
 	std::cout <<"A after clapack_sgesv = "<<A<<std::endl;
 	std::cout <<"ipiv = ";
@@ -290,10 +325,12 @@ extern "C" void FORNAME(dspsv)(const char *UPLO, const FINT *N, const FINT *NRHS
 		double *AP, FINT *IPIV, double *B, const FINT *LDB, FINT *INFO);
 extern "C" void FORNAME(sspsv)(const char *UPLO, const FINT *N, const FINT *NRHS,
 		float *AP, FINT *IPIV, float *B, const FINT *LDB, FINT *INFO);
+//Bunch-Kaufman decomposition alone, called when there are no right-hand sides
+extern "C" void FORNAME(dsptrf)(const char *UPLO, const FINT *N, double *AP, FINT *IPIV, FINT *INFO);
+extern "C" void FORNAME(ssptrf)(const char *UPLO, const FINT *N, float *AP, FINT *IPIV, FINT *INFO);
 
 static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const int ldb, double *det, int n)
 {
- if(nrhs==0) std::cout<<"Warning: some dspsv implementations might skip LU decomposition when nrhs==0\n";
 	FINT r, *ipiv;
 	a.copyonwrite();
 	ipiv = new FINT[n];
@@ -302,9 +339,11 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
         const FINT ntmp=n;
         const FINT nrhstmp=nrhs;
 	const FINT ldbtmp=ldb;
-	FORNAME(dspsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp,&r);
+	if(nrhs) FORNAME(dspsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp,&r);
+	else FORNAME(dsptrf)(&U, &ntmp, a, ipiv, &r);
 #else	
-	FORNAME(dspsv)(&U, &n, &nrhs, a, ipiv, b, &ldb,&r);
+	if(nrhs) FORNAME(dspsv)(&U, &n, &nrhs, a, ipiv, b, &ldb,&r);
+	else FORNAME(dsptrf)(&U, &n, a, ipiv, &r);
 #endif	
 //	std::cout <<"A after dspsv = "<<a<<std::endl;
 	if (r < 0) {
@@ -329,7 +368,6 @@ static void linear_solve_do(NRSMat<double> &a, double *b, const int nrhs, const 
 
 static void linear_solve_do(NRSMat<float> &a, float *b, const int nrhs, const int ldb, float *det, int n)
 {
- if(nrhs==0) std::cout<<"Warning: some dspsv implementations might skip LU decomposition when nrhs==0\n";
 	FINT r, *ipiv;
 	a.copyonwrite();
 	ipiv = new FINT[n];
@@ -338,9 +376,11 @@ static void linear_solve_do(NRSMat<float> &a, float *b, const int nrhs, const in
         const FINT ntmp=n;
         const FINT nrhstmp=nrhs;
 	const FINT ldbtmp=ldb;
-	FORNAME(sspsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp,&r);
+	if(nrhs) FORNAME(sspsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp,&r);
+	else FORNAME(ssptrf)(&U, &ntmp, a, ipiv, &r);
 #else	
-	FORNAME(sspsv)(&U, &n, &nrhs, a, ipiv, b, &ldb,&r);
+	if(nrhs) FORNAME(sspsv)(&U, &n, &nrhs, a, ipiv, b, &ldb,&r);
+	else FORNAME(ssptrf)(&U, &n, a, ipiv, &r);
 #endif	
 //	std::cout <<"A after dspsv = "<<a<<std::endl;
 	if (r < 0) {
@@ -407,10 +447,12 @@ extern "C" void FORNAME(zhpsv)(const char *UPLO, const FINT *N, const FINT *NRHS
 		std::complex<double> *AP, FINT *IPIV, std::complex<double> *B, const FINT *LDB, FINT *INFO);
 extern "C" void FORNAME(chpsv)(const char *UPLO, const FINT *N, const FINT *NRHS,
 		std::complex<float> *AP, FINT *IPIV, std::complex<float> *B, const FINT *LDB, FINT *INFO);
+//Bunch-Kaufman decomposition alone, called when there are no right-hand sides
+extern "C" void FORNAME(zhptrf)(const char *UPLO, const FINT *N, std::complex<double> *AP, FINT *IPIV, FINT *INFO);
+extern "C" void FORNAME(chptrf)(const char *UPLO, const FINT *N, std::complex<float> *AP, FINT *IPIV, FINT *INFO);
 
 static void linear_solve_do(NRSMat<std::complex<double> > &a, std::complex<double> *b, const int nrhs, const int ldb, std::complex<double> *det, int n)
 {
- if(nrhs==0) std::cout<<"Warning: some zhpsv implementations might skip LU decomposition when nrhs==0\n";
 	FINT r, *ipiv;
 	a.copyonwrite();
 	ipiv = new FINT[n];
@@ -421,7 +463,8 @@ static void linear_solve_do(NRSMat<std::complex<double> > &a, std::complex<doubl
         const FINT ntmp=n;
         const FINT nrhstmp=nrhs;
 	const FINT ldbtmp=ldb;
-	FORNAME(zhpsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp, &r);
+	if(nrhs) FORNAME(zhpsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp, &r);
+	else FORNAME(zhptrf)(&U, &ntmp, a, ipiv, &r);
 	for(int i=0; i<nrhs; ++i) for(int j=0; j<n; ++j) b[i*ldb+j] = std::conj(b[i*ldb+j]);
 	if (r < 0) {
 		delete[] ipiv;
@@ -445,7 +488,6 @@ static void linear_solve_do(NRSMat<std::complex<double> > &a, std::complex<doubl
 
 static void linear_solve_do(NRSMat<std::complex<float> > &a, std::complex<float> *b, const int nrhs, const int ldb, std::complex<float> *det, int n)
 {
- if(nrhs==0) std::cout<<"Warning: some zhpsv implementations might skip LU decomposition when nrhs==0\n";
 	FINT r, *ipiv;
 	a.copyonwrite();
 	ipiv = new FINT[n];
@@ -456,7 +498,8 @@ static void linear_solve_do(NRSMat<std::complex<float> > &a, std::complex<float>
         const FINT ntmp=n;
         const FINT nrhstmp=nrhs;
 	const FINT ldbtmp=ldb;
-	FORNAME(chpsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp, &r);
+	if(nrhs) FORNAME(chpsv)(&U, &ntmp, &nrhstmp, a, ipiv, b, &ldbtmp, &r);
+	else FORNAME(chptrf)(&U, &ntmp, a, ipiv, &r);
 	for(int i=0; i<nrhs; ++i) for(int j=0; j<n; ++j) b[i*ldb+j] = std::conj(b[i*ldb+j]);
 	if (r < 0) {
 		delete[] ipiv;
@@ -530,19 +573,22 @@ static void linear_solve_do(NRMat<std::complex<double> > &A, std::complex<double
 	FINT r, *ipiv;
 	int iswap=0;
 
-	if(nrhs==0) std::cout<<"Warning: some zgesv implementations might skip LU decomposition when nrhs==0\n";
 	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
 	A.copyonwrite();
 	ipiv = new FINT[n];
 	const int lda=A.ncols();
 	std::complex<double> *a= &A(0,0);
-	for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<double> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
 	const FINT ntmp=n;
 	const FINT nrhstmp=nrhs;
 	const FINT ldatmp=lda;
 	const FINT ldbtmp=ldb;
-	FORNAME(zgesv)(&ntmp, &nrhstmp, a, &ldatmp, ipiv, B, &ldbtmp, &r);
-	for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<double> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+	if(nrhs)
+		{
+		for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<double> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+		FORNAME(zgesv)(&ntmp, &nrhstmp, a, &ldatmp, ipiv, B, &ldbtmp, &r);
+		for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<double> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+		}
+	else FORNAME(zgetrf)(&ntmp, &ntmp, a, &ldatmp, ipiv, &r);
 	if (r < 0) {
 		delete[] ipiv;
 		laerror("illegal argument in lapack_gesv");
@@ -582,19 +628,22 @@ static void linear_solve_do(NRMat<std::complex<float> > &A, std::complex<float> 
 	FINT r, *ipiv;
 	int iswap=0;
 
-	if(nrhs==0) std::cout<<"Warning: some zgesv implementations might skip LU decomposition when nrhs==0\n";
 	if (n==A.nrows() && A.nrows() != A.ncols()) laerror("linear_solve() call for non-square matrix");
 	A.copyonwrite();
 	ipiv = new FINT[n];
 	const int lda=A.ncols();
 	std::complex<float> *a= &A(0,0);
-	for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<float> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
 	const FINT ntmp=n;
 	const FINT nrhstmp=nrhs;
 	const FINT ldatmp=lda;
 	const FINT ldbtmp=ldb;
-	FORNAME(cgesv)(&ntmp, &nrhstmp, a, &ldatmp, ipiv, B, &ldbtmp, &r);
-	for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<float> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+	if(nrhs)
+		{
+		for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<float> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+		FORNAME(cgesv)(&ntmp, &nrhstmp, a, &ldatmp, ipiv, B, &ldbtmp, &r);
+		for(int i=1; i<n; ++i) for(int j=0; j<i; ++j)  {std::complex<float> t=a[j*lda+i]; a[j*lda+i]=a[i*lda+j]; a[i*lda+j]=t;}
+		}
+	else FORNAME(cgetrf)(&ntmp, &ntmp, a, &ldatmp, ipiv, &r);
 	if (r < 0) {
 		delete[] ipiv;
 		laerror("illegal argument in lapack_gesv");
@@ -3771,10 +3820,6 @@ LA_traits<NRMat<float> >::normtype MatrixNorm(const NRMat<float> &A, const char 
 
 
 //condition number ||A|| ||A^{-1}|| in the 1-norm or infinity norm, from the LU factorization of a copy of A
-extern "C" void FORNAME(zgetrf)(const FINT *M, const FINT *N, std::complex<double> *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
-extern "C" void FORNAME(cgetrf)(const FINT *M, const FINT *N, std::complex<float> *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
-extern "C" void FORNAME(dgetrf)(const FINT *M, const FINT *N, double *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
-extern "C" void FORNAME(sgetrf)(const FINT *M, const FINT *N, float *A, const FINT *LDA, FINT *IPIV, FINT *INFO);
 extern "C" void FORNAME(zgecon)( const char *norm, const FINT *n, const std::complex<double> *A, const FINT *LDA, const double *anorm, double *rcond, std::complex<double> *work, double *rwork, FINT *info);
 extern "C" void FORNAME(cgecon)( const char *norm, const FINT *n, const std::complex<float> *A, const FINT *LDA, const float *anorm, float *rcond, std::complex<float> *work, float *rwork, FINT *info);
 extern "C" void FORNAME(dgecon)( const char *norm, const FINT *n, const double *A, const FINT *LDA, const double *anorm, double *rcond, double *work, FINT *iwork, FINT *info);

@@ -4820,6 +4820,30 @@ cout <<"adjoint error = "<<(a*adj).norm(abs(det))<<endl;
 
 }
 
+if(0) //determinants: LAPACK decomposition without right-hand sides against the inline elimination, general and packed storage, singular matrix
+{
+int n;
+cin>>n;
+NRMat<double> a(n,n);
+a.randomize(1.);
+NRMat<double> b(a),b2(a);
+const double d=lapack_determinant_destroy(b);
+cout <<"det = "<<d<<" relative difference of small_determinant_destroy = "<<(small_determinant_destroy(b2)-d)/d<<" of determinant = "<<(determinant(a)-d)/d<<endl;
+NRMat<complex<double> > c(n,n);
+c.randomize(1.);
+NRMat<complex<double> > cc(c),cc2(c);
+const complex<double> dc=lapack_determinant_destroy(cc);
+cout <<"complex det = "<<dc<<" relative difference of small_determinant_destroy = "<<abs(small_determinant_destroy(cc2)-dc)/abs(dc)<<" of determinant = "<<abs(determinant(c)-dc)/abs(dc)<<endl;
+NRMat<double> h=a+a.transpose();
+NRSMat<double> hs(h);
+cout <<"relative difference of the determinants in packed and general storage = "<<(determinant(hs)-determinant(h))/determinant(h)<<endl;
+a.copyonwrite();
+for(int j=0; j<n; ++j) a(n-1,j)=0;
+b=a;
+b2=a;
+cout <<"determinants of a singular matrix (no error should be raised) = "<<lapack_determinant_destroy(b)<<" "<<small_determinant_destroy(b2)<<endl;
+}
+
 if(0) //pivot_transform: applied twice it returns the original matrix; inverse and Schur complement blocks; determinant of the pivot block
 {
 int n,m,k;

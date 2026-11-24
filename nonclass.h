@@ -365,27 +365,66 @@ typename LA_traits<MAT>::normtype MatrixNorm(const MAT  &A, const char norm);
 template<class MAT>
 typename LA_traits<MAT>::normtype CondNumber(const MAT  &A, const char norm);
 
-#ifdef HAS_MKL
-#define NO_OPENBLAS_WORKAROUND
+//determinant by the LAPACK decomposition without right-hand sides (getrf, sptrf, hptrf), destructive on input
+template<class MAT>
+const typename LA_traits<MAT>::elementtype lapack_determinant_destroy(MAT &a) //passed by reference
+{
+typename LA_traits<MAT>::elementtype det;
+if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
+linear_solve(a,NULL,&det);
+return det;
+}
+
+//determinant by Gauss elimination with partial pivoting coded inline, destructive on input
+//no LAPACK call: for small matrices it is several times faster than lapack_determinant_destroy()
+template<typename T>
+const T small_determinant_destroy(NRMat<T> &a)
+{
+const int n=a.nrows();
+if(n!=a.ncols()) laerror("determinant of non-square matrix");
+a.copyonwrite();
+T det=(T)1;
+for(int i=0; i<n; ++i)
+	{
+	int p=i;
+	typename LA_traits<T>::normtype big=LA_traits<T>::abs2(a(i,i));
+	for(int k=i+1; k<n; ++k) {const typename LA_traits<T>::normtype t=LA_traits<T>::abs2(a(k,i)); if(t>big) {big=t; p=k;}}
+	if(!(big>=LA_precision<typename LA_traits<T>::normtype>::det_tiny())) return (T)0; //singular (or not finite), as in linear_solve
+	T *ai=a[i];
+	if(p!=i)
+		{
+		T *ap=a[p];
+		for(int l=i; l<n; ++l) {const T t=ai[l]; ai[l]=ap[l]; ap[l]=t;}
+		det= -det;
+		}
+	det*=ai[i];
+	for(int k=i+1; k<n; ++k)
+		{
+		T *ak=a[k];
+		const T f=ak[i]/ai[i];
+		for(int l=i+1; l<n; ++l) ak[l]-=f*ai[l];
+		}
+	}
+return det;
+}
+
+//largest dimension for which determinant_destroy() of a general matrix uses the inline elimination
+//(measured crossover with OpenBLAS between 48 and 64; the reference LAPACK was not faster even at 256)
+#ifndef LA_SMALL_DETERMINANT
+#define LA_SMALL_DETERMINANT 48
 #endif
 
 //general determinant destructive on input 
 template<class MAT>
 const typename LA_traits<MAT>::elementtype determinant_destroy(MAT &a) //passed by reference 
 {
-typename LA_traits<MAT>::elementtype det;
-if(a.nrows()!=a.ncols()) laerror("determinant of non-square matrix");
+return lapack_determinant_destroy(a);
+}
 
-//for openblas 0.3.31 we have to fake some RHS otherwise LU decomp. is not performed
-#ifdef NO_OPENBLAS_WORKAROUND
-linear_solve(a,NULL,&det);
-#else
-//fake rhs
-NRVec<typename LA_traits<MAT>::elementtype> b(a.ncols());
-for(int i=0; i<b.size(); ++i) b[i] = (typename LA_traits<MAT>::elementtype)i;
-linear_solve(a,b,&det);
-#endif
-return det;
+template<typename T>
+const T determinant_destroy(NRMat<T> &a)
+{
+return a.nrows()<=LA_SMALL_DETERMINANT ? small_determinant_destroy(a) : lapack_determinant_destroy(a);
 }
 
 //general determinant

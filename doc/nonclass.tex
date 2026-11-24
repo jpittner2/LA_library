@@ -95,14 +95,15 @@ The basic solver uses the LU decomposition with partial pivoting (\code{dgesv}/\
 \code{NRMat} and the Bunch--Kaufman factorization (\code{dspsv}) for packed symmetric \code{NRSMat}.
 \textbf{The right-hand sides are the rows of \code{B}}: \code{B} has dimension $n_{\mathrm{rhs}}\times n$ and
 each row $b$ is overwritten by the solution of $A x=b$ (i.e.\ $A X\Tr=B\Tr$). \code{A} is overwritten
-by its factorization. With \code{B==NULL} only the factorization (and determinant) is computed.
+by its factorization. With \code{B==NULL} only the factorization (and determinant) is computed, by a direct call of the
+factorization routine (\code{getrf}, \code{sptrf}, \code{hptrf}), since some implementations of the solvers skip the
+factorization when there are no right-hand sides. In that case a general matrix is overwritten by the factorization of its transpose.
 
 \begin{lareference}
 \lafunc{void linear_solve(NRMat<T> &a, NRMat<T> *b, T *det=0, int n=0)}{Solve $A x=b$ for all rows $b$ of \code{*b}
 (\code{b->ncols()} must be $n$). If \code{det} is non-NULL, the determinant of $A$ is returned there (0 for a singular matrix,
 then no error is raised if \code{b==NULL}); a singular matrix with \code{b!=NULL} raises \code{laerror}.
-\code{n>0} restricts the problem to the leading $n\times n$ block of \code{a} and the first $n$ columns of \code{b}. Prints a warning when \code{b} is \code{NULL} (some LAPACK libraries skip the factorization for
-$n_{\mathrm{rhs}}=0$).}
+\code{n>0} restricts the problem to the leading $n\times n$ block of \code{a} and the first $n$ columns of \code{b}.}
 \lafunc{void linear_solve(NRMat<T> &a, NRVec<T> &b, T *det=0, int n=0)}{The same with a single right-hand side \code{b}.}
 \lafunc{void linear_solve(NRSMat<T> &a, NRMat<T> *b, T *det=0, int n=0); void linear_solve(NRSMat<T> &a, NRVec<T> &b, T *det=0, int n=0)}{Symmetric (real) or hermitian (complex), possibly indefinite $A$ in packed storage, \code{dspsv}/\code{zhpsv}
 (Bunch--Kaufman factorization; the determinant is computed from its $1\times1$ and $2\times2$ blocks and is real in the hermitian case).
@@ -135,9 +136,16 @@ this is not tested, a nearly singular block gives a huge result (check \code{det
 solution $x=V\,\mathrm{diag}(1/s_i)\,U\Hc b$ discarding singular values $\le$\code{thres} (no contamination by the null space);
 the number of discarded ones is stored in \code{*nullity}. Here (unlike \code{linear_solve}) the right-hand sides are the
 \emph{columns} of the matrix \code{b} ($m\times n_{\mathrm{rhs}}$); \code{a} ($m\times n$, $m\ge n$) is destroyed.}
-\lafunc{const LA_traits<MAT>::elementtype determinant(MAT a)}{Determinant by LU (\code{NRMat}) or Bunch--Kaufman (\code{NRSMat}) factorization of a copy.}
-\lafunc{const LA_traits<MAT>::elementtype determinant_destroy(MAT &a)}{The same, overwriting \code{a}. Unless \code{HAS_MKL} is defined, a dummy right-hand side
-is passed to \code{linear_solve} (work-around for OpenBLAS, which skips the factorization without right-hand sides).}
+\lafunc{const LA_traits<MAT>::elementtype determinant(MAT a)}{Determinant of a copy of the matrix by \code{determinant_destroy}.}
+\lafunc{const LA_traits<MAT>::elementtype determinant_destroy(MAT &a)}{Determinant, overwriting \code{a}. A singular matrix gives 0,
+no error is raised. For an \code{NRMat} of dimension up to \code{LA_SMALL_DETERMINANT} (48 unless defined otherwise at compilation)
+it calls \code{small_determinant_destroy}, in all other cases \code{lapack_determinant_destroy}; the user code need not care.
+The limit is the measured crossover with OpenBLAS (between 48 and 64); with the reference LAPACK the inline elimination was not slower even at dimension 256.}
+\lafunc{const LA_traits<MAT>::elementtype lapack_determinant_destroy(MAT &a)}{Determinant from the LU (\code{NRMat}) or Bunch--Kaufman
+(\code{NRSMat}) factorization by LAPACK (\code{linear_solve} without right-hand sides), overwriting \code{a}.}
+\lafunc{const T small_determinant_destroy(NRMat<T> &a)}{Determinant by Gauss elimination with partial pivoting coded inline,
+overwriting \code{a}. It calls no LAPACK routine, which makes it several times faster for small matrices (about 5 times at dimension 6,
+3 times at 16).}
 \lafunc{void cholesky(NRMat<T> &a, bool upper=1)}{Cholesky factorization of a
 positive definite matrix in place (\code{dpotrf}/\code{zpotrf}). \code{upper=1}: \code{a} becomes the upper triangular $U$ with
 $A=U\Hc U$; \code{upper=0}: lower triangular $L$ with $A=L L\Hc$. The other triangle is zeroed. Raises \code{laerror} if $A$ is not positive definite.}
