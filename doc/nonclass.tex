@@ -120,6 +120,17 @@ scaled). Returns \code{info}.}
 \lafunc{const NRMat<T> calcsvdinverse(NRMat<T> a, typename LA_traits<T>::normtype thr=0, bool do_absadjoint=false)}{Inverse via SVD, $V\,\mathrm{diag}(1/s_i)\,U\Hc$,
 singular values $s_i<$\code{thr} are treated as zero (pseudoinverse). With \code{do_absadjoint} returns
 $V\,\mathrm{diag}(\prod_{j\ne i}s_j)\,U\Hc$, the adjugate matrix up to the phase $\det U\det V$. Square matrices only.}
+\lafunc{const NRMat<T> pivot_transform(const NRMat<T> &a, const NRVec<int> &rows, const NRVec<int> &cols, T *det=NULL)}{Pivot transform
+(exchange, sweep operator) of $A$ with respect to the square block $B=A(\mathtt{rows},\mathtt{cols})$; for \code{rows==cols} it is the
+principal pivot transform. From $y=Ax$ it expresses $(x_{\mathtt{cols}},y_{\bar r})$ by $(y_{\mathtt{rows}},x_{\bar c})$, where $\bar r$, $\bar c$
+are the remaining rows and columns. The result has the dimensions of $A$ (which may be rectangular) and its blocks stay at the places
+of the corresponding blocks of $A$: $R(\mathtt{rows},\mathtt{cols})=B^{-1}$, $R(\mathtt{rows},\bar c)=-B^{-1}A(\mathtt{rows},\bar c)$,
+$R(\bar r,\mathtt{cols})=A(\bar r,\mathtt{cols})B^{-1}$ and the Schur complement
+$R(\bar r,\bar c)=A(\bar r,\bar c)-A(\bar r,\mathtt{cols})B^{-1}A(\mathtt{rows},\bar c)$. The indices are counted from 0 as in
+\code{NRMat::submatrix}; the $i$-th row of the block is paired with its $i$-th column, i.e.\ $R(\mathtt{rows}[i],\mathtt{cols}[j])=(B^{-1})_{ij}$.
+If \code{det} is non-NULL, $\det B$ is returned there. Applied twice with the same lists it returns $A$. A minor of $A$ in which some
+rows and columns of $B$ are replaced by other ones is $\det B$ times a small minor of $R$ (up to a sign). $B$ must be nonsingular:
+this is not tested, a nearly singular block gives a huge result (check \code{det}); a wrong or repeated index raises \code{laerror}.}
 \lafunc{NRVec<T> svd_solve(NRMat<T> &a, const NRVec<T> &b, normtype thres=LA_precision<normtype>::svd_threshold(), int *nullity=NULL); NRMat<T> svd_solve(NRMat<T> &a, const NRMat<T> &b, normtype thres=LA_precision<normtype>::svd_threshold(), int *nullity=NULL)}{Least-squares
 solution $x=V\,\mathrm{diag}(1/s_i)\,U\Hc b$ discarding singular values $\le$\code{thres} (no contamination by the null space);
 the number of discarded ones is stored in \code{*nullity}. Here (unlike \code{linear_solve}) the right-hand sides are the

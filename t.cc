@@ -4820,6 +4820,29 @@ cout <<"adjoint error = "<<(a*adj).norm(abs(det))<<endl;
 
 }
 
+if(0) //pivot_transform: applied twice it returns the original matrix; inverse and Schur complement blocks; determinant of the pivot block
+{
+int n,m,k;
+cin>>n>>m>>k;
+NRMat<double> a(n,m);
+a.randomize(1.);
+NRPerm<int> pr(n),pc(m);
+pr.randomize();
+pc.randomize();
+NRVec<int> rows(k),cols(k),orows(n-k),ocols(m-k);
+for(int i=0; i<k; ++i) {rows[i]=pr[i+1]-1; cols[i]=pc[i+1]-1;}
+for(int i=k; i<n; ++i) orows[i-k]=pr[i+1]-1;
+for(int i=k; i<m; ++i) ocols[i-k]=pc[i+1]-1;
+double det;
+NRMat<double> r=pivot_transform(a,rows,cols,&det);
+cout <<"Error of the double transform = "<<(pivot_transform(r,rows,cols)-a).norm()<<endl;
+NRMat<double> b=a.submatrix(rows,cols);
+cout <<"Error of the determinant = "<<det-determinant(b)<<endl;
+NRMat<double> one(k,k); one=1.;
+cout <<"Error of the inverse block = "<<(b*r.submatrix(rows,cols)-one).norm()<<endl;
+if(n>k&&m>k) cout <<"Error of the Schur complement = "<<(r.submatrix(orows,ocols)-a.submatrix(orows,ocols)+a.submatrix(orows,cols)*calcinverse(b)*a.submatrix(rows,ocols)).norm()<<endl;
+}
+
 if(0) //testbed of the general methods
 {
 int seed;

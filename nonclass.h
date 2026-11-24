@@ -304,6 +304,59 @@ const NRMat<T> calcsvdinverse(NRMat<T> a, typename LA_traits<T>::normtype thr=0,
 }
 
 
+//pivot transform (exchange, sweep operator) of a matrix with respect to the square block b=a(rows,cols):
+//from y = a x it expresses (x_cols, y_otherrows) by (y_rows, x_othercols); with rows==cols it is the principal pivot transform
+//the result has the dimensions of a and the blocks stay at their places:
+//r(rows,cols) = b^-1, r(rows,othercols) = -b^-1 a(rows,othercols),
+//r(otherrows,cols) = a(otherrows,cols) b^-1, r(otherrows,othercols) = a(otherrows,othercols) - a(otherrows,cols) b^-1 a(rows,othercols) (Schur complement)
+//det, if not NULL, returns the determinant of b
+template<typename T>
+const NRMat<T> pivot_transform(const NRMat<T> &a, const NRVec<int> &rows, const NRVec<int> &cols, T *det=NULL)
+{
+	const int k=rows.size();
+	if(k!=cols.size()) laerror("pivot_transform() for non-square pivot block");
+	if(k==0) {if(det) *det=(T)1; return a;}
+	NRVec<int> other[2]; //complementary lists of rows and columns
+	for(int rc=0; rc<2; ++rc)
+		{
+		const NRVec<int> &sel = rc?cols:rows;
+		const int n = rc?a.ncols():a.nrows();
+		NRVec<char> used((char)0,n);
+		for(int i=0; i<k; ++i)
+			{
+			if(sel[i]<0||sel[i]>=n) laerror("bad index in pivot_transform()");
+			if(used[sel[i]]) laerror("repeated index in pivot_transform()");
+			used[sel[i]]=1;
+			}
+		other[rc].resize(n-k);
+		int j=0;
+		for(int i=0; i<n; ++i) if(!used[i]) other[rc][j++]=i;
+		}
+	NRMat<T> r(a.nrows(),a.ncols());
+	const NRMat<T> binv = calcinverse(a.submatrix(rows,cols),det);
+	r.storesubmatrix(rows,cols,binv);
+	NRMat<T> y; //-b^-1 a(rows,othercols)
+	if(other[1].size())
+		{
+		y.resize(k,other[1].size());
+		y.gemm((T)0,binv,'n',a.submatrix(rows,other[1]),'n',(T)-1);
+		r.storesubmatrix(rows,other[1],y);
+		}
+	if(other[0].size())
+		{
+		const NRMat<T> a21 = a.submatrix(other[0],cols);
+		r.storesubmatrix(other[0],cols,a21*binv);
+		if(other[1].size())
+			{
+			NRMat<T> s = a.submatrix(other[0],other[1]);
+			s.gemm((T)1,a21,'n',y,'n',(T)1);
+			r.storesubmatrix(other[0],other[1],s);
+			}
+		}
+	return r;
+}
+
+
 //several matrix norms: norm = '1' or 'O' (max column sum), 'I' (max row sum), 'F' or 'E' (Frobenius), 'M' (max abs element)
 template<class MAT>
 typename LA_traits<MAT>::normtype MatrixNorm(const MAT  &A, const char norm);
