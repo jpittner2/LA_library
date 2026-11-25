@@ -61,7 +61,8 @@ int traceback(int flags)
     char pid_buf[256];
     sprintf(pid_buf, "%d", getpid());
     char name_buf[512];
-    name_buf[readlink("/proc/self/exe", name_buf, 511)]=0;
+    ssize_t r=readlink("/proc/self/exe", name_buf, 511);
+    name_buf[r>0?r:0]=0;
     prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);
     int child_pid = fork();
     if (!child_pid) {
@@ -174,7 +175,11 @@ extern "C" void ATL_xerbla(int p, char *rout, char *form, ...){
 
 #ifndef NONCBLAS
 extern "C" {
+#ifdef HAS_MKL
+#include "mkl_cblas.h"
+#else
 #include "cblas.h"
+#endif
 }
 #include <stdarg.h>
 #ifndef AVOID_DUPLICATE_CBLAS_XERBLA
