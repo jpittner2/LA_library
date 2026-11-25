@@ -4867,6 +4867,31 @@ cout <<"Error of the inverse block = "<<(b*r.submatrix(rows,cols)-one).norm()<<e
 if(n>k&&m>k) cout <<"Error of the Schur complement = "<<(r.submatrix(orows,ocols)-a.submatrix(orows,ocols)+a.submatrix(orows,cols)*calcinverse(b)*a.submatrix(rows,ocols)).norm()<<endl;
 }
 
+if(0) //transposed binary put/get of a matrix: the file is the plain storage of the transposed matrix
+{
+int n,m;
+cin>>n>>m;
+NRMat<double> a(n,m),b,c;
+a.randomize(1.);
+NRMat<int> ia(n,m),ib,ic;
+for(int i=0; i<n; ++i) for(int j=0; j<m; ++j) ia(i,j)=1000*i+j;
+int f=open("transposed_put_get.tmp",O_RDWR|O_CREAT|O_TRUNC,0600);
+a.put(f,true,true);
+ia.put(f,true,true);
+lseek(f,0,SEEK_SET);
+b.get(f,true,true);
+ib.get(f,true,true);
+lseek(f,0,SEEK_SET);
+c.get(f,true,false);
+ic.get(f,true,false);
+close(f);
+unlink("transposed_put_get.tmp");
+cout <<"Error of get after put, both transposed = "<<(b-a).norm()<<" "<<(ib!=ia)<<endl;
+int err=0;
+for(int i=0; i<n; ++i) for(int j=0; j<m; ++j) if(c(j,i)!=a(i,j) || ic(j,i)!=ia(i,j)) ++err;
+cout <<"Dimensions of the plain read "<<c.nrows()<<" "<<c.ncols()<<", number of elements differing from the transposed matrix = "<<err<<endl;
+}
+
 if(0) //testbed of the general methods
 {
 int seed;

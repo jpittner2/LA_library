@@ -287,7 +287,8 @@ void get(int fd, bool dimensions=1, bool transp=0, bool orca_format=false);
 	\item \code{NRVec}: header $n$ and a padding \code{int} 1 (8-byte alignment), then the $n$ elements; \code{transp} is ignored.
 	\item \code{NRMat}: header \code{nrows}, \code{ncols}, then the elements by rows. With \code{transp} the transposed matrix is
 	written (dimensions swapped, elements column by column); \code{get} with \code{transp} reads such data back into the
-	original orientation, i.e.\ it reads a file stored by columns.
+	original orientation, i.e.\ it reads a file stored by columns. For elements of plain types this is done by one
+	write or read of a temporary transposed copy of the matrix (elements of class type are processed one by one).
 	\item \code{NRSMat}: header $n$, $n$, then the packed lower triangle; \code{transp} is ignored.
 	\item \code{SparseMat}: header \code{nrows}, \code{ncols} (\code{SPMatindex}) and the \code{int} flags \code{symmetric} and
 	\code{nonzero}, then triples (row, column, element) and a terminating pair of indices $-1$; \code{SparseSMat}: header

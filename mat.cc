@@ -167,7 +167,18 @@ void NRMat<T>::put(int fd, bool dim, bool transp, bool orcaformat) const {
 			}
 	}
 
-	if(transp){  //not particularly efficient
+	if(transp){
+		if(LA_traits<T>::is_plaindata()){ //transpose in memory and write at once
+			NRMat<T> tmp(mm,nn);
+			for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j) tmp[j][i] = (*this)[i][j];
+			LA_traits<T>::multiput((size_t)nn*(size_t)mm,fd,
+			#ifdef MATPTR
+			        tmp.v[0]
+			#else
+			        tmp.v
+			#endif
+				,dim);
+		}else  //element by element, not particularly efficient
 	        for(int j=0; j<mm; ++j){
 		       for(int i=0; i<nn; ++i){
 	                        LA_traits<T>::put(fd, 
@@ -226,6 +237,17 @@ void NRMat<T>::get(int fd, bool dim, bool transp, bool orcaformat){
 	}
 
 	if(transp){
+		if(LA_traits<T>::is_plaindata()){ //read at once and transpose in memory
+			NRMat<T> tmp(mm,nn);
+			LA_traits<T>::multiget((size_t)nn*(size_t)mm,fd,
+			#ifdef MATPTR
+			        tmp.v[0]
+			#else
+			        tmp.v
+			#endif
+				,dim);
+			for(int i=0; i<nn; ++i) for(int j=0; j<mm; ++j) (*this)[i][j] = tmp[j][i];
+		}else  //element by element
 		for(register int j=0; j<mm; ++j){
 			for(register int i=0; i<nn; ++i){
 				LA_traits<T>::get(fd,
