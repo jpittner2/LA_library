@@ -45,6 +45,7 @@
 
 #include "laerror.h"
 #include "la_random.h"
+#include "miscfunc.h"
 
 #include "cuda_la.h"
 
@@ -261,6 +262,9 @@ typedef std::complex<C> producttype;
 typedef C normtype;
 typedef C realtype;
 typedef std::complex<C> complextype;
+typedef std::complex<C> scalartype; //see the note at the traits of the non-scalar classes
+static inline uint64_t hash(const std::complex<C> *x, size_t n, uint64_t h) {return hash_bytes(x,n*sizeof(std::complex<C>),h);}
+static inline std::complex<C> checksum(const std::complex<C> &x, uint64_t weight) {return x*(C)checksum_weight(weight);}
 static inline C sqrabs(const std::complex<C> x) { return x.real()*x.real()+x.imag()*x.imag();}
 static inline bool gencmp(const std::complex<C> *x, const std::complex<C> *y, size_t n) {return memcmp(x,y,n*sizeof(std::complex<C>));}
 static bool bigger(const  std::complex<C> &x, const std::complex<C> &y) {laerror("std::complex comparison undefined"); return false;}
@@ -322,6 +326,13 @@ typedef C producttype;
 typedef C normtype;
 typedef C realtype;
 typedef std::complex<C> complextype;
+typedef C scalartype; //see the note at the traits of the non-scalar classes
+static inline uint64_t hash(const C *x, size_t n, uint64_t h) {return hash_bytes(x,n*sizeof(C),h);}
+static inline C checksum(const C &x, uint64_t weight)
+	{
+	if(std::numeric_limits<C>::is_integer) laerror("checksum() is for floating point types only, use hash()");
+	return x*(C)checksum_weight(weight);
+	}
 static inline C sqrabs(const C x) { return x*x;}
 static inline bool gencmp(const C *x, const C *y, size_t n) {return memcmp(x,y,n*sizeof(C));}
 static inline bool bigger(const  C &x, const C &y) {return x>y;}
@@ -380,6 +391,11 @@ static int strassen_cutoff() {return 2048;} //NRMat::strassen uses plain gemm fo
 template<typename C>
 struct LA_traits; //forward declaration needed for template recursion
 
+//NOTE on elementtype and scalartype: elementtype is the type of the elements stored in the object, i.e. C for X<C>, which
+//for nested objects is again a class (NRMat<double> for NRVec<NRMat<double> >); scalartype is the type of the numbers
+//at the bottom of the nesting (double in this example, std::complex<double> for NRVec<NRMat<std::complex<double> > >);
+//it is defined recursively like normtype, which is the corresponding real type
+
 #define generate_traits_nonscalar(X) \
 template<typename C> \
 struct LA_traits_aux<X<C>, scalar_false> { \
@@ -389,8 +405,11 @@ typedef C PAIRTYPE[2]; \
 typedef C QUADRUPLETYPE[4]; \
 typedef X<C> SUBMATRIXTYPE; \
 typedef typename LA_traits<C>::normtype normtype; \
+typedef typename LA_traits<C>::scalartype scalartype; \
 typedef X<typename LA_traits<C>::realtype> realtype; \
 typedef X<typename LA_traits<C>::complextype> complextype; \
+static uint64_t hash(const X<C> *x, size_t n, uint64_t h) {for(size_t i=0; i<n; ++i) h=x[i].hash(h); return h;} \
+static scalartype checksum(const X<C> &x, uint64_t seed) {return x.checksum(seed);} \
 static bool gencmp(const X<C> *x, const X<C> *y, size_t n) {for(size_t i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
 static inline bool bigger(const  X<C> &x, const X<C> &y) {return x>y;} \
 static inline bool smaller(const  X<C> &x, const X<C> &y) {return x<y;} \
@@ -434,8 +453,11 @@ struct LA_traits_aux<X<C>, scalar_false> {  \
 typedef C elementtype;  \
 typedef NRMat<C> producttype;  \
 typedef typename LA_traits<C>::normtype normtype;  \
+typedef typename LA_traits<C>::scalartype scalartype; \
 typedef X<typename LA_traits<C>::realtype> realtype; \
 typedef X<typename LA_traits<C>::complextype> complextype; \
+static uint64_t hash(const X<C> *x, size_t n, uint64_t h) {for(size_t i=0; i<n; ++i) h=x[i].hash(h); return h;} \
+static scalartype checksum(const X<C> &x, uint64_t seed) {return x.checksum(seed);} \
 static bool gencmp(const C *x, const C *y, size_t n) {for(size_t i=0; i<n; ++i) if(x[i]!=y[i]) return true; return false;} \
 static inline bool bigger(const  C &x, const C &y) {return x>y;} \
 static inline bool smaller(const  C &x, const C &y) {return x<y;} \

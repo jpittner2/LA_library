@@ -166,6 +166,7 @@ generated from the in-place ones.
 \lafunc{const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const}{Euclidean norm of the packed data of $S - \mathtt{scalar}\cdot 1$; off-diagonal elements are counted \emph{once}, so this is not the Frobenius norm of the full matrix.}
 \lafunc{const T trace() const}{Trace.}
 \lafunc{const T sum(bool onlytriangle=false) const}{Sum of all elements of the full matrix, or of the stored triangle only.}
+\lafunc{uint64\_t hash(uint64\_t h=LA\_HASH\_INIT) const; const typename LA\_traits<T>::scalartype checksum(const uint64\_t seed=0) const}{Hash of the exact contents and numerical checksum for comparison within a threshold, see section~\ref{sec:concepts:io}. Both use the stored triangle only.}
 \lafunc{const NRVec<T> rsum() const; const NRVec<T> csum() const}{Row sums and column sums of the full matrix (equal for real, complex conjugate of each other for hermitian matrices).}
 \lafunc{inline const T amax() const; inline const T amin() const}{Stored element with the largest/smallest absolute value (complex: $|\Re|+|\Im|$); floating point types only.}
 \lafunc{const T* diagonalof(NRVec<T> &r, const bool divide = 0, bool cache = false) const}{\code{divide=false}: store the diagonal into \code{r} and return \code{&r[0]}; \code{divide=true}: divide \code{r} elementwise by the nonzero diagonal elements and return \code{NULL}. \code{cache} is unused. Interface used by iterative solvers (\ref{ch:iterative}).}

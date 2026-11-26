@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <limits>
 #include <math.h>
+#include <string.h>
 
 #include "miscfunc.h"
 #include "laerror.h"
@@ -472,6 +473,29 @@ return n;
 
 #undef SIMPLICIAL_MAXD
 #undef SIMPLICIAL_MAXN
+
+
+//hash of plain data, see miscfunc.h; never change it, the values are stored in files
+uint64_t hash_bytes(const void *x, const size_t nbytes, uint64_t h)
+{
+const char *p=(const char *)x;
+size_t n=nbytes;
+uint64_t w;
+for(; n>=8; n-=8, p+=8)
+	{
+	memcpy(&w,p,8);
+	h=(h^w)*0x9E3779B97F4A7C15ULL;
+	h^=h>>32;
+	}
+if(n)
+	{
+	w=0;
+	memcpy(&w,p,n);
+	h=(h^w)*0x9E3779B97F4A7C15ULL;
+	h^=h>>32;
+	}
+return hash_mix(nbytes,h);
+}
 
 
 }//namespace

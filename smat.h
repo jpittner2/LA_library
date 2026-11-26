@@ -173,6 +173,26 @@ public:
 	inline const T amax() const;
 	inline const T amin() const;
 
+	//! hash of the dimension and of the exact binary contents of the stored triangle, continuing from h (see miscfunc.h)
+	uint64_t hash(uint64_t h=LA_HASH_INIT) const
+		{
+		NOT_GPU(*this);
+		return LA_traits<T>::hash(v,NN2,hash_mix(nn,h));
+		}
+
+	//! numerical checksum: sum of the stored elements with pseudorandom weights given by the seed and the dimension (see miscfunc.h)
+	//it is a template only in order not to require scalartype in the traits of every type of elements
+	template<typename U=T>
+	const typename LA_traits<U>::scalartype checksum(const uint64_t seed=0) const
+		{
+		NOT_GPU(*this);
+		const uint64_t s=hash_mix(nn,seed);
+		typename LA_traits<U>::scalartype r=0;
+		const size_t n=NN2;
+		for(size_t i=0; i<n; ++i) r+=LA_traits<U>::checksum(v[i],hash_mix(i,s));
+		return r;
+		}
+
 	 //! sum all matrix elements
         const T sum(bool onlytriangle=false) const
 		{

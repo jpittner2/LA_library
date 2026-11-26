@@ -4892,6 +4892,38 @@ for(int i=0; i<n; ++i) for(int j=0; j<m; ++j) if(c(j,i)!=a(i,j) || ic(j,i)!=ia(i
 cout <<"Dimensions of the plain read "<<c.nrows()<<" "<<c.ncols()<<", number of elements differing from the transposed matrix = "<<err<<endl;
 }
 
+if(0) //hash() and checksum(): exact and numerical comparison of the contents
+{
+int n,m;
+cin>>n>>m;
+NRMat<double> a(n,m),b;
+a.randomize(1.);
+b=a;
+cout <<"hashes of equal matrices "<<a.hash()<<" "<<b.hash()<<" checksums "<<a.checksum()<<" "<<b.checksum()<<endl;
+b.copyonwrite();
+b(n/2,m/2)+=1e-10;
+cout <<"after a change of one element by 1e-10: hash "<<b.hash()<<" difference of the checksums "<<b.checksum()-a.checksum()<<" for another seed "<<b.checksum(1)-a.checksum(1)<<endl;
+NRMat<double> c(n,m);
+c.randomize(1.);
+cout <<"error of the linearity of the checksum = "<<(a*2.5+c).checksum()-(2.5*a.checksum()+c.checksum())<<endl;
+NRVec<complex<double> > z(n*m);
+z.randomize(1.);
+const complex<double> phase=std::polar(1.,0.7);
+cout <<"complex checksum "<<z.checksum()<<" error after a multiplication by a phase = "<<abs((z*phase).checksum()-phase*z.checksum())<<endl;
+NRVec<NRVec<NRMat<double> > > nested(2);
+nested[0].resize(2);
+nested[1].resize(1);
+nested[0][0]=a;
+nested[0][1]=c;
+nested[1][0]=a;
+cout <<"nested object: hash "<<nested.hash()<<" checksum "<<nested.checksum()<<endl;
+NRSMat<double> s(n);
+s.randomize(1.);
+NRVec<int> iv(n);
+for(int i=0; i<n; ++i) iv[i]=i;
+cout <<"symmetric matrix: hash "<<s.hash()<<" checksum "<<s.checksum()<<"; hash of an integer vector chained with it "<<iv.hash(s.hash())<<endl;
+}
+
 if(0) //testbed of the general methods
 {
 int seed;

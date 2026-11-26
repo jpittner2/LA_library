@@ -166,6 +166,9 @@ symmetric tensors, chapter~\ref{ch:tensor}). $s(d,n)=0$ for $n\le0$, $1$ for $d=
 recurrence $s(d,n)=s(d,n-1)+s(d-1,n)$ into a table growing on demand; \code{laerror} for $d\ge16$ or $n\ge1024$.}
 \lafunc{int inverse_simplicial(int d, unsigned long long s)}{Largest $n$ with \code{simplicial(d,n)}${}\le s$ (Newton
 iteration on the polynomial $s(d,n)$ followed by an integer correction); 0 for $s=0$. \code{laerror} for $d\ge16$.}
+\lafunc{static inline uint64\_t hash\_mix(const uint64\_t counter, const uint64\_t seed)}{Pseudorandom 64-bit number as a fixed function of its arguments (splitmix64); a generator without a state, independent of \code{la\_random.h}. It generates the weights of \code{checksum} and combines the dimensions into \code{hash} (section~\ref{sec:concepts:io}); it must never be changed.}
+\lafunc{static inline double checksum\_weight(const uint64\_t z)}{The number \code{z} mapped to $[-1,1)$.}
+\lafunc{uint64\_t hash\_bytes(const void *x, const size\_t nbytes, uint64\_t h=LA\_HASH\_INIT)}{Hash of \code{nbytes} bytes of plain data, taken by words of 8 bytes, continuing from \code{h}; used by \code{hash} of the classes for scalar element types. Frozen as well.}
 \end{lareference}
 
 %=====================================================================

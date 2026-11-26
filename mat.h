@@ -272,6 +272,38 @@ public:
 	//! sum all matrix elements
         const T sum() const;
 
+	//! hash of the dimensions and of the exact binary contents, continuing from h (see miscfunc.h)
+	uint64_t hash(uint64_t h=LA_HASH_INIT) const
+		{
+		NOT_GPU(*this);
+		h=hash_mix(mm,hash_mix(nn,h));
+		if(nn==0||mm==0) return h;
+#ifdef MATPTR
+		return LA_traits<T>::hash(v[0],(size_t)nn*mm,h);
+#else
+		return LA_traits<T>::hash(v,(size_t)nn*mm,h);
+#endif
+		}
+
+	//! numerical checksum: sum of the elements with pseudorandom weights given by the seed and the dimensions (see miscfunc.h)
+	//it is a template only in order not to require scalartype in the traits of every type of elements
+	template<typename U=T>
+	const typename LA_traits<U>::scalartype checksum(const uint64_t seed=0) const
+		{
+		NOT_GPU(*this);
+		const uint64_t s=hash_mix(mm,hash_mix(nn,seed));
+		typename LA_traits<U>::scalartype r=0;
+		if(nn==0||mm==0) return r;
+#ifdef MATPTR
+		const T *p=v[0];
+#else
+		const T *p=v;
+#endif
+		const size_t n=(size_t)nn*mm;
+		for(size_t i=0; i<n; ++i) r+=LA_traits<U>::checksum(p[i],hash_mix(i,s));
+		return r;
+		}
+
 	//! orthonormalize this matrix
 	void orthonormalize(const bool rowcol, const NRSMat<T> *metric = NULL);
 

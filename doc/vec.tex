@@ -204,6 +204,7 @@ $|\mathrm{Re}|+|\mathrm{Im}|$). Only \code{double} and \code{std::complex<double
 \lafunc{const T max() const; const T min() const}{Largest / smallest element (0 for an empty vector). Only real types
 (instantiated for the integer types, \code{float}, \code{double}).}
 \lafunc{const T sum() const}{$\sum_i x_i$.}
+\lafunc{uint64\_t hash(uint64\_t h=LA\_HASH\_INIT) const; const typename LA\_traits<T>::scalartype checksum(const uint64\_t seed=0) const}{Hash of the exact contents and numerical checksum for comparison within a threshold, see section~\ref{sec:concepts:io}.}
 \lafunc{const T sumsqr() const}{$\sum_i x_i^2$, 0 for an empty vector. No conjugation for complex types; use \code{norm()} for $\sqrt{\sum_i|x_i|^2}$.}
 \lafunc{const T prod() const}{$\prod_i x_i$, 1 for an empty vector.}
 \lafunc{NRVec<typename LA_traits<T>::normtype> abs() const}{Vector of $|x_i|$.}

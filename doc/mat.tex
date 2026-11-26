@@ -206,6 +206,7 @@ Note that scalar addition and subtraction act on the \emph{diagonal} only, i.e.\
 \lafunc{const typename LA_traits<T>::normtype norm(const T scalar = (T)0) const}{Frobenius norm $\|A-s\,\mathbf 1\|_F$ (BLAS \code{nrm2} when $s=0$).}
 \lafunc{const T trace() const}{$\sum_i A_{ii}$ (square matrices).}
 \lafunc{const T sum() const; const NRVec<T> rsum() const; const NRVec<T> csum() const}{Sum of all elements; vector of row sums (length \code{nrows()}, sum over the column index); vector of column sums (length \code{ncols()}).}
+\lafunc{uint64\_t hash(uint64\_t h=LA\_HASH\_INIT) const; const typename LA\_traits<T>::scalartype checksum(const uint64\_t seed=0) const}{Hash of the exact contents and numerical checksum for comparison within a threshold, see section~\ref{sec:concepts:io}.}
 \lafunc{inline const T amax() const; inline const T amin() const}{The element (not its index) with the largest resp.\ smallest absolute value; for complex the measure is $|\mathrm{Re}|+|\mathrm{Im}|$ (BLAS \code{i?amax} convention).}
 \lafunc{const typename LA_traits<T>::normtype nonsymmetry() const}{$\sum_{i>j}|A_{ij}-A_{ji}|^2$ (square of the norm, no square root).}
 \lafunc{const typename LA_traits<T>::normtype nonhermiticity() const}{Complex types only: $\sum_{i\ge j}|A_{ij}-A_{ji}^*|^2$.}
