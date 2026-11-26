@@ -306,7 +306,8 @@ void get(int fd, bool dimensions=1, bool transp=0, bool orca_format=false);
 For storing many objects of the same size in a scratch file, see \code{AuxStorage} (chapter~\ref{ch:utilities}).
 
 \paragraph{Hash and checksum.} Two functions characterize the contents of an object by one number; they are members of
-\code{NRVec}, \code{NRMat} and \code{NRSMat} (and of the classes derived from them) and work for nested objects.
+\code{NRVec}, \code{NRMat} and \code{NRSMat}, of the classes derived from them (e.g.\ \code{fourindex\_dense}) and of
+\code{Tensor}, and they work for nested objects. The sparse classes do not have them.
 \begin{lstlisting}
 uint64_t hash(uint64_t h=LA_HASH_INIT) const;
 const typename LA_traits<T>::scalartype checksum(const uint64_t seed=0) const;
@@ -338,3 +339,16 @@ the user can replace (section~\ref{sec:utilities:random}), and on the order of a
 frozen: their values are meant to be stored in files and will not change in later versions. The method
 \code{checksum} is formally a template, so that traits of user-defined element types need not define
 \code{scalartype} unless \code{checksum} is called for them.
+
+\code{std::hash} is specialized for \code{NRVec}, \code{NRMat} and \code{NRSMat} (each in its header) by means
+of \code{hash()}, so that these objects (in practice with integer elements) can be the keys of
+\code{std::unordered\_map} and \code{std::unordered\_set}; the keys are compared by \code{operator==}. A specialization
+of \code{std::hash} does not apply to derived classes (\code{NRVec\_from1}, \code{NRVec\_colex}, \code{NRPerm},
+\code{Partition}, \code{fourindex\_dense}, \dots); for these, and for any class with the method \code{hash()}, the
+hash function \code{LA::Hash} (\code{miscfunc.h}) is given as the third template argument:
+\begin{lstlisting}
+std::unordered_map<NRVec<int>,double> a;
+std::unordered_map<NRPerm<int>,double,LA::Hash> b;
+\end{lstlisting}
+A key stored in such a container shares its data with the object it was copied from, which therefore must not be
+modified afterwards without \code{copyonwrite()}. \code{Tensor} has no \code{operator==} and cannot be a key.

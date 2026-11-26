@@ -379,6 +379,38 @@ public:
 	void put(int fd, bool with_names=false) const;
 	void get(int fd, bool with_names=false);
 
+	//the shape mixed into a hash or into the seed of a checksum
+	uint64_t shapehash(uint64_t h) const
+		{
+		h=hash_mix(shape.size(),h);
+		for(int i=0; i<shape.size(); ++i)
+			{
+			h=hash_mix(shape[i].number,h);
+			h=hash_mix(shape[i].symmetry,h);
+			h=hash_mix(shape[i].offset,h);
+			h=hash_mix(shape[i].range,h);
+#ifdef LA_TENSOR_INDEXPOSITION
+			h=hash_mix(shape[i].upperindex,h);
+#endif
+			}
+		return h;
+		}
+	//hash of the shape and of the exact binary contents of the data, continuing from h (see miscfunc.h);
+	//the names of the indices enter only if with_names
+	uint64_t hash(uint64_t h=LA_HASH_INIT, bool with_names=false) const
+		{
+		h=data.hash(shapehash(h));
+		if(with_names)
+			{
+			h=hash_mix(names.size(),h);
+			for(int i=0; i<names.size(); ++i) h=hash_bytes(names[i].name,strnlen(names[i].name,N_INDEXNAME),h);
+			}
+		return h;
+		}
+	//numerical checksum of the data with pseudorandom weights given by the seed and the shape (see miscfunc.h)
+	template<typename U=T>
+	const typename LA_traits<U>::scalartype checksum(const uint64_t seed=0) const {return data.checksum(shapehash(seed));}
+
 	void enforce_hermiticity(); //zero out real/imag parts for repeated indices appropriately
 	bool fulfills_hermiticity() const; //check it is so
 	inline void randomize(const typename LA_traits<T>::normtype &x) {data.randomize(x); enforce_hermiticity();};

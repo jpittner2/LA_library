@@ -21,6 +21,7 @@
 #ifndef _LA_MAT_H_
 #define _LA_MAT_H_
 #include "la_traits.h"
+#include <functional>
 
 using namespace LA_Vecmat3;
 
@@ -1829,5 +1830,10 @@ NRVECMAT_OPER2(Mat, +)
 NRVECMAT_OPER2(Mat, -)
 
 }//end of the LA-namespace
+
+//hash() as the hash function of the standard library, see the note in vec.h
+namespace std {
+template<typename T> struct hash<LA::NRMat<T> > {size_t operator()(const LA::NRMat<T> &x) const {return x.hash();}};
+}
 #endif/* _LA_MAT_H_ */
 

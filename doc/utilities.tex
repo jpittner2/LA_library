@@ -169,6 +169,7 @@ iteration on the polynomial $s(d,n)$ followed by an integer correction); 0 for $
 \lafunc{static inline uint64\_t hash\_mix(const uint64\_t counter, const uint64\_t seed)}{Pseudorandom 64-bit number as a fixed function of its arguments (splitmix64); a generator without a state, independent of \code{la\_random.h}. It generates the weights of \code{checksum} and combines the dimensions into \code{hash} (section~\ref{sec:concepts:io}); it must never be changed.}
 \lafunc{static inline double checksum\_weight(const uint64\_t z)}{The number \code{z} mapped to $[-1,1)$.}
 \lafunc{uint64\_t hash\_bytes(const void *x, const size\_t nbytes, uint64\_t h=LA\_HASH\_INIT)}{Hash of \code{nbytes} bytes of plain data, taken by words of 8 bytes, continuing from \code{h}; used by \code{hash} of the classes for scalar element types. Frozen as well.}
+\lafunc{struct Hash \{template<typename X> size\_t operator()(const X \&x) const;\}}{Hash function for the containers of the standard library which calls \code{x.hash()}; for the classes without an own specialization of \code{std::hash} (section~\ref{sec:concepts:io}).}
 \end{lareference}
 
 %=====================================================================

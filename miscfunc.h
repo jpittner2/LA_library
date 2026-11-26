@@ -76,6 +76,14 @@ return (double)(int64_t)z*(1./9223372036854775808.);
 //hash of plain data continuing from the value h; the data are taken by words of 8 bytes for speed
 extern uint64_t hash_bytes(const void *x, const size_t nbytes, uint64_t h=LA_HASH_INIT);
 
+//hash function for the containers of the standard library for any class which has the method hash(),
+//e.g. std::unordered_map<NRPerm<int>,double,LA::Hash>; std::hash itself is specialized only for NRVec, NRMat and NRSMat,
+//and a specialization does not apply to the classes derived from them
+struct Hash
+	{
+	template<typename X> size_t operator()(const X &x) const {return x.hash();}
+	};
+
 
 
 }//namespace

@@ -23,6 +23,7 @@
 #ifndef _LA_SMAT_H_
 #define _LA_SMAT_H_
 #include "la_traits.h"
+#include <functional>
 
 namespace LA {
 #define NN2 ((size_t)nn*(nn+1)/2)
@@ -1579,4 +1580,9 @@ public:
 };
 
 }//namespace
+
+//hash() as the hash function of the standard library, see the note in vec.h
+namespace std {
+template<typename T> struct hash<LA::NRSMat<T> > {size_t operator()(const LA::NRSMat<T> &x) const {return x.hash();}};
+}
 #endif /* _LA_SMAT_H_ */

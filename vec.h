@@ -24,6 +24,7 @@
 #include "miscfunc.h"
 #include "vecmat3.h"
 #include <list>
+#include <functional>
 
 using namespace LA_Vecmat3;
 
@@ -2993,5 +2994,13 @@ void NRVec<T>::storesubvector_to(const NRVec<int> &selection, NRVec &rhs) const
 
 
 }//namespace
+
+//hash() as the hash function of the standard library, so that vectors (best of integer types) can be keys of
+//std::unordered_map and std::unordered_set; the keys are compared by operator==
+//a specialization is not inherited: for a class derived from NRVec give LA::Hash (miscfunc.h) as the hash function
+//NOTE: a key shares its data with the object it was copied from, which then must not be changed without copyonwrite()
+namespace std {
+template<typename T> struct hash<LA::NRVec<T> > {size_t operator()(const LA::NRVec<T> &x) const {return x.hash();}};
+}
 
 #endif /* _LA_VEC_H_ */

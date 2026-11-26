@@ -30,6 +30,7 @@
 #include "graph.h"
 #include "numbers.h"
 #include "miscfunc.h"
+#include <unordered_map>
 
 
 using namespace std;
@@ -4922,6 +4923,53 @@ s.randomize(1.);
 NRVec<int> iv(n);
 for(int i=0; i<n; ++i) iv[i]=i;
 cout <<"symmetric matrix: hash "<<s.hash()<<" checksum "<<s.checksum()<<"; hash of an integer vector chained with it "<<iv.hash(s.hash())<<endl;
+//tensor: the shape enters, the names only on request
+INDEXGROUP g;
+g.number=3;
+g.symmetry= -1;
+#ifndef LA_TENSOR_ZERO_OFFSET
+g.offset=0;
+#endif
+g.range=n;
+Tensor<double> t(g);
+t.randomize(1.);
+Tensor<double> t2(t);
+g.symmetry=1;
+Tensor<double> t3(g);
+t3.data=t.data;
+cout <<"tensors: equal "<<(t.hash()==t2.hash())<<", other symmetry of the same data "<<(t.hash()==t3.hash())<<", difference of their checksums "<<t.checksum()-t3.checksum()<<endl;
+t2.defaultnames();
+cout <<"named tensor: hash without names equal "<<(t.hash()==t2.hash())<<", with names "<<(t.hash(LA_HASH_INIT,true)==t2.hash(LA_HASH_INIT,true))<<endl;
+//fourindex_dense has both from the matrix it is derived from
+fourindex_dense<twoelectronrealmullikan,double,int> f(n);
+f.randomize(1.);
+cout <<"fourindex_dense: hash "<<f.hash()<<" checksum "<<f.checksum()<<endl;
+//vectors as keys of a hash table
+std::unordered_map<NRVec<int>,int> table;
+for(int i=0; i<5; ++i)
+	{
+	NRVec<int> key(3);
+	key[0]=i;
+	key[1]=i*i;
+	key[2]= -i;
+	table[key]=10*i;
+	}
+NRVec<int> key(3);
+key[0]=3;
+key[1]=9;
+key[2]= -3;
+cout <<"hash table with vectors as keys: size "<<table.size()<<", value found for the key (3,9,-3) = "<<table[key]<<", number of entries with another key "<<table.count(iv)<<endl;
+//for a derived class the hash function has to be given
+std::unordered_map<NRPerm<int>,int,LA::Hash> ptable;
+NRPerm<int> perm(4);
+perm.identity();
+for(int i=0; i<24; ++i)
+	{
+	ptable[perm]=i;
+	perm.next();
+	}
+perm.identity();
+cout <<"hash table with permutations as keys: size "<<ptable.size()<<", value found for the identity = "<<ptable[perm]<<endl;
 }
 
 if(0) //testbed of the general methods
