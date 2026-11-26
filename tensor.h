@@ -136,7 +136,7 @@ class LA_traits<INDEXNAME> {
         static bool is_plaindata() {return true;};
         static void copyonwrite(INDEXNAME& x) {};
         typedef INDEXNAME normtype;
-        static inline int gencmp(const INDEXNAME *a, const INDEXNAME *b, int n) {return memcmp(a,b,n*sizeof(INDEXNAME));};
+        static inline int gencmp(const INDEXNAME *a, const INDEXNAME *b, int n) {for(int i=0; i<n; ++i) if(a[i]!=b[i]) return 1; return 0;}; //not memcmp: the characters after the terminating zero are undefined
         static inline void put(int fd, const INDEXNAME &x, bool dimensions=1) {if(sizeof(INDEXNAME)!=write(fd,&x,sizeof(INDEXNAME))) laerror("write error 1 in INDEXNAME put"); }
         static inline void multiput(int nn, int fd, const INDEXNAME *x, bool dimensions=1) {if(nn*sizeof(INDEXNAME)!=write(fd,x,nn*sizeof(INDEXNAME))) laerror("write error 1 in INDEXNAME multiiput"); }
         static inline void get(int fd, INDEXNAME &x, bool dimensions=1) {if(sizeof(INDEXNAME)!=read(fd,&x,sizeof(INDEXNAME))) laerror("read error 1 in INDEXNAME get");}
@@ -183,7 +183,7 @@ class LA_traits<INDEXGROUP> {
 	static bool is_plaindata() {return true;};
 	static void copyonwrite(INDEXGROUP& x) {};
 	typedef INDEXGROUP normtype;
-	static inline int gencmp(const INDEXGROUP *a, const INDEXGROUP *b, int n) {return memcmp(a,b,n*sizeof(INDEXGROUP));};
+	static inline int gencmp(const INDEXGROUP *a, const INDEXGROUP *b, int n) {for(int i=0; i<n; ++i) if(a[i]!=b[i]) return 1; return 0;}; //not memcmp: the struct can contain padding (LA_TENSOR_INDEXPOSITION)
         static inline void put(int fd, const INDEXGROUP &x, bool dimensions=1) {if(sizeof(INDEXGROUP)!=write(fd,&x,sizeof(INDEXGROUP))) laerror("write error 1 in INDEXGROUP put"); }
         static inline void multiput(int nn, int fd, const INDEXGROUP *x, bool dimensions=1) {if(nn*sizeof(INDEXGROUP)!=write(fd,x,nn*sizeof(INDEXGROUP))) laerror("write error 1 in INDEXGROUP multiiput"); }
         static inline void get(int fd, INDEXGROUP &x, bool dimensions=1) {if(sizeof(INDEXGROUP)!=read(fd,&x,sizeof(INDEXGROUP))) laerror("read error 1 in INDEXGROUP get");}
@@ -378,6 +378,12 @@ public:
 
 	void put(int fd, bool with_names=false) const;
 	void get(int fd, bool with_names=false);
+
+	//equality: the same shape, exactly the same data and the same names of the indices (a named tensor is not equal to
+	//an unnamed one); it is an equivalence relation, as needed for the keys of hash tables, unlike the test of compatibility
+	//in the arithmetic operators, where the names are compared only if both tensors are named
+	bool operator==(const Tensor &rhs) const {return shape==rhs.shape && names==rhs.names && data==rhs.data;};
+	bool operator!=(const Tensor &rhs) const {return !(*this==rhs);};
 
 	//the shape mixed into a hash or into the seed of a checksum
 	uint64_t shapehash(uint64_t h) const
@@ -757,4 +763,9 @@ std::istream & operator>>(std::istream &s, Tensor<T> &x);
 
 
 }//namespace
+
+//hash() (without the names of the indices) as the hash function of the standard library, see the note in vec.h
+namespace std {
+template<typename T> struct hash<LA::Tensor<T> > {size_t operator()(const LA::Tensor<T> &x) const {return x.hash();}};
+}
 #endif

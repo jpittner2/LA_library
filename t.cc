@@ -4940,6 +4940,18 @@ t3.data=t.data;
 cout <<"tensors: equal "<<(t.hash()==t2.hash())<<", other symmetry of the same data "<<(t.hash()==t3.hash())<<", difference of their checksums "<<t.checksum()-t3.checksum()<<endl;
 t2.defaultnames();
 cout <<"named tensor: hash without names equal "<<(t.hash()==t2.hash())<<", with names "<<(t.hash(LA_HASH_INIT,true)==t2.hash(LA_HASH_INIT,true))<<endl;
+//equality of tensors: shape, data and names; tensors as keys of a hash table
+Tensor<double> t4(t), t5(t2);
+cout <<"tensor equal to its copy "<<(t==t4)<<", to the named copy "<<(t==t2)<<", named copies equal "<<(t2==t5)<<", other shape "<<(t==t3)<<endl;
+t5.defaultnames("j");
+t4.data.copyonwrite();
+t4.data[0]+=1e-14;
+cout <<"other names "<<(t2==t5)<<", data changed by 1e-14 "<<(t==t4)<<endl;
+std::unordered_map<Tensor<double>,int> ttable;
+ttable[t]=1;
+ttable[t2]=2;
+ttable[t4]=3;
+cout <<"hash table with tensors as keys: size "<<ttable.size()<<", values "<<ttable[t]<<" "<<ttable[t2]<<" "<<ttable[t4]<<endl;
 //fourindex_dense has both from the matrix it is derived from
 fourindex_dense<twoelectronrealmullikan,double,int> f(n);
 f.randomize(1.);

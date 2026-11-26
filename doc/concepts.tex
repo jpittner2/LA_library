@@ -351,4 +351,5 @@ std::unordered_map<NRVec<int>,double> a;
 std::unordered_map<NRPerm<int>,double,LA::Hash> b;
 \end{lstlisting}
 A key stored in such a container shares its data with the object it was copied from, which therefore must not be
-modified afterwards without \code{copyonwrite()}. \code{Tensor} has no \code{operator==} and cannot be a key.
+modified afterwards without \code{copyonwrite()}. \code{std::hash} is specialized also for \code{Tensor} (by its
+\code{hash()} without the names of the indices).
